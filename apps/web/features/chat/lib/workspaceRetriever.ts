@@ -114,11 +114,12 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
 
   // Standalone mode - resolve workspace from local filesystem
   if (process.env.BRIDGE_ENV === "standalone") {
-    // Lazy import to avoid loading standalone utils in other environments
-    const {
-      getStandaloneWorkspacePath,
-      standaloneWorkspaceExists,
-    } = require("@/features/workspace/lib/standalone-workspace")
+    // Using require() instead of await import() because getWorkspace is synchronous
+    // and used by many API routes. The standalone-workspace module is lightweight
+    // and only loaded in standalone mode.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getStandaloneWorkspacePath, standaloneWorkspaceExists } =
+      require("@/features/workspace/lib/standalone-workspace") as typeof import("@/features/workspace/lib/standalone-workspace")
 
     if (standaloneWorkspaceExists(customWorkspace)) {
       const workspacePath = getStandaloneWorkspacePath(customWorkspace)

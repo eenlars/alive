@@ -449,7 +449,11 @@ export const STANDALONE = {
     NAME: "Local Developer",
     ID: "standalone-user-001",
   },
-  /** Session cookie value for standalone mode */
+  /**
+   * Session cookie value for standalone mode
+   * INTENTIONALLY WEAK - standalone mode is for local development only
+   * with no external authentication. Do not use in production.
+   */
   SESSION_VALUE: "standalone-session",
 } as const
 

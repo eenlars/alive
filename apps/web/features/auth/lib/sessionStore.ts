@@ -19,6 +19,9 @@ import { createIamClient } from "@/lib/supabase/iam"
 /**
  * In-memory session store for standalone mode
  * Sessions are lost on server restart (acceptable for local development)
+ *
+ * NOTE: This Map grows unbounded during the session lifetime. This is acceptable
+ * for local development where restarts are frequent. NOT production-ready.
  */
 const standaloneSessionStore = new Map<string, string>()
 
@@ -232,6 +235,9 @@ function createSupabaseStore(): SessionStore {
 // If tabId generation ever changes, add tab_group_id to iam.sessions.
 
 // Use in-memory store for standalone mode, Supabase for everything else
+// NOTE: Using process.env directly here because this runs at module initialization
+// time (before any async env validation). The env from @webalive/env requires
+// async loading which isn't available at module scope.
 export const sessionStore: SessionStore =
   process.env.BRIDGE_ENV === "standalone" ? createStandaloneStore() : createSupabaseStore()
 
