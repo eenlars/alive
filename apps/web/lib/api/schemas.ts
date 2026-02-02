@@ -1,3 +1,9 @@
+import type {
+  Endpoint as GenericEndpoint,
+  Req as GenericReq,
+  Res as GenericRes,
+  SchemaRegistry,
+} from "@alive-brug/alrighty"
 import { z } from "zod"
 import { OptionalWorktreeSchema, OptionalWorktreeSlugSchema } from "@/types/guards/worktree-schemas"
 
@@ -52,12 +58,10 @@ export const apiSchemas = {
    * User authentication
    */
   login: {
-    req: z
-      .object({
-        email: z.string().email(),
-        password: z.string().min(1),
-      })
-      .brand<"LoginRequest">(),
+    req: z.object({
+      email: z.string().email(),
+      password: z.string().min(1),
+    }),
     res: z.object({
       ok: z.boolean(),
       userId: z.string().optional(),
@@ -74,7 +78,7 @@ export const apiSchemas = {
    * Returns full SessionUser object from getSessionUser()
    */
   user: {
-    req: z.undefined().brand<"UserRequest">(), // GET has no body
+    // No req needed for GET endpoints
     res: z.object({
       user: z
         .object({
@@ -94,15 +98,13 @@ export const apiSchemas = {
    * Submit user feedback
    */
   feedback: {
-    req: z
-      .object({
-        feedback: z.string().min(1).max(5000),
-        email: z.string().email().optional(),
-        workspace: z.string().optional(),
-        conversationId: z.string().uuid().optional(),
-        userAgent: z.string().optional(),
-      })
-      .brand<"FeedbackRequest">(),
+    req: z.object({
+      feedback: z.string().min(1).max(5000),
+      email: z.string().email().optional(),
+      workspace: z.string().optional(),
+      conversationId: z.string().uuid().optional(),
+      userAgent: z.string().optional(),
+    }),
     res: z.object({
       ok: z.boolean(),
       id: z.string().optional(),
@@ -115,28 +117,20 @@ export const apiSchemas = {
   /**
    * POST /api/claude/stream/cancel
    * Cancel an active stream
-   *
-   * Two modes:
-   * - Primary: Cancel by requestId (when X-Request-Id header was received)
-   * - Fallback: Cancel by tabId + workspace (super-early Stop)
-   *
-   * Note: Schema is permissive - server does its own validation.
-   * Either requestId OR (tabId + workspace) must be provided.
    */
   "claude/stream/cancel": {
     req: z
       .object({
         requestId: z.string().optional(),
-        tabGroupId: z.string().optional(), // Tab group ID for lock key
-        tabId: z.string().optional(), // Primary session key (replaces conversationId for fallback)
+        tabGroupId: z.string().optional(),
+        tabId: z.string().optional(),
         workspace: z.string().optional(),
         worktree: OptionalWorktreeSchema, // Validated to prevent session key corruption
         clientStack: z.string().optional(), // Debug: client-side stack trace for tracking cancel origin
       })
       .refine(data => data.requestId || (data.tabGroupId && data.tabId && data.workspace), {
         message: "Either requestId or (tabGroupId + tabId + workspace) must be provided",
-      })
-      .brand<"CancelStreamRequest">(),
+      }),
     res: z.object({
       ok: z.boolean(),
       status: z.enum(["cancelled", "already_complete"]),
@@ -144,12 +138,13 @@ export const apiSchemas = {
       tabId: z.string().optional(),
     }),
   },
+
   /**
    * GET /api/manager/templates
    * Get all templates (manager auth required)
    */
   "manager/templates": {
-    req: z.undefined().brand<"ManagerTemplatesGetRequest">(),
+    // No req needed for GET endpoints
     res: z.object({
       ok: z.boolean(),
       templates: z.array(
@@ -174,18 +169,16 @@ export const apiSchemas = {
    * Create a new template (manager auth required)
    */
   "manager/templates/create": {
-    req: z
-      .object({
-        template_id: z.string().optional(),
-        name: z.string().min(1),
-        description: z.string().nullable().optional(),
-        ai_description: z.string().nullable().optional(),
-        source_path: z.string().min(1),
-        preview_url: z.string().nullable().optional(),
-        image_url: z.string().nullable().optional(),
-        is_active: z.boolean().optional(),
-      })
-      .brand<"ManagerTemplatesCreateRequest">(),
+    req: z.object({
+      template_id: z.string().optional(),
+      name: z.string().min(1),
+      description: z.string().nullable().optional(),
+      ai_description: z.string().nullable().optional(),
+      source_path: z.string().min(1),
+      preview_url: z.string().nullable().optional(),
+      image_url: z.string().nullable().optional(),
+      is_active: z.boolean().nullable().optional(),
+    }),
     res: z.object({
       ok: z.boolean(),
       template: z.object({
@@ -207,19 +200,17 @@ export const apiSchemas = {
    * Update an existing template (manager auth required)
    */
   "manager/templates/update": {
-    req: z
-      .object({
-        template_id: z.string(),
-        name: z.string().optional(),
-        description: z.string().nullable().optional(),
-        ai_description: z.string().nullable().optional(),
-        source_path: z.string().optional(),
-        preview_url: z.string().nullable().optional(),
-        image_url: z.string().nullable().optional(),
-        is_active: z.boolean().optional(),
-        deploy_count: z.number().optional(),
-      })
-      .brand<"ManagerTemplatesUpdateRequest">(),
+    req: z.object({
+      template_id: z.string(),
+      name: z.string().optional(),
+      description: z.string().nullable().optional(),
+      ai_description: z.string().nullable().optional(),
+      source_path: z.string().optional(),
+      preview_url: z.string().nullable().optional(),
+      image_url: z.string().nullable().optional(),
+      is_active: z.boolean().nullable().optional(),
+      deploy_count: z.number().nullable().optional(),
+    }),
     res: z.object({
       ok: z.boolean(),
       template: z.object({
@@ -241,7 +232,7 @@ export const apiSchemas = {
    * Delete a template (manager auth required)
    */
   "manager/templates/delete": {
-    req: z.undefined().brand<"ManagerTemplatesDeleteRequest">(),
+    // No req needed for DELETE endpoints
     res: z.object({
       ok: z.boolean(),
       deleted: z.boolean(),
@@ -603,40 +594,13 @@ export const apiSchemas = {
       username: z.string().optional(),
     }),
   },
-} as const
+} as const satisfies SchemaRegistry
 
 // ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 
-export type Endpoint = keyof typeof apiSchemas
-export type Req<E extends Endpoint> = z.infer<(typeof apiSchemas)[E]["req"]>
-export type Res<E extends Endpoint> = z.infer<(typeof apiSchemas)[E]["res"]>
+export type Endpoint = GenericEndpoint<typeof apiSchemas>
+export type Req<E extends Endpoint> = GenericReq<typeof apiSchemas, E>
+export type Res<E extends Endpoint> = GenericRes<typeof apiSchemas, E>
 
-// ============================================================================
-// VALIDATION HELPER
-// ============================================================================
-
-/**
- * Validates request data against the schema for the given endpoint.
- * Returns a branded type that can be passed to API functions.
- *
- * This is REQUIRED - you cannot pass raw objects to postty/putty.
- * The branded type ensures data has been validated.
- *
- * @example
- * ```typescript
- * // ❌ This won't compile:
- * await postty("login", { email: "test@example.com", password: "secret" })
- *
- * // ✅ This is required:
- * const validated = validateRequest("login", { email: "test@example.com", password: "secret" })
- * await postty("login", validated)
- * ```
- *
- * @throws {ZodError} If validation fails (invalid email, password too short, etc.)
- */
-export function validateRequest<E extends Endpoint>(endpoint: E, data: unknown): Req<E> {
-  const schema = apiSchemas[endpoint].req
-  return schema.parse(data) as Req<E>
-}

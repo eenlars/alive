@@ -51,19 +51,15 @@ describe("API Schema Type System", () => {
   })
 
   describe("Request types (Req<E>)", () => {
-    it("should extract login request type with brand", () => {
+    it("should extract login request type", () => {
       type LoginReq = Req<"login">
 
       // Should have required properties
       expectTypeOf<LoginReq>().toHaveProperty("email")
       expectTypeOf<LoginReq>().toHaveProperty("password")
-
-      // Should be branded (not assignable from plain object)
-      type PlainObj = { email: string; password: string }
-      expectTypeOf<PlainObj>().not.toMatchTypeOf<LoginReq>()
     })
 
-    it("should extract feedback request type with brand", () => {
+    it("should extract feedback request type", () => {
       type FeedbackReq = Req<"feedback">
 
       expectTypeOf<FeedbackReq>().toHaveProperty("feedback")
@@ -75,22 +71,31 @@ describe("API Schema Type System", () => {
       expectTypeOf<FeedbackReq>().toHaveProperty("conversationId")
     })
 
-    it("should have branded type for user GET endpoint", () => {
+    it("should return never for GET endpoint (no request body)", () => {
       type UserReq = Req<"user">
 
-      // User endpoint has branded undefined (GET request, no body)
-      // The brand makes it distinct from plain undefined
-      type PlainUndefined = undefined
-      expectTypeOf<PlainUndefined>().not.toMatchTypeOf<UserReq>()
+      // User endpoint is GET-only, no request body
+      expectTypeOf<UserReq>().toEqualTypeOf<never>()
     })
 
-    it("should not allow plain objects as branded types", () => {
-      type LoginReq = Req<"login">
-      type PlainLogin = { email: string; password: string }
+    it("should return never for DELETE endpoint (no request body)", () => {
+      type DeleteReq = Req<"manager/templates/delete">
 
-      // Plain object is NOT the same as branded type
-      expectTypeOf<PlainLogin>().not.toEqualTypeOf<LoginReq>()
-      expectTypeOf<PlainLogin>().not.toMatchTypeOf<LoginReq>()
+      // DELETE endpoint has no request body
+      expectTypeOf<DeleteReq>().toEqualTypeOf<never>()
+    })
+
+    it("should have request type for POST/PUT endpoints", () => {
+      type CreateReq = Req<"manager/templates/create">
+      type UpdateReq = Req<"manager/templates/update">
+
+      // These should NOT be never
+      expectTypeOf<CreateReq>().not.toEqualTypeOf<never>()
+      expectTypeOf<UpdateReq>().not.toEqualTypeOf<never>()
+
+      // Should have expected properties
+      expectTypeOf<CreateReq>().toHaveProperty("name")
+      expectTypeOf<UpdateReq>().toHaveProperty("template_id")
     })
   })
 
@@ -143,12 +148,11 @@ describe("API Schema Type System", () => {
       type LoginReq = Req<"login">
       type FeedbackReq = Req<"feedback">
 
-      // Different endpoints have different branded types
+      // Different endpoints have different types
       expectTypeOf<LoginReq>().not.toEqualTypeOf<FeedbackReq>()
-      expectTypeOf<LoginReq>().not.toMatchTypeOf<FeedbackReq>()
     })
 
-    it("should have distinct brands per endpoint", () => {
+    it("should distinguish between request types", () => {
       type Login = Req<"login">
       type Feedback = Req<"feedback">
       type User = Req<"user">
@@ -189,22 +193,29 @@ describe("API Schema Type System", () => {
     })
   })
 
-  describe("Branded type enforcement", () => {
-    it("login request should require LoginRequest brand", () => {
-      // The branded type includes the brand marker
+  describe("Mutation vs Read endpoints", () => {
+    it("should have request types only for mutation endpoints", () => {
+      // These have req schemas
       type LoginReq = Req<"login">
-      type UnbrandedLogin = { email: string; password: string }
-
-      // Branded type is NOT assignable from unbranded
-      expectTypeOf<UnbrandedLogin>().not.toMatchTypeOf<LoginReq>()
-    })
-
-    it("feedback request should require FeedbackRequest brand", () => {
       type FeedbackReq = Req<"feedback">
-      type UnbrandedFeedback = { feedback: string }
+      type CancelReq = Req<"claude/stream/cancel">
+      type CreateReq = Req<"manager/templates/create">
+      type UpdateReq = Req<"manager/templates/update">
 
-      // Branded type is NOT assignable from unbranded
-      expectTypeOf<UnbrandedFeedback>().not.toMatchTypeOf<FeedbackReq>()
+      expectTypeOf<LoginReq>().not.toEqualTypeOf<never>()
+      expectTypeOf<FeedbackReq>().not.toEqualTypeOf<never>()
+      expectTypeOf<CancelReq>().not.toEqualTypeOf<never>()
+      expectTypeOf<CreateReq>().not.toEqualTypeOf<never>()
+      expectTypeOf<UpdateReq>().not.toEqualTypeOf<never>()
+
+      // These don't have req schemas (GET/DELETE)
+      type UserReq = Req<"user">
+      type TemplatesReq = Req<"manager/templates">
+      type DeleteReq = Req<"manager/templates/delete">
+
+      expectTypeOf<UserReq>().toEqualTypeOf<never>()
+      expectTypeOf<TemplatesReq>().toEqualTypeOf<never>()
+      expectTypeOf<DeleteReq>().toEqualTypeOf<never>()
     })
   })
 })
