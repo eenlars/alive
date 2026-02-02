@@ -423,13 +423,35 @@ export const STREAM_ENV = {
   DEV: "dev",
   STAGING: "staging",
   PRODUCTION: "production",
+  STANDALONE: "standalone",
 } as const
 
 export type StreamEnv = (typeof STREAM_ENV)[keyof typeof STREAM_ENV]
 
+// Alias for standalone mode compatibility
+export const BRIDGE_ENV = STREAM_ENV
+export type BridgeEnv = StreamEnv
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
+
+/**
+ * Standalone mode configuration
+ * For running Claude Bridge locally without external dependencies
+ */
+export const STANDALONE = {
+  /** Default workspace directory relative to home */
+  DEFAULT_WORKSPACE_DIR: ".claude-bridge/workspaces",
+  /** Test user for auto-login in standalone mode */
+  TEST_USER: {
+    EMAIL: "local@standalone",
+    NAME: "Local Developer",
+    ID: "standalone-user-001",
+  },
+  /** Session cookie value for standalone mode */
+  SESSION_VALUE: "standalone-session",
+} as const
 
 /**
  * Generate systemd service name from slug

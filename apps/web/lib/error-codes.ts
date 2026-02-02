@@ -8,6 +8,7 @@ export const ErrorCodes = {
   WORKSPACE_INVALID: "WORKSPACE_INVALID",
   WORKSPACE_MISSING: "WORKSPACE_MISSING",
   WORKSPACE_NOT_AUTHENTICATED: "WORKSPACE_NOT_AUTHENTICATED",
+  WORKSPACE_EXISTS: "WORKSPACE_EXISTS",
   PATH_OUTSIDE_WORKSPACE: "PATH_OUTSIDE_WORKSPACE",
 
   // Worktree errors (1.5xxx)
@@ -168,6 +169,11 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
 
     case ErrorCodes.WORKSPACE_NOT_AUTHENTICATED:
       return "You need to log in to access this workspace. Please enter your passcode."
+
+    case ErrorCodes.WORKSPACE_EXISTS:
+      return details?.workspace
+        ? `The workspace '${details.workspace}' already exists. Please choose a different name.`
+        : "This workspace already exists. Please choose a different name."
 
     case ErrorCodes.PATH_OUTSIDE_WORKSPACE:
       return details?.attemptedPath

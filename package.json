@@ -36,6 +36,7 @@
     "setup": "./scripts/setup/copy-template.sh",
     "setup:server": "bun scripts/setup/server-setup.ts",
     "setup:server:prod": "bun scripts/setup/server-setup.ts --production --enable",
+    "setup:standalone": "./scripts/setup-standalone.sh",
     "cleanup-test-db": "bun scripts/database/cleanup-test-database.ts",
     "superclean": "bun scripts/database/superclean.ts",
     "gen:db": "./scripts/database/generate-types.sh",

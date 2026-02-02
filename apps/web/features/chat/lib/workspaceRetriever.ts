@@ -112,6 +112,41 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
     }
   }
 
+  // Standalone mode - resolve workspace from local filesystem
+  if (process.env.BRIDGE_ENV === "standalone") {
+    // Lazy import to avoid loading standalone utils in other environments
+    const {
+      getStandaloneWorkspacePath,
+      standaloneWorkspaceExists,
+    } = require("@/features/workspace/lib/standalone-workspace")
+
+    if (standaloneWorkspaceExists(customWorkspace)) {
+      const workspacePath = getStandaloneWorkspacePath(customWorkspace)
+      console.log(`[Workspace ${requestId}] Using standalone workspace: ${workspacePath}`)
+      return {
+        success: true,
+        workspace: workspacePath,
+      }
+    }
+
+    console.error(`[Workspace ${requestId}] Standalone workspace not found: ${customWorkspace}`)
+    return {
+      success: false,
+      response: NextResponse.json(
+        {
+          ok: false,
+          error: ErrorCodes.WORKSPACE_NOT_FOUND,
+          message: `Standalone workspace not found: ${customWorkspace}`,
+          details: {
+            workspace: customWorkspace,
+            suggestion: `Create workspace with: mkdir -p ~/.claude-bridge/workspaces/${customWorkspace}/user`,
+          },
+        },
+        { status: 404 },
+      ),
+    }
+  }
+
   // Allow "test" or "test.alive.local" workspace in local development mode (for E2E tests)
   // Test workspace is created by e2e-tests/genuine-setup.ts
   const testWorkspace = `test.${TEST_CONFIG.EMAIL_DOMAIN}`
