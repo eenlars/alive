@@ -3,6 +3,8 @@ export const runtime = "nodejs"
 import { NextResponse } from "next/server"
 import Database from "better-sqlite3"
 import path from "node:path"
+import { createErrorResponse } from "@/features/auth/lib/auth"
+import { ErrorCodes } from "@/lib/error-codes"
 
 const DB_PATH = path.join(process.cwd(), "../../use_this_to_remember.db")
 
@@ -59,7 +61,7 @@ export async function GET() {
     return NextResponse.json({ ok: true, priorities })
   } catch (error) {
     console.error("Failed to fetch priorities:", error)
-    return NextResponse.json({ ok: false, error: "Failed to fetch priorities" }, { status: 500 })
+    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 }
 
@@ -69,12 +71,12 @@ export async function PATCH(request: Request) {
     const { id, status } = await request.json()
 
     if (!id || !status) {
-      return NextResponse.json({ ok: false, error: "Missing id or status" }, { status: 400 })
+      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { field: !id ? "id" : "status" })
     }
 
     const validStatuses = ["not_started", "in_progress", "done", "blocked"]
     if (!validStatuses.includes(status)) {
-      return NextResponse.json({ ok: false, error: "Invalid status" }, { status: 400 })
+      return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400, { field: "status" })
     }
 
     const db = new Database(DB_PATH)
@@ -84,7 +86,7 @@ export async function PATCH(request: Request) {
 
     if (!row) {
       db.close()
-      return NextResponse.json({ ok: false, error: "Priority not found" }, { status: 404 })
+      return createErrorResponse(ErrorCodes.SITE_NOT_FOUND, 404, { resource: "priority" })
     }
 
     let tags: string[] = []
@@ -110,6 +112,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error("Failed to update priority:", error)
-    return NextResponse.json({ ok: false, error: "Failed to update priority" }, { status: 500 })
+    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 }

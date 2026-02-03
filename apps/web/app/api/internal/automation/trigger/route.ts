@@ -13,6 +13,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getSupabaseCredentials } from "@/lib/env/server"
 import { runAutomationJob } from "@/lib/automation/executor"
+import { createErrorResponse } from "@/features/auth/lib/auth"
+import { ErrorCodes } from "@/lib/error-codes"
 
 export async function POST(req: NextRequest) {
   // Validate internal secret
@@ -21,11 +23,11 @@ export async function POST(req: NextRequest) {
 
   if (!expectedSecret) {
     console.error("[internal/automation/trigger] JWT_SECRET not configured")
-    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 })
+    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 
   if (!secret || secret !== expectedSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
   }
 
   // Parse request body
@@ -33,12 +35,12 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
   }
 
   const { jobId } = body
   if (!jobId) {
-    return NextResponse.json({ error: "jobId is required" }, { status: 400 })
+    return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { field: "jobId" })
   }
 
   // Get job from database
@@ -48,11 +50,11 @@ export async function POST(req: NextRequest) {
   const { data: job, error: jobError } = await supabase.from("automation_jobs").select("*").eq("id", jobId).single()
 
   if (jobError || !job) {
-    return NextResponse.json({ error: "Job not found" }, { status: 404 })
+    return createErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, 404, { jobId })
   }
 
   if (!job.is_active) {
-    return NextResponse.json({ error: "Job is disabled" }, { status: 400 })
+    return createErrorResponse(ErrorCodes.AUTOMATION_JOB_DISABLED, 400, { jobId })
   }
 
   // Get site hostname for workspace resolution
@@ -63,7 +65,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (siteError || !site) {
-    return NextResponse.json({ error: "Site not found for job" }, { status: 404 })
+    return createErrorResponse(ErrorCodes.SITE_NOT_FOUND, 404, { jobId })
   }
 
   console.log(`[internal/automation/trigger] Running job ${jobId} for ${site.hostname}`)
