@@ -162,22 +162,22 @@ export const DOMAINS = {
   MAIN_SUFFIX: `.${MAIN_DOMAIN}`,
 
   /** Production bridge URL */
-  BRIDGE_PROD: `https://terminal.${MAIN_DOMAIN}`,
+  BRIDGE_PROD: `https://app.${WILDCARD_DOMAIN}`,
 
   /** Production bridge hostname */
-  BRIDGE_PROD_HOST: `terminal.${MAIN_DOMAIN}`,
+  BRIDGE_PROD_HOST: `app.${WILDCARD_DOMAIN}`,
 
   /** Development bridge URL */
-  BRIDGE_DEV: `https://dev.terminal.${MAIN_DOMAIN}`,
+  BRIDGE_DEV: `https://dev.${WILDCARD_DOMAIN}`,
 
   /** Development bridge hostname */
-  BRIDGE_DEV_HOST: `dev.terminal.${MAIN_DOMAIN}`,
+  BRIDGE_DEV_HOST: `dev.${WILDCARD_DOMAIN}`,
 
   /** Staging bridge URL */
-  BRIDGE_STAGING: `https://staging.terminal.${MAIN_DOMAIN}`,
+  BRIDGE_STAGING: `https://staging.${WILDCARD_DOMAIN}`,
 
   /** Staging bridge hostname */
-  BRIDGE_STAGING_HOST: `staging.terminal.${MAIN_DOMAIN}`,
+  BRIDGE_STAGING_HOST: `staging.${WILDCARD_DOMAIN}`,
 
   /** Staging domain suffix */
   STAGING_SUFFIX: `.staging.${MAIN_DOMAIN}`,
@@ -286,7 +286,7 @@ export const DEFAULTS = {
   CLAUDE_MAX_TURNS: 50,
 
   /** Default fallback origin for CORS */
-  FALLBACK_ORIGIN: `https://terminal.${MAIN_DOMAIN}`,
+  FALLBACK_ORIGIN: `https://app.${WILDCARD_DOMAIN}`,
 
   /** Template ID prefix - all template IDs must start with this */
   TEMPLATE_ID_PREFIX: "tmpl_",
@@ -332,10 +332,9 @@ const buildCorsOrigins = (): readonly string[] => {
   const origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    `https://terminal.${MAIN_DOMAIN}`,
-    `https://dev.terminal.${MAIN_DOMAIN}`,
-    `https://staging.terminal.${MAIN_DOMAIN}`,
     `https://app.${WILDCARD_DOMAIN}`,
+    `https://dev.${WILDCARD_DOMAIN}`,
+    `https://staging.${WILDCARD_DOMAIN}`,
   ]
 
   // Add frame ancestors from server config if present

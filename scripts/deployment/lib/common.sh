@@ -166,7 +166,9 @@ service_force_restart() {
         fi
 
         # Kill any remaining processes in the cgroup
-        local cgroup_path="/sys/fs/cgroup/system.slice/${service}"
+        # Ensure service name has .service suffix for cgroup path (avoid duplication)
+        local unit_name="${service%.service}.service"
+        local cgroup_path="/sys/fs/cgroup/system.slice/${unit_name}"
         if [[ -f "${cgroup_path}/cgroup.procs" ]]; then
             while read pid; do
                 [[ -n "$pid" ]] && kill -9 "$pid" 2>/dev/null || true
