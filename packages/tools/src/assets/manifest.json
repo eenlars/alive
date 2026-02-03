@@ -1,0 +1,8 @@
+{
+  "fonts/satoshi": {
+    "description": "Satoshi - modern geometric sans-serif",
+    "files": ["Satoshi-Variable.woff2", "Satoshi-Bold.woff2"],
+    "suggestedDest": "public/fonts",
+    "primaryFile": "Satoshi-Variable.woff2"
+  }
+}

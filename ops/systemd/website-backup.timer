@@ -1,0 +1,16 @@
+[Unit]
+Description=Daily website backup to GitHub
+Documentation=https://github.com/eenlars/all_websites
+
+[Timer]
+# Run at 2:00 AM every day
+OnCalendar=*-*-* 02:00:00
+
+# Run missed backups if system was off
+Persistent=true
+
+# Add some randomness to avoid exact timing
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

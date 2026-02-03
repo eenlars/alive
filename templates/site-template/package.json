@@ -1,0 +1,19 @@
+{
+  "name": "@alive-brug/template",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Template for creating new Vite React applications with shadcn/ui",
+  "workspaces": [
+    "user"
+  ],
+  "scripts": {
+    "dev": "cd user && bun run dev",
+    "build": "cd user && bun run build",
+    "build:dev": "cd user && bun run build:dev",
+    "lint": "cd user && bun run lint",
+    "preview": "cd user && bun run preview"
+  },
+  "devDependencies": {
+    "@alive-game/alive-tagger": "0.1.1"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://v2-8-2.turborepo.dev/schema.json",
+  "ui": "stream",
+  "globalDependencies": ["tsconfig.json"],
+  "globalEnv": ["CI", "NODE_ENV", "VERCEL", "VERCEL_ENV", "VERCEL_URL"],
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["ANTHROPIC_API_KEY", "ANTH_API_SECRET", "BRIDGE_ENV", "LOCAL_TEMPLATE_PATH", "PLAYWRIGHT_TEST"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.test.ts", "!**/*.spec.ts", "!**/__tests__/**"],
+      "outputs": [".next/**", "!.next/cache/**", "!.next/lock", "dist/**"],
+      "env": [
+        "ANTHROPIC_API_KEY",
+        "ANTH_API_SECRET",
+        "SUPABASE_URL",
+        "SUPABASE_ANON_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "CLAUDE_MODEL",
+        "WORKSPACE_BASE",
+        "BRIDGE_PASSCODE",
+        "BRIDGE_ENV",
+        "GROQ_API_SECRET",
+        "GITHUB_WEBHOOK_SECRET",
+        "DEPLOY_BRANCH",
+        "LOCAL_TEMPLATE_PATH",
+        "JWT_SECRET",
+        "JWT_ES256_PRIVATE_KEY",
+        "INTERNAL_TOOLS_SECRET",
+        "IMAGES_SIGNATURE_SECRET",
+        "IMAGES_STORAGE_PATH"
+      ]
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "persistent": true
+    },
+    "type-check": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.test.ts", "!**/*.spec.ts"],
+      "outputs": []
+    },
+    "lint": {
+      "inputs": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "biome.json"],
+      "outputs": []
+    },
+    "format": {
+      "inputs": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.json", "biome.json"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$"],
+      "outputs": ["coverage/**"],
+      "env": ["VITEST_POOL_ID"]
+    },
+    "@alive-brug/redis#start": {
+      "cache": false,
+      "persistent": true
+    },
+    "@alive-brug/redis#stop": {
+      "cache": false
+    },
+    "@alive-brug/redis#status": {
+      "cache": false
+    },
+    "@alive-brug/redis#health": {
+      "cache": false
+    },
+    "@webalive/broker#dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["BROKER_SHARED_SECRET", "BROKER_PORT", "BROKER_HOST"]
+    },
+    "@webalive/broker#start": {
+      "dependsOn": ["@webalive/broker#build"],
+      "cache": false,
+      "persistent": true,
+      "env": ["BROKER_SHARED_SECRET", "BROKER_PORT", "BROKER_HOST"]
+    }
+  }
+}

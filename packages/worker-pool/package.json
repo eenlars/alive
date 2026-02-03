@@ -1,0 +1,40 @@
+{
+  "name": "@webalive/worker-pool",
+  "version": "1.0.0",
+  "description": "Persistent worker pool for Claude Agent SDK with Unix socket IPC",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src/worker-entry.mjs"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "check:imports": "node scripts/check-import-order.mjs",
+    "lint": "bun run check:imports",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@types/node": "^20.0.0",
+    "@webalive/shared": "workspace:*",
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.25"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0"
+  },
+  "keywords": [
+    "worker-pool",
+    "claude",
+    "ipc",
+    "unix-socket",
+    "persistent-worker"
+  ],
+  "author": "WebAlive",
+  "license": "MIT"
+}

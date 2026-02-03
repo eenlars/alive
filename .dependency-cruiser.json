@@ -1,0 +1,104 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sverweij/dependency-cruiser/main/src/schema/configuration.schema.json",
+  "forbidden": [
+    {
+      "name": "no-circular",
+      "severity": "error",
+      "comment": "No circular dependencies allowed - causes maintainability issues",
+      "from": {},
+      "to": {
+        "circular": true
+      }
+    },
+    {
+      "name": "no-api-to-components",
+      "severity": "error",
+      "comment": "API routes should not import UI components",
+      "from": {
+        "path": "^apps/web/app/api"
+      },
+      "to": {
+        "path": "^apps/web/components"
+      }
+    },
+    {
+      "name": "no-api-to-features-ui",
+      "severity": "warn",
+      "comment": "API routes should prefer lib over feature UI code",
+      "from": {
+        "path": "^apps/web/app/api"
+      },
+      "to": {
+        "path": "^apps/web/features/[^/]+/components"
+      }
+    },
+    {
+      "name": "lib-stays-low-level",
+      "severity": "error",
+      "comment": "Lib (shared utilities) cannot import from features, components, or app",
+      "from": {
+        "path": "^apps/web/lib"
+      },
+      "to": {
+        "path": "^apps/web/(features|components|app)"
+      }
+    },
+    {
+      "name": "no-deprecated",
+      "severity": "warn",
+      "comment": "Don't use deprecated modules",
+      "from": {},
+      "to": {
+        "dependencyTypes": ["deprecated"]
+      }
+    },
+    {
+      "name": "not-reachable-from-folder-index",
+      "severity": "info",
+      "comment": "Feature modules should export through index files",
+      "from": {
+        "path": "^apps/web/features/[^/]+/index\\.[jt]sx?$"
+      },
+      "to": {
+        "path": "^apps/web/features/[^/]+/.+\\.[jt]sx?$",
+        "reachable": false
+      }
+    }
+  ],
+  "options": {
+    "doNotFollow": {
+      "path": [
+        "node_modules",
+        ".next",
+        "dist",
+        ".turbo",
+        "coverage"
+      ]
+    },
+    "includeOnly": {
+      "path": "^apps/web"
+    },
+    "exclude": {
+      "path": [
+        "\\.test\\.[jt]sx?$",
+        "\\.spec\\.[jt]sx?$",
+        "^apps/web/lib/db",
+        "^apps/web/lib/supabase/.*\\.types\\.ts$"
+      ]
+    },
+    "tsPreCompilationDeps": false,
+    "combinedDependencies": false,
+    "enhancedResolveOptions": {
+      "exportsFields": ["exports"],
+      "conditionNames": ["import", "require", "node", "default"]
+    },
+    "reporterOptions": {
+      "dot": {
+        "collapsePattern": "^apps/web/(features|components|lib|app)/[^/]+"
+      },
+      "text": {
+        "highlightFocused": true
+      }
+    }
+  }
+}

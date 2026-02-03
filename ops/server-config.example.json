@@ -1,0 +1,33 @@
+{
+  "_comment": "Copy to /var/lib/claude-bridge/server-config.json and customize for this server",
+  "serverId": "srv-CHANGEME",
+  "serverIp": "0.0.0.0",
+  "paths": {
+    "bridgeRoot": "/path/to/claude-bridge",
+    "sitesRoot": "/srv/webalive/sites",
+    "imagesStorage": "/srv/webalive/storage"
+  },
+  "domains": {
+    "main": "goalive.nl",
+    "wildcard": "alive.best",
+    "cookieDomain": ".terminal.goalive.nl",
+    "previewBase": "preview.terminal.goalive.nl",
+    "frameAncestors": [
+      "https://terminal.goalive.nl",
+      "https://dev.terminal.goalive.nl",
+      "https://staging.terminal.goalive.nl",
+      "https://app.alive.best"
+    ]
+  },
+  "shell": {
+    "domains": ["shell.terminal.goalive.nl", "go.goalive.nl", "sk.goalive.nl"],
+    "listen": ":8443",
+    "upstream": "localhost:3889"
+  },
+  "generated": {
+    "dir": "/var/lib/claude-bridge/generated",
+    "caddySites": "/var/lib/claude-bridge/generated/Caddyfile.sites",
+    "caddyShell": "/var/lib/claude-bridge/generated/Caddyfile.shell",
+    "nginxMap": "/var/lib/claude-bridge/generated/nginx.sni.map"
+  }
+}

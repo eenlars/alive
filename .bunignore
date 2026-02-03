@@ -1,0 +1,7 @@
+# Exclude e2e tests from bun test (use bun run test:e2e instead)
+**/e2e-tests/**
+**/*.spec.ts
+# Exclude build artifacts
+**/.builds/**
+**/dist/**
+**/.next/**

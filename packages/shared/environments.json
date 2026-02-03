@@ -1,0 +1,57 @@
+{
+  "environments": {
+    "production": {
+      "key": "production",
+      "displayName": "Production",
+      "prefix": "production",
+      "port": 9000,
+      "domain": "terminal.goalive.nl",
+      "processName": "claude-bridge-production",
+      "serviceType": "systemd",
+      "systemdService": "claude-bridge-production.service",
+      "serverScript": ".builds/production/current/standalone/apps/web/server.js",
+      "buildPath": ".builds/production",
+      "workspacePath": "/srv/webalive/sites",
+      "isProduction": true,
+      "hasHotReload": false,
+      "deployCommand": "make wash-skip",
+      "logsCommand": "journalctl -u claude-bridge-production.service -f",
+      "restartCommand": "systemctl restart claude-bridge-production.service"
+    },
+    "staging": {
+      "key": "staging",
+      "displayName": "Staging",
+      "prefix": "staging",
+      "port": 8998,
+      "domain": "staging.terminal.goalive.nl",
+      "processName": "claude-bridge-staging",
+      "serviceType": "systemd",
+      "systemdService": "claude-bridge-staging.service",
+      "serverScript": ".builds/staging/current/standalone/apps/web/server.js",
+      "buildPath": ".builds/staging",
+      "workspacePath": "/srv/webalive/sites",
+      "isProduction": false,
+      "hasHotReload": false,
+      "deployCommand": "make staging",
+      "logsCommand": "journalctl -u claude-bridge-staging.service -f",
+      "restartCommand": "systemctl restart claude-bridge-staging.service"
+    },
+    "dev": {
+      "key": "dev",
+      "displayName": "Development",
+      "prefix": "dev",
+      "port": 8997,
+      "domain": "dev.terminal.goalive.nl",
+      "processName": "claude-bridge-dev",
+      "serviceType": "systemd",
+      "systemdService": "claude-bridge-dev.service",
+      "serverScript": "node_modules/.bin/next",
+      "workspacePath": "/srv/webalive/sites",
+      "isProduction": false,
+      "hasHotReload": true,
+      "deployCommand": "make dev",
+      "logsCommand": "journalctl -u claude-bridge-dev.service -f",
+      "restartCommand": "systemctl restart claude-bridge-dev.service"
+    }
+  }
+}

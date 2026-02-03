@@ -1,0 +1,14 @@
+[Unit]
+Description=WebAlive Site Mode Verification
+After=multi-user.target
+Wants=webalive-mode-check.timer
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/verify-site-modes.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=webalive-mode-check
+
+[Install]
+WantedBy=multi-user.target

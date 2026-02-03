@@ -1,0 +1,19 @@
+#!/bin/sh
+# .husky/pre-push
+
+echo "🔍 Running static checks before push..."
+
+# Run comprehensive checks:
+# - Type checking (Turbo cached)
+# - Linting (Turbo cached)
+# - Format checking (Turbo cached)
+# - Unit tests
+if ! bun run static-check; then
+    echo ""
+    echo "❌ Pre-push check failed. Fix the issues above before pushing."
+    echo "   Run 'bun run static-check' locally to verify fixes."
+    echo "   To skip this check (not recommended): git push --no-verify"
+    exit 1
+fi
+
+echo "✅ All checks passed. Proceeding with push..."

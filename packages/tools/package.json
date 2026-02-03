@@ -1,0 +1,39 @@
+{
+  "name": "@alive-brug/tools",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./display": {
+      "import": "./dist/display.js",
+      "types": "./dist/display.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc && cp -r src/assets dist/",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "npx biome format --write .",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.25",
+    "@webalive/database": "workspace:*",
+    "@webalive/shared": "workspace:*",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.2",
+    "@vitest/coverage-v8": "^2.1.8",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8"
+  }
+}

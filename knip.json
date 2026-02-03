@@ -1,0 +1,57 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.{ts,mjs}"],
+      "project": ["*.{ts,js,mjs}", "scripts/**/*.{ts,mjs}"]
+    },
+    "apps/web": {
+      "entry": ["app/**/*.{ts,tsx}", "lib/test-helpers/**/*.ts"],
+      "project": ["**/*.{ts,tsx,mjs}"]
+    },
+    "packages/tools": {
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/images": {
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/shell-server": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  },
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/dist/**",
+    "**/.turbo/**",
+    "**/.builds/**",
+    "**/lib/db/**",
+    "**/lib/supabase/*.types.ts",
+    "packages/template/**",
+    "**/scripts/**",
+    "*.config.{js,ts}",
+    "apps/web/lib/agent-workspace-helpers.mjs"
+  ],
+  "ignoreDependencies": ["groq-sdk", "msgpackr", "react-markdown", "ws"],
+  "ignoreBinaries": ["go", "docker-compose", "journalctl"],
+  "ignoreExportsUsedInFile": true,
+  "includeEntryExports": false,
+  "rules": {
+    "duplicates": "error",
+    "unlisted": "off",
+    "unresolved": "off",
+    "files": "off",
+    "dependencies": "off",
+    "devDependencies": "off",
+    "exports": "off",
+    "nsExports": "off",
+    "nsTypes": "off",
+    "enumMembers": "off",
+    "classMembers": "off",
+    "types": "off"
+  }
+}

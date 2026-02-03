@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  ocr:
+    build: .
+    container_name: mcp-ocr
+    ports:
+      - "8084:8084"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Mount workspace directory for ocr_from_path to access user files
+    volumes:
+      - /srv/webalive/sites:/srv/webalive/sites:ro
+    # Healthcheck uses MCP initialize method (no /health endpoint in FastMCP)
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "-X", "POST", "-H", "Content-Type: application/json", "-H", "Accept: application/json, text/event-stream", "-d", "{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"healthcheck\",\"version\":\"1.0\"}},\"id\":1}", "http://localhost:8084/mcp"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

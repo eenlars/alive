@@ -1,0 +1,29 @@
+# caddy-shell.service
+#
+# Dedicated Caddy instance for Go Shell (Claude Code SSE connections)
+# This service is NEVER auto-reloaded during deployments to preserve
+# long-lived SSE connections.
+#
+# Only reload manually when shell domain config actually changes:
+#   systemctl reload caddy-shell
+
+[Unit]
+Description=Caddy Shell (Isolated instance for Go Shell)
+Documentation=https://caddyserver.com/docs/
+After=network.target network-online.target
+Requires=network-online.target
+
+[Service]
+Type=notify
+User=caddy
+Group=caddy
+ExecStart=/usr/bin/caddy run --environ --config /etc/caddy/Caddyfile.shell
+ExecReload=/usr/bin/caddy reload --config /etc/caddy/Caddyfile.shell --force
+TimeoutStopSec=5s
+LimitNOFILE=1048576
+PrivateTmp=true
+ProtectSystem=full
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

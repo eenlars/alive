@@ -1,0 +1,295 @@
+#!/usr/bin/env bun
+/**
+ * Server Setup Script
+ *
+ * Single command to set up a new server or update an existing one.
+ * Reads configuration from /var/lib/claude-bridge/server-config.json
+ *
+ * Usage: bun run setup:server [--production] [--enable]
+ */
+
+import { execSync, spawn } from "node:child_process"
+import { access, mkdir, readFile, copyFile, symlink, rm } from "node:fs/promises"
+import { constants, existsSync } from "node:fs"
+
+// =============================================================================
+// Types & Constants
+// =============================================================================
+
+const CONFIG_PATH = "/var/lib/claude-bridge/server-config.json"
+const GENERATED_DIR = "/var/lib/claude-bridge/generated"
+
+const COLORS = {
+  red: "\x1b[31m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  blue: "\x1b[34m",
+  reset: "\x1b[0m",
+  dim: "\x1b[2m",
+  bold: "\x1b[1m",
+}
+
+const REQUIRED_TOOLS = [
+  { name: "bun", install: "curl -fsSL https://bun.sh/install | bash" },
+  { name: "caddy", install: "apt install caddy" },
+  { name: "redis-cli", install: "apt install redis-server" },
+]
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+function log(msg: string) {
+  console.log(msg)
+}
+
+function ok(msg: string) {
+  console.log(`${COLORS.green}✓${COLORS.reset} ${msg}`)
+}
+
+function fail(msg: string) {
+  console.error(`${COLORS.red}✗${COLORS.reset} ${msg}`)
+}
+
+function warn(msg: string) {
+  console.log(`${COLORS.yellow}⚠${COLORS.reset} ${msg}`)
+}
+
+function header(msg: string) {
+  console.log(`\n${COLORS.bold}${COLORS.blue}▸ ${msg}${COLORS.reset}\n`)
+}
+
+function run(cmd: string, opts?: { cwd?: string; silent?: boolean }): boolean {
+  try {
+    execSync(cmd, {
+      cwd: opts?.cwd,
+      stdio: opts?.silent ? "pipe" : "inherit",
+      encoding: "utf8",
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+function which(name: string): string | null {
+  try {
+    return execSync(`which ${name} 2>/dev/null`, { encoding: "utf8" }).trim() || null
+  } catch {
+    return null
+  }
+}
+
+// =============================================================================
+// Checks
+// =============================================================================
+
+async function checkPrerequisites(): Promise<{ ok: boolean; bridgeRoot: string }> {
+  header("Checking prerequisites")
+
+  let allOk = true
+
+  // Check required tools
+  for (const tool of REQUIRED_TOOLS) {
+    if (which(tool.name)) {
+      ok(tool.name)
+    } else {
+      fail(`${tool.name} not found`)
+      log(`  ${COLORS.dim}Install: ${tool.install}${COLORS.reset}`)
+      allOk = false
+    }
+  }
+
+  // Check server config
+  let bridgeRoot = ""
+  try {
+    await access(CONFIG_PATH, constants.R_OK)
+    const raw = await readFile(CONFIG_PATH, "utf8")
+    const config = JSON.parse(raw)
+    bridgeRoot = config.paths?.bridgeRoot
+
+    if (!bridgeRoot) {
+      fail("paths.bridgeRoot not set in config")
+      allOk = false
+    } else if (!existsSync(bridgeRoot)) {
+      fail(`bridgeRoot does not exist: ${bridgeRoot}`)
+      allOk = false
+    } else {
+      ok(`server-config.json (bridgeRoot: ${bridgeRoot})`)
+    }
+  } catch {
+    fail(`${CONFIG_PATH} not found`)
+    log(`  ${COLORS.dim}Fix: cp ops/server-config.example.json ${CONFIG_PATH}${COLORS.reset}`)
+    allOk = false
+  }
+
+  // Check Redis
+  if (run("redis-cli ping", { silent: true })) {
+    ok("Redis connection")
+  } else {
+    warn("Redis not responding (may need to start)")
+  }
+
+  return { ok: allOk, bridgeRoot }
+}
+
+// =============================================================================
+// Build
+// =============================================================================
+
+async function buildProduction(bridgeRoot: string): Promise<boolean> {
+  header("Building production")
+
+  const buildDir = `${bridgeRoot}/.builds/production`
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
+  const buildPath = `${buildDir}/${timestamp}`
+
+  // Create build directory
+  await mkdir(buildPath, { recursive: true })
+
+  log(`Building to: ${buildPath}`)
+
+  // Run Next.js build
+  if (!run(`bun run build`, { cwd: `${bridgeRoot}/apps/web` })) {
+    fail("Build failed")
+    return false
+  }
+
+  // Copy standalone output
+  const standaloneSrc = `${bridgeRoot}/apps/web/.next/standalone`
+  const standaloneDst = `${buildPath}/standalone`
+
+  if (!existsSync(standaloneSrc)) {
+    fail("Standalone output not found - check next.config.js has output: 'standalone'")
+    return false
+  }
+
+  run(`cp -r "${standaloneSrc}" "${standaloneDst}"`)
+
+  // Copy static files
+  run(`cp -r "${bridgeRoot}/apps/web/.next/static" "${standaloneDst}/apps/web/.next/"`)
+  run(`cp -r "${bridgeRoot}/apps/web/public" "${standaloneDst}/apps/web/"`)
+
+  // Update symlink
+  const currentLink = `${buildDir}/current`
+  await rm(currentLink, { force: true })
+  await symlink(buildPath, currentLink)
+
+  ok(`Build complete: ${buildPath}`)
+  ok(`Symlinked: ${currentLink}`)
+
+  return true
+}
+
+// =============================================================================
+// Services
+// =============================================================================
+
+async function setupServices(bridgeRoot: string, enable: boolean): Promise<boolean> {
+  header("Setting up systemd services")
+
+  // Generate services
+  if (!run(`bun run gen:systemd`, { cwd: bridgeRoot })) {
+    fail("Failed to generate services")
+    return false
+  }
+
+  // Install services
+  run(`cp ${GENERATED_DIR}/claude-bridge-*.service /etc/systemd/system/`)
+  run(`systemctl daemon-reload`)
+  ok("Services installed")
+
+  if (enable) {
+    run(`systemctl enable claude-bridge-dev`)
+    run(`systemctl enable claude-bridge-production`)
+    ok("Services enabled for auto-start")
+  }
+
+  return true
+}
+
+async function startServices(production: boolean): Promise<void> {
+  header("Starting services")
+
+  // Stop old instances
+  run(`systemctl stop claude-bridge-dev 2>/dev/null || true`, { silent: true })
+  run(`systemctl stop claude-bridge-production 2>/dev/null || true`, { silent: true })
+
+  if (production) {
+    run(`systemctl start claude-bridge-production`)
+    if (run(`systemctl is-active claude-bridge-production`, { silent: true })) {
+      ok("claude-bridge-production running on port 9000")
+    } else {
+      fail("Failed to start production")
+      log(`  ${COLORS.dim}Check: journalctl -u claude-bridge-production -n 50${COLORS.reset}`)
+    }
+  } else {
+    run(`systemctl start claude-bridge-dev`)
+    if (run(`systemctl is-active claude-bridge-dev`, { silent: true })) {
+      ok("claude-bridge-dev running on port 8997")
+    } else {
+      fail("Failed to start dev")
+      log(`  ${COLORS.dim}Check: journalctl -u claude-bridge-dev -n 50${COLORS.reset}`)
+    }
+  }
+}
+
+// =============================================================================
+// Main
+// =============================================================================
+
+async function main() {
+  const args = process.argv.slice(2)
+  const production = args.includes("--production") || args.includes("-p")
+  const enable = args.includes("--enable") || args.includes("-e")
+
+  console.log(`
+${COLORS.bold}╔═══════════════════════════════════════╗
+║     Claude Bridge Server Setup        ║
+╚═══════════════════════════════════════╝${COLORS.reset}
+`)
+
+  // Check prerequisites
+  const prereq = await checkPrerequisites()
+  if (!prereq.ok) {
+    log(`\n${COLORS.red}Fix the above issues and run again.${COLORS.reset}\n`)
+    process.exit(1)
+  }
+
+  const bridgeRoot = prereq.bridgeRoot
+
+  // Generate routing
+  header("Generating routing config")
+  run(`bun run gen:routing`, { cwd: bridgeRoot })
+
+  // Build if production
+  if (production) {
+    const built = await buildProduction(bridgeRoot)
+    if (!built) {
+      process.exit(1)
+    }
+  }
+
+  // Setup services
+  await setupServices(bridgeRoot, enable)
+
+  // Start services
+  await startServices(production)
+
+  // Summary
+  console.log(`
+${COLORS.dim}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLORS.reset}
+${COLORS.green}${COLORS.bold}Setup complete!${COLORS.reset}
+
+${COLORS.dim}Useful commands:${COLORS.reset}
+  bun run see         # View production logs
+  bun run see:dev     # View dev logs
+  bun run gen:all     # Regenerate all configs
+  systemctl status claude-bridge-*
+`)
+}
+
+main().catch(e => {
+  console.error(`${COLORS.red}Fatal:${COLORS.reset}`, e.message)
+  process.exit(1)
+})

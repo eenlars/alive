@@ -1,0 +1,35 @@
+[Unit]
+Description=OCR MCP Server (Docker)
+Documentation=https://github.com/anthropics/claude-code
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/webalive/claude-bridge/apps/mcp-servers/ocr
+
+# Stop existing container, rebuild, and start
+ExecStartPre=/usr/bin/docker stop mcp-ocr || true
+ExecStartPre=/usr/bin/docker rm mcp-ocr || true
+ExecStartPre=/usr/bin/docker build -t mcp-ocr:latest .
+
+# Run container with workspace volume mount
+ExecStart=/usr/bin/docker run --rm --name mcp-ocr \
+    -p 8084:8084 \
+    -v /srv/webalive/sites:/srv/webalive/sites:ro \
+    -e PYTHONUNBUFFERED=1 \
+    mcp-ocr:latest
+
+ExecStop=/usr/bin/docker stop mcp-ocr
+
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcp-ocr
+
+[Install]
+WantedBy=multi-user.target

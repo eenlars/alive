@@ -1,0 +1,64 @@
+{
+  "description": "Real error examples from Anthropic Claude API for reference",
+  "errors": [
+    {
+      "type": "authentication_error",
+      "status": 401,
+      "discovered_at": "2025-11-05",
+      "raw_error": "API Error: 401 (\"type\":\"error\",\"error\" (\"type\".\"authentication_error\", message\".\"OAuth token has expired. Please obtain a new token or refresh your existing token.\",\"request_id\":\"req_011CUp5WQxZAVPq6593o1spz\")",
+      "structure": {
+        "type": "error",
+        "error": {
+          "type": "authentication_error",
+          "message": "OAuth token has expired. Please obtain a new token or refresh your existing token.",
+          "request_id": "req_011CUp5WQxZAVPq6593o1spz"
+        }
+      },
+      "handling": {
+        "error_code": "API_AUTH_FAILED",
+        "user_message": "Session Expired. Please contact your administrator to restore access.",
+        "implementation": "apps/web/features/chat/components/message-renderers/ErrorResultMessage.tsx"
+      },
+      "notes": [
+        "Error is thrown by Claude SDK when ANTHROPIC_API_KEY is expired or invalid",
+        "HTTP status: 401",
+        "Error structure has type='error' and error.type='authentication_error'",
+        "Should check error.type === 'error' && error.error?.type === 'authentication_error'"
+      ]
+    },
+    {
+      "type": "authentication_error",
+      "status": 401,
+      "discovered_at": "2025-11-10",
+      "raw_error": "API Error: 401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"OAuth token has expired. Please obtain a new token or refresh your existing token.\"},\"request_id\":\"req_011CUz48pQWZpTmxoafdKB7A\"}",
+      "structure": {
+        "type": "error",
+        "error": {
+          "type": "authentication_error",
+          "message": "OAuth token has expired. Please obtain a new token or refresh your existing token."
+        },
+        "request_id": "req_011CUz48pQWZpTmxoafdKB7A"
+      },
+      "handling": {
+        "error_code": "API_AUTH_FAILED",
+        "detection": "errorType === 'authentication_error'",
+        "parsed_message": "OAuth token has expired. Please obtain a new token or refresh your existing token.",
+        "user_help": "Please contact your administrator to restore access.",
+        "implementation": "apps/web/features/chat/components/message-renderers/ErrorResultMessage.tsx"
+      },
+      "ui_display": {
+        "header": "Session Expired",
+        "message": "Please contact your administrator to restore access.",
+        "shows_request_id": true,
+        "component": "OAuthErrorMessage"
+      },
+      "notes": [
+        "Real production error captured 2025-11-10",
+        "Parsing: parseAnthropicError() extracts error.type, error.message, request_id",
+        "Detection: Check errorType === 'authentication_error' (precise, not just 401)",
+        "UI: Shows clean message directing user to contact admin",
+        "Users cannot re-authenticate themselves - admin intervention required"
+      ]
+    }
+  ]
+}

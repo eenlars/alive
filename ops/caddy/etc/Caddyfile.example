@@ -1,0 +1,29 @@
+# /etc/caddy/Caddyfile - Main Caddy Configuration
+#
+# This file imports the generated sites configuration.
+# Copy to /etc/caddy/Caddyfile on each server.
+#
+# Prerequisites:
+# 1. Create /var/lib/claude-bridge/server-config.json with server identity
+# 2. Run: bun run -C /path/to/claude-bridge/packages/site-controller routing:generate
+# 3. Validate: caddy validate --config /etc/caddy/Caddyfile
+# 4. Reload: systemctl reload caddy
+
+{
+    # For behind-nginx mode (nginx handles 80/443):
+    http_port 8081
+    https_port 8444
+
+    # For direct mode (Caddy handles 80/443), comment out the above
+
+    admin localhost:2019
+}
+
+# Production domains (edit manually, rarely changes)
+import /etc/caddy/Caddyfile.prod
+
+# Staging domains (optional)
+import /etc/caddy/Caddyfile.staging
+
+# Generated site routing (regenerate with routing:generate)
+import /var/lib/claude-bridge/generated/Caddyfile.sites

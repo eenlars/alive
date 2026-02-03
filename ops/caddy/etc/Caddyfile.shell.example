@@ -1,0 +1,29 @@
+# /etc/caddy/Caddyfile.shell - Shell Caddy Instance
+#
+# Isolated Caddy instance for Go Shell (Claude Code SSE connections).
+# This service is NEVER auto-reloaded to preserve long-lived connections.
+#
+# Copy to /etc/caddy/Caddyfile.shell on each server.
+#
+# Prerequisites:
+# 1. Create storage dir: mkdir -p /var/lib/caddy-shell && chown caddy:caddy /var/lib/caddy-shell
+# 2. Create /var/lib/claude-bridge/server-config.json with shell.domains
+# 3. Run: bun run -C /path/to/claude-bridge/packages/site-controller routing:generate
+# 4. Enable service: systemctl enable --now caddy-shell
+
+{
+    admin localhost:2020
+
+    storage file_system {
+        root /var/lib/caddy-shell
+    }
+
+    # For behind-nginx mode:
+    auto_https disable_redirects
+    http_port 8089
+
+    # For direct mode, comment out the above
+}
+
+# Generated shell domains
+import /var/lib/claude-bridge/generated/Caddyfile.shell

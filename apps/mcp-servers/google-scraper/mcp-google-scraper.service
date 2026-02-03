@@ -1,0 +1,23 @@
+[Unit]
+Description=Google Scraper MCP Server (HTTP)
+Documentation=https://github.com/anthropics/claude-code
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/webalive/claude-bridge/apps/mcp-servers/google-scraper
+ExecStart=/usr/bin/node dist/index.js --transport http --port 8083
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcp-google-scraper
+
+# Environment
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

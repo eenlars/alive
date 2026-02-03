@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+coverage/
+
+# Generated database types
+src/database/*.generated.ts
+.tmp/

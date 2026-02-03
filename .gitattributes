@@ -1,0 +1,2 @@
+# Exclude scraped test HTML from GitHub language statistics
+apps/mcp-servers/google-scraper/test-html/* linguist-vendored

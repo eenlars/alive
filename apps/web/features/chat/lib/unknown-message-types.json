@@ -1,0 +1,59 @@
+{
+  "description": "This file documents unknown message types encountered in the SSE stream from Claude SDK that are not yet handled by the frontend message parser.",
+  "message_types": [
+    {
+      "type": "system",
+      "subtype": "compact_boundary",
+      "discovered_at": "2025-11-05",
+      "example": {
+        "type": "system",
+        "subtype": "compact_boundary",
+        "session_id": "6f38e2fb-6edc-4e06-95f4-807fcca41b60",
+        "uuid": "ff0b7e09-dafa-4354-b890-480f1085e0e8",
+        "compact_metadata": {
+          "trigger": "auto",
+          "pre_tokens": 155780
+        }
+      },
+      "notes": [
+        "Appears to be related to Claude SDK's context compaction feature",
+        "Triggered automatically when token count reaches threshold (pre_tokens: 155780)",
+        "Contains session_id and uuid for tracking",
+        "Currently not handled by parseStreamEvent() in message-parser.ts",
+        "May indicate conversation history being compressed to save context window"
+      ],
+      "handling_implemented": "option_2",
+      "implementation_details": {
+        "component": "apps/web/features/chat/components/message-renderers/CompactBoundaryMessage.tsx",
+        "description": "Shows a subtle blue badge with database icon and 'Context compacted' text",
+        "debug_mode": "In debug mode, displays the token count (e.g., '155,780 tokens')",
+        "styling": "Centered blue badge, uses system colors from Tailwind"
+      },
+      "potential_handling_options": {
+        "option_1": "Ignore silently (internal SDK operation) - REJECTED",
+        "option_2": "Show subtle UI indicator that context was compacted - IMPLEMENTED",
+        "option_3": "Log to console for debugging purposes - ALSO IMPLEMENTED"
+      },
+      "related_files": [
+        "apps/web/features/chat/lib/message-parser.ts (line 106-115, 217, type definition line 72)",
+        "apps/web/features/chat/lib/message-renderer.tsx (line 3, 64-65)",
+        "apps/web/features/chat/components/message-renderers/CompactBoundaryMessage.tsx (new component)"
+      ]
+    }
+  ],
+  "handling_instructions": {
+    "when_new_type_discovered": [
+      "1. Add entry to this JSON file with example payload",
+      "2. Determine if it needs UI representation",
+      "3. Update parseStreamEvent() in message-parser.ts if needed",
+      "4. Add type guard function in types/stream.ts if needed",
+      "5. Update StreamEvent type definition if needed"
+    ],
+    "testing_checklist": [
+      "Test that unknown types don't crash the stream parser",
+      "Verify console logs show unknown type for debugging",
+      "Check if UI needs to react to this message type",
+      "Confirm conversation continues normally after receiving unknown type"
+    ]
+  }
+}

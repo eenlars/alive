@@ -1,0 +1,35 @@
+{
+  "name": "@webalive/site-controller",
+  "version": "1.0.0",
+  "description": "Shell-Operator Pattern implementation for website deployment",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "scripts"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "clean": "rm -rf dist",
+    "setup:validate": "bun run src/infra/validate-setup.ts",
+    "routing:generate": "bun run src/infra/generate-routing.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.46.2",
+    "@types/node": "^20.0.0",
+    "@webalive/shared": "workspace:*",
+    "typescript": "^5.0.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "deployment",
+    "systemd",
+    "website",
+    "orchestration"
+  ],
+  "author": "WebAlive",
+  "license": "MIT"
+}

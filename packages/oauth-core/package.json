@@ -1,0 +1,51 @@
+{
+  "name": "@webalive/oauth-core",
+  "version": "1.0.0",
+  "description": "Secure multi-tenant OAuth system using Supabase lockbox pattern",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "scripts/setup-schema.ts"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "verify": "bun scripts/verify.ts",
+    "setup-schema": "bun scripts/setup-schema.ts"
+  },
+  "keywords": [
+    "oauth",
+    "security",
+    "encryption",
+    "multi-tenant",
+    "supabase"
+  ],
+  "author": "WebAlive",
+  "license": "MIT",
+  "dependencies": {
+    "@alive-brug/redis": "workspace:*",
+    "@webalive/database": "workspace:*",
+    "@webalive/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.81.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.6"
+  }
+}

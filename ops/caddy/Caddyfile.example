@@ -1,0 +1,35 @@
+# Example Caddyfile for Claude Bridge
+# Copy to ops/caddy/Caddyfile and customize for your domains
+
+(common_headers) {
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+        -X-Powered-By
+    }
+}
+
+# Main app
+bridge.example.com {
+    import common_headers
+    reverse_proxy localhost:9000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
+# Preview subdomains (optional)
+*.preview.example.com {
+    import common_headers
+    reverse_proxy localhost:9000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}

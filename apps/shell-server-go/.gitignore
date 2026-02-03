@@ -1,0 +1,21 @@
+# Binaries and build output
+dist/
+tmp/
+shell-server
+
+# Session and state files
+.sessions.json
+.rate-limit-state.json
+
+# Development
+.air.toml.bak
+build-errors.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store

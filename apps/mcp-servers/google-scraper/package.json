@@ -1,0 +1,37 @@
+{
+  "name": "@alive-brug/mcp-google-scraper",
+  "version": "1.0.0",
+  "description": "Google Maps scraper MCP server",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "setup": "node scripts/install-browser.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "npx biome format --write ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "cheerio": "^1.1.2",
+    "commander": "^13.1.0",
+    "domhandler": "^5.0.3",
+    "express": "^4.21.2",
+    "puppeteer": "^24.15.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/domhandler": "^3.1.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.5.2",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,18 @@
+[Unit]
+Description=Fix site directory permissions
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/root/webalive/claude-bridge/scripts/fix-permissions.sh
+WorkingDirectory=/root/webalive/claude-bridge
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+PrivateTmp=true
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target

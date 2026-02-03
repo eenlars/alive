@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "setup": "./scripts/setup/conductor-setup.sh",
+    "run": "bun run dev"
+  },
+  "env": {
+    "HOSTED_ENV": "computer"
+  }
+}

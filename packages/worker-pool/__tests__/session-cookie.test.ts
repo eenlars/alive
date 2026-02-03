@@ -1,0 +1,324 @@
+/**
+ * Session Cookie Integration Tests
+ *
+ * These tests verify that session cookies flow correctly through the ACTUAL
+ * production code paths, not mocks.
+ *
+ * THE BUG: MCP tools like restart_dev_server call Bridge API, which requires
+ * authentication via BRIDGE_SESSION_COOKIE. Without it, tools fail silently.
+ *
+ * TEST STRATEGY:
+ * 1. Type-safe: Uses TypeScript interfaces from types.ts
+ * 2. Static analysis: Verify route.ts includes sessionCookie in payload
+ * 3. Static analysis: Verify worker-entry.mjs sets BRIDGE_SESSION_COOKIE
+ * 4. Contract: Verify payload shape between route.ts and worker-entry.mjs
+ */
+
+import { describe, expect, it } from "vitest"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+import type { AgentRequest, AgentConfig } from "../src/types"
+import { ENV_VARS } from "../src/types"
+
+// Paths to actual production code
+const ROUTE_PATH = join(__dirname, "../../../apps/web/app/api/claude/stream/route.ts")
+const WORKER_ENTRY_PATH = join(__dirname, "../src/worker-entry.mjs")
+const BRIDGE_API_CLIENT_PATH = join(__dirname, "../../tools/src/lib/bridge-api-client.ts")
+
+// Extract field names from types for validation
+type AgentRequestFields = keyof AgentRequest
+type AgentConfigFields = keyof AgentConfig
+
+// Fields that MUST be in AgentRequest (excluding optional fields that may not appear in code)
+const REQUIRED_PAYLOAD_FIELDS: AgentRequestFields[] = ["message", "agentConfig", "sessionCookie"]
+
+// Fields that MUST be in AgentConfig
+const REQUIRED_AGENT_CONFIG_FIELDS: AgentConfigFields[] = [
+  "allowedTools",
+  "disallowedTools",
+  "permissionMode",
+  "settingSources",
+  "oauthMcpServers",
+  "bridgeStreamTypes",
+]
+
+describe("Session Cookie: Static Analysis of Production Code", () => {
+  /**
+   * CRITICAL: Verify route.ts passes sessionCookie to worker pool payload.
+   *
+   * This catches the exact bug: route.ts was missing sessionCookie in the
+   * worker pool path while the legacy path had it.
+   */
+  it("route.ts MUST include sessionCookie in worker pool payload", () => {
+    const routeCode = readFileSync(ROUTE_PATH, "utf-8")
+
+    // Find the worker pool section
+    const workerPoolSection = routeCode.includes("WORKER_POOL.ENABLED")
+    expect(workerPoolSection).toBe(true)
+
+    // Find the payload object passed to pool.query
+    // Must contain sessionCookie
+    const payloadMatch = routeCode.match(/payload:\s*\{[\s\S]*?sessionCookie[\s\S]*?\}/m)
+    expect(payloadMatch).not.toBeNull()
+
+    // Verify it's in the worker pool path, not just legacy
+    const workerPoolPayloadRegex = /pool\.query\([\s\S]*?payload:\s*\{[\s\S]*?sessionCookie/
+    expect(workerPoolPayloadRegex.test(routeCode)).toBe(true)
+  })
+
+  /**
+   * CRITICAL: Verify route.ts gets sessionCookie BEFORE the worker pool section.
+   *
+   * The sessionCookie must be obtained early so it's available for both paths.
+   */
+  it("route.ts MUST get sessionCookie before branching to worker pool", () => {
+    const routeCode = readFileSync(ROUTE_PATH, "utf-8")
+
+    // Find where sessionCookie is defined
+    const sessionCookieDefIndex = routeCode.indexOf("const sessionCookie = await getSafeSessionCookie")
+    expect(sessionCookieDefIndex).toBeGreaterThan(-1)
+
+    // Find where WORKER_POOL.ENABLED check happens
+    const workerPoolCheckIndex = routeCode.indexOf("if (WORKER_POOL.ENABLED)")
+    expect(workerPoolCheckIndex).toBeGreaterThan(-1)
+
+    // sessionCookie must be defined BEFORE the branch
+    expect(sessionCookieDefIndex).toBeLessThan(workerPoolCheckIndex)
+  })
+
+  /**
+   * CRITICAL: Verify worker-entry.mjs sets BRIDGE_SESSION_COOKIE from payload.
+   *
+   * Without this, MCP tools can't authenticate API calls.
+   */
+  it(`worker-entry.mjs MUST set ${ENV_VARS.BRIDGE_SESSION_COOKIE} env var from payload`, () => {
+    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+
+    // Must check for payload.sessionCookie
+    expect(workerCode).toContain("payload.sessionCookie")
+
+    // Must set process.env.BRIDGE_SESSION_COOKIE
+    expect(workerCode).toContain(`process.env.${ENV_VARS.BRIDGE_SESSION_COOKIE}`)
+
+    // The assignment must exist
+    const assignmentRegex = new RegExp(
+      `process\\.env\\.${ENV_VARS.BRIDGE_SESSION_COOKIE}\\s*=\\s*payload\\.sessionCookie`,
+    )
+    expect(assignmentRegex.test(workerCode)).toBe(true)
+  })
+
+  /**
+   * Verify the env var setting happens BEFORE the query execution.
+   *
+   * If it's set after, MCP tools won't have access to it.
+   */
+  it("worker-entry.mjs MUST set env var before query() call", () => {
+    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+
+    // Find where BRIDGE_SESSION_COOKIE is set
+    const envSetIndex = workerCode.indexOf(`process.env.${ENV_VARS.BRIDGE_SESSION_COOKIE} = payload.sessionCookie`)
+    expect(envSetIndex).toBeGreaterThan(-1)
+
+    // Find where query() is called
+    const queryCallIndex = workerCode.indexOf("const agentQuery = query({")
+    expect(queryCallIndex).toBeGreaterThan(-1)
+
+    // Env var must be set BEFORE query is called
+    expect(envSetIndex).toBeLessThan(queryCallIndex)
+  })
+
+  /**
+   * Verify bridge-api-client.ts uses BRIDGE_SESSION_COOKIE for authentication.
+   *
+   * This is what MCP tools use to call back to Bridge API.
+   */
+  it(`bridge-api-client.ts MUST use ${ENV_VARS.BRIDGE_SESSION_COOKIE} for API auth`, () => {
+    const clientCode = readFileSync(BRIDGE_API_CLIENT_PATH, "utf-8")
+
+    // Must read from process.env.BRIDGE_SESSION_COOKIE
+    expect(clientCode).toContain(`process.env.${ENV_VARS.BRIDGE_SESSION_COOKIE}`)
+
+    // Must include it in Cookie header
+    expect(clientCode).toContain("Cookie:")
+    expect(clientCode).toContain("sessionCookie")
+  })
+})
+
+describe("Session Cookie: Payload Contract", () => {
+  /**
+   * Extract and verify the payload structure passed to worker pool.
+   *
+   * This ensures route.ts and worker-entry.mjs agree on the contract.
+   * Uses TypeScript types to ensure field names are correct.
+   */
+  it("route.ts payload MUST include required AgentRequest fields", () => {
+    const routeCode = readFileSync(ROUTE_PATH, "utf-8")
+
+    // Verify route.ts includes each required field in payload
+    for (const field of REQUIRED_PAYLOAD_FIELDS) {
+      // Check field is mentioned in the payload section
+      const payloadRegex = new RegExp(`payload:\\s*\\{[\\s\\S]*?${field}[\\s\\S]*?\\}`, "m")
+      const hasField = payloadRegex.test(routeCode)
+      expect(hasField, `route.ts payload should include '${field}'`).toBe(true)
+    }
+  })
+
+  /**
+   * Verify worker-entry.mjs reads critical fields from payload.
+   * Fields may be accessed via destructuring or direct access.
+   */
+  it("worker-entry.mjs MUST read critical payload fields", () => {
+    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+
+    // agentConfig is destructured: const { agentConfig } = payload
+    const agentConfigField: AgentRequestFields = "agentConfig"
+    const hasDestructure =
+      workerCode.includes(`{ ${agentConfigField} } = payload`) ||
+      workerCode.match(new RegExp(`\\{[^}]*${agentConfigField}[^}]*\\}\\s*=\\s*payload`))
+    const hasDirect = workerCode.includes(`payload.${agentConfigField}`)
+    expect(hasDestructure || hasDirect, `worker-entry.mjs should read '${agentConfigField}' from payload`).toBe(true)
+
+    // sessionCookie is accessed directly: payload.sessionCookie
+    const sessionCookieField: AgentRequestFields = "sessionCookie"
+    expect(
+      workerCode.includes(`payload.${sessionCookieField}`),
+      `worker-entry.mjs should read 'payload.${sessionCookieField}'`,
+    ).toBe(true)
+
+    // message is accessed directly: payload.message
+    const messageField: AgentRequestFields = "message"
+    expect(
+      workerCode.includes(`payload.${messageField}`),
+      `worker-entry.mjs should read 'payload.${messageField}'`,
+    ).toBe(true)
+  })
+
+  /**
+   * Verify agentConfig structure is consistent.
+   * Uses AgentConfig type to ensure field names are correct.
+   */
+  it("agentConfig structure matches AgentConfig type", () => {
+    const routeCode = readFileSync(ROUTE_PATH, "utf-8")
+    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+
+    // Route.ts must set these fields in agentConfig
+    for (const field of REQUIRED_AGENT_CONFIG_FIELDS) {
+      expect(routeCode.includes(field), `route.ts should set agentConfig.${field}`).toBe(true)
+    }
+
+    // Worker must destructure/use these fields
+    for (const field of REQUIRED_AGENT_CONFIG_FIELDS) {
+      expect(workerCode.includes(field), `worker-entry.mjs should use agentConfig.${field}`).toBe(true)
+    }
+  })
+})
+
+describe("Session Cookie: Legacy vs Worker Pool Parity", () => {
+  /**
+   * CRITICAL: Both code paths must pass sessionCookie.
+   *
+   * The bug was that worker pool path was missing sessionCookie while
+   * legacy path had it. This test ensures parity.
+   */
+  it("both legacy and worker pool paths pass sessionCookie", () => {
+    const routeCode = readFileSync(ROUTE_PATH, "utf-8")
+
+    // Find worker pool section
+    const workerPoolMatch = routeCode.match(/if \(WORKER_POOL\.ENABLED\) \{[\s\S]*?\} else \{/m)
+    expect(workerPoolMatch).not.toBeNull()
+    const workerPoolSection = workerPoolMatch![0]
+
+    // Find legacy section
+    const legacyMatch = routeCode.match(/\} else \{[\s\S]*?runAgentChild[\s\S]*?\}/m)
+    expect(legacyMatch).not.toBeNull()
+    const legacySection = legacyMatch![0]
+
+    // Both must include sessionCookie
+    expect(workerPoolSection.includes("sessionCookie"), "Worker pool path must include sessionCookie").toBe(true)
+
+    expect(legacySection.includes("sessionCookie"), "Legacy path must include sessionCookie").toBe(true)
+  })
+})
+
+describe("Session Cookie: Security Considerations", () => {
+  /**
+   * Session cookie should only be set from trusted payload, not user input.
+   */
+  it("worker-entry.mjs should not log session cookie", () => {
+    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+
+    // Should not log the cookie value
+    expect(workerCode).not.toMatch(/console\.(log|error).*sessionCookie/)
+    expect(workerCode).not.toMatch(new RegExp(`console\\.(log|error).*${ENV_VARS.BRIDGE_SESSION_COOKIE}`))
+  })
+
+  /**
+   * Verify cookie is always cleared/set at start of each request.
+   * This prevents cookie leakage between requests from different users.
+   */
+  it("worker-entry.mjs should always set/clear env var to prevent leakage", () => {
+    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+
+    // Should always set BRIDGE_SESSION_COOKIE (with fallback to empty string)
+    // Pattern: process.env.BRIDGE_SESSION_COOKIE = payload.sessionCookie || ""
+    expect(workerCode).toMatch(/process\.env\.BRIDGE_SESSION_COOKIE\s*=\s*payload\.sessionCookie\s*\|\|\s*["']/)
+  })
+})
+
+describe("Session Cookie: Error Scenarios", () => {
+  /**
+   * Verify bridge-api-client handles missing cookie gracefully.
+   */
+  it("bridge-api-client.ts should handle missing session cookie", () => {
+    const clientCode = readFileSync(BRIDGE_API_CLIENT_PATH, "utf-8")
+
+    // Should have conditional for sessionCookie
+    expect(clientCode).toMatch(/sessionCookie\s*&&/)
+  })
+
+  /**
+   * Verify PORT env var is validated (required for API base URL).
+   */
+  it("bridge-api-client.ts should validate PORT env var", () => {
+    const clientCode = readFileSync(BRIDGE_API_CLIENT_PATH, "utf-8")
+
+    // Should check PORT exists
+    expect(clientCode).toContain("process.env.PORT")
+
+    // Should throw on invalid PORT
+    expect(clientCode).toMatch(/throw.*PORT/)
+  })
+})
+
+describe("Query Cancellation: Complete Result", () => {
+  /**
+   * Verify worker-entry.mjs includes cancelled flag in complete result.
+   * This was a bug fix - mocks expected { cancelled: true } but production didn't set it.
+   */
+  it("worker-entry.mjs MUST include cancelled flag in complete result", () => {
+    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+
+    // Must check signal.aborted to determine cancellation
+    expect(workerCode).toContain("signal.aborted")
+
+    // Must include cancelled field in result
+    expect(workerCode).toMatch(/cancelled:\s*wasCancelled/)
+
+    // Must set wasCancelled from signal.aborted
+    expect(workerCode).toMatch(/wasCancelled\s*=\s*signal\.aborted/)
+  })
+
+  /**
+   * Verify CompleteResult type includes cancelled field.
+   */
+  it("types.ts CompleteResult MUST include cancelled field", () => {
+    const typesPath = join(__dirname, "../src/types.ts")
+    const typesCode = readFileSync(typesPath, "utf-8")
+
+    // CompleteResult interface must exist
+    expect(typesCode).toContain("interface CompleteResult")
+
+    // Must include cancelled field
+    expect(typesCode).toMatch(/cancelled:\s*boolean/)
+  })
+})

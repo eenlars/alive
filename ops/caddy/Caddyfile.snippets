@@ -1,0 +1,61 @@
+# Caddy Snippets for Claude Bridge
+#
+# Reusable configuration blocks imported by site configs.
+# Copy to /etc/caddy/snippets/ or import directly.
+#
+# These snippets are used by both:
+# - Generated site configs (/var/lib/claude-bridge/generated/Caddyfile.sites)
+# - Manual production configs (/etc/caddy/Caddyfile.prod)
+
+# Security headers applied to all responses
+(common_headers) {
+    header {
+        # Security Headers
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+
+        # Remove server identification
+        -Server
+        -X-Powered-By
+    }
+}
+
+# Image serving from storage directory
+# NOTE: Update the root path to match your IMAGES_STORAGE config
+(image_serving) {
+    handle_path /_images/* {
+        root * /srv/webalive/storage
+        header Cache-Control "public, max-age=31536000, immutable"
+        file_server
+    }
+}
+
+# Smart preview auth - routes to correct backend based on Referer
+# Customize domain patterns and ports for your deployment
+(preview_auth) {
+    @not_websocket not header Connection *Upgrade*
+
+    route @not_websocket {
+        # Development environment
+        @dev expression `{http.request.header.Referer}.contains("dev.your-domain.com")`
+        forward_auth @dev localhost:8997 {
+            uri /api/auth/preview-guard?{query}
+            copy_headers Cookie X-Preview-Set-Cookie
+        }
+
+        # Staging environment
+        @staging expression `{http.request.header.Referer}.contains("staging.your-domain.com")`
+        forward_auth @staging localhost:8998 {
+            uri /api/auth/preview-guard?{query}
+            copy_headers Cookie X-Preview-Set-Cookie
+        }
+
+        # Default: production
+        forward_auth localhost:9000 {
+            uri /api/auth/preview-guard?{query}
+            copy_headers Cookie X-Preview-Set-Cookie
+        }
+    }
+}

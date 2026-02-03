@@ -1,0 +1,11 @@
+{
+  "name": "@webalive/image-processor",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "uvicorn main:app --reload --host 0.0.0.0 --port 5012",
+    "start": "uvicorn main:app --host 0.0.0.0 --port 5012",
+    "docker:build": "docker build -t image-processor .",
+    "docker:run": "docker run -p 5012:5012 image-processor"
+  }
+}

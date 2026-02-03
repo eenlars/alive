@@ -1,0 +1,9 @@
+#!/bin/sh
+# .husky/pre-commit
+
+# Pre-commit hooks should be instant
+# Only format files that are staged for commit (not the entire repo)
+bun x lint-staged
+
+# Quick type-check on changed files
+./scripts/pre-commit-check.sh

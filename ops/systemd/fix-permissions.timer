@@ -1,0 +1,16 @@
+[Unit]
+Description=Fix site permissions every 15 minutes
+Documentation=https://github.com/eenlars/webalive
+
+[Timer]
+# Run every 15 minutes
+OnCalendar=*:00,15,30,45:00
+
+# Run missed runs if system was off
+Persistent=true
+
+# Add some randomness to avoid exact timing
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

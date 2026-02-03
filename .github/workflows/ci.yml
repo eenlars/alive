@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev, staging]
+  pull_request:
+    branches: [main, dev, staging]
+
+jobs:
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: bun run type-check
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Comment on PR if failed
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ **Type Check Failed**\n\nPlease run `bun run type-check` locally and fix all TypeScript errors before pushing.'
+            })
+
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Check formatting
+        run: |
+          bun run format
+          git diff --exit-code || (echo "::error::Code is not formatted. Run 'bun run format' locally." && exit 1)
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run tests
+        run: bun run unit
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            **/test-results/
+            **/coverage/
+
+  error-patterns:
+    name: Error Pattern Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check error patterns
+        run: cd apps/web && bun run scripts/check-error-patterns.ts
+
+  # This job blocks merge if any check fails
+  required-checks:
+    name: Required Checks ✅
+    runs-on: ubuntu-latest
+    needs: [type-check, lint, test, error-patterns]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [[ "${{ needs.type-check.result }}" != "success" ||
+                "${{ needs.lint.result }}" != "success" ||
+                "${{ needs.test.result }}" != "success" ||
+                "${{ needs.error-patterns.result }}" != "success" ]]; then
+            echo "::error::Required checks failed. Please fix all issues before merging."
+            exit 1
+          fi
+          echo "✅ All checks passed!"

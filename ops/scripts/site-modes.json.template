@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "description": "Deployment mode registry for all WebAlive sites",
+  "lastUpdated": "2026-02-03T15:58:00Z",
+  "modeDefinitions": {
+    "dev": "Development mode with hot reload (vite)",
+    "preview": "Production preview mode (vite preview)",
+    "start": "Custom start script (package.json start)",
+    "default": "dev"
+  },
+  "sites": {}
+}

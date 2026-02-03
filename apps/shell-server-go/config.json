@@ -1,0 +1,20 @@
+{
+  "development": {
+    "port": 3500,
+    "defaultWorkspace": "root",
+    "defaultCwd": ".alive/shell-server",
+    "uploadDefaultCwd": ".alive/uploads",
+    "sitesPath": ".alive/sites",
+    "workspaceBase": "/root/webalive",
+    "allowWorkspaceSelection": true
+  },
+  "production": {
+    "port": 3888,
+    "defaultWorkspace": "root",
+    "defaultCwd": "/root/webalive/claude-bridge",
+    "uploadDefaultCwd": "/root/uploads",
+    "sitesPath": "/srv/webalive/sites",
+    "workspaceBase": "/root/webalive",
+    "allowWorkspaceSelection": true
+  }
+}

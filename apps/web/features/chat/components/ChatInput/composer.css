@@ -1,0 +1,83 @@
+/* ChatGPT-style Composer Utilities */
+
+/* Horizontal scroll fade mask */
+.horizontal-scroll-fade-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--edge-fade-distance, 1rem),
+    black calc(100% - var(--edge-fade-distance, 1rem)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--edge-fade-distance, 1rem),
+    black calc(100% - var(--edge-fade-distance, 1rem)),
+    transparent
+  );
+}
+
+/* Vertical scroll fade mask */
+.vertical-scroll-fade-mask {
+  -webkit-mask-image: linear-gradient(to bottom, black, black calc(100% - 2rem), transparent);
+  mask-image: linear-gradient(to bottom, black, black calc(100% - 2rem), transparent);
+}
+
+/* Hide scrollbar */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Composer button base */
+.composer-btn {
+  @apply flex items-center justify-center;
+  @apply transition-colors duration-200;
+}
+
+/* Token colors */
+.bg-token-bg-primary {
+  background-color: rgb(255 255 255);
+}
+
+.dark .bg-token-bg-primary {
+  background-color: rgb(48 48 48);
+}
+
+.text-token-text-primary {
+  color: rgb(13 13 13);
+}
+
+.dark .text-token-text-primary {
+  color: rgb(236 236 236);
+}
+
+.border-token-border-default {
+  border-color: rgba(0 0 0 / 0.1);
+}
+
+.dark .border-token-border-default {
+  border-color: rgba(255 255 255 / 0.1);
+}
+
+.bg-primary {
+  background-color: rgb(255 255 255);
+}
+
+.dark .bg-primary {
+  background-color: rgb(32 33 35);
+}
+
+/* Height utilities */
+.h-14\.5 {
+  height: 3.625rem; /* 58px */
+}
+
+.w-14\.5 {
+  width: 3.625rem; /* 58px */
+}
