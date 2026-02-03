@@ -1,12 +1,12 @@
 "use client"
 
-import { FREE_CREDITS } from "@webalive/shared"
-import { Eye, EyeOff, Rocket } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Suspense, useState } from "react"
 import { Button } from "@/components/ui/primitives/Button"
 import { Input } from "@/components/ui/primitives/Input"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
+import { useAuthModalActions } from "@/lib/stores/authModalStore"
 import { authStore } from "@/lib/stores/authStore"
 
 function LoginPageContent() {
@@ -18,6 +18,7 @@ function LoginPageContent() {
   const [emailTouched, setEmailTouched] = useState(false)
   const [passwordTouched, setPasswordTouched] = useState(false)
   const router = useRouter()
+  const { open: openAuthModal } = useAuthModalActions()
 
   async function login(e: React.FormEvent) {
     e.preventDefault()
@@ -52,45 +53,33 @@ function LoginPageContent() {
     }
   }
 
+  function handleCreateAccount() {
+    openAuthModal({
+      title: "Create your account",
+      description: "Enter your email to get started",
+      onSuccess: () => {
+        router.push("/chat")
+      },
+    })
+  }
+
   return (
-    <main className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center px-4 relative">
+    <main className="min-h-screen bg-neutral-50 dark:bg-zinc-950 flex items-center justify-center px-4 relative">
       {/* Theme Toggle - Top Right */}
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-md">
-        {/* New User CTA */}
-        <div className="mb-12 p-6 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-200 dark:border-emerald-800/30 rounded-2xl">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-xl">
-              <Rocket className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-emerald-900 dark:text-emerald-100 mb-1">New here?</h2>
-              <p className="text-sm text-emerald-700 dark:text-emerald-300 mb-4">
-                Deploy your first website with {FREE_CREDITS} free credits.
-              </p>
-              <Button
-                type="button"
-                onClick={() => router.push("/deploy")}
-                className="bg-emerald-600! hover:bg-emerald-700! text-white! border-0! font-medium! text-sm! py-2.5! px-5! rounded-lg! transition-all! normal-case! tracking-normal!"
-              >
-                Get Started Free
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
-          <span className="text-sm text-black/40 dark:text-white/40 font-medium">or sign in</span>
-          <div className="flex-1 h-px bg-black/10 dark:bg-white/10" />
+      {/* Card Container with polish */}
+      <div className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-lg border border-black/[0.08] dark:border-white/[0.08] ring-1 ring-black/[0.04] dark:ring-white/[0.04] p-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-semibold text-black dark:text-white mb-2">Welcome back</h1>
+          <p className="text-black/50 dark:text-white/50">Sign in to continue to your workspace</p>
         </div>
 
         {/* Login Form */}
-        <form onSubmit={login} className="space-y-6" autoComplete="off">
+        <form onSubmit={login} className="space-y-5" autoComplete="off">
           <Input
             id="email"
             label="Email"
@@ -139,8 +128,8 @@ function LoginPageContent() {
           />
 
           {error && (
-            <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/30 rounded-lg px-4 py-3">
-              <p className="text-red-700 dark:text-red-400 text-sm font-medium">{error}</p>
+            <div className="bg-red-500/[0.08] dark:bg-red-500/[0.12] rounded-xl px-4 py-3">
+              <p className="text-red-600 dark:text-red-400 text-sm font-medium">{error}</p>
             </div>
           )}
 
@@ -149,12 +138,33 @@ function LoginPageContent() {
             fullWidth
             loading={loading}
             disabled={!email.trim() || !password.trim()}
-            className="!bg-black dark:!bg-white !text-white dark:!text-black hover:!bg-black/90 dark:hover:!bg-white/90 !border-0 !font-medium !text-base !py-3 !rounded-lg !transition-all"
+            className="!bg-black dark:!bg-white !text-white dark:!text-black hover:!brightness-[0.85] active:!brightness-75 !border-0 !font-medium !text-base !py-3 !rounded-xl !transition-all !duration-150 disabled:!opacity-30 disabled:hover:!brightness-100"
             data-testid="login-button"
           >
             {loading ? "Signing in..." : "Sign In"}
           </Button>
         </form>
+
+        {/* Divider */}
+        <div className="flex items-center gap-4 my-6">
+          <div className="flex-1 h-px bg-black/[0.08] dark:bg-white/[0.08]" />
+          <span className="text-sm text-black/40 dark:text-white/40">or</span>
+          <div className="flex-1 h-px bg-black/[0.08] dark:bg-white/[0.08]" />
+        </div>
+
+        {/* Create Account Section */}
+        <button
+          type="button"
+          onClick={handleCreateAccount}
+          className="w-full px-4 py-3 rounded-xl text-base font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.10] active:bg-black/[0.12] dark:active:bg-white/[0.14] text-black/80 dark:text-white/80 transition-all duration-150"
+          data-testid="create-account-button"
+        >
+          Create Account
+        </button>
+
+        <p className="text-center text-sm text-black/40 dark:text-white/40 mt-4">
+          New here? Create an account to get started.
+        </p>
       </div>
     </main>
   )
@@ -162,19 +172,21 @@ function LoginPageContent() {
 
 function LoadingFallback() {
   return (
-    <main className="min-h-screen bg-white dark:bg-zinc-950 flex items-center justify-center px-4 relative">
+    <main className="min-h-screen bg-neutral-50 dark:bg-zinc-950 flex items-center justify-center px-4 relative">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <div className="w-full max-w-md text-center">
-        {/* Friendly breathing animation instead of spinner */}
-        <div className="relative w-16 h-16 mx-auto mb-6">
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-400/20 to-teal-400/20 alive-logo-outer" />
-          <div className="absolute inset-2 rounded-full bg-gradient-to-br from-emerald-400/30 to-teal-400/30 alive-logo-inner" />
-          <div className="absolute inset-4 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500" />
+      <div className="w-full max-w-md bg-white dark:bg-neutral-900 rounded-2xl shadow-lg border border-black/[0.08] dark:border-white/[0.08] ring-1 ring-black/[0.04] dark:ring-white/[0.04] p-8">
+        <div className="text-center">
+          {/* Friendly breathing animation */}
+          <div className="relative w-14 h-14 mx-auto mb-6">
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-400/20 to-teal-400/20 alive-logo-outer" />
+            <div className="absolute inset-2 rounded-full bg-gradient-to-br from-emerald-400/30 to-teal-400/30 alive-logo-inner" />
+            <div className="absolute inset-3 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500" />
+          </div>
+          <p className="text-black/70 dark:text-white/70 text-base font-medium mb-1">Just a moment</p>
+          <p className="text-black/40 dark:text-white/40 text-sm">Getting everything ready</p>
         </div>
-        <p className="text-black/70 dark:text-white/70 text-base font-medium mb-1">Just a moment</p>
-        <p className="text-black/40 dark:text-white/40 text-sm">Getting everything ready for you</p>
       </div>
     </main>
   )

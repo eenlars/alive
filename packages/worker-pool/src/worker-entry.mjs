@@ -259,11 +259,17 @@ function dropPrivileges() {
   const originalHome = process.env.HOME || "/root"
   const workspaceKey = process.env.WORKER_WORKSPACE_KEY
 
-  // CRITICAL: Set CLAUDE_CONFIG_DIR to use single source of truth for credentials
-  // This ensures all workers use /root/.claude/.credentials.json regardless of HOME
-  // When /login refreshes the token, all workers immediately see the new token
-  // Sessions (conversation history) still persist per-workspace via HOME
-  process.env.CLAUDE_CONFIG_DIR = join(originalHome, ".claude")
+  // CRITICAL: Set CLAUDE_CONFIG_DIR to a single source of truth for credentials
+  // Prefer a pre-set CLAUDE_CONFIG_DIR (if provided by the service),
+  // otherwise default to /root/.claude.
+  // Sessions (conversation history) still persist per-workspace via HOME.
+  const configuredClaudeDir = process.env.CLAUDE_CONFIG_DIR
+  const defaultClaudeDir = join(originalHome, ".claude")
+  if (configuredClaudeDir && configuredClaudeDir.startsWith("/")) {
+    process.env.CLAUDE_CONFIG_DIR = configuredClaudeDir
+  } else {
+    process.env.CLAUDE_CONFIG_DIR = defaultClaudeDir
+  }
 
   // Try to use stable session home for this workspace
   // Falls back to temp directory if stable home creation fails
@@ -512,14 +518,17 @@ async function handleQuery(ipc, requestId, payload) {
     // If payload has cookie, use it; otherwise clear any previous value
     process.env.BRIDGE_SESSION_COOKIE = payload.sessionCookie || ""
 
-    // Set API key from payload - workers run as non-root users and cannot read
-    // /root/.claude/.credentials.json. The main process (which runs as root)
-    // reads OAuth credentials and passes them via IPC.
+    // API key handling:
+    // - For user-provided API keys: pass via payload.apiKey
+    // - For OAuth: SDK reads from CLAUDE_CONFIG_DIR/.credentials.json directly
+    //   (file permissions must be 644 so workers can read after dropping privileges)
     if (payload.apiKey) {
       process.env.ANTHROPIC_API_KEY = payload.apiKey
-      console.error("[worker] Using API key from payload")
+      console.error("[worker] Using user-provided API key from payload")
     } else {
-      console.error("[worker] WARNING: No API key in payload - SDK will try to read from config")
+      // Don't set ANTHROPIC_API_KEY - let SDK use OAuth from credentials file
+      delete process.env.ANTHROPIC_API_KEY
+      console.error("[worker] Using OAuth credentials from CLAUDE_CONFIG_DIR")
     }
 
     // Set user-defined environment keys (custom API keys from lockbox)

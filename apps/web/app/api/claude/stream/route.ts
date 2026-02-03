@@ -20,7 +20,7 @@ import { hasSessionCookie } from "@/features/auth/types/guards"
 import { isInputSafe } from "@/features/chat/lib/formatMessage"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
-import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
+import { getAccessTokenReadOnly, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import {
   BRIDGE_STREAM_TYPES,
@@ -193,28 +193,19 @@ export async function POST(req: NextRequest) {
       if (userApiKey) {
         logger.log("Using user-provided API key")
       } else if (hasOAuthCredentials()) {
-        logger.log("Fetching OAuth token for authentication...")
-        try {
-          const oauthResult = await getValidAccessToken()
-          if (oauthResult) {
-            effectiveApiKey = oauthResult.accessToken
-            logger.log(`OAuth token ready (refreshed: ${oauthResult.refreshed})`)
-          } else {
-            logger.log("OAuth credentials exist but token retrieval failed")
-            return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {
-              workspace: resolvedWorkspaceName,
-              requestId,
-              message: "OAuth token expired and refresh failed. Please run /login",
-            })
-          }
-        } catch (oauthError) {
-          logger.error("OAuth token refresh failed:", oauthError)
+        // OAuth: Don't pass token as API key - SDK reads credentials file directly
+        // Workers have CLAUDE_CONFIG_DIR=/root/.claude and file has 644 permissions
+        logger.log("Using OAuth credentials (SDK reads from CLAUDE_CONFIG_DIR)")
+        const oauthResult = getAccessTokenReadOnly()
+        if (oauthResult?.isExpired) {
+          logger.log("OAuth token expired - user needs to run /login")
           return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {
             workspace: resolvedWorkspaceName,
             requestId,
-            message: oauthError instanceof Error ? oauthError.message : "OAuth refresh failed",
+            message: "OAuth token expired. Please run /login in Claude Code CLI to refresh.",
           })
         }
+        // effectiveApiKey stays undefined - worker will use OAuth
       } else {
         logger.log("No API key or OAuth credentials available")
         return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {

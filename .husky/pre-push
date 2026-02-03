@@ -3,6 +3,13 @@
 
 echo "🔍 Running static checks before push..."
 
+# SECURITY: Check for .env files first (fast, critical)
+if ! ./scripts/validation/check-no-env-files.sh; then
+    echo ""
+    echo "❌ SECURITY: .env files detected. Remove them before pushing."
+    exit 1
+fi
+
 # Run comprehensive checks:
 # - Type checking (Turbo cached)
 # - Linting (Turbo cached)
