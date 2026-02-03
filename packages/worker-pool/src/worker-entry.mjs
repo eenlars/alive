@@ -512,8 +512,15 @@ async function handleQuery(ipc, requestId, payload) {
     // If payload has cookie, use it; otherwise clear any previous value
     process.env.BRIDGE_SESSION_COOKIE = payload.sessionCookie || ""
 
-    // Note: Credentials are shared via CLAUDE_CONFIG_DIR pointing to /root/.claude/
-    // No need to update credentials per-query - the SDK reads from the shared location.
+    // Set API key from payload - workers run as non-root users and cannot read
+    // /root/.claude/.credentials.json. The main process (which runs as root)
+    // reads OAuth credentials and passes them via IPC.
+    if (payload.apiKey) {
+      process.env.ANTHROPIC_API_KEY = payload.apiKey
+      console.error("[worker] Using API key from payload")
+    } else {
+      console.error("[worker] WARNING: No API key in payload - SDK will try to read from config")
+    }
 
     // Set user-defined environment keys (custom API keys from lockbox)
     // These are prefixed with USER_ to avoid conflicts with system env vars

@@ -69,6 +69,12 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
   console.log(`[agent-child] Runner: ${runnerPath}`)
   console.log(`[agent-child] Workspace: ${workspaceRoot}`)
 
+  // Fail explicitly if no API key is available - never silently pass undefined
+  const apiKey = payload.apiKey
+  if (!apiKey) {
+    throw new Error("[agent-child] No API key available. User must provide an API key or have valid OAuth credentials.")
+  }
+
   const child = spawn(process.execPath, [runnerPath], {
     env: {
       ...process.env, // Inherit all environment variables (includes PORT from systemd)
@@ -77,8 +83,7 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
       TARGET_UID: String(uid),
       TARGET_GID: String(gid),
       TARGET_CWD: workspaceRoot,
-      // Use user-provided API key if available, otherwise use environment default
-      ANTHROPIC_API_KEY: payload.apiKey || process.env.ANTHROPIC_API_KEY,
+      ANTHROPIC_API_KEY: apiKey,
       // Pass session cookie for authenticated API calls
       ...(payload.sessionCookie && { BRIDGE_SESSION_COOKIE: payload.sessionCookie }),
     },
