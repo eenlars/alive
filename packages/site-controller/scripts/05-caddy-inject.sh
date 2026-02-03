@@ -152,8 +152,11 @@ EOF
         log_info "  - $ENV_KEY: $PREVIEW_DOMAIN → auth:$ENV_PORT"
 
         if grep -q "^${PREVIEW_DOMAIN} {" "$CADDYFILE_PATH"; then
-            log_info "    Preview block exists, updating port..."
+            log_info "    Preview block exists, updating ports..."
+            # Update reverse_proxy port (site's dev server)
             sed -i "/^${ESCAPED_PREVIEW} {/,/^}/ s/reverse_proxy localhost:[0-9]*/reverse_proxy localhost:${SITE_PORT}/" "$CADDYFILE_PATH"
+            # Update forward_auth port (environment's auth server)
+            sed -i "/^${ESCAPED_PREVIEW} {/,/^}/ s/forward_auth localhost:[0-9]*/forward_auth localhost:${ENV_PORT}/" "$CADDYFILE_PATH"
         else
             log_info "    Creating preview subdomain block..."
             TMP_FILE="${CADDYFILE_PATH}.tmp.$$"
