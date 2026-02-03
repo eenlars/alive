@@ -5,6 +5,9 @@
  * Queries database for domains assigned to this server
  * Generates Caddyfile.sites and Caddyfile.shell
  *
+ * Preview domains are generated for EACH environment (production, staging, dev)
+ * with auth routing to the respective environment's port.
+ *
  * Usage: bun run routing:generate
  */
 
@@ -26,8 +29,8 @@ interface ServerConfig {
   }
   domains: {
     cookieDomain: string
-    previewBase: string
-    frameAncestors: string[]
+    previewBase: string // Legacy - now read from environments.json
+    frameAncestors: string[] // Legacy - now built from environments.json
   }
   shell: {
     domains: string[]
@@ -40,6 +43,13 @@ interface ServerConfig {
     caddyShell: string
     nginxMap: string
   }
+}
+
+interface EnvironmentConfig {
+  key: string
+  port: number
+  domain: string
+  previewBase: string
 }
 
 interface DomainRow {
@@ -70,6 +80,30 @@ async function loadServerConfig(): Promise<ServerConfig> {
   return cfg
 }
 
+async function loadEnvironments(bridgeRoot: string): Promise<EnvironmentConfig[]> {
+  const envPath = path.join(bridgeRoot, "packages/shared/environments.json")
+  const raw = await readFile(envPath, "utf8")
+  const envConfigRaw = JSON.parse(raw)
+
+  const environments: EnvironmentConfig[] = Object.values(envConfigRaw.environments || {}).filter(
+    (env: unknown): env is EnvironmentConfig => {
+      const e = env as Record<string, unknown>
+      return (
+        typeof e.key === "string" &&
+        typeof e.port === "number" &&
+        typeof e.previewBase === "string" &&
+        typeof e.domain === "string"
+      )
+    },
+  )
+
+  if (environments.length === 0) {
+    throw new Error(`No valid environments found in ${envPath}. Each needs: key, port, domain, previewBase`)
+  }
+
+  return environments
+}
+
 async function loadSnippet(bridgeRoot: string, rel: string): Promise<string> {
   const p = path.join(bridgeRoot, rel)
   return readFile(p, "utf8")
@@ -93,7 +127,7 @@ async function queryDomains(serverId: string): Promise<DomainRow[]> {
   const url = must(process.env.SUPABASE_URL, "SUPABASE_URL is required")
   const key = must(
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY,
-    "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY is required"
+    "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY is required",
   )
 
   const supabase = createClient(url, key, {
@@ -122,31 +156,28 @@ async function queryDomains(serverId: string): Promise<DomainRow[]> {
 
 function renderCaddySites(
   cfg: ServerConfig,
+  environments: EnvironmentConfig[],
   _snippets: { common: string; image: string },
-  domains: DomainRow[]
+  domains: DomainRow[],
 ): string {
   const header = [
     "# GENERATED FILE - DO NOT EDIT",
     `# serverId: ${cfg.serverId}`,
     `# generated: ${new Date().toISOString()}`,
     `# domains: ${domains.length}`,
+    `# environments: ${environments.map(e => e.key).join(", ")}`,
     "",
     "# NOTE: Snippets (common_headers, image_serving) are imported globally",
     "# from /etc/caddy/snippets/ via the main Caddyfile",
     "",
   ].join("\n")
 
-  // Skip snippet definitions - they're already loaded globally from /etc/caddy/snippets/
-  // Just generate site blocks that use `import <snippet_name>`
+  // Build frame-ancestors from all environment domains
+  const frameAncestors = environments.map(e => `https://${e.domain}`).join(" ") + " https://app.alive.best"
 
   // Generate site blocks
-  const frameAncestors = cfg.domains.frameAncestors.join(" ")
-
   const siteBlocks = domains
     .map(({ hostname, port }) => {
-      const previewLabel = sanitizeLabel(hostname)
-      const previewDomain = `${previewLabel}.${cfg.domains.previewBase}`
-
       // Main domain block
       const mainBlock = [
         `${hostname} {`,
@@ -171,27 +202,42 @@ function renderCaddySites(
         "}",
       ].join("\n")
 
-      // Preview subdomain block (embeddable)
-      const previewBlock = [
-        `${previewDomain} {`,
-        "    import image_serving",
-        "",
-        `    reverse_proxy localhost:${port} {`,
-        "        header_up Host localhost",
-        "    }",
-        "",
-        "    header {",
-        "        -X-Frame-Options",
-        `        Content-Security-Policy "frame-ancestors ${frameAncestors}"`,
-        "        X-Content-Type-Options nosniff",
-        "        Referrer-Policy strict-origin-when-cross-origin",
-        "        -Server",
-        "        -X-Powered-By",
-        "    }",
-        "}",
-      ].join("\n")
+      // Generate preview subdomain blocks for EACH environment
+      const previewBlocks = environments.map(env => {
+        const previewLabel = sanitizeLabel(hostname)
+        const previewDomain = `${previewLabel}.${env.previewBase}`
 
-      return `${mainBlock}\n\n${previewBlock}`
+        return [
+          `${previewDomain} {`,
+          "    import image_serving",
+          "",
+          `    reverse_proxy localhost:${port} {`,
+          "        header_up Host localhost",
+          "    }",
+          "",
+          "    header {",
+          "        -X-Frame-Options",
+          `        Content-Security-Policy "frame-ancestors ${frameAncestors}"`,
+          "        X-Content-Type-Options nosniff",
+          "        Referrer-Policy strict-origin-when-cross-origin",
+          "        -Server",
+          "        -X-Powered-By",
+          "    }",
+          "",
+          `    # Auth check via forward_auth (routes to ${env.key} environment)`,
+          `    forward_auth localhost:${env.port} {`,
+          "        uri /api/auth/preview-guard",
+          "        copy_headers Cookie X-Preview-Set-Cookie",
+          "    }",
+          "",
+          "    # Map X-Preview-Set-Cookie from forward_auth to Set-Cookie response header",
+          "    @has_preview_cookie header X-Preview-Set-Cookie *",
+          '    header @has_preview_cookie +Set-Cookie "{http.request.header.X-Preview-Set-Cookie}"',
+          "}",
+        ].join("\n")
+      })
+
+      return [mainBlock, ...previewBlocks].join("\n\n")
     })
     .join("\n\n")
 
@@ -211,7 +257,7 @@ function renderCaddyShell(cfg: ServerConfig): string {
   }
 
   const blocks = cfg.shell.domains
-    .map((d) => {
+    .map(d => {
       return [
         `${d}${cfg.shell.listen} {`,
         `    reverse_proxy ${cfg.shell.upstream} {`,
@@ -226,11 +272,7 @@ function renderCaddyShell(cfg: ServerConfig): string {
 }
 
 function renderNginxSniMap(cfg: ServerConfig): string {
-  const header = [
-    "# GENERATED FILE - DO NOT EDIT",
-    `# serverId: ${cfg.serverId}`,
-    "",
-  ].join("\n")
+  const header = ["# GENERATED FILE - DO NOT EDIT", `# serverId: ${cfg.serverId}`, ""].join("\n")
 
   if (!cfg.shell?.domains?.length) {
     return `${header}map $ssl_preread_server_name $backend {\n    default caddy_main;\n}\n`
@@ -238,7 +280,7 @@ function renderNginxSniMap(cfg: ServerConfig): string {
 
   const lines = [
     "map $ssl_preread_server_name $backend {",
-    ...cfg.shell.domains.map((d) => `    ${d}   caddy_shell;`),
+    ...cfg.shell.domains.map(d => `    ${d}   caddy_shell;`),
     "    default   caddy_main;",
     "}",
     "",
@@ -257,6 +299,12 @@ async function run() {
   console.log(`  serverId: ${cfg.serverId}`)
   console.log(`  bridgeRoot: ${cfg.paths.bridgeRoot}`)
 
+  console.log("\nLoading environments...")
+  const environments = await loadEnvironments(cfg.paths.bridgeRoot)
+  for (const env of environments) {
+    console.log(`  - ${env.key}: ${env.previewBase} → localhost:${env.port}`)
+  }
+
   console.log("\nLoading snippets...")
   const [commonHeaders, imageServing] = await Promise.all([
     loadSnippet(cfg.paths.bridgeRoot, "ops/caddy/snippets/common_headers.caddy"),
@@ -268,6 +316,11 @@ async function run() {
   console.log("\nQuerying database for domains...")
   const domains = await queryDomains(cfg.serverId)
   console.log(`  Found ${domains.length} domains for this server`)
+  console.log(`  Will generate ${domains.length * (1 + environments.length)} blocks total`)
+  console.log(`    - ${domains.length} main domain blocks`)
+  console.log(
+    `    - ${domains.length * environments.length} preview blocks (${environments.length} envs × ${domains.length} domains)`,
+  )
 
   console.log("\nGenerating files...")
 
@@ -275,7 +328,7 @@ async function run() {
   await mkdir(cfg.generated.dir, { recursive: true })
 
   // Generate Caddyfile.sites
-  const sites = renderCaddySites(cfg, { common: commonHeaders, image: imageServing }, domains)
+  const sites = renderCaddySites(cfg, environments, { common: commonHeaders, image: imageServing }, domains)
   await atomicWrite(cfg.generated.caddySites, sites)
   console.log(`  ${cfg.generated.caddySites}`)
 
@@ -296,7 +349,7 @@ async function run() {
   console.log("  3. Reload:   systemctl reload caddy-shell")
 }
 
-run().catch((e) => {
+run().catch(e => {
   const msg = e.message || String(e)
 
   console.error("\n\x1b[31m╔══════════════════════════════════════════════════════════════╗\x1b[0m")
@@ -319,6 +372,9 @@ run().catch((e) => {
   } else if (msg.includes("snippets") || msg.includes("common_headers") || msg.includes("image_serving")) {
     console.error("\x1b[33mFix:\x1b[0m Ensure Caddy snippets exist in ops/caddy/snippets/")
     console.error("     Required: common_headers.caddy, image_serving.caddy\n")
+  } else if (msg.includes("environments")) {
+    console.error("\x1b[33mFix:\x1b[0m Ensure packages/shared/environments.json exists")
+    console.error("     Each environment needs: key, port, domain, previewBase\n")
   }
 
   console.error("Run \x1b[36mbun run --cwd packages/site-controller setup:validate\x1b[0m for full diagnostics.\n")

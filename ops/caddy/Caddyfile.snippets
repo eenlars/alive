@@ -58,4 +58,9 @@
             copy_headers Cookie X-Preview-Set-Cookie
         }
     }
+
+    # Propagate preview session cookie back to the browser.
+    # forward_auth only copies headers to the upstream request, not the client response.
+    @has_preview_cookie header X-Preview-Set-Cookie *
+    header @has_preview_cookie +Set-Cookie "{http.request.header.X-Preview-Set-Cookie}"
 }

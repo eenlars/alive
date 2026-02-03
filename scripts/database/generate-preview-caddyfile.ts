@@ -4,20 +4,13 @@
  *
  * This script:
  * 1. Parses the main Caddyfile to extract domain→port mappings
- * 2. Generates corresponding preview subdomain blocks
+ * 2. Generates corresponding preview subdomain blocks for EACH environment
  * 3. Outputs Caddyfile snippet to stdout (append manually or via script)
  *
- * Example output:
- *   protino-alive-best.preview.terminal.goalive.nl {
- *     reverse_proxy localhost:3357 {
- *       header_up Host localhost
- *     }
- *     header {
- *       -X-Frame-Options
- *       Content-Security-Policy "frame-ancestors https://dev.terminal.goalive.nl https://terminal.goalive.nl"
- *     }
- *     forward_auth https://dev.terminal.goalive.nl/api/auth/preview-guard
- *   }
+ * Each environment gets its own preview subdomain:
+ *   - production: protino-alive-best.preview.terminal.goalive.nl → auth:9000
+ *   - staging: protino-alive-best.preview.staging.terminal.goalive.nl → auth:8998
+ *   - dev: protino-alive-best.preview.dev.terminal.goalive.nl → auth:8997
  */
 
 import { existsSync, readFileSync } from "node:fs"
@@ -33,9 +26,6 @@ const REPO_ROOT = resolve(__dirname, "../..")
 const CADDYFILE_PATH = process.env.CADDYFILE_PATH || resolve(REPO_ROOT, "ops/caddy/Caddyfile")
 const ENV_CONFIG_PATH = process.env.ENV_CONFIG_PATH || resolve(REPO_ROOT, "packages/shared/environments.json")
 
-const PREVIEW_BASE = "preview.terminal.goalive.nl"
-const AUTH_ENDPOINT = "https://dev.terminal.goalive.nl/api/auth/preview-guard"
-
 // Validate and read environments.json
 if (!existsSync(ENV_CONFIG_PATH)) {
   console.error(`Error: environments.json not found at ${ENV_CONFIG_PATH}`)
@@ -43,19 +33,34 @@ if (!existsSync(ENV_CONFIG_PATH)) {
   process.exit(1)
 }
 
-const envConfigRaw = JSON.parse(readFileSync(ENV_CONFIG_PATH, "utf-8"))
-const production = envConfigRaw?.environments?.production
-if (!production || typeof production.port !== "number") {
-  console.error(`Error: environments.production.port must be defined and numeric in ${ENV_CONFIG_PATH}`)
-  process.exit(1)
+interface EnvironmentConfig {
+  key: string
+  port: number
+  domain: string
+  previewBase: string
 }
-// Use production port for forward_auth since preview domains are accessed by production users
-const AUTH_PORT = production.port
 
 interface DomainMapping {
   domain: string
   port: number
 }
+
+const envConfigRaw = JSON.parse(readFileSync(ENV_CONFIG_PATH, "utf-8"))
+const environments: EnvironmentConfig[] = Object.values(envConfigRaw.environments || {}).filter(
+  (env: unknown): env is EnvironmentConfig => {
+    const e = env as Record<string, unknown>
+    return typeof e.port === "number" && typeof e.previewBase === "string" && typeof e.domain === "string"
+  }
+)
+
+if (environments.length === 0) {
+  console.error(`Error: No valid environments found in ${ENV_CONFIG_PATH}`)
+  console.error("Each environment needs: port (number), domain (string), previewBase (string)")
+  process.exit(1)
+}
+
+// Build frame-ancestors from all environment domains
+const frameAncestors = environments.map((e) => `https://${e.domain}`).join(" ") + " https://app.alive.best"
 
 /**
  * Parse Caddyfile to extract domain→port mappings
@@ -67,13 +72,17 @@ function parseCaddyfile(content: string): DomainMapping[] {
   // Handles both single domains and comma-separated domains
   const domainBlockRegex = /^([a-zA-Z0-9.-]+(?:,\s*[a-zA-Z0-9.-]+)*)\s*\{[\s\S]*?reverse_proxy\s+localhost:(\d+)/gm
 
+  // Get all environment domains to skip
+  const envDomains = environments.flatMap((e) => [e.domain, e.previewBase])
+
   for (const match of content.matchAll(domainBlockRegex)) {
-    const domains = match[1].split(",").map(d => d.trim())
+    const domains = match[1].split(",").map((d) => d.trim())
     const port = parseInt(match[2], 10)
 
     for (const domain of domains) {
-      // Skip Claude Bridge itself and non-workspace domains
-      if (domain.includes("terminal.goalive.nl") || domain.includes("staging.goalive.nl")) {
+      // Skip Claude Bridge itself and preview domains
+      const isEnvDomain = envDomains.some((ed) => domain.includes(ed) || domain.endsWith(ed))
+      if (isEnvDomain) {
         continue
       }
 
@@ -97,11 +106,11 @@ function domainToLabel(domain: string): string {
 }
 
 /**
- * Generate preview subdomain block for a workspace
+ * Generate preview subdomain block for a workspace + environment
  */
-function generatePreviewBlock(mapping: DomainMapping): string {
+function generatePreviewBlock(mapping: DomainMapping, env: EnvironmentConfig): string {
   const label = domainToLabel(mapping.domain)
-  const previewHost = `${label}.${PREVIEW_BASE}`
+  const previewHost = `${label}.${env.previewBase}`
 
   return `
 ${previewHost} {
@@ -114,18 +123,22 @@ ${previewHost} {
     header {
         # Security headers (embeddable variant)
         -X-Frame-Options
-        Content-Security-Policy "frame-ancestors https://dev.terminal.goalive.nl https://staging.terminal.goalive.nl https://terminal.goalive.nl https://app.alive.best"
+        Content-Security-Policy "frame-ancestors ${frameAncestors}"
         X-Content-Type-Options nosniff
         Referrer-Policy strict-origin-when-cross-origin
         -Server
         -X-Powered-By
     }
 
-    # Auth check via forward_auth (passes query params for preview_token auth)
-    forward_auth localhost:${AUTH_PORT} {
+    # Auth check via forward_auth (routes to ${env.key} environment)
+    forward_auth localhost:${env.port} {
         uri /api/auth/preview-guard?{query}
-        copy_headers Cookie
+        copy_headers Cookie X-Preview-Set-Cookie
     }
+
+    # Map X-Preview-Set-Cookie from forward_auth to Set-Cookie response header
+    @has_preview_cookie header X-Preview-Set-Cookie *
+    header @has_preview_cookie +Set-Cookie "{http.request.header.X-Preview-Set-Cookie}"
 }
 `.trimStart()
 }
@@ -134,29 +147,44 @@ ${previewHost} {
  * Generate complete preview section for Caddyfile
  */
 function generatePreviewSection(mappings: DomainMapping[]): string {
-  const blocks = mappings.map(generatePreviewBlock).join("\n")
+  const envInfo = environments.map((e) => `#   - ${e.key}: *.${e.previewBase} → localhost:${e.port}`).join("\n")
+
+  // Generate blocks for each environment
+  const allBlocks: string[] = []
+
+  for (const env of environments) {
+    const envHeader = `
+# ----------------------------------------------------------------------------
+# ${env.key.toUpperCase()} PREVIEW DOMAINS (*.${env.previewBase})
+# Auth routes to localhost:${env.port}
+# ----------------------------------------------------------------------------
+`
+    const blocks = mappings.map((m) => generatePreviewBlock(m, env)).join("\n")
+    allBlocks.push(envHeader + blocks)
+  }
 
   return `
 # ============================================================================
 # PREVIEW SUBDOMAINS (AUTO-GENERATED)
 # ============================================================================
-# This section is auto-generated by scripts/generate-preview-caddyfile.ts
+# This section is auto-generated by scripts/database/generate-preview-caddyfile.ts
 # DO NOT EDIT MANUALLY - Changes will be overwritten
 #
 # Preview subdomains allow iframe embedding of workspace dev servers
 # with proper authentication and security headers.
 #
-# Format: <workspace-label>.preview.terminal.goalive.nl → localhost:<port>
-# Example: protino-alive-best.preview.terminal.goalive.nl → localhost:3357
+# Each environment has its own preview subdomain base:
+${envInfo}
 #
 # Features:
 # - Host header set to "localhost" for Vite dev server compatibility
 # - X-Frame-Options removed to allow iframe embedding
-# - CSP frame-ancestors restricts to terminal.goalive.nl and app.alive.best
+# - CSP frame-ancestors restricts to environment domains
 # - forward_auth enforces session authentication at Caddy edge
+# - Cookie propagation via X-Preview-Set-Cookie header mapping
 # ============================================================================
 
-${blocks}
+${allBlocks.join("\n")}
 # ============================================================================
 # END PREVIEW SUBDOMAINS (AUTO-GENERATED)
 # ============================================================================
@@ -171,7 +199,10 @@ function main() {
   console.error("Configuration:")
   console.error(`  Caddyfile: ${CADDYFILE_PATH}`)
   console.error(`  Environments: ${ENV_CONFIG_PATH}`)
-  console.error(`  Auth port (production): ${AUTH_PORT}`)
+  console.error(`  Environments found: ${environments.length}`)
+  for (const env of environments) {
+    console.error(`    - ${env.key}: ${env.previewBase} → localhost:${env.port}`)
+  }
   console.error("")
 
   // Check if Caddyfile exists
@@ -191,6 +222,7 @@ function main() {
   }
 
   console.error(`Found ${mappings.length} workspace domains`)
+  console.error(`Will generate ${mappings.length * environments.length} preview blocks total`)
 
   // Generate preview section
   const previewSection = generatePreviewSection(mappings)
