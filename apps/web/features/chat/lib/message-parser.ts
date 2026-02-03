@@ -47,6 +47,8 @@ export interface InterruptEventData {
 export interface StreamEvent {
   type: BridgeStreamType
   requestId: string
+  messageId?: string
+  streamSeq?: number
   timestamp: string
   data:
     | StartEventData

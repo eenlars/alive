@@ -684,7 +684,12 @@ export async function POST(req: NextRequest) {
       oauthWarnings, // OAuth warnings to inject into stream
       onMessage: message => {
         // Buffer each message for reconnection support (non-blocking)
-        appendToStreamBuffer(requestId, JSON.stringify(message)).catch(err => {
+        const streamSeq = message.streamSeq
+        if (typeof streamSeq !== "number") {
+          logger.log("Skipping buffer append (missing streamSeq)")
+          return
+        }
+        appendToStreamBuffer(requestId, JSON.stringify(message), streamSeq).catch(err => {
           logger.log("Failed to buffer message (non-fatal):", err)
         })
       },

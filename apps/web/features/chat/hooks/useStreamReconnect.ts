@@ -74,6 +74,7 @@ export function useStreamReconnect({
     setIsReconnecting(true)
 
     try {
+      const lastSeenSeq = tabId ? streamingActions.getLastSeenStreamSeq(tabId) : null
       const response = await fetch("/api/claude/stream/reconnect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,6 +84,7 @@ export function useStreamReconnect({
           tabId,
           workspace,
           acknowledge: false, // Don't delete buffer yet, in case we need to retry
+          lastSeenSeq: typeof lastSeenSeq === "number" ? lastSeenSeq : undefined,
         }),
       })
 
@@ -163,6 +165,7 @@ export function useStreamReconnect({
         await new Promise(resolve => setTimeout(resolve, pollInterval))
 
         try {
+          const lastSeenSeq = streamingActions.getLastSeenStreamSeq(pollTabId)
           const response = await fetch("/api/claude/stream/reconnect", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -172,6 +175,7 @@ export function useStreamReconnect({
               tabId: pollTabId,
               workspace: ws,
               acknowledge: false,
+              lastSeenSeq: typeof lastSeenSeq === "number" ? lastSeenSeq : undefined,
             }),
           })
 

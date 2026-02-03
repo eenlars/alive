@@ -72,6 +72,8 @@ export interface BridgeMessage {
   requestId: string
   /** Unique message ID for idempotency (prevents duplicate processing) */
   messageId: string
+  /** Monotonic stream sequence for cursor-based replay (1-based) */
+  streamSeq?: number
   /** Tab ID for routing responses to the correct tab (undefined for legacy clients) */
   tabId?: string
   timestamp: string

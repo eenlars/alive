@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import { createJSONStorage, persist } from "zustand/middleware"
 import {
   closeTab,
   createTab,
@@ -84,6 +84,42 @@ type TabDataStore = TabDataStoreState & TabDataStoreActions
 const emptyState = (): TabDataStoreState => ({
   tabsByWorkspace: {},
 })
+
+// =============================================================================
+// Storage (safe fallback for tests/Node)
+// =============================================================================
+
+function createMemoryStorage(): Storage {
+  const store = new Map<string, string>()
+  return {
+    get length() {
+      return store.size
+    },
+    clear: () => {
+      store.clear()
+    },
+    getItem: (key: string) => store.get(key) ?? null,
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key: string) => {
+      store.delete(key)
+    },
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+  }
+}
+
+const memoryStorage = createMemoryStorage()
+
+function getSafeLocalStorage(): Storage {
+  try {
+    if (typeof localStorage === "undefined") return memoryStorage
+    if (typeof localStorage.setItem !== "function") return memoryStorage
+    return localStorage
+  } catch {
+    return memoryStorage
+  }
+}
 
 // ============================================================================
 // Store
@@ -219,6 +255,7 @@ export const useTabDataStore = create<TabDataStore>()(
       name: TAB_DATA_STORAGE_KEY,
       version: DATA_STORE_VERSION,
       skipHydration: true, // HydrationManager handles coordinated hydration
+      storage: createJSONStorage(() => getSafeLocalStorage()),
       partialize: s => ({
         tabsByWorkspace: s.tabsByWorkspace,
       }),
