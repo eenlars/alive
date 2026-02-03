@@ -268,6 +268,9 @@ function dropPrivileges() {
   if (configuredClaudeDir && configuredClaudeDir.startsWith("/")) {
     process.env.CLAUDE_CONFIG_DIR = configuredClaudeDir
   } else {
+    if (configuredClaudeDir && !configuredClaudeDir.startsWith("/")) {
+      console.error(`[worker] Ignoring invalid CLAUDE_CONFIG_DIR (must be absolute): ${configuredClaudeDir}`)
+    }
     process.env.CLAUDE_CONFIG_DIR = defaultClaudeDir
   }
 
