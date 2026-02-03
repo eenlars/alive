@@ -145,6 +145,70 @@ run_quiet() {
     return 0
 }
 
+# Force-restart a service, handling stuck states
+# Returns 0 if service is active after restart, 1 otherwise
+service_force_restart() {
+    local service="$1"
+    local max_wait="${2:-15}"
+
+    # Check current state
+    local state=$(systemctl show -p ActiveState --value "$service" 2>/dev/null || echo "unknown")
+    local substate=$(systemctl show -p SubState --value "$service" 2>/dev/null || echo "unknown")
+
+    # If service is stuck in a transitional state, force-kill it
+    if [[ "$state" == "deactivating" ]] || [[ "$substate" == "stop-sigterm" ]] || [[ "$substate" == "stop-sigkill" ]]; then
+        log_step "Service stuck in $state/$substate, force-killing..."
+
+        # Get the main PID and kill it directly
+        local main_pid=$(systemctl show -p MainPID --value "$service" 2>/dev/null || echo "0")
+        if [[ "$main_pid" != "0" ]] && [[ -n "$main_pid" ]]; then
+            kill -9 "$main_pid" 2>/dev/null || true
+        fi
+
+        # Kill any remaining processes in the cgroup
+        local cgroup_path="/sys/fs/cgroup/system.slice/${service}"
+        if [[ -f "${cgroup_path}/cgroup.procs" ]]; then
+            while read pid; do
+                [[ -n "$pid" ]] && kill -9 "$pid" 2>/dev/null || true
+            done < "${cgroup_path}/cgroup.procs"
+        fi
+
+        # Wait briefly for systemd to notice
+        sleep 2
+    fi
+
+    # Reset any failed state
+    systemctl reset-failed "$service" 2>/dev/null || true
+
+    # Stop first (in case it's running), then start
+    # Using stop + start instead of restart to avoid restart's dependency on clean stop
+    systemctl stop "$service" 2>/dev/null || true
+    sleep 1
+
+    # Start the service
+    systemctl start "$service" 2>/dev/null &
+    local start_pid=$!
+
+    # Wait for service to become active
+    local waited=0
+    while [[ $waited -lt $max_wait ]]; do
+        sleep 1
+        waited=$((waited + 1))
+
+        state=$(systemctl show -p ActiveState --value "$service" 2>/dev/null || echo "unknown")
+        if [[ "$state" == "active" ]]; then
+            return 0
+        fi
+
+        # If it failed, no point waiting
+        if [[ "$state" == "failed" ]]; then
+            return 1
+        fi
+    done
+
+    return 1
+}
+
 # Cleanup old builds, keeping N most recent
 cleanup_old_builds() {
     local builds_path="$1"
