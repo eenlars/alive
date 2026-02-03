@@ -8,9 +8,6 @@ Claude Bridge enables developers to interact with Claude AI in the context of sp
 
 **📚 [Documentation →](./docs/README.md)** | **🚀 [Quick Start](./docs/GETTING_STARTED.md)** | **🏗️ [Architecture](./docs/architecture/README.md)** | **🔐 [Security](./docs/security/README.md)** | **🧪 [Testing](./docs/testing/README.md)**
 
-<!-- TODO: Download and host architecture diagram locally in docs/images/ to avoid external URL dependency -->
-![Claude Bridge Architecture Whiteboard](https://terminal.goalive.nl/_images/t/larss.alive.best/o/98ba3d55db2b679a/v/orig.webp)
-
 ## Architecture
 
 ### Multi-Tenant Design
