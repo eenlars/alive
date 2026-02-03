@@ -73,7 +73,12 @@ else
         # Build frame ancestors from all environment domains
         FRAME_ANCESTORS=$(jq -r '[.environments[].domain] | map("https://" + .) | join(" ")' "$ENV_CONFIG_PATH")" https://app.alive.best"
     else
-        log_warn "environments.json not found or jq not installed, using single environment fallback"
+        # jq is required for parsing environments - check if it's available
+        if ! command -v jq &> /dev/null; then
+            log_error "jq is required but not installed. Please install jq or use generator mode."
+            exit 18
+        fi
+        log_warn "environments.json not found, using single environment fallback"
         # Fallback to single environment from env vars
         PREVIEW_BASE="${PREVIEW_BASE:-preview.terminal.goalive.nl}"
         AUTH_PORT="${AUTH_PORT:-8998}"
@@ -172,9 +177,12 @@ ${PREVIEW_DOMAIN} {
         -X-Powered-By
     }
 
+    # SECURITY: Strip any client-supplied X-Preview-Set-Cookie header to prevent cookie injection
+    request_header -X-Preview-Set-Cookie
+
     # Auth check via forward_auth (routes to ${ENV_KEY} environment)
     forward_auth localhost:${ENV_PORT} {
-        uri /api/auth/preview-guard
+        uri /api/auth/preview-guard?{query}
         copy_headers Cookie X-Preview-Set-Cookie
     }
 

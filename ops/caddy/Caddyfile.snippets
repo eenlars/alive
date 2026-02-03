@@ -37,6 +37,10 @@
 (preview_auth) {
     @not_websocket not header Connection *Upgrade*
 
+    # SECURITY: Strip any client-supplied X-Preview-Set-Cookie header to prevent cookie injection.
+    # Only the auth backend should set this header.
+    request_header -X-Preview-Set-Cookie
+
     route @not_websocket {
         # Development environment
         @dev expression `{http.request.header.Referer}.contains("dev.your-domain.com")`

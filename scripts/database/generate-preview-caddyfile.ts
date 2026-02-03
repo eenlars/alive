@@ -81,7 +81,8 @@ function parseCaddyfile(content: string): DomainMapping[] {
 
     for (const domain of domains) {
       // Skip Claude Bridge itself and preview domains
-      const isEnvDomain = envDomains.some((ed) => domain.includes(ed) || domain.endsWith(ed))
+      // Use exact match or subdomain check (not substring) to avoid false positives
+      const isEnvDomain = envDomains.some((ed) => domain === ed || domain.endsWith(`.${ed}`))
       if (isEnvDomain) {
         continue
       }
@@ -129,6 +130,9 @@ ${previewHost} {
         -Server
         -X-Powered-By
     }
+
+    # SECURITY: Strip any client-supplied X-Preview-Set-Cookie header to prevent cookie injection
+    request_header -X-Preview-Set-Cookie
 
     # Auth check via forward_auth (routes to ${env.key} environment)
     forward_auth localhost:${env.port} {
