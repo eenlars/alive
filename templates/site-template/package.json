@@ -15,6 +15,6 @@
   },
   "devDependencies": {
     "@alive-game/alive-tagger": "0.1.1",
-    "tldts": "^11.17.0"
+    "tldts": "^7.0.22"
   }
 }

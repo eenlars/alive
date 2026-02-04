@@ -34,7 +34,8 @@ const safeName = domain.replace(/\./g, "-")
 const packageName = domain.replace(/\./g, "_")
 
 // Compute registrable domain (eTLD+1) for safe allowedHosts
-const registrableDomain = parse(domain).domain ?? domain
+// Use allowPrivateDomains to correctly handle domains like github.io, blogspot.com
+const registrableDomain = parse(domain, { allowPrivateDomains: true }).domain ?? domain
 const allowedHosts = [domain, `.${registrableDomain}`]
 
 // Generate vite.config.ts

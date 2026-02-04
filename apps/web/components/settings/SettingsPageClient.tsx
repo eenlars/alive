@@ -134,8 +134,17 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
     setSidebarOpen(false)
   }
 
-  const currentTab = tabs.find(t => t.id === activeTab) ||
-    tabs[0] || { id: "account" as const, label: "Profile", icon: User }
+  // Derive effective tab - if activeTab points to an admin-only tab the user can't see,
+  // fall back to the first available tab
+  const effectiveTab = tabs.find(t => t.id === activeTab) || tabs[0]
+  const currentTab = effectiveTab || { id: "account" as const, label: "Profile", icon: User }
+
+  // Sync URL to effective tab if user doesn't have access to the URL-specified tab
+  useEffect(() => {
+    if (hydrated && !loading && effectiveTab && effectiveTab.id !== activeTab) {
+      void setActiveTab(effectiveTab.id)
+    }
+  }, [hydrated, loading, effectiveTab, activeTab, setActiveTab])
 
   return (
     <div className="h-full bg-zinc-50 dark:bg-zinc-950 flex flex-col md:flex-row">
