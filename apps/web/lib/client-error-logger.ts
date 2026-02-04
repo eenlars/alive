@@ -1,7 +1,7 @@
 /**
  * Client-side Error Logger
  *
- * Sends errors to the centralized error logging API.
+ * Sends errors to PostHog for error tracking and analytics.
  * Use this from React components and other frontend code.
  *
  * @example
@@ -14,12 +14,14 @@
  * }
  */
 
+import { captureException } from "@/components/providers/PostHogProvider"
+
 interface ErrorDetails {
   [key: string]: unknown
 }
 
 /**
- * Log an error to the centralized error API
+ * Log an error to PostHog
  *
  * @param category - Error category ('oauth', 'api', 'ui', etc.)
  * @param message - Human-readable error message
@@ -28,25 +30,25 @@ interface ErrorDetails {
 export async function logError(category: string, message: string, details?: ErrorDetails): Promise<void> {
   try {
     // Extract error info if details contains an Error object
-    const processedDetails: ErrorDetails = { ...details }
-    if (details?.error instanceof Error) {
-      processedDetails.errorMessage = details.error.message
-      processedDetails.errorStack = details.error.stack
-      delete processedDetails.error
+    const error = details?.error instanceof Error ? details.error : new Error(message)
+
+    // Build properties for PostHog
+    const properties: Record<string, unknown> = {
+      $exception_source: "client_error_logger",
+      category,
+      url: typeof window !== "undefined" ? window.location.href : undefined,
     }
 
-    await fetch("/api/logs/error", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        category,
-        message,
-        details: processedDetails,
-        url: typeof window !== "undefined" ? window.location.href : undefined,
-        stack: details?.error instanceof Error ? details.error.stack : undefined,
-      }),
-    })
+    // Add all details except the error object
+    if (details) {
+      for (const [key, value] of Object.entries(details)) {
+        if (key !== "error") {
+          properties[key] = value
+        }
+      }
+    }
+
+    captureException(error, properties)
   } catch {
     // Don't let error logging break the app
     console.error("[ClientErrorLogger] Failed to send error:", message, details)
@@ -64,25 +66,10 @@ export const clientLogger = {
 }
 
 /**
- * Global error handler setup (call once in app layout)
+ * @deprecated Global error handling is now managed by PostHogProvider.
+ * This function is kept for backwards compatibility but does nothing.
  */
 export function setupGlobalErrorHandler(): void {
-  if (typeof window === "undefined") return
-
-  // Catch unhandled promise rejections
-  window.addEventListener("unhandledrejection", event => {
-    logError("unhandled", `Unhandled rejection: ${event.reason?.message || event.reason}`, {
-      error: event.reason,
-    })
-  })
-
-  // Catch runtime errors
-  window.addEventListener("error", event => {
-    logError("runtime", `Runtime error: ${event.message}`, {
-      filename: event.filename,
-      lineno: event.lineno,
-      colno: event.colno,
-      error: event.error,
-    })
-  })
+  // PostHog provider handles global error capture automatically
+  // See: components/providers/PostHogProvider.tsx
 }

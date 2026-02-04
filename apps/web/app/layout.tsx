@@ -2,7 +2,7 @@ import NextTopLoader from "nextjs-toploader"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
 import { AuthModal } from "@/components/modals/AuthModal"
 import { FlowgladProviderWrapper } from "@/components/providers/FlowgladProviderWrapper"
-import { GlobalErrorHandler } from "@/components/providers/GlobalErrorHandler"
+import { PostHogProvider } from "@/components/providers/PostHogProvider"
 import { QueryClientProvider } from "@/lib/providers/QueryClientProvider"
 import { ThemeProvider } from "@/components/providers/theme-provider"
 import { SkillsStoreProvider } from "@/lib/providers/SkillsStoreProvider"
@@ -36,23 +36,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Must be early in the tree to hydrate stores before components use them */}
         {/* Sets window.__APP_HYDRATED__ for E2E test synchronization */}
         <HydrationManager />
-        {/* Captures unhandled errors and sends them to /api/logs/error for debugging */}
-        <GlobalErrorHandler />
-        <NextTopLoader color="#000" height={2} showSpinner={false} />
-        <NuqsAdapter>
-          <ThemeProvider>
-            <QueryClientProvider>
-              <FlowgladProviderWrapper>
-                <UserStoreProvider>
-                  <SkillsStoreProvider>
-                    {children}
-                    <AuthModal />
-                  </SkillsStoreProvider>
-                </UserStoreProvider>
-              </FlowgladProviderWrapper>
-            </QueryClientProvider>
-          </ThemeProvider>
-        </NuqsAdapter>
+        <PostHogProvider>
+          <NextTopLoader color="#000" height={2} showSpinner={false} />
+          <NuqsAdapter>
+            <ThemeProvider>
+              <QueryClientProvider>
+                <FlowgladProviderWrapper>
+                  <UserStoreProvider>
+                    <SkillsStoreProvider>
+                      {children}
+                      <AuthModal />
+                    </SkillsStoreProvider>
+                  </UserStoreProvider>
+                </FlowgladProviderWrapper>
+              </QueryClientProvider>
+            </ThemeProvider>
+          </NuqsAdapter>
+        </PostHogProvider>
       </body>
     </html>
   )
