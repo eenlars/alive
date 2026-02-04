@@ -46,7 +46,7 @@ make dev
 
 **Manual (if needed):**
 ```bash
-cd /root/webalive/claude-bridge/apps/shell-server-go
+cd /root/alive/apps/shell-server-go
 make build
 systemctl restart shell-server-go
 systemctl status shell-server-go
@@ -75,9 +75,9 @@ curl -I https://go.goalive.nl
 ## Files
 
 - **Service definition**: `/etc/systemd/system/shell-server-go.service` (also in ops/systemd/)
-- **Environment vars**: `/root/webalive/claude-bridge/apps/shell-server-go/.env.production`
-- **App code**: `/root/webalive/claude-bridge/apps/shell-server-go/`
-- **Built binary**: `/root/webalive/claude-bridge/apps/shell-server-go/shell-server-go`
+- **Environment vars**: `/root/alive/apps/shell-server-go/.env.production`
+- **App code**: `/root/alive/apps/shell-server-go/`
+- **Built binary**: `/root/alive/apps/shell-server-go/shell-server-go`
 
 ## What We Removed
 

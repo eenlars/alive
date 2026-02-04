@@ -190,7 +190,7 @@ async function handleProxy(request: NextRequest): Promise<NextResponse> {
     responseHeaders.delete("x-frame-options")
     responseHeaders.set(
       "content-security-policy",
-      `frame-ancestors ${DOMAINS.BRIDGE_DEV} ${DOMAINS.BRIDGE_PROD} ${DOMAINS.BRIDGE_STAGING}`,
+      `frame-ancestors ${DOMAINS.STREAM_DEV} ${DOMAINS.STREAM_PROD} ${DOMAINS.STREAM_STAGING}`,
     )
 
     // Inject navigation script into HTML responses (at <head> to run before frameworks)

@@ -37,7 +37,7 @@ make logs-dev                # View dev logs
 
 # Status
 make status                  # Show all environments
-systemctl list-units 'claude-bridge*'  # List bridge services
+systemctl list-units 'alive*'  # List alive services
 
 # Rollback
 make rollback                # Interactive rollback to previous build
@@ -82,7 +82,7 @@ journalctl -u site@example-com.service -n 50 -f
 make status
 
 # Specific environment
-systemctl status claude-bridge-staging
+systemctl status alive-staging
 
 # Specific site
 systemctl status site@example-com.service
@@ -92,10 +92,10 @@ systemctl status site@example-com.service
 
 ```bash
 # Dev environment
-systemctl restart claude-bridge-dev
+systemctl restart alive-dev
 
 # Staging environment
-systemctl restart claude-bridge-staging
+systemctl restart alive-staging
 
 # Individual site
 systemctl restart site@example-com.service

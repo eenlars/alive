@@ -12,10 +12,10 @@ A simple, file-based feedback storage system that follows the same pattern as `d
 
 Following the same pattern as domain passwords:
 
-1. **Production**: `/var/lib/claude-bridge/feedback.json`
+1. **Production**: `/var/lib/alive/feedback.json`
 2. **Development Fallbacks**:
    - `{cwd}/feedback.json` (current working directory)
-   - `/root/webalive/claude-bridge/feedback.json`
+   - `/root/alive/feedback.json`
 
 The system automatically creates the file and directories if they don't exist.
 

@@ -192,7 +192,7 @@ export interface StreamErrorContext {
  * Logs both to journalctl (structured for grep) and to the error buffer (queryable via API).
  *
  * To find errors:
- *   journalctl -u claude-bridge-staging | grep "STREAM_ERROR:ERROR_ID"
+ *   journalctl -u alive-staging | grep "STREAM_ERROR:ERROR_ID"
  *   Or query: GET /api/logs/error?category=stream
  */
 export function logStreamError(context: StreamErrorContext): void {

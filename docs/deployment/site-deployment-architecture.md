@@ -16,7 +16,7 @@ The WebAlive infrastructure provides **secure, isolated, multi-tenant website de
 ### 2. **Template System**
 - **Location**: `packages/template/user/`
 - **Contents**: Base website with Hono server, HTML/CSS/JS assets
-- **Includes**: DNS verification file at `.well-known/bridge-verify.txt`
+- **Includes**: DNS verification file at `.well-known/alive-verify.txt`
 
 ### 3. **Process Management: systemd**
 - **Service Pattern**: `site@{domain-slug}.service`
@@ -24,7 +24,7 @@ The WebAlive infrastructure provides **secure, isolated, multi-tenant website de
 - **Features**: User isolation, resource limits, security hardening
 
 ### 4. **Reverse Proxy: Caddy**
-- **Config Location**: `/root/webalive/claude-bridge/Caddyfile`
+- **Config Location**: `/root/alive/Caddyfile`
 - **System Config**: `/etc/caddy/Caddyfile` (imports WebAlive config)
 - **Features**: Automatic HTTPS, zero-downtime reloads
 
@@ -34,7 +34,7 @@ The WebAlive infrastructure provides **secure, isolated, multi-tenant website de
 - **Workspace Access**: Users linked to domains they own
 
 ### 6. **Port Registry**
-- **Location**: `/var/lib/claude-bridge/domain-passwords.json`
+- **Location**: `/var/lib/alive/domain-passwords.json`
 - **Format**: JSON with domain → port/password mappings
 - **Auto-increment**: Starts at 3333, increments for each new site
 
@@ -80,7 +80,7 @@ Create directory structure:
 │   ├── styles.css          # Styling
 │   ├── public/             # Static assets
 │   │   └── .well-known/
-│   │       └── bridge-verify.txt  # DNS verification (YOUR_SERVER_IP)
+│   │       └── alive-verify.txt  # DNS verification (YOUR_SERVER_IP)
 │   ├── js/                 # JavaScript modules
 │   └── pages/              # Additional pages
 ├── package.json            # Dependencies
@@ -94,7 +94,7 @@ Set permissions: chmod -R 755 (readable/executable by all, writable by owner)
 ### **Phase 4: Port Assignment**
 
 ```
-Load registry: /var/lib/claude-bridge/domain-passwords.json
+Load registry: /var/lib/alive/domain-passwords.json
   ↓
 Check if domain exists:
   - YES → Reuse existing port
@@ -155,7 +155,7 @@ Activate service:
 ### **Phase 6: Caddy Reverse Proxy Configuration**
 
 ```
-Edit: /root/webalive/claude-bridge/Caddyfile
+Edit: /root/alive/Caddyfile
   ↓
 Add domain block:
 example.com {
@@ -174,7 +174,7 @@ Caddy handles:
 
 **Two-Tier Caddy Setup:**
 - **Main Config**: `/etc/caddy/Caddyfile` (system-wide, imports WebAlive config)
-- **Sites Config**: `/root/webalive/claude-bridge/Caddyfile` (WebAlive routing only)
+- **Sites Config**: `/root/alive/Caddyfile` (WebAlive routing only)
 - **Sync**: Automatic via `import` directive, no manual copying needed
 
 ### **Phase 7: User Account Creation (Supabase)**
@@ -202,7 +202,7 @@ Update user metadata:
 
 ```
 DNS verification file deployed at:
-https://example.com/.well-known/bridge-verify.txt
+https://example.com/.well-known/alive-verify.txt
   ↓
 Contents: YOUR_SERVER_IP (server IP)
   ↓
@@ -226,7 +226,7 @@ POST-deployment checks:
 3. curl https://example.com
    → Expected: HTTP 200 (with valid HTTPS)
   ↓
-4. curl https://example.com/.well-known/bridge-verify.txt
+4. curl https://example.com/.well-known/alive-verify.txt
    → Expected: "YOUR_SERVER_IP"
   ↓
 All checks pass → Deployment SUCCESS ✓
@@ -324,10 +324,10 @@ See: **[CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md)**
 | **Workspace** | `/srv/webalive/sites/{domain}/` | Site files (new secure location) |
 | **Legacy Workspace** | `/root/webalive/sites/{domain}/` | Old PM2 sites (migrate to systemd) |
 | **Systemd Unit** | `/etc/systemd/system/site@.service` | Service template |
-| **Caddy Config** | `/root/webalive/claude-bridge/Caddyfile` | WebAlive routing |
+| **Caddy Config** | `/root/alive/Caddyfile` | WebAlive routing |
 | **Caddy System** | `/etc/caddy/Caddyfile` | System config + imports |
-| **Port Registry** | `/var/lib/claude-bridge/domain-passwords.json` | Port assignments |
-| **DNS Verification** | `{domain}/.well-known/bridge-verify.txt` | IP verification (YOUR_SERVER_IP) |
+| **Port Registry** | `/var/lib/alive/domain-passwords.json` | Port assignments |
+| **DNS Verification** | `{domain}/.well-known/alive-verify.txt` | IP verification (YOUR_SERVER_IP) |
 
 ---
 
@@ -409,7 +409,7 @@ sudo systemctl enable site@example-com.service
 sudo systemctl start site@example-com.service
 
 # 6. Update Caddy
-# Edit /root/webalive/claude-bridge/Caddyfile (add domain block)
+# Edit /root/alive/Caddyfile (add domain block)
 sudo systemctl reload caddy
 
 # 7. Verify

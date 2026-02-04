@@ -4,7 +4,7 @@
  * POST /v1/streams/claude
  *
  * Receives stream requests from Next.js and manages the Claude SDK lifecycle.
- * Returns NDJSON stream of BridgeEvents.
+ * Returns NDJSON stream of StreamEvents.
  */
 
 import { Hono } from "hono"
@@ -12,7 +12,7 @@ import { stream } from "hono/streaming"
 import { statSync } from "node:fs"
 import { getWorkerPool, type WorkerToParentMessage } from "@webalive/worker-pool"
 import { getStreamManager } from "../engine/stream-manager.js"
-import { StartStreamRequestSchema, BRIDGE_EVENT_TYPES, type BridgeEvent, type StartStreamRequest } from "../types.js"
+import { StartStreamRequestSchema, STREAM_EVENT_TYPES, type StreamEvent, type StartStreamRequest } from "../types.js"
 
 const app = new Hono()
 
@@ -107,7 +107,7 @@ app.post("/", async c => {
     const encoder = new TextEncoder()
 
     // Helper to emit NDJSON events
-    const emit = (event: BridgeEvent) => {
+    const emit = (event: StreamEvent) => {
       const line = `${JSON.stringify(event)}\n`
       streamWriter.write(encoder.encode(line))
       machine.recordMessage()
@@ -115,7 +115,7 @@ app.post("/", async c => {
 
     // Emit start event
     emit({
-      type: BRIDGE_EVENT_TYPES.START,
+      type: STREAM_EVENT_TYPES.START,
       requestId,
       tabId,
       timestamp: Date.now(),
@@ -143,7 +143,7 @@ app.post("/", async c => {
         onMessage: (msg: WorkerToParentMessage) => {
           if (msg.type === "message" && "content" in msg) {
             emit({
-              type: BRIDGE_EVENT_TYPES.MESSAGE,
+              type: STREAM_EVENT_TYPES.MESSAGE,
               requestId,
               tabId,
               timestamp: Date.now(),
@@ -151,7 +151,7 @@ app.post("/", async c => {
             })
           } else if (msg.type === "session" && "sessionId" in msg) {
             emit({
-              type: BRIDGE_EVENT_TYPES.SESSION,
+              type: STREAM_EVENT_TYPES.SESSION,
               requestId,
               tabId,
               timestamp: Date.now(),
@@ -159,7 +159,7 @@ app.post("/", async c => {
             })
           } else if (msg.type === "complete" && "result" in msg) {
             emit({
-              type: BRIDGE_EVENT_TYPES.COMPLETE,
+              type: STREAM_EVENT_TYPES.COMPLETE,
               requestId,
               tabId,
               timestamp: Date.now(),
@@ -180,7 +180,7 @@ app.post("/", async c => {
         // Cancelled by user
         machine.cancel()
         emit({
-          type: BRIDGE_EVENT_TYPES.INTERRUPT,
+          type: STREAM_EVENT_TYPES.INTERRUPT,
           requestId,
           tabId,
           timestamp: Date.now(),
@@ -190,7 +190,7 @@ app.post("/", async c => {
         // Actual error
         machine.fail(errorMessage)
         emit({
-          type: BRIDGE_EVENT_TYPES.ERROR,
+          type: STREAM_EVENT_TYPES.ERROR,
           requestId,
           tabId,
           timestamp: Date.now(),

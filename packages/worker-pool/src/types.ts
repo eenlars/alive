@@ -6,10 +6,10 @@
 
 import type { ChildProcess } from "node:child_process"
 import type { Socket } from "node:net"
-import { BRIDGE_STREAM_TYPES, type BridgeStreamType } from "@webalive/shared"
+import { STREAM_TYPES, type StreamType } from "@webalive/shared"
 
 // Re-export for convenience (canonical source: @webalive/shared)
-export { BRIDGE_STREAM_TYPES, type BridgeStreamType }
+export { STREAM_TYPES, type StreamType }
 
 // ============================================================================
 // Constants (defined first so types can reference them)
@@ -46,7 +46,7 @@ export const WORKER_STATES = {
 /** Environment variables used by worker pool */
 export const ENV_VARS = {
   /** Session cookie for MCP tool authentication */
-  BRIDGE_SESSION_COOKIE: "BRIDGE_SESSION_COOKIE",
+  ALIVE_SESSION_COOKIE: "ALIVE_SESSION_COOKIE",
   /** Target UID for privilege dropping */
   TARGET_UID: "TARGET_UID",
   /** Target GID for privilege dropping */
@@ -125,11 +125,11 @@ export interface AgentConfig {
    *
    * Internal MCP servers (alive-workspace, alive-tools) are NOT included here
    * because createSdkMcpServer returns function objects that cannot be serialized
-   * via IPC. The worker imports and creates those locally from @alive-brug/tools.
+   * via IPC. The worker imports and creates those locally from @webalive/tools.
    */
   oauthMcpServers: Record<string, unknown>
   /** Bridge stream type constants (from @webalive/shared) */
-  bridgeStreamTypes: typeof BRIDGE_STREAM_TYPES
+  streamTypes: typeof STREAM_TYPES
   /** Whether the user is an admin (enables Bash tools) */
   isAdmin?: boolean
 }
@@ -157,7 +157,7 @@ export interface AgentRequest {
   /**
    * Session cookie for MCP tool authentication.
    * Required for tools like restart_dev_server that call back to Bridge API.
-   * Worker sets process.env.BRIDGE_SESSION_COOKIE from this value.
+   * Worker sets process.env.ALIVE_SESSION_COOKIE from this value.
    */
   sessionCookie?: string
 }

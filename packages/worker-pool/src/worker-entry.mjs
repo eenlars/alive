@@ -519,7 +519,7 @@ async function handleQuery(ipc, requestId, payload) {
     // SECURITY: Always set/clear session cookie at start of each request
     // This prevents cookie leakage between requests from different users
     // If payload has cookie, use it; otherwise clear any previous value
-    process.env.BRIDGE_SESSION_COOKIE = payload.sessionCookie || ""
+    process.env.ALIVE_SESSION_COOKIE = payload.sessionCookie || ""
 
     // API key handling:
     // - For user-provided API keys: pass via payload.apiKey

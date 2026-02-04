@@ -21,7 +21,7 @@ describe("Cookie Name Integration", () => {
     expect(COOKIE_NAMES.MANAGER_SESSION).toBe("manager_session")
   })
 
-  it("should be the same constant used in bridge-api-client", async () => {
+  it("should be the same constant used in stream-api-client", async () => {
     // Dynamically import to verify it compiles and uses the shared constant
     const { COOKIE_NAMES: importedNames } = await import("@webalive/shared")
     expect(importedNames.SESSION).toBe("auth_session_v2")

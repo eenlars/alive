@@ -6,10 +6,10 @@ When users see "I encountered an error while streaming my response", use this gu
 
 ```bash
 # Find error by ID shown to user (e.g., "Error ID: abc-123")
-journalctl -u claude-bridge-staging | grep "STREAM_ERROR:abc-123"
+journalctl -u alive-staging | grep "STREAM_ERROR:abc-123"
 
 # Recent stream errors
-journalctl -u claude-bridge-staging --since "10 minutes ago" | grep "STREAM_ERROR"
+journalctl -u alive-staging --since "10 minutes ago" | grep "STREAM_ERROR"
 
 # Query error buffer via API
 curl -s https://terminal.goalive.nl/api/logs/error?category=stream | jq '.errors[:5]'

@@ -36,12 +36,12 @@ export const sharedConfig = {
     conditions: ["development", "browser"],
     alias: {
       // Point to source, not dist - let TypeScript handle compilation
-      "@alive-brug/tools/display": join(process.cwd(), "../../packages/tools/src/display.ts"),
-      "@alive-brug/tools": join(process.cwd(), "../../packages/tools/src/index.ts"),
+      "@webalive/tools/display": join(process.cwd(), "../../packages/tools/src/display.ts"),
+      "@webalive/tools": join(process.cwd(), "../../packages/tools/src/index.ts"),
       "@webalive/site-controller": join(process.cwd(), "../../packages/site-controller"),
-      "@alive-brug/images": join(process.cwd(), "../../packages/images"),
-      "@alive-brug/template": join(process.cwd(), "../../packages/template"),
-      "@alive-brug/guides": join(process.cwd(), "../../packages/guides"),
+      "@webalive/images": join(process.cwd(), "../../packages/images"),
+      "@webalive/template": join(process.cwd(), "../../packages/template"),
+      "@webalive/guides": join(process.cwd(), "../../packages/guides"),
       // Ensure single React copy for DOM testing environments (prevents "Invalid hook call" errors)
       // All workspace packages now use React 19
       react: join(process.cwd(), "../../node_modules/react"),
@@ -56,11 +56,11 @@ export const sharedConfig = {
   },
   ssr: {
     noExternal: [
-      "@alive-brug/tools",
+      "@webalive/tools",
       "@webalive/site-controller",
-      "@alive-brug/images",
-      "@alive-brug/template",
-      "@alive-brug/guides",
+      "@webalive/images",
+      "@webalive/template",
+      "@webalive/guides",
       // Process React in SSR for proper jsdom integration
       "react",
       "react-dom",

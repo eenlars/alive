@@ -1,9 +1,9 @@
 {
-  "_comment": "Copy to /var/lib/claude-bridge/server-config.json and customize for this server",
+  "_comment": "Copy to /var/lib/alive/server-config.json and customize for this server",
   "serverId": "srv-CHANGEME",
   "serverIp": "0.0.0.0",
   "paths": {
-    "bridgeRoot": "/path/to/claude-bridge",
+    "aliveRoot": "/path/to/alive",
     "sitesRoot": "/srv/webalive/sites",
     "imagesStorage": "/srv/webalive/storage"
   },
@@ -25,9 +25,9 @@
     "upstream": "localhost:3888"
   },
   "generated": {
-    "dir": "/var/lib/claude-bridge/generated",
-    "caddySites": "/var/lib/claude-bridge/generated/Caddyfile.sites",
-    "caddyShell": "/var/lib/claude-bridge/generated/Caddyfile.shell",
-    "nginxMap": "/var/lib/claude-bridge/generated/nginx.sni.map"
+    "dir": "/var/lib/alive/generated",
+    "caddySites": "/var/lib/alive/generated/Caddyfile.sites",
+    "caddyShell": "/var/lib/alive/generated/Caddyfile.shell",
+    "nginxMap": "/var/lib/alive/generated/nginx.sni.map"
   }
 }

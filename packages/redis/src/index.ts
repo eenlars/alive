@@ -22,7 +22,7 @@ const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
  *
  * @example Production usage (recommended)
  * ```typescript
- * import { createRedisClient } from '@alive-brug/redis';
+ * import { createRedisClient } from '@webalive/redis';
  * import { getRedisUrl } from '@webalive/env/server';
  *
  * const redis = createRedisClient(getRedisUrl());

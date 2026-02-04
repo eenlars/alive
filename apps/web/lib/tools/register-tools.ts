@@ -2,7 +2,7 @@
  * Tool Component Registrations
  *
  * Register React components for custom tool rendering.
- * Display config (autoExpand, preview) is in @alive-brug/tools.
+ * Display config (autoExpand, preview) is in @webalive/tools.
  *
  * Import this file once at app initialization.
  */

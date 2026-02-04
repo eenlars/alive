@@ -180,7 +180,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     try {
-      const { stdout, stderr } = await execAsync(`${PATHS.BRIDGE_ROOT}/scripts/sites/delete-site.sh ${domain} --force`)
+      const { stdout, stderr } = await execAsync(`${PATHS.STREAM_ROOT}/scripts/sites/delete-site.sh ${domain} --force`)
       return createCorsSuccessResponse(origin, { output: stdout, error: stderr || null, requestId })
     } catch (error) {
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {

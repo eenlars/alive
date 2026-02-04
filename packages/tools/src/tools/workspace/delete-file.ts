@@ -1,6 +1,6 @@
 import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { z } from "zod"
-import { callBridgeApi, errorResult, type ToolResult } from "../../lib/bridge-api-client.js"
+import { callBridgeApi, errorResult, type ToolResult } from "../../lib/api-client.js"
 import { extractDomainFromWorkspace } from "../../lib/workspace-validator.js"
 
 export const deleteFileParamsSchema = {

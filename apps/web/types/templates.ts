@@ -3,7 +3,7 @@
  * Types only - no runtime imports to avoid Node.js deps in client bundles
  */
 
-import type { TemplateCategory, TemplateListItem } from "@alive-brug/tools"
+import type { TemplateCategory, TemplateListItem } from "@webalive/tools"
 
 // Re-export types for component usage
 export type { TemplateListItem, TemplateCategory }
@@ -16,7 +16,7 @@ export type Template = TemplateListItem
 
 /**
  * Template categories with display names (for UI)
- * Duplicated here to avoid importing from @alive-brug/tools which has Node.js deps
+ * Duplicated here to avoid importing from @webalive/tools which has Node.js deps
  */
 export const TEMPLATE_CATEGORIES: Record<string, string> = {
   "ui-components": "UI Components",

@@ -28,7 +28,7 @@ import { cancelStream, cancelStreamByConversationKey } from "@/lib/stream/cancel
  */
 
 // Debug logging to file for cancel investigation
-const CANCEL_DEBUG_LOG = "/var/log/claude-bridge/cancel-debug.log"
+const CANCEL_DEBUG_LOG = "/var/log/alive/cancel-debug.log"
 
 interface CancelDebugEntry {
   timestamp: string
@@ -50,7 +50,7 @@ interface CancelDebugEntry {
 function logCancelDebug(entry: CancelDebugEntry): void {
   try {
     // Ensure log directory exists
-    mkdirSync("/var/log/claude-bridge", { recursive: true })
+    mkdirSync("/var/log/alive", { recursive: true })
 
     const logLine = `${JSON.stringify(entry)}\n`
     appendFileSync(CANCEL_DEBUG_LOG, logLine)

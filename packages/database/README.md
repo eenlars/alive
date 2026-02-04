@@ -28,7 +28,7 @@ Or run the interactive setup:
 
 ```bash
 cd packages/database
-export DATABASE_URL="postgresql://user:pass@localhost:5432/claude_bridge"
+export DATABASE_URL="postgresql://user:pass@localhost:5432/alive"
 bun run db:setup
 ```
 

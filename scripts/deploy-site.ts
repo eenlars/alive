@@ -51,7 +51,7 @@ Options:
 
 Requirements:
   - DATABASE_URL and DATABASE_PASSWORD in env file
-  - Server must have server-config.json at /var/lib/claude-bridge/
+  - Server must have server-config.json at /var/lib/alive/
 `)
   process.exit(showHelp ? 0 : 1)
 }

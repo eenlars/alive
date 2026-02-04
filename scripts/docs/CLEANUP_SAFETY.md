@@ -156,7 +156,7 @@ test.afterAll(async () => {
 Add to crontab for daily cleanup at 2am:
 
 ```bash
-0 2 * * * cd /root/webalive/claude-bridge && bun scripts/cleanup-test-database.ts --force >> /var/log/test-cleanup.log 2>&1
+0 2 * * * cd /root/alive && bun scripts/cleanup-test-database.ts --force >> /var/log/test-cleanup.log 2>&1
 ```
 
 ## Verification

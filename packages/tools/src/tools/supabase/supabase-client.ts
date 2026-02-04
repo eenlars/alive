@@ -6,7 +6,7 @@
  */
 
 import { COOKIE_NAMES } from "@webalive/shared"
-import { errorResult, type ToolResult } from "../../lib/bridge-api-client.js"
+import { errorResult, type ToolResult } from "../../lib/api-client.js"
 
 const SUPABASE_API_BASE = "https://api.supabase.com"
 
@@ -43,7 +43,7 @@ export interface SupabaseContext {
 export async function getSupabaseContext(): Promise<SupabaseContext | ToolResult> {
   try {
     const apiUrl = `${getApiBaseUrl()}/api/integrations/supabase/context`
-    const sessionCookie = process.env.BRIDGE_SESSION_COOKIE
+    const sessionCookie = process.env.ALIVE_SESSION_COOKIE
 
     const response = await fetch(apiUrl, {
       method: "GET",

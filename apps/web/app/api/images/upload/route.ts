@@ -1,4 +1,4 @@
-import { uploadImage } from "@alive-brug/images"
+import { uploadImage } from "@webalive/images"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"

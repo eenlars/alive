@@ -52,7 +52,7 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
   const runnerPath = resolve(import.meta.dirname, "../../scripts/run-agent.mjs")
 
   // SUPERADMIN: Skip privilege drop - run as root
-  // Only applies when user is superadmin AND workspace is claude-bridge
+  // Only applies when user is superadmin AND workspace is alive
   let uid: number
   let gid: number
   if (payload.isSuperadmin) {
@@ -85,7 +85,7 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
       TARGET_CWD: workspaceRoot,
       ANTHROPIC_API_KEY: apiKey,
       // Pass session cookie for authenticated API calls
-      ...(payload.sessionCookie && { BRIDGE_SESSION_COOKIE: payload.sessionCookie }),
+      ...(payload.sessionCookie && { ALIVE_SESSION_COOKIE: payload.sessionCookie }),
     },
     stdio: ["pipe", "pipe", "pipe"],
   })

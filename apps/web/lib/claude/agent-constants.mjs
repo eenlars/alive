@@ -1,27 +1,27 @@
-import { getEnabledMcpToolNames, toolsInternalMcp, workspaceInternalMcp } from "@alive-brug/tools"
+import { getEnabledMcpToolNames, toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
 import {
-  // Single source of truth for Bridge tool configuration
-  BRIDGE_ALLOWED_SDK_TOOLS,
-  BRIDGE_INTERRUPT_SOURCES,
-  BRIDGE_PERMISSION_MODE,
-  BRIDGE_SETTINGS_SOURCES,
-  BRIDGE_STREAM_TYPES,
-  BRIDGE_SYNTHETIC_MESSAGE_TYPES,
-  getBridgeAllowedTools,
-  getBridgeDisallowedTools,
-  getBridgeMcpServers,
+  // Single source of truth for Stream tool configuration
+  STREAM_ALLOWED_SDK_TOOLS,
+  STREAM_INTERRUPT_SOURCES,
+  STREAM_PERMISSION_MODE,
+  STREAM_SETTINGS_SOURCES,
+  STREAM_TYPES,
+  STREAM_SYNTHETIC_MESSAGE_TYPES,
+  getStreamAllowedTools,
+  getStreamDisallowedTools,
+  getStreamMcpServers,
   getGlobalMcpToolNames,
   OAUTH_MCP_PROVIDERS,
 } from "@webalive/shared"
 
 // Re-export stream types
-export { BRIDGE_STREAM_TYPES, BRIDGE_SYNTHETIC_MESSAGE_TYPES, BRIDGE_INTERRUPT_SOURCES }
+export { STREAM_TYPES, STREAM_SYNTHETIC_MESSAGE_TYPES, STREAM_INTERRUPT_SOURCES }
 
 // Re-export SDK tools from shared (single source of truth)
-export const ALLOWED_SDK_TOOLS = BRIDGE_ALLOWED_SDK_TOOLS
-export const PERMISSION_MODE = BRIDGE_PERMISSION_MODE
+export const ALLOWED_SDK_TOOLS = STREAM_ALLOWED_SDK_TOOLS
+export const PERMISSION_MODE = STREAM_PERMISSION_MODE
 /** @type {import('@anthropic-ai/claude-agent-sdk').SettingSource[]} */
-export const SETTINGS_SOURCES = BRIDGE_SETTINGS_SOURCES
+export const SETTINGS_SOURCES = STREAM_SETTINGS_SOURCES
 
 // MCP tools (auto-generated from TOOL_REGISTRY)
 const BASE_MCP_TOOLS = getEnabledMcpToolNames()
@@ -36,7 +36,7 @@ export const ALLOWED_MCP_TOOLS = [...BASE_MCP_TOOLS, ...GLOBAL_MCP_TOOLS]
  * @returns {string[]} Base allowed tools list
  */
 export function getAllowedTools(_workspacePath, isAdmin = false, isSuperadmin = false) {
-  return getBridgeAllowedTools(getEnabledMcpToolNames, isAdmin, isSuperadmin)
+  return getStreamAllowedTools(getEnabledMcpToolNames, isAdmin, isSuperadmin)
 }
 
 /**
@@ -46,7 +46,7 @@ export function getAllowedTools(_workspacePath, isAdmin = false, isSuperadmin = 
  * @returns {string[]} Disallowed tools list
  */
 export function getDisallowedTools(isAdmin = false, isSuperadmin = false) {
-  return getBridgeDisallowedTools(isAdmin, isSuperadmin)
+  return getStreamDisallowedTools(isAdmin, isSuperadmin)
 }
 
 /**
@@ -56,7 +56,7 @@ export function getDisallowedTools(isAdmin = false, isSuperadmin = false) {
  * @returns {Object} MCP servers configuration
  */
 export function getMcpServers(_workspacePath, options = {}) {
-  return getBridgeMcpServers(
+  return getStreamMcpServers(
     { "alive-workspace": workspaceInternalMcp, "alive-tools": toolsInternalMcp },
     options.oauthTokens || {},
   )

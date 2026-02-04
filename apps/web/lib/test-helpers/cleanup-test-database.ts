@@ -28,7 +28,7 @@ interface CleanupStats {
  * 🔒 CRITICAL SAFETY - TRIPLE VERIFICATION:
  * Only deletes users where ALL THREE conditions are met:
  * 1. is_test_env = true (set during createTestUser)
- * 2. email matches INTERNAL test domains (@bridge-vitest.internal, etc.)
+ * 2. email matches INTERNAL test domains (@alive-vitest.internal, etc.)
  * 3. NOT using common patterns that real users might use
  *
  * This triple-check prevents accidental deletion of real users.

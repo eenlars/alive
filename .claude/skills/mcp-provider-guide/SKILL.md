@@ -87,7 +87,7 @@ This means:
 
 ```bash
 # Rebuild packages
-bun run build --filter=@webalive/shared --filter=@alive-brug/tools
+bun run build --filter=@webalive/shared --filter=@webalive/tools
 
 # Deploy to staging
 make staging
@@ -133,7 +133,7 @@ SDK connects to HTTP MCPs       ─── JSON-RPC over HTTP
 | File | Purpose |
 |------|---------|
 | `packages/shared/src/mcp-providers.ts` | Provider registry (URLs, tools, names) |
-| `packages/shared/src/bridge-tools.ts` | `getBridgeMcpServers()` builds server config |
+| `packages/shared/src/stream-tools.ts` | `getBridgeMcpServers()` builds server config |
 | `packages/tools/src/tools/meta/tool-registry.ts` | Discovery via `search_tools` |
 | `apps/web/scripts/run-agent.mjs` | Legacy runner (calls getMcpServers) |
 | `packages/worker-pool/src/worker-entry.mjs` | Persistent worker |
@@ -158,7 +158,7 @@ Once you add the provider to `GLOBAL_MCP_PROVIDERS`:
 - [ ] TypeScript compiles: `bun run type-check`
 - [ ] Tests pass: `bun run test`
 - [ ] Deploy succeeds: `make staging`
-- [ ] Check staging logs: `journalctl -u claude-bridge-staging -f | grep -i mcp`
+- [ ] Check staging logs: `journalctl -u alive-staging -f | grep -i mcp`
 
 ## Common Pitfalls
 

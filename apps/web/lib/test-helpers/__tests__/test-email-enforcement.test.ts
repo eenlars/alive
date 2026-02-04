@@ -11,9 +11,9 @@ import { ALLOWED_TEST_EMAIL_DOMAINS, generateTestEmail, isTestEmail, validateTes
 describe("Test Email Domain Enforcement", () => {
   describe("ALLOWED_TEST_EMAIL_DOMAINS", () => {
     it("should contain only safe internal test domains", () => {
-      expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@bridge-vitest.internal")
-      expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@bridge-playwright.internal")
-      expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@claude-bridge-test.local")
+      expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@alive-vitest.internal")
+      expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@alive-playwright.internal")
+      expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@alive-test.local")
     })
 
     it("should not contain any real or common test domains", () => {
@@ -37,9 +37,9 @@ describe("Test Email Domain Enforcement", () => {
 
   describe("isTestEmail()", () => {
     it("should return true for allowed internal test email domains", () => {
-      expect(isTestEmail("user@bridge-vitest.internal")).toBe(true)
-      expect(isTestEmail("user@bridge-playwright.internal")).toBe(true)
-      expect(isTestEmail("user@claude-bridge-test.local")).toBe(true)
+      expect(isTestEmail("user@alive-vitest.internal")).toBe(true)
+      expect(isTestEmail("user@alive-playwright.internal")).toBe(true)
+      expect(isTestEmail("user@alive-test.local")).toBe(true)
     })
 
     it("should return false for real and common test domains", () => {
@@ -59,9 +59,9 @@ describe("Test Email Domain Enforcement", () => {
 
   describe("validateTestEmail()", () => {
     it("should not throw for valid internal test emails", () => {
-      expect(() => validateTestEmail("user@bridge-vitest.internal")).not.toThrow()
-      expect(() => validateTestEmail("user@bridge-playwright.internal")).not.toThrow()
-      expect(() => validateTestEmail("user@claude-bridge-test.local")).not.toThrow()
+      expect(() => validateTestEmail("user@alive-vitest.internal")).not.toThrow()
+      expect(() => validateTestEmail("user@alive-playwright.internal")).not.toThrow()
+      expect(() => validateTestEmail("user@alive-test.local")).not.toThrow()
     })
 
     it("should throw for real email domains", () => {
@@ -77,8 +77,8 @@ describe("Test Email Domain Enforcement", () => {
       } catch (error) {
         expect((error as Error).message).toContain("SECURITY ERROR")
         expect((error as Error).message).toContain("user@example.com")
-        expect((error as Error).message).toContain("@bridge-vitest.internal")
-        expect((error as Error).message).toContain("@bridge-playwright.internal")
+        expect((error as Error).message).toContain("@alive-vitest.internal")
+        expect((error as Error).message).toContain("@alive-playwright.internal")
       }
     })
   })
@@ -86,19 +86,19 @@ describe("Test Email Domain Enforcement", () => {
   describe("generateTestEmail()", () => {
     it("should generate valid test emails with default domain", () => {
       const email = generateTestEmail()
-      expect(email).toMatch(/^test-\d+-[a-z0-9]+@bridge-vitest\.internal$/)
+      expect(email).toMatch(/^test-\d+-[a-z0-9]+@alive-vitest.internal$/)
       expect(isTestEmail(email)).toBe(true)
     })
 
     it("should generate emails with custom prefix", () => {
       const email = generateTestEmail("mytest")
-      expect(email).toMatch(/^mytest-\d+-[a-z0-9]+@bridge-vitest\.internal$/)
+      expect(email).toMatch(/^mytest-\d+-[a-z0-9]+@alive-vitest.internal$/)
       expect(isTestEmail(email)).toBe(true)
     })
 
     it("should generate emails with custom allowed domain", () => {
-      const email = generateTestEmail("test", "@bridge-playwright.internal")
-      expect(email).toMatch(/^test-\d+-[a-z0-9]+@bridge-playwright\.internal$/)
+      const email = generateTestEmail("test", "@alive-playwright.internal")
+      expect(email).toMatch(/^test-\d+-[a-z0-9]+@alive-playwright.internal$/)
       expect(isTestEmail(email)).toBe(true)
     })
 

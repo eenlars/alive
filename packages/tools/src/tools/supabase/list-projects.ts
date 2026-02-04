@@ -6,7 +6,7 @@
  */
 
 import { tool } from "@anthropic-ai/claude-agent-sdk"
-import { errorResult, successResult, type ToolResult } from "../../lib/bridge-api-client.js"
+import { errorResult, successResult, type ToolResult } from "../../lib/api-client.js"
 import { fetchProjects, getSupabaseContext, isToolError } from "./supabase-client.js"
 
 export const listProjectsParamsSchema = {}

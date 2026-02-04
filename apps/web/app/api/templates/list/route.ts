@@ -3,7 +3,7 @@
  * Returns available Alive Super Templates from filesystem frontmatter
  */
 
-import { listTemplates } from "@alive-brug/tools"
+import { listTemplates } from "@webalive/tools"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"

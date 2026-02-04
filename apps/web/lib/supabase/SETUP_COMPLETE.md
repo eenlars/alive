@@ -147,7 +147,7 @@ vim .env  # Delete SUPABASE_* lines
 rm lib/supabase/iam.ts lib/supabase/iam-types.ts
 
 # Restart staging
-pm2 restart claude-bridge-staging
+pm2 restart alive-staging
 ```
 
 ## Support

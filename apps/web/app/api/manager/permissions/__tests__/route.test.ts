@@ -34,7 +34,7 @@ vi.mock("@/features/auth/lib/auth", async importOriginal => {
 
 import { GET, POST } from "../route"
 
-const TEST_SITES_BASE = "/tmp/claude-bridge-permissions-test"
+const TEST_SITES_BASE = "/tmp/alive-permissions-test"
 const TEST_DOMAIN = "test-permissions.com"
 const _TEST_USER = "site-test-permissions-com"
 
@@ -126,7 +126,7 @@ describe("GET /api/manager/permissions (Check Permissions)", () => {
   it("should isolate path operations despite path traversal in domain (THE PATH TRAVERSAL BUG)", async () => {
     isManagerAuth = true
 
-    const attacks = ["../../etc/passwd", "../../../root/.ssh/id_rsa", "../../../../claude-bridge/.env"]
+    const attacks = ["../../etc/passwd", "../../../root/.ssh/id_rsa", "../../../../alive/.env"]
 
     for (const attack of attacks) {
       const url = new URL("http://localhost/api/manager/permissions")

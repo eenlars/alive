@@ -2,7 +2,7 @@
 
 Shared utilities for MCP tools.
 
-## bridge-api-client.ts
+## api-client.ts
 
 HTTP client for calling Bridge API routes from MCP tools.
 

@@ -1,7 +1,7 @@
 /**
  * Generate Caddy routing configuration from database
  *
- * Reads server identity from /var/lib/claude-bridge/server-config.json
+ * Reads server identity from /var/lib/alive/server-config.json
  * Queries database for domains assigned to this server
  * Generates Caddyfile.sites and Caddyfile.shell
  *
@@ -23,7 +23,7 @@ import { createClient } from "@supabase/supabase-js"
 interface ServerConfig {
   serverId: string
   paths: {
-    bridgeRoot: string
+    aliveRoot: string
     sitesRoot: string
     imagesStorage: string
   }
@@ -61,7 +61,7 @@ interface DomainRow {
 // Helpers
 // =============================================================================
 
-const SERVER_CONFIG_PATH = "/var/lib/claude-bridge/server-config.json"
+const SERVER_CONFIG_PATH = "/var/lib/alive/server-config.json"
 
 function must<T>(v: T | undefined | null, msg: string): T {
   if (v === undefined || v === null) throw new Error(msg)
@@ -80,8 +80,8 @@ async function loadServerConfig(): Promise<ServerConfig> {
   return cfg
 }
 
-async function loadEnvironments(bridgeRoot: string): Promise<EnvironmentConfig[]> {
-  const envPath = path.join(bridgeRoot, "packages/shared/environments.json")
+async function loadEnvironments(aliveRoot: string): Promise<EnvironmentConfig[]> {
+  const envPath = path.join(aliveRoot, "packages/shared/environments.json")
   const raw = await readFile(envPath, "utf8")
   const envConfigRaw = JSON.parse(raw)
 
@@ -104,8 +104,8 @@ async function loadEnvironments(bridgeRoot: string): Promise<EnvironmentConfig[]
   return environments
 }
 
-async function loadSnippet(bridgeRoot: string, rel: string): Promise<string> {
-  const p = path.join(bridgeRoot, rel)
+async function loadSnippet(aliveRoot: string, rel: string): Promise<string> {
+  const p = path.join(aliveRoot, rel)
   return readFile(p, "utf8")
 }
 
@@ -300,18 +300,18 @@ async function run() {
   console.log("Loading server config...")
   const cfg = await loadServerConfig()
   console.log(`  serverId: ${cfg.serverId}`)
-  console.log(`  bridgeRoot: ${cfg.paths.bridgeRoot}`)
+  console.log(`  aliveRoot: ${cfg.paths.aliveRoot}`)
 
   console.log("\nLoading environments...")
-  const environments = await loadEnvironments(cfg.paths.bridgeRoot)
+  const environments = await loadEnvironments(cfg.paths.aliveRoot)
   for (const env of environments) {
     console.log(`  - ${env.key}: ${env.previewBase} → localhost:${env.port}`)
   }
 
   console.log("\nLoading snippets...")
   const [commonHeaders, imageServing] = await Promise.all([
-    loadSnippet(cfg.paths.bridgeRoot, "ops/caddy/snippets/common_headers.caddy"),
-    loadSnippet(cfg.paths.bridgeRoot, "ops/caddy/snippets/image_serving.caddy"),
+    loadSnippet(cfg.paths.aliveRoot, "ops/caddy/snippets/common_headers.caddy"),
+    loadSnippet(cfg.paths.aliveRoot, "ops/caddy/snippets/image_serving.caddy"),
   ])
   console.log("  Loaded common_headers.caddy")
   console.log("  Loaded image_serving.caddy")
@@ -362,7 +362,7 @@ run().catch(e => {
 
   // Provide specific help based on error
   if (msg.includes("server-config.json") || msg.includes("ENOENT")) {
-    console.error("\x1b[33mFix:\x1b[0m Create /var/lib/claude-bridge/server-config.json")
+    console.error("\x1b[33mFix:\x1b[0m Create /var/lib/alive/server-config.json")
     console.error("     Copy from: ops/server-config.example.json")
     console.error("     Then edit with this server's configuration\n")
   } else if (msg.includes("SUPABASE_URL")) {

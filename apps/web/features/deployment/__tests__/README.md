@@ -57,7 +57,7 @@ node --inspect-brk $(which bun) test features/deployment/__tests__/concurrent-de
 - This is a deployment infrastructure issue, not a test issue
 
 **Maintenance**:
-- Test users use `@bridge-vitest.internal` domain (internal test domain)
+- Test users use `@alive-vitest.internal` domain (internal test domain)
 - Automatically cleans up after itself (users, orgs, sites)
 - Timeout: 3 minutes (enough for 3 concurrent deployments)
 

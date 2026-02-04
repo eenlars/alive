@@ -287,7 +287,7 @@ export const TOOL_DISPLAY_CONFIG: Record<string, ToolDisplayConfig> = {
 
 ```typescript
 import { [ComponentName]Output, validate[ComponentName] } from "@/components/ui/chat/tools/ai/[ComponentName]Output"
-import { TOOL_NAMES } from "@alive-brug/tools"
+import { TOOL_NAMES } from "@webalive/tools"
 
 export function registerToolRenderers(registry: ToolRegistry) {
   // ... existing registrations

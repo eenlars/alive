@@ -1,5 +1,5 @@
 {
-  "name": "@alive-brug/template",
+  "name": "@webalive/template",
   "version": "0.0.0",
   "private": true,
   "description": "Template for creating new Vite React applications with shadcn/ui",

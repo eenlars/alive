@@ -15,7 +15,7 @@ Genuine E2E tests make **REAL API calls** to Claude to verify the complete reque
    └─> Creates /tmp/test-workspace with minimal structure
 
 2. webServer starts (start-test-server-genuine.sh)
-   └─> BRIDGE_ENV=local, NO PLAYWRIGHT_TEST flag
+   └─> ALIVE_ENV=local, NO PLAYWRIGHT_TEST flag
 
 3. Tests run (chat-genuine.spec.ts)
    └─> Real API calls to Claude
@@ -52,7 +52,7 @@ e2e-tests/
 ```
 
 **start-test-server-genuine.sh**:
-- Sets `BRIDGE_ENV=local` (enables test mode)
+- Sets `ALIVE_ENV=local` (enables test mode)
 - Does NOT set `PLAYWRIGHT_TEST=true` (allows real API calls)
 - Starts server on port 9548
 
@@ -81,15 +81,15 @@ e2e-tests/
 **Test Credentials** (from `fixtures/test-data.ts`):
 ```typescript
 {
-  email: "test@bridge.local",
+  email: "test@alive.local",
   password: "test",
-  workspace: "test.bridge.local"
+  workspace: "test.alive.local"
 }
 ```
 
 **How it works**:
-1. `BRIDGE_ENV=local` enables test mode in auth system
-2. `workspace=test.bridge.local` triggers special handling
+1. `ALIVE_ENV=local` enables test mode in auth system
+2. `workspace=test.alive.local` triggers special handling
 3. `workspaceRetriever.ts` returns `/tmp/test-workspace` path
 4. API calls use this workspace as working directory
 
