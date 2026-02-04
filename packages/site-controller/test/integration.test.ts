@@ -18,7 +18,7 @@ describe("SiteOrchestrator", () => {
   it("should export PATHS constant", () => {
     expect(PATHS).toBeDefined()
     expect(PATHS.SITES_ROOT).toBe("/srv/webalive/sites")
-    expect(PATHS.TEMPLATE_PATH).toBe("/root/alive/packages/template")
+    expect(PATHS.TEMPLATE_PATH).toBe("/root/alive/templates/site-template")
   })
 })
 

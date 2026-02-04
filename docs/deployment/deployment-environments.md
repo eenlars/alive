@@ -59,7 +59,7 @@ dev.terminal.goalive.nl → localhost:8997 (dev - accessible)
 
 ## Caddy Config
 
-**Location:** `/root/alive/Caddyfile`
+**Location:** `/root/alive/ops/caddy/Caddyfile`
 
 ```caddy
 terminal.goalive.nl {
@@ -100,9 +100,9 @@ Builds isolated in `.builds/v{n}/`, old version remains running until new build 
 
 After deployment:
 
-- [ ] Site responds: `curl -H "Host: terminal.goalive.nl" localhost:8999`
+- [ ] Site responds: `curl -H "Host: staging.terminal.goalive.nl" localhost:8998`
 - [ ] Systemd shows running: `systemctl status alive-staging`
-- [ ] Logs clean: `bun run see | grep -i error` (no errors)
+- [ ] Logs clean: `journalctl -u alive-staging -n 50 | grep -i error` (no errors)
 - [ ] Caddy active: `systemctl status caddy`
 - [ ] Public domain works: `curl https://terminal.goalive.nl`
 
@@ -119,6 +119,6 @@ After deployment:
 - Check git pull succeeded: `cd /root/alive && git status`
 
 **Caddy not reloading:**
-- Check syntax: `caddy validate --config /root/alive/Caddyfile`
+- Check syntax: `caddy validate --config /root/alive/ops/caddy/Caddyfile`
 - Manual reload: `systemctl reload caddy`
 - View logs: `journalctl -u caddy -n 50`

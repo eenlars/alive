@@ -9,7 +9,7 @@ import { createAppClient } from "@/lib/supabase/app"
  * Special case: alive is always available (it's the codebase itself)
  */
 export function domainExistsOnThisServer(hostname: string): boolean {
-  // alive is always available - it's the Bridge codebase itself
+  // alive is always available - it's the codebase itself
   if (hostname === SUPERADMIN.WORKSPACE_NAME) {
     return true
   }
