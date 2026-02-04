@@ -213,7 +213,7 @@ export function filterToolsForPlanMode(allowedTools: string[], isPlanMode: boole
 /**
  * Get all allowed tools for Bridge mode (SDK + MCP tools).
  *
- * @param getEnabledMcpToolNames - Function to get enabled MCP tool names from @alive-brug/tools
+ * @param getEnabledMcpToolNames - Function to get enabled MCP tool names from @webalive/tools
  * @param isAdmin - Whether the user is an admin (enables Bash tools)
  * @param isSuperadmin - Whether the user is a superadmin (gets ALL tools)
  * @returns Array of allowed tool names
@@ -254,7 +254,7 @@ export interface BridgeMcpServerConfig {
 /**
  * Get MCP servers configuration for Bridge mode.
  *
- * @param internalMcpServers - Internal MCP servers from @alive-brug/tools
+ * @param internalMcpServers - Internal MCP servers from @webalive/tools
  * @param oauthTokens - OAuth tokens keyed by provider
  * @returns MCP servers configuration
  */

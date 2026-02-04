@@ -57,7 +57,7 @@ interface CheckResult {
 // Constants
 // =============================================================================
 
-const SERVER_CONFIG_PATH = "/var/lib/claude-bridge/server-config.json"
+const SERVER_CONFIG_PATH = "/var/lib/alive/server-config.json"
 const COLORS = {
   reset: "\x1b[0m",
   red: "\x1b[31m",
@@ -303,11 +303,7 @@ async function checkServerIdInDatabase(serverId: string | undefined): Promise<Ch
     const supabase = createClient(url, key, { db: { schema: "app" } })
 
     // Check if server_id column exists and has our server
-    const { data, error } = await supabase
-      .from("domains")
-      .select("hostname")
-      .eq("server_id", serverId)
-      .limit(5)
+    const { data, error } = await supabase.from("domains").select("hostname").eq("server_id", serverId).limit(5)
 
     if (error) {
       if (error.message.includes("server_id")) {
@@ -433,7 +429,7 @@ async function main() {
     checkDirectory("Images Storage", config?.paths?.imagesStorage),
     checkDirectory("Generated Output", config?.generated?.dir, true), // Create if missing
   ])
-  dirChecks.forEach((r) => {
+  dirChecks.forEach(r => {
     results.push(r)
     printResult(r)
   })
@@ -447,7 +443,7 @@ async function main() {
     checkEnvVar("Anthropic API Key", "ANTHROPIC_API_KEY", false),
     checkEnvVar("JWT Secret", "JWT_SECRET", false),
   ]
-  envChecks.forEach((r) => {
+  envChecks.forEach(r => {
     results.push(r)
     printResult(r)
   })
@@ -477,10 +473,10 @@ async function main() {
 
   // 6. Summary
   print(`${COLORS.dim}[6/6] Summary${COLORS.reset}`)
-  const passed = results.filter((r) => r.status === "pass").length
-  const failed = results.filter((r) => r.status === "fail").length
-  const warned = results.filter((r) => r.status === "warn").length
-  const skipped = results.filter((r) => r.status === "skip").length
+  const passed = results.filter(r => r.status === "pass").length
+  const failed = results.filter(r => r.status === "fail").length
+  const warned = results.filter(r => r.status === "warn").length
+  const skipped = results.filter(r => r.status === "skip").length
 
   print("")
   print(`  ${COLORS.green}Passed:${COLORS.reset}  ${passed}`)
@@ -508,7 +504,7 @@ async function main() {
   }
 }
 
-main().catch((e) => {
+main().catch(e => {
   print(`${COLORS.red}Unexpected error: ${e.message}${COLORS.reset}`)
   process.exit(1)
 })

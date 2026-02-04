@@ -22,7 +22,7 @@ The shell-server provides a web-based terminal interface for system administrati
   "production": {
     "port": 3888,
     "defaultWorkspace": "root",
-    "defaultCwd": "/root/webalive/claude-bridge",
+    "defaultCwd": "/root/alive",
     "workspaceBase": "/root/webalive",
     "allowWorkspaceSelection": false
   }
@@ -55,7 +55,7 @@ const envConfig = config[env] || config.development
 ### Relative vs Absolute Paths
 
 The `defaultCwd` can be specified as:
-- **Absolute path**: Used as-is (e.g., `/root/webalive/claude-bridge`)
+- **Absolute path**: Used as-is (e.g., `/root/alive`)
 - **Relative path**: Resolved against `process.cwd()` (e.g., `.alive/shell-server`)
 
 ```typescript
@@ -105,7 +105,7 @@ Development mode allows workspace selection (`allowWorkspaceSelection: true`), e
 
 Production uses hardcoded, secure defaults:
 - **Port**: 3888 (dedicated port, not dev)
-- **Working directory**: `/root/webalive/claude-bridge` (absolute path)
+- **Working directory**: `/root/alive` (absolute path)
 - **Workspace selection**: Disabled (security)
 
 ### Security Considerations
@@ -128,13 +128,13 @@ console.log(`[CONFIG] Workspace selection: ${envConfig.allowWorkspaceSelection ?
 // Example output (development):
 // [CONFIG] Environment: development
 // [CONFIG] Port: 3500
-// [CONFIG] Default workspace: /root/webalive/claude-bridge/.alive/shell-server
+// [CONFIG] Default workspace: /root/alive/.alive/shell-server
 // [CONFIG] Workspace selection: enabled
 
 // Example output (production):
 // [CONFIG] Environment: production
 // [CONFIG] Port: 3888
-// [CONFIG] Default workspace: /root/webalive/claude-bridge
+// [CONFIG] Default workspace: /root/alive
 // [CONFIG] Workspace selection: disabled
 ```
 
@@ -159,10 +159,10 @@ cd apps/shell-server
 bun run dev
 
 # Output:
-# [CONFIG] Creating development workspace: /root/webalive/claude-bridge/.alive/shell-server
+# [CONFIG] Creating development workspace: /root/alive/.alive/shell-server
 # [CONFIG] Environment: development
 # [CONFIG] Port: 3500
-# [CONFIG] Default workspace: /root/webalive/claude-bridge/.alive/shell-server
+# [CONFIG] Default workspace: /root/alive/.alive/shell-server
 # [CONFIG] Workspace selection: enabled
 ```
 
@@ -189,7 +189,7 @@ bun run start
 # Output:
 # [CONFIG] Environment: production
 # [CONFIG] Port: 3888
-# [CONFIG] Default workspace: /root/webalive/claude-bridge
+# [CONFIG] Default workspace: /root/alive
 # [CONFIG] Workspace selection: disabled
 ```
 
@@ -237,7 +237,7 @@ cd apps/shell-server && bun run dev
 
 **Solution**: Manually create the workspace directory
 ```bash
-mkdir -p /root/webalive/claude-bridge
+mkdir -p /root/alive
 ```
 
 ### Issue: Port Already in Use

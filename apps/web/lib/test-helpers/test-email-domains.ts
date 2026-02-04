@@ -17,7 +17,7 @@
 export const ALLOWED_TEST_EMAIL_DOMAINS = [
   "@bridge-vitest.internal", // For vitest integration tests
   "@bridge-playwright.internal", // For playwright E2E tests
-  "@claude-bridge-test.local", // For other test scenarios
+  "@alive-test.local", // For other test scenarios
 ] as const
 
 /**

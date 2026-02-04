@@ -1,5 +1,5 @@
 {
-  "name": "@alive-brug/mcp-google-scraper",
+  "name": "@webalive/mcp-google-scraper",
   "version": "1.0.0",
   "description": "Google Maps scraper MCP server",
   "type": "module",

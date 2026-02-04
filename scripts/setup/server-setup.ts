@@ -3,7 +3,7 @@
  * Server Setup Script
  *
  * Single command to set up a new server or update an existing one.
- * Reads configuration from /var/lib/claude-bridge/server-config.json
+ * Reads configuration from /var/lib/alive/server-config.json
  *
  * Usage: bun run setup:server [--production] [--enable]
  */
@@ -16,8 +16,8 @@ import { constants, existsSync } from "node:fs"
 // Types & Constants
 // =============================================================================
 
-const CONFIG_PATH = "/var/lib/claude-bridge/server-config.json"
-const GENERATED_DIR = "/var/lib/claude-bridge/generated"
+const CONFIG_PATH = "/var/lib/alive/server-config.json"
+const GENERATED_DIR = "/var/lib/alive/generated"
 
 const COLORS = {
   red: "\x1b[31m",
@@ -195,13 +195,13 @@ async function setupServices(bridgeRoot: string, enable: boolean): Promise<boole
   }
 
   // Install services
-  run(`cp ${GENERATED_DIR}/claude-bridge-*.service /etc/systemd/system/`)
+  run(`cp ${GENERATED_DIR}/alive-*.service /etc/systemd/system/`)
   run(`systemctl daemon-reload`)
   ok("Services installed")
 
   if (enable) {
-    run(`systemctl enable claude-bridge-dev`)
-    run(`systemctl enable claude-bridge-production`)
+    run(`systemctl enable alive-dev`)
+    run(`systemctl enable alive-production`)
     ok("Services enabled for auto-start")
   }
 
@@ -212,24 +212,24 @@ async function startServices(production: boolean): Promise<void> {
   header("Starting services")
 
   // Stop old instances
-  run(`systemctl stop claude-bridge-dev 2>/dev/null || true`, { silent: true })
-  run(`systemctl stop claude-bridge-production 2>/dev/null || true`, { silent: true })
+  run(`systemctl stop alive-dev 2>/dev/null || true`, { silent: true })
+  run(`systemctl stop alive-production 2>/dev/null || true`, { silent: true })
 
   if (production) {
-    run(`systemctl start claude-bridge-production`)
-    if (run(`systemctl is-active claude-bridge-production`, { silent: true })) {
-      ok("claude-bridge-production running on port 9000")
+    run(`systemctl start alive-production`)
+    if (run(`systemctl is-active alive-production`, { silent: true })) {
+      ok("alive-production running on port 9000")
     } else {
       fail("Failed to start production")
-      log(`  ${COLORS.dim}Check: journalctl -u claude-bridge-production -n 50${COLORS.reset}`)
+      log(`  ${COLORS.dim}Check: journalctl -u alive-production -n 50${COLORS.reset}`)
     }
   } else {
-    run(`systemctl start claude-bridge-dev`)
-    if (run(`systemctl is-active claude-bridge-dev`, { silent: true })) {
-      ok("claude-bridge-dev running on port 8997")
+    run(`systemctl start alive-dev`)
+    if (run(`systemctl is-active alive-dev`, { silent: true })) {
+      ok("alive-dev running on port 8997")
     } else {
       fail("Failed to start dev")
-      log(`  ${COLORS.dim}Check: journalctl -u claude-bridge-dev -n 50${COLORS.reset}`)
+      log(`  ${COLORS.dim}Check: journalctl -u alive-dev -n 50${COLORS.reset}`)
     }
   }
 }
@@ -285,7 +285,7 @@ ${COLORS.dim}Useful commands:${COLORS.reset}
   bun run see         # View production logs
   bun run see:dev     # View dev logs
   bun run gen:all     # Regenerate all configs
-  systemctl status claude-bridge-*
+  systemctl status alive-*
 `)
 }
 

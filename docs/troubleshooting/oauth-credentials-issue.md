@@ -109,7 +109,7 @@ Because `/login` does an atomic replace, long-lived workers may keep reading the
 scripts/sync-credentials.sh
 
 # Or restart the service directly (env-specific)
-systemctl restart claude-bridge-production
+systemctl restart alive-production
 ```
 
 ### 4. Single Source of Truth

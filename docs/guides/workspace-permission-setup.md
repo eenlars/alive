@@ -77,7 +77,7 @@ find /srv/webalive/sites/example.com/user -user root  # Should return nothing
 
 Check logs:
 ```bash
-journalctl -u claude-bridge -n 50 | grep -i "child\|agent"
+journalctl -u alive -n 50 | grep -i "child\|agent"
 ```
 
 **Common issues:**

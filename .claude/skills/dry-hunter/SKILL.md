@@ -398,7 +398,7 @@ find . -name "*.ts" -not -path "*/node_modules/*" -exec md5sum {} \; 2>/dev/null
 ```bash
 # Who imports what from where
 grep -rn "from \"@webalive/shared\"" --include="*.ts" --include="*.mjs"
-grep -rn "from \"@alive-brug/tools\"" --include="*.ts" --include="*.mjs"
+grep -rn "from \"@webalive/tools\"" --include="*.ts" --include="*.mjs"
 
 # Local imports that might be duplicating shared code
 grep -rn "from \"\.\./\.\./lib" --include="*.ts"
@@ -553,7 +553,7 @@ Put code in the RIGHT place:
 ├── mcp-providers.ts                ← OAuth/Global MCP registries
 └── types.ts                        ← Shared types used EVERYWHERE
 
-@alive-brug/tools                   ← TOOL IMPLEMENTATIONS
+@webalive/tools                   ← TOOL IMPLEMENTATIONS
 ├── mcp-server.ts                   ← Internal MCP server instances
 ├── tool-registry.ts                ← Tool metadata
 └── lib/ask-ai-full.ts              ← AI query functions (USES shared)
@@ -567,7 +567,7 @@ apps/web/lib/claude/                ← APP-SPECIFIC WIRING
 ### The Rules:
 
 1. **Used by 2+ packages?** → `@webalive/shared`
-2. **Tool-specific?** → `@alive-brug/tools`
+2. **Tool-specific?** → `@webalive/tools`
 3. **App-specific?** → `apps/web/lib/`
 4. **Type validation against SDK?** → `apps/web/lib/claude/sdk-tools-sync.ts`
 5. **Re-export for .mjs?** → `apps/web/lib/claude/agent-constants.mjs`

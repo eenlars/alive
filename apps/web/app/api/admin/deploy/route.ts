@@ -16,7 +16,7 @@ import { generateRequestId } from "@/lib/utils"
  * - All actions are logged with request ID
  */
 
-const PROJECT_ROOT = "/root/webalive/claude-bridge"
+const PROJECT_ROOT = "/root/alive"
 
 const DeployActionSchema = z.enum(["staging", "production", "production-skip-e2e", "status"])
 type DeployAction = z.infer<typeof DeployActionSchema>

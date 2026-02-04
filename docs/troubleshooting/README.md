@@ -163,7 +163,7 @@ sudo systemctl restart site@example-com.service
 
 Before asking for help:
 
-- [ ] Check logs (`journalctl -u claude-bridge-dev`)
+- [ ] Check logs (`journalctl -u alive-dev`)
 - [ ] Verify authentication (session cookie valid)
 - [ ] Test path validation manually
 - [ ] Check file ownership and permissions

@@ -1,7 +1,7 @@
 /**
  * Generate Caddy routing configuration from database
  *
- * Reads server identity from /var/lib/claude-bridge/server-config.json
+ * Reads server identity from /var/lib/alive/server-config.json
  * Queries database for domains assigned to this server
  * Generates Caddyfile.sites and Caddyfile.shell
  *
@@ -61,7 +61,7 @@ interface DomainRow {
 // Helpers
 // =============================================================================
 
-const SERVER_CONFIG_PATH = "/var/lib/claude-bridge/server-config.json"
+const SERVER_CONFIG_PATH = "/var/lib/alive/server-config.json"
 
 function must<T>(v: T | undefined | null, msg: string): T {
   if (v === undefined || v === null) throw new Error(msg)
@@ -362,7 +362,7 @@ run().catch(e => {
 
   // Provide specific help based on error
   if (msg.includes("server-config.json") || msg.includes("ENOENT")) {
-    console.error("\x1b[33mFix:\x1b[0m Create /var/lib/claude-bridge/server-config.json")
+    console.error("\x1b[33mFix:\x1b[0m Create /var/lib/alive/server-config.json")
     console.error("     Copy from: ops/server-config.example.json")
     console.error("     Then edit with this server's configuration\n")
   } else if (msg.includes("SUPABASE_URL")) {

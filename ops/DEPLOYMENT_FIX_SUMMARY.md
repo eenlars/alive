@@ -75,7 +75,7 @@ pre-deployment-check.sh staging
 
 ```bash
 # Direct usage (if needed)
-deploy-with-zero-downtime.sh claude-bridge-production \
+deploy-with-zero-downtime.sh alive-production \
   /path/to/build \
   9000
 ```
@@ -103,7 +103,7 @@ safe-deploy.sh staging --force
 
 ### 4. **Enhanced Systemd Configuration** ✅
 
-Updated `/etc/systemd/system/claude-bridge-*.service`:
+Updated `/etc/systemd/system/alive-*.service`:
 
 ```ini
 [Service]
@@ -128,7 +128,7 @@ StartLimitIntervalSec=300   # Within 5 minutes
 
 ### 5. **Documentation** ✅
 
-**File:** `/root/webalive/claude-bridge/ops/DEPLOYMENT_SAFETY.md`
+**File:** `/root/alive/ops/DEPLOYMENT_SAFETY.md`
 
 Complete deployment guide including:
 - Safe deployment process (3 steps)
@@ -162,14 +162,14 @@ curl http://localhost:8998/api/health | jq .
 pre-deployment-check.sh production
 
 # 2. Review logs
-journalctl -u claude-bridge-production -n 50
+journalctl -u alive-production -n 50
 
 # 3. Deploy (never use --force for production!)
 safe-deploy.sh production
 
 # 4. Monitor
-tail -f /var/log/deployment-claude-bridge-production-*.log
-journalctl -u claude-bridge-production -f
+tail -f /var/log/deployment-alive-production-*.log
+journalctl -u alive-production -f
 
 # 5. Verify health
 curl http://localhost:9000/api/health | jq .
@@ -203,7 +203,7 @@ curl http://localhost:9000/api/health | jq .
 
 ## Files Modified/Created
 
-### New Scripts (in `/usr/local/bin/` and `/root/webalive/claude-bridge/ops/scripts/`)
+### New Scripts (in `/usr/local/bin/` and `/root/alive/ops/scripts/`)
 
 | File | Purpose |
 |------|---------|
@@ -215,15 +215,15 @@ curl http://localhost:9000/api/health | jq .
 
 | File | Changes |
 |------|---------|
-| `/etc/systemd/system/claude-bridge-production.service` | Added TimeoutStartSec, enhanced restart limits |
-| `/etc/systemd/system/claude-bridge-staging.service` | Added TimeoutStartSec, enhanced restart limits |
+| `/etc/systemd/system/alive-production.service` | Added TimeoutStartSec, enhanced restart limits |
+| `/etc/systemd/system/alive-staging.service` | Added TimeoutStartSec, enhanced restart limits |
 
 ### Documentation
 
 | File | Purpose |
 |------|---------|
-| `/root/webalive/claude-bridge/ops/DEPLOYMENT_SAFETY.md` | Complete deployment safety guide |
-| `/root/webalive/claude-bridge/DEPLOYMENT_FIX_SUMMARY.md` | This file - incident summary and fix overview |
+| `/root/alive/ops/DEPLOYMENT_SAFETY.md` | Complete deployment safety guide |
+| `/root/alive/DEPLOYMENT_FIX_SUMMARY.md` | This file - incident summary and fix overview |
 
 ---
 
@@ -294,10 +294,10 @@ safe-deploy.sh production           # Never use --force
 ### Emergency Rollback
 ```bash
 # Automatic rollback is built-in, but if manual needed:
-cd /root/webalive/claude-bridge/.builds/production
+cd /root/alive/.builds/production
 ln -sfn dist.PREVIOUS_VERSION current.tmp
 mv current.tmp current
-systemctl restart claude-bridge-production
+systemctl restart alive-production
 ```
 
 ### Monitor Deployments
@@ -306,13 +306,13 @@ systemctl restart claude-bridge-production
 tail -f /var/log/deployment-*.log
 
 # Service status
-systemctl status claude-bridge-production
+systemctl status alive-production
 
 # Health check
 curl http://localhost:9000/api/health
 
 # Recent errors
-journalctl -u claude-bridge-production --since "1 hour ago" | grep error
+journalctl -u alive-production --since "1 hour ago" | grep error
 ```
 
 ---

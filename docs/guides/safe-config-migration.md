@@ -149,10 +149,10 @@ If validation fails:
 
 ```bash
 # Restart services
-pm2 restart claude-bridge-dev
+pm2 restart alive-dev
 
 # Check logs for errors
-pm2 logs claude-bridge-dev --lines 50
+pm2 logs alive-dev --lines 50
 
 # Run test suite
 bun run test        # Unit tests
@@ -206,7 +206,7 @@ Related: docs/migrations/YYYY-MM-DD-migration-name.md"
    pm2 status
 
    # Check for rapid restarts
-   pm2 logs claude-bridge-dev --lines 100 | grep -i error
+   pm2 logs alive-dev --lines 100 | grep -i error
 
    # Test endpoint
    curl https://dev.terminal.goalive.nl/api/health
@@ -338,7 +338,7 @@ grep -r "old.json" . --exclude-dir=node_modules
 # ✅ VALIDATION PASSED
 
 # Step 5: Test
-pm2 restart claude-bridge-dev
+pm2 restart alive-dev
 bun run test
 
 # Step 6: Delete
@@ -405,8 +405,8 @@ grep -r "old-file" . --exclude-dir=node_modules --exclude-dir=.git
 # Must pass before continuing!
 
 # 5. Test
-pm2 restart claude-bridge-dev
-pm2 logs claude-bridge-dev --lines 50
+pm2 restart alive-dev
+pm2 logs alive-dev --lines 50
 bun run test
 bun run test:e2e
 

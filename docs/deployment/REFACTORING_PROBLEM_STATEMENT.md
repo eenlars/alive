@@ -432,7 +432,7 @@ CREATE TABLE app.domains (
 
 ## PORT REGISTRY (File-Based)
 
-**Location**: `/var/lib/claude-bridge/domain-passwords.json`
+**Location**: `/var/lib/alive/domain-passwords.json`
 
 **Format**:
 ```json
@@ -463,7 +463,7 @@ CREATE TABLE app.domains (
 
 ### Caddy Configuration
 
-**Main file**: `/root/webalive/claude-bridge/Caddyfile`
+**Main file**: `/root/alive/Caddyfile`
 
 **Format** (per domain):
 ```

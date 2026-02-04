@@ -1,6 +1,6 @@
-# @alive-brug/images
+# @webalive/images
 
-Domain-based image storage package for alive-brug platform.
+Domain-based image storage package for alive platform.
 
 ## Overview
 
@@ -29,7 +29,7 @@ t/{tenantId}/o/{contentHash}/v/{variant}.webp
 ## Installation
 
 ```bash
-bun add @alive-brug/images
+bun add @webalive/images
 ```
 
 ## Usage
@@ -37,7 +37,7 @@ bun add @alive-brug/images
 ### Basic Upload
 
 ```typescript
-import { FilesystemStorage, uploadImage } from '@alive-brug/images'
+import { FilesystemStorage, uploadImage } from '@webalive/images'
 
 // Initialize storage
 const storage = new FilesystemStorage({
@@ -71,7 +71,7 @@ if (result.data) {
 
 ```typescript
 // apps/web/app/api/images/upload/route.ts
-import { FilesystemStorage, uploadImage } from '@alive-brug/images'
+import { FilesystemStorage, uploadImage } from '@webalive/images'
 
 export async function POST(request: NextRequest) {
   // 1. Auth check

@@ -14,7 +14,7 @@
 
 **Port Detection Bug**
 - **Problem:** Port check failed when bun was PM2 interpreter (showed "bun" not "PM2" in lsof)
-- **Solution:** Check `pm2 list | grep claude-bridge` instead of lsof output
+- **Solution:** Check `pm2 list | grep alive` instead of lsof output
 - **Files:** `scripts/build-and-serve.sh:136-148`
 - **Impact:** Port conflicts now detected reliably
 

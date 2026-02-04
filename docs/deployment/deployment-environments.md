@@ -6,14 +6,14 @@
 
 **Domain:** `terminal.goalive.nl`
 **Port:** `8999`
-**Process:** `claude-bridge`
+**Process:** `alive`
 **Mode:** Standalone Next.js server
 
 ## Staging
 
 **Domain:** `staging.terminal.goalive.nl`
 **Port:** `8998`
-**Process:** `claude-bridge-staging`
+**Process:** `alive-staging`
 **Mode:** Standalone Next.js server
 
 **Deploy:**
@@ -24,15 +24,15 @@ make staging
 **Monitor:**
 ```bash
 make logs-staging                            # logs
-systemctl status claude-bridge-staging       # status
-systemctl restart claude-bridge-staging      # restart
+systemctl status alive-staging       # status
+systemctl restart alive-staging      # restart
 ```
 
 ## Dev
 
 **Domain:** `dev.terminal.goalive.nl`
 **Port:** `8997`
-**Process:** `claude-bridge-dev`
+**Process:** `alive-dev`
 **Mode:** Dev server with hot reload
 
 **Deploy:**
@@ -43,8 +43,8 @@ make dev
 **Monitor:**
 ```bash
 make logs-dev                           # logs
-systemctl status claude-bridge-dev      # status
-systemctl restart claude-bridge-dev     # restart
+systemctl status alive-dev      # status
+systemctl restart alive-dev     # restart
 ```
 
 ## Network
@@ -59,7 +59,7 @@ dev.terminal.goalive.nl → localhost:8997 (dev - accessible)
 
 ## Caddy Config
 
-**Location:** `/root/webalive/claude-bridge/Caddyfile`
+**Location:** `/root/alive/Caddyfile`
 
 ```caddy
 terminal.goalive.nl {
@@ -101,7 +101,7 @@ Builds isolated in `.builds/v{n}/`, old version remains running until new build 
 After deployment:
 
 - [ ] Site responds: `curl -H "Host: terminal.goalive.nl" localhost:8999`
-- [ ] Systemd shows running: `systemctl status claude-bridge-staging`
+- [ ] Systemd shows running: `systemctl status alive-staging`
 - [ ] Logs clean: `bun run see | grep -i error` (no errors)
 - [ ] Caddy active: `systemctl status caddy`
 - [ ] Public domain works: `curl https://terminal.goalive.nl`
@@ -110,15 +110,15 @@ After deployment:
 
 **Port already in use:**
 - `lsof -i :8999` - find process
-- `systemctl stop claude-bridge` - stop the service
+- `systemctl stop alive` - stop the service
 - `fuser -k 8999/tcp` - kill the port if still in use
 
 **Build fails atomically:**
 - Old version still running (safe)
 - Check `.builds/` directory has space
-- Check git pull succeeded: `cd /root/webalive/claude-bridge && git status`
+- Check git pull succeeded: `cd /root/alive && git status`
 
 **Caddy not reloading:**
-- Check syntax: `caddy validate --config /root/webalive/claude-bridge/Caddyfile`
+- Check syntax: `caddy validate --config /root/alive/Caddyfile`
 - Manual reload: `systemctl reload caddy`
 - View logs: `journalctl -u caddy -n 50`

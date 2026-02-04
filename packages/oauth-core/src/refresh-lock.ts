@@ -25,8 +25,8 @@
  *   - "auto": Use Redis if REDIS_URL is set, otherwise memory with warnings
  */
 
-import type { RedisClient } from "@alive-brug/redis"
-import { createRedisClient } from "@alive-brug/redis"
+import type { RedisClient } from "@webalive/redis"
+import { createRedisClient } from "@webalive/redis"
 
 // Lock strategy types
 export type LockStrategy = "memory" | "redis" | "auto"

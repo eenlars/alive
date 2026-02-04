@@ -13,7 +13,7 @@ describe("Test Email Domain Enforcement", () => {
     it("should contain only safe internal test domains", () => {
       expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@bridge-vitest.internal")
       expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@bridge-playwright.internal")
-      expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@claude-bridge-test.local")
+      expect(ALLOWED_TEST_EMAIL_DOMAINS).toContain("@alive-test.local")
     })
 
     it("should not contain any real or common test domains", () => {
@@ -39,7 +39,7 @@ describe("Test Email Domain Enforcement", () => {
     it("should return true for allowed internal test email domains", () => {
       expect(isTestEmail("user@bridge-vitest.internal")).toBe(true)
       expect(isTestEmail("user@bridge-playwright.internal")).toBe(true)
-      expect(isTestEmail("user@claude-bridge-test.local")).toBe(true)
+      expect(isTestEmail("user@alive-test.local")).toBe(true)
     })
 
     it("should return false for real and common test domains", () => {
@@ -61,7 +61,7 @@ describe("Test Email Domain Enforcement", () => {
     it("should not throw for valid internal test emails", () => {
       expect(() => validateTestEmail("user@bridge-vitest.internal")).not.toThrow()
       expect(() => validateTestEmail("user@bridge-playwright.internal")).not.toThrow()
-      expect(() => validateTestEmail("user@claude-bridge-test.local")).not.toThrow()
+      expect(() => validateTestEmail("user@alive-test.local")).not.toThrow()
     })
 
     it("should throw for real email domains", () => {

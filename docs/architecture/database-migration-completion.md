@@ -287,19 +287,19 @@ bun scripts/verify-migration.ts
 If absolutely necessary:
 ```bash
 # 1. Find backup
-BACKUP=$(ls -td /var/lib/claude-bridge/backups/* | head -1)
+BACKUP=$(ls -td /var/lib/alive/backups/* | head -1)
 
 # 2. Stop service
-pm2 stop claude-bridge
+pm2 stop alive
 
 # 3. Restore JSON
-cp "$BACKUP/domain-passwords.json" /var/lib/claude-bridge/
+cp "$BACKUP/domain-passwords.json" /var/lib/alive/
 
 # 4. Revert code (commit hash before migration)
 git checkout <pre-migration-commit>
 
 # 5. Rebuild and restart
-cd apps/web && bun run build && pm2 restart claude-bridge
+cd apps/web && bun run build && pm2 restart alive
 ```
 
 ---

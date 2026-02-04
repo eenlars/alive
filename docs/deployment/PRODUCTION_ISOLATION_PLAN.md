@@ -12,8 +12,8 @@
 
 ### Tasks
 
-1. ✅ Create dedicated system user `claude-bridge-prod`
-2. ✅ Create production directory structure at `/srv/claude-bridge/prod/`
+1. ✅ Create dedicated system user `alive-prod`
+2. ✅ Create production directory structure at `/srv/alive/prod/`
 3. ✅ Copy current production build to new location
 4. ✅ Create systemd service file with resource limits
 5. ✅ Test systemd service start/stop/restart
@@ -24,31 +24,31 @@
 
 ### Expected Outcomes (ALL must be true)
 
-- [ ] **User exists:** `id claude-bridge-prod` returns valid user (UID < 1000, system user)
+- [ ] **User exists:** `id alive-prod` returns valid user (UID < 1000, system user)
 - [ ] **Directory structure exists:**
   ```bash
-  test -d /srv/claude-bridge/prod/builds
-  test -d /srv/claude-bridge/prod/source
-  test -d /srv/claude-bridge/prod/scripts
+  test -d /srv/alive/prod/builds
+  test -d /srv/alive/prod/source
+  test -d /srv/alive/prod/scripts
   ```
-- [ ] **Directory ownership correct:** `ls -la /srv/claude-bridge/prod | grep claude-bridge-prod` shows ownership
-- [ ] **Systemd service file exists:** `test -f /etc/systemd/system/claude-bridge-prod.service`
-- [ ] **Service is enabled:** `systemctl is-enabled claude-bridge-prod` returns `enabled`
-- [ ] **Service is active:** `systemctl is-active claude-bridge-prod` returns `active`
+- [ ] **Directory ownership correct:** `ls -la /srv/alive/prod | grep alive-prod` shows ownership
+- [ ] **Systemd service file exists:** `test -f /etc/systemd/system/alive-prod.service`
+- [ ] **Service is enabled:** `systemctl is-enabled alive-prod` returns `enabled`
+- [ ] **Service is active:** `systemctl is-active alive-prod` returns `active`
 - [ ] **Service responds to HTTP:** `curl -f http://localhost:8999/ >/dev/null 2>&1` exits with 0
 - [ ] **Service restarts on failure:** Kill process, verify auto-restart within 10s
   ```bash
-  PID_BEFORE=$(systemctl show -p MainPID --value claude-bridge-prod)
+  PID_BEFORE=$(systemctl show -p MainPID --value alive-prod)
   kill -9 $PID_BEFORE
   sleep 15
-  PID_AFTER=$(systemctl show -p MainPID --value claude-bridge-prod)
+  PID_AFTER=$(systemctl show -p MainPID --value alive-prod)
   test "$PID_BEFORE" != "$PID_AFTER"
-  systemctl is-active claude-bridge-prod  # Should be active
+  systemctl is-active alive-prod  # Should be active
   ```
-- [ ] **PM2 production instance removed:** `pm2 list | grep -v claude-bridge` (no production instance)
-- [ ] **Resource limits active:** `systemctl show claude-bridge-prod | grep -E "(MemoryMax|CPUQuota)"`
-- [ ] **Running as non-root:** `ps aux | grep claude-bridge-prod | grep -v root`
-- [ ] **Production stable for 24h:** `systemctl status claude-bridge-prod | grep "Active: active (running)"` and uptime > 24h
+- [ ] **PM2 production instance removed:** `pm2 list | grep -v alive` (no production instance)
+- [ ] **Resource limits active:** `systemctl show alive-prod | grep -E "(MemoryMax|CPUQuota)"`
+- [ ] **Running as non-root:** `ps aux | grep alive-prod | grep -v root`
+- [ ] **Production stable for 24h:** `systemctl status alive-prod | grep "Active: active (running)"` and uptime > 24h
 - [ ] **No dependency on PM2:** Stop PM2 daemon (`pm2 kill`), production still serves traffic
 
 ### Verification Script
@@ -62,35 +62,35 @@ echo "=== Phase 1 Verification ==="
 
 # Check 1: User exists
 echo -n "✓ Checking user exists... "
-id claude-bridge-prod >/dev/null 2>&1
+id alive-prod >/dev/null 2>&1
 echo "OK"
 
 # Check 2: Directory structure
 echo -n "✓ Checking directory structure... "
-test -d /srv/claude-bridge/prod/builds
-test -d /srv/claude-bridge/prod/source
-test -d /srv/claude-bridge/prod/scripts
+test -d /srv/alive/prod/builds
+test -d /srv/alive/prod/source
+test -d /srv/alive/prod/scripts
 echo "OK"
 
 # Check 3: Ownership
 echo -n "✓ Checking ownership... "
-OWNER=$(stat -c '%U' /srv/claude-bridge/prod)
-test "$OWNER" = "claude-bridge-prod"
+OWNER=$(stat -c '%U' /srv/alive/prod)
+test "$OWNER" = "alive-prod"
 echo "OK"
 
 # Check 4: Service file exists
 echo -n "✓ Checking service file... "
-test -f /etc/systemd/system/claude-bridge-prod.service
+test -f /etc/systemd/system/alive-prod.service
 echo "OK"
 
 # Check 5: Service enabled
 echo -n "✓ Checking service enabled... "
-test "$(systemctl is-enabled claude-bridge-prod)" = "enabled"
+test "$(systemctl is-enabled alive-prod)" = "enabled"
 echo "OK"
 
 # Check 6: Service active
 echo -n "✓ Checking service active... "
-systemctl is-active --quiet claude-bridge-prod
+systemctl is-active --quiet alive-prod
 echo "OK"
 
 # Check 7: HTTP health
@@ -100,23 +100,23 @@ echo "OK"
 
 # Check 8: Auto-restart test
 echo -n "✓ Testing auto-restart... "
-PID_BEFORE=$(systemctl show -p MainPID --value claude-bridge-prod)
+PID_BEFORE=$(systemctl show -p MainPID --value alive-prod)
 sudo kill -9 $PID_BEFORE
 sleep 15
-systemctl is-active --quiet claude-bridge-prod
-PID_AFTER=$(systemctl show -p MainPID --value claude-bridge-prod)
+systemctl is-active --quiet alive-prod
+PID_AFTER=$(systemctl show -p MainPID --value alive-prod)
 test "$PID_BEFORE" != "$PID_AFTER"
 echo "OK (PID changed: $PID_BEFORE -> $PID_AFTER)"
 
 # Check 9: No PM2 production
 echo -n "✓ Checking no PM2 production... "
-! pm2 list 2>/dev/null | grep -q "claude-bridge\s" || (echo "FAIL: PM2 production still running" && exit 1)
+! pm2 list 2>/dev/null | grep -q "alive\s" || (echo "FAIL: PM2 production still running" && exit 1)
 echo "OK"
 
 # Check 10: Resource limits
 echo -n "✓ Checking resource limits... "
-systemctl show claude-bridge-prod | grep -q "MemoryMax="
-systemctl show claude-bridge-prod | grep -q "CPUQuota="
+systemctl show alive-prod | grep -q "MemoryMax="
+systemctl show alive-prod | grep -q "CPUQuota="
 echo "OK"
 
 # Check 11: Running as non-root
@@ -126,7 +126,7 @@ echo "OK"
 
 # Check 12: Uptime > 24h
 echo -n "✓ Checking uptime > 24h... "
-UPTIME_SEC=$(systemctl show claude-bridge-prod -p ActiveEnterTimestampMonotonic --value)
+UPTIME_SEC=$(systemctl show alive-prod -p ActiveEnterTimestampMonotonic --value)
 CURRENT_SEC=$(date +%s)
 UPTIME_HOURS=$(( ($CURRENT_SEC - $UPTIME_SEC / 1000000) / 3600 ))
 if [ $UPTIME_HOURS -ge 24 ]; then
@@ -201,30 +201,30 @@ echo "Safe to proceed to Phase 2"
   PROD_CADDY_PID_AFTER=$(pgrep -f "caddy.*8999" || echo "none")
   # PIDs should be same (no reload) OR verify via Caddy logs
   ```
-- [ ] **Health check timer exists:** `test -f /etc/systemd/system/claude-bridge-prod-healthcheck.timer`
-- [ ] **Health check service exists:** `test -f /etc/systemd/system/claude-bridge-prod-healthcheck.service`
-- [ ] **Health check timer is active:** `systemctl is-active --quiet claude-bridge-prod-healthcheck.timer`
-- [ ] **Health check runs every minute:** `systemctl list-timers | grep claude-bridge-prod-healthcheck`
-- [ ] **Health check script exists:** `test -f /srv/claude-bridge/prod/scripts/health-check.sh`
+- [ ] **Health check timer exists:** `test -f /etc/systemd/system/alive-prod-healthcheck.timer`
+- [ ] **Health check service exists:** `test -f /etc/systemd/system/alive-prod-healthcheck.service`
+- [ ] **Health check timer is active:** `systemctl is-active --quiet alive-prod-healthcheck.timer`
+- [ ] **Health check runs every minute:** `systemctl list-timers | grep alive-prod-healthcheck`
+- [ ] **Health check script exists:** `test -f /srv/alive/prod/scripts/health-check.sh`
 - [ ] **Health check detects outages:**
   ```bash
   # Simulate failure
-  systemctl stop claude-bridge-prod
+  systemctl stop alive-prod
   sleep 65  # Wait for 1 health check cycle
   test -f /tmp/prod-health-failures
   FAILURES=$(cat /tmp/prod-health-failures)
   test $FAILURES -ge 1
-  systemctl start claude-bridge-prod
+  systemctl start alive-prod
   ```
 - [ ] **Alert system works:**
   ```bash
   # Trigger alert (stop service for >3 minutes)
-  systemctl stop claude-bridge-prod
+  systemctl stop alive-prod
   sleep 185  # 3+ checks
   # Verify alert received (check Slack/email/logs)
-  systemctl start claude-bridge-prod
+  systemctl start alive-prod
   ```
-- [ ] **No false alarms in 7 days:** `journalctl -u claude-bridge-prod-healthcheck --since "7 days ago" | grep -v "Health OK"`
+- [ ] **No false alarms in 7 days:** `journalctl -u alive-prod-healthcheck --since "7 days ago" | grep -v "Health OK"`
 - [ ] **Staging deploys don't trigger production alerts:** Deploy staging 5 times, verify 0 production alerts
 
 ### Verification Script
@@ -238,7 +238,7 @@ echo "=== Phase 2 Verification ==="
 
 # Prerequisite: Phase 1 must pass
 echo "▶ Running Phase 1 checks first..."
-/srv/claude-bridge/prod/scripts/verify-phase1.sh || (echo "❌ Phase 1 not complete" && exit 1)
+/srv/alive/prod/scripts/verify-phase1.sh || (echo "❌ Phase 1 not complete" && exit 1)
 
 # Check 1: Caddyfile structure
 echo -n "✓ Checking Caddyfile isolation... "
@@ -255,22 +255,22 @@ echo "OK (${PERMS})"
 
 # Check 3: Health check timer active
 echo -n "✓ Checking health check timer... "
-systemctl is-active --quiet claude-bridge-prod-healthcheck.timer
+systemctl is-active --quiet alive-prod-healthcheck.timer
 echo "OK"
 
 # Check 4: Health check script exists
 echo -n "✓ Checking health check script... "
-test -x /srv/claude-bridge/prod/scripts/health-check.sh
+test -x /srv/alive/prod/scripts/health-check.sh
 echo "OK"
 
 # Check 5: Health check detects failures
 echo -n "✓ Testing failure detection... "
-systemctl stop claude-bridge-prod
+systemctl stop alive-prod
 sleep 65
 test -f /tmp/prod-health-failures
 FAILURES=$(cat /tmp/prod-health-failures)
 test $FAILURES -ge 1
-systemctl start claude-bridge-prod
+systemctl start alive-prod
 sleep 65  # Wait for recovery
 FAILURES_AFTER=$(cat /tmp/prod-health-failures)
 test $FAILURES_AFTER -eq 0
@@ -278,7 +278,7 @@ echo "OK"
 
 # Check 6: No false alarms
 echo -n "✓ Checking for false alarms (7 days)... "
-FALSE_ALARMS=$(journalctl -u claude-bridge-prod-healthcheck --since "7 days ago" -p err | wc -l)
+FALSE_ALARMS=$(journalctl -u alive-prod-healthcheck --since "7 days ago" -p err | wc -l)
 if [ $FALSE_ALARMS -gt 3 ]; then
     echo "FAIL: $FALSE_ALARMS false alarms found"
     exit 1
@@ -287,8 +287,8 @@ echo "OK ($FALSE_ALARMS alerts, threshold <3)"
 
 # Check 7: Alert system configured
 echo -n "✓ Checking alert system... "
-test -f /srv/claude-bridge/prod/scripts/alert.sh
-/srv/claude-bridge/prod/scripts/alert.sh "TEST: Phase 2 verification" >/dev/null 2>&1
+test -f /srv/alive/prod/scripts/alert.sh
+/srv/alive/prod/scripts/alert.sh "TEST: Phase 2 verification" >/dev/null 2>&1
 echo "OK (test alert sent)"
 
 echo ""
@@ -333,19 +333,19 @@ echo "Safe to proceed to Phase 3"
 
 - [ ] **Separate node_modules:**
   ```bash
-  test -d /srv/claude-bridge/prod/source/node_modules
-  ! diff -r /srv/claude-bridge/prod/source/node_modules \
-             /root/webalive/claude-bridge/node_modules
+  test -d /srv/alive/prod/source/node_modules
+  ! diff -r /srv/alive/prod/source/node_modules \
+             /root/alive/node_modules
   ```
 - [ ] **Production uses frozen lockfile:**
   ```bash
-  grep -q "frozen-lockfile" /srv/claude-bridge/prod/scripts/build-production.sh
+  grep -q "frozen-lockfile" /srv/alive/prod/scripts/build-production.sh
   ```
-- [ ] **Production build script exists:** `test -x /srv/claude-bridge/prod/scripts/build-production.sh`
+- [ ] **Production build script exists:** `test -x /srv/alive/prod/scripts/build-production.sh`
 - [ ] **Pre-build checks exist:**
   ```bash
-  grep -q "check.*disk.*space" /srv/claude-bridge/prod/scripts/build-production.sh
-  grep -q "check.*memory" /srv/claude-bridge/prod/scripts/build-production.sh
+  grep -q "check.*disk.*space" /srv/alive/prod/scripts/build-production.sh
+  grep -q "check.*memory" /srv/alive/prod/scripts/build-production.sh
   ```
 - [ ] **Staging build doesn't affect production:**
   ```bash
@@ -367,7 +367,7 @@ echo "Safe to proceed to Phase 3"
   HEALTH_PID=$!
 
   # Run staging tests (including E2E with browser)
-  cd /root/webalive/claude-bridge && bun run test:e2e
+  cd /root/alive && bun run test:e2e
 
   # Production should still respond
   wait $HEALTH_PID
@@ -375,29 +375,29 @@ echo "Safe to proceed to Phase 3"
 - [ ] **Staging dependency install doesn't affect production:**
   ```bash
   # Production baseline
-  PROD_DEPS_BEFORE=$(ls /srv/claude-bridge/prod/source/node_modules | wc -l)
+  PROD_DEPS_BEFORE=$(ls /srv/alive/prod/source/node_modules | wc -l)
 
   # Staging install
-  cd /root/webalive/claude-bridge && bun install some-new-package
+  cd /root/alive && bun install some-new-package
 
   # Production unchanged
-  PROD_DEPS_AFTER=$(ls /srv/claude-bridge/prod/source/node_modules | wc -l)
+  PROD_DEPS_AFTER=$(ls /srv/alive/prod/source/node_modules | wc -l)
   test $PROD_DEPS_BEFORE -eq $PROD_DEPS_AFTER
   ```
-- [ ] **Blue-green swap script exists:** `test -x /srv/claude-bridge/prod/scripts/swap-blue-green.sh`
-- [ ] **Production deployment documented:** `test -f /srv/claude-bridge/prod/docs/DEPLOY.md`
+- [ ] **Blue-green swap script exists:** `test -x /srv/alive/prod/scripts/swap-blue-green.sh`
+- [ ] **Production deployment documented:** `test -f /srv/alive/prod/docs/DEPLOY.md`
 - [ ] **Zero production impact in 14 days:**
   ```bash
   # Check uptime never reset
-  systemctl status claude-bridge-prod | grep "Active: active"
+  systemctl status alive-prod | grep "Active: active"
   # Check no error spikes during staging deploys
-  journalctl -u claude-bridge-prod --since "14 days ago" -p err | wc -l  # Should be ~0
+  journalctl -u alive-prod --since "14 days ago" -p err | wc -l  # Should be ~0
   ```
 - [ ] **Production resource usage stable:**
   ```bash
   # Memory usage doesn't spike during staging builds
   # CPU usage stays under 200% quota
-  journalctl -u claude-bridge-prod --since "14 days ago" | grep -i "oom\|killed\|quota"
+  journalctl -u alive-prod --since "14 days ago" | grep -i "oom\|killed\|quota"
   test $? -ne 0  # Should find nothing
   ```
 
@@ -412,26 +412,26 @@ echo "=== Phase 3 Verification ==="
 
 # Prerequisite: Phases 1 & 2 must pass
 echo "▶ Running Phase 1 & 2 checks..."
-/srv/claude-bridge/prod/scripts/verify-phase1.sh || exit 1
-/srv/claude-bridge/prod/scripts/verify-phase2.sh || exit 1
+/srv/alive/prod/scripts/verify-phase1.sh || exit 1
+/srv/alive/prod/scripts/verify-phase2.sh || exit 1
 
 # Check 1: Separate node_modules
 echo -n "✓ Checking separate dependencies... "
-test -d /srv/claude-bridge/prod/source/node_modules
-PROD_COUNT=$(ls /srv/claude-bridge/prod/source/node_modules | wc -l)
-STAGING_COUNT=$(ls /root/webalive/claude-bridge/node_modules | wc -l)
+test -d /srv/alive/prod/source/node_modules
+PROD_COUNT=$(ls /srv/alive/prod/source/node_modules | wc -l)
+STAGING_COUNT=$(ls /root/alive/node_modules | wc -l)
 test $PROD_COUNT -gt 0
 echo "OK (prod: $PROD_COUNT, staging: $STAGING_COUNT)"
 
 # Check 2: Frozen lockfile
 echo -n "✓ Checking frozen lockfile enforcement... "
-grep -q "frozen-lockfile" /srv/claude-bridge/prod/scripts/build-production.sh
+grep -q "frozen-lockfile" /srv/alive/prod/scripts/build-production.sh
 echo "OK"
 
 # Check 3: Pre-build checks
 echo -n "✓ Checking pre-build validation... "
-grep -q "disk.*space" /srv/claude-bridge/prod/scripts/build-production.sh
-grep -q "memory" /srv/claude-bridge/prod/scripts/build-production.sh
+grep -q "disk.*space" /srv/alive/prod/scripts/build-production.sh
+grep -q "memory" /srv/alive/prod/scripts/build-production.sh
 echo "OK"
 
 # Check 4: Production isolation during staging build
@@ -459,7 +459,7 @@ echo "OK (baseline: ${BASELINE}s, during: ${DURING_BUILD}s)"
 
 # Check 5: Zero production restarts in 14 days
 echo -n "✓ Checking production stability (14d)... "
-RESTARTS=$(journalctl -u claude-bridge-prod --since "14 days ago" | grep -c "Started Claude Bridge Production" || echo 0)
+RESTARTS=$(journalctl -u alive-prod --since "14 days ago" | grep -c "Started Claude Bridge Production" || echo 0)
 if [ $RESTARTS -gt 1 ]; then
     echo "FAIL: $RESTARTS restarts in 14 days"
     exit 1
@@ -468,7 +468,7 @@ echo "OK (${RESTARTS} restarts)"
 
 # Check 6: No OOM or quota issues
 echo -n "✓ Checking resource limits... "
-ISSUES=$(journalctl -u claude-bridge-prod --since "14 days ago" | grep -i "oom\|killed\|quota" | wc -l)
+ISSUES=$(journalctl -u alive-prod --since "14 days ago" | grep -i "oom\|killed\|quota" | wc -l)
 if [ $ISSUES -gt 0 ]; then
     echo "FAIL: $ISSUES resource issues found"
     exit 1
@@ -477,13 +477,13 @@ echo "OK"
 
 # Check 7: Blue-green swap script
 echo -n "✓ Checking blue-green deployment... "
-test -x /srv/claude-bridge/prod/scripts/swap-blue-green.sh
+test -x /srv/alive/prod/scripts/swap-blue-green.sh
 echo "OK"
 
 # Check 8: Documentation
 echo -n "✓ Checking deployment docs... "
-test -f /srv/claude-bridge/prod/docs/DEPLOY.md
-grep -q "frozen-lockfile" /srv/claude-bridge/prod/docs/DEPLOY.md
+test -f /srv/alive/prod/docs/DEPLOY.md
+grep -q "frozen-lockfile" /srv/alive/prod/docs/DEPLOY.md
 echo "OK"
 
 echo ""
@@ -529,7 +529,7 @@ All three phases must be complete AND the following must be true:
    ```bash
    cd apps/web && bun run test:e2e
    # Production should be unaffected
-   systemctl status claude-bridge-prod  # Should show no restarts
+   systemctl status alive-prod  # Should show no restarts
    ```
 
 4. **Simulate staging crash:**
@@ -542,12 +542,12 @@ All three phases must be complete AND the following must be true:
 
 5. **Update staging dependencies:**
    ```bash
-   cd /root/webalive/claude-bridge
+   cd /root/alive
    bun add some-random-package
    bun install
    # Production dependencies unchanged
-   diff /srv/claude-bridge/prod/source/bun.lockb \
-        /root/webalive/claude-bridge/bun.lockb
+   diff /srv/alive/prod/source/bun.lockb \
+        /root/alive/bun.lockb
    # Should show differences (staging has new package)
    ```
 
@@ -559,7 +559,7 @@ All three phases must be complete AND the following must be true:
    # Simultaneously:
    make staging &
    bun run test:e2e &
-   systemctl restart claude-bridge-staging &
+   systemctl restart alive-staging &
 
    # Wait for completion
    wait
@@ -597,11 +597,11 @@ If production becomes unstable after any phase:
 
 1. **IMMEDIATELY** run rollback:
    ```bash
-   /srv/claude-bridge/prod/scripts/rollback-to-pm2.sh
+   /srv/alive/prod/scripts/rollback-to-pm2.sh
    ```
-2. Investigate logs: `journalctl -u claude-bridge-prod -n 1000`
+2. Investigate logs: `journalctl -u alive-prod -n 1000`
 3. Fix issues before attempting phase again
-4. Document incident in `/srv/claude-bridge/prod/docs/INCIDENTS.md`
+4. Document incident in `/srv/alive/prod/docs/INCIDENTS.md`
 
 ---
 
@@ -613,33 +613,33 @@ After all phases complete:
 
 ```bash
 # Run all verification scripts
-/srv/claude-bridge/prod/scripts/verify-phase1.sh
-/srv/claude-bridge/prod/scripts/verify-phase2.sh
-/srv/claude-bridge/prod/scripts/verify-phase3.sh
+/srv/alive/prod/scripts/verify-phase1.sh
+/srv/alive/prod/scripts/verify-phase2.sh
+/srv/alive/prod/scripts/verify-phase3.sh
 
 # Check logs
-journalctl -u claude-bridge-prod --since "7 days ago" -p warning
+journalctl -u alive-prod --since "7 days ago" -p warning
 
 # Check resource usage
-systemctl status claude-bridge-prod
+systemctl status alive-prod
 ```
 
 ### Monthly Checks
 
 ```bash
 # Update dependencies (controlled, with rollback)
-/srv/claude-bridge/prod/scripts/update-dependencies.sh
+/srv/alive/prod/scripts/update-dependencies.sh
 
 # Review health check logs
-journalctl -u claude-bridge-prod-healthcheck --since "30 days ago"
+journalctl -u alive-prod-healthcheck --since "30 days ago"
 
 # Review incidents
-cat /srv/claude-bridge/prod/docs/INCIDENTS.md
+cat /srv/alive/prod/docs/INCIDENTS.md
 ```
 
 ### Production Deployment Process
 
-See `/srv/claude-bridge/prod/docs/DEPLOY.md` for step-by-step production deployment instructions.
+See `/srv/alive/prod/docs/DEPLOY.md` for step-by-step production deployment instructions.
 
 **Key principle:** Production deployments are MANUAL, CONTROLLED, and INFREQUENT (max once per week).
 
@@ -665,4 +665,4 @@ This timeline is STRICT because stability requires observation periods. Do not r
 - If a script fails, the phase is NOT complete
 - Observation periods (24h/7d/14d) CANNOT be shortened
 - Production stability is more important than speed
-- Document all issues and fixes in `/srv/claude-bridge/prod/docs/INCIDENTS.md`
+- Document all issues and fixes in `/srv/alive/prod/docs/INCIDENTS.md`

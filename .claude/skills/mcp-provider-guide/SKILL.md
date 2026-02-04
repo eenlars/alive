@@ -87,7 +87,7 @@ This means:
 
 ```bash
 # Rebuild packages
-bun run build --filter=@webalive/shared --filter=@alive-brug/tools
+bun run build --filter=@webalive/shared --filter=@webalive/tools
 
 # Deploy to staging
 make staging
@@ -158,7 +158,7 @@ Once you add the provider to `GLOBAL_MCP_PROVIDERS`:
 - [ ] TypeScript compiles: `bun run type-check`
 - [ ] Tests pass: `bun run test`
 - [ ] Deploy succeeds: `make staging`
-- [ ] Check staging logs: `journalctl -u claude-bridge-staging -f | grep -i mcp`
+- [ ] Check staging logs: `journalctl -u alive-staging -f | grep -i mcp`
 
 ## Common Pitfalls
 

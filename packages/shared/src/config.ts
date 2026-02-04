@@ -6,7 +6,7 @@
  * This file contains ALL hardcoded infrastructure constants used throughout
  * the WebAlive platform. Always import from this file - never hardcode values.
  *
- * SERVER-AGNOSTIC: Values are loaded from /var/lib/claude-bridge/server-config.json
+ * SERVER-AGNOSTIC: Values are loaded from /var/lib/alive/server-config.json
  * when running on a server. Falls back to defaults for local dev and browser.
  *
  * Organization:
@@ -61,7 +61,7 @@ function loadServerConfig(): ServerConfigFile {
     // Dynamic require to avoid bundler issues
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require("node:fs")
-    const configPath = "/var/lib/claude-bridge/server-config.json"
+    const configPath = "/var/lib/alive/server-config.json"
 
     if (!fs.existsSync(configPath)) {
       return {}
@@ -93,7 +93,7 @@ const getEnv = (key: string): string | undefined => {
   return process.env[key]
 }
 
-const BRIDGE_ROOT = cfg(serverConfig.paths?.bridgeRoot, "/root/webalive/claude-bridge")
+const BRIDGE_ROOT = cfg(serverConfig.paths?.bridgeRoot, "/root/alive")
 const SITES_ROOT = cfg(serverConfig.paths?.sitesRoot, "/srv/webalive/sites")
 const IMAGES_STORAGE = cfg(serverConfig.paths?.imagesStorage, "/srv/webalive/storage")
 
@@ -128,19 +128,19 @@ export const PATHS = {
   SCRIPTS_DIR: `${BRIDGE_ROOT}/packages/site-controller/scripts`,
 
   /** Domain password registry */
-  REGISTRY_PATH: "/var/lib/claude-bridge/domain-passwords.json",
+  REGISTRY_PATH: "/var/lib/alive/domain-passwords.json",
 
   /** Server config (contains server identity and paths) */
-  SERVER_CONFIG: "/var/lib/claude-bridge/server-config.json",
+  SERVER_CONFIG: "/var/lib/alive/server-config.json",
 
   /** Generated routing files directory */
-  GENERATED_DIR: "/var/lib/claude-bridge/generated",
+  GENERATED_DIR: "/var/lib/alive/generated",
 
   /** Caddyfile location for reverse proxy configuration (legacy - now generated) */
   CADDYFILE_PATH: `${BRIDGE_ROOT}/ops/caddy/Caddyfile`,
 
   /** Generated Caddyfile for sites */
-  CADDYFILE_SITES: "/var/lib/claude-bridge/generated/Caddyfile.sites",
+  CADDYFILE_SITES: "/var/lib/alive/generated/Caddyfile.sites",
 
   /** Systemd service environment files */
   SYSTEMD_ENV_DIR: "/etc/sites",
@@ -325,7 +325,7 @@ export const SUPERADMIN = {
   EMAILS: SUPERADMIN_EMAIL_LIST,
 
   /** Special workspace name for Bridge editing */
-  WORKSPACE_NAME: "claude-bridge",
+  WORKSPACE_NAME: "alive",
 
   /** Path to Bridge repository */
   WORKSPACE_PATH: BRIDGE_ROOT,

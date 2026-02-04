@@ -228,7 +228,7 @@ For scripts in subdirectories:
 
 ### Script path errors
 - Check that `SCRIPT_DIR` and `PROJECT_ROOT` calculations are correct
-- Run script with absolute path to verify: `/root/webalive/claude-bridge/scripts/deployment/deploy-prod.sh`
+- Run script with absolute path to verify: `/root/alive/scripts/deployment/deploy-prod.sh`
 
 ### Makefile not finding scripts
 - Update script paths in Makefile if you reorganize

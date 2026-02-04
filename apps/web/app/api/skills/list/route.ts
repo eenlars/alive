@@ -3,7 +3,7 @@
  * Returns available skills from filesystem (SKILL.md files)
  */
 
-import { listGlobalSkills } from "@alive-brug/tools"
+import { listGlobalSkills } from "@webalive/tools"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"

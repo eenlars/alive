@@ -24,7 +24,7 @@ Example: `larsvandeneeden.com` becomes `larsvandeneeden-com`
 
 ### 2. Remove from Domain Registry
 
-Edit `/var/lib/claude-bridge/domain-passwords.json` and remove the domain entry:
+Edit `/var/lib/alive/domain-passwords.json` and remove the domain entry:
 
 ```json
 {
@@ -41,7 +41,7 @@ Edit `/var/lib/claude-bridge/domain-passwords.json` and remove the domain entry:
 
 ### 3. Remove from Caddyfile
 
-Edit `/root/webalive/claude-bridge/Caddyfile` and remove the domain block:
+Edit `/root/alive/Caddyfile` and remove the domain block:
 
 ```
 domain-to-remove.com {           ← Remove this entire block
@@ -105,10 +105,10 @@ ls /etc/sites/domain-slug.env
 ls /srv/webalive/sites/domain.com
 
 # Check domain not in registry
-grep "domain.com" /var/lib/claude-bridge/domain-passwords.json
+grep "domain.com" /var/lib/alive/domain-passwords.json
 
 # Check domain not in Caddyfile
-grep "domain.com" /root/webalive/claude-bridge/Caddyfile
+grep "domain.com" /root/alive/Caddyfile
 ```
 
 All commands should return "not found" or similar errors.

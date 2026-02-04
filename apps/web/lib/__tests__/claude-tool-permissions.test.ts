@@ -253,14 +253,10 @@ describe("Tool Permission System", () => {
       }
     })
 
-    it("should block reading claude-bridge configuration", async () => {
+    it("should block reading alive configuration", async () => {
       const canUseTool = createToolPermissionHandler(mockWorkspace, requestId)
 
-      const attacks = [
-        "/root/webalive/claude-bridge/.env",
-        "/var/lib/claude-bridge/domain-passwords.json",
-        "/root/webalive/claude-bridge/apps/web/.env.local",
-      ]
+      const attacks = ["/root/alive/.env", "/var/lib/alive/domain-passwords.json", "/root/alive/apps/web/.env.local"]
 
       for (const attack of attacks) {
         const result = await canUseTool("Read", { file_path: attack }, mockOptions)

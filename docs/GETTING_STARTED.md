@@ -10,7 +10,7 @@ If you have [Claude Code](https://claude.ai/claude-code) installed:
 
 ```bash
 git clone <repository>
-cd claude-bridge
+cd alive
 claude
 ```
 
@@ -37,7 +37,7 @@ Claude will:
 
 ```bash
 git clone <repository>
-cd claude-bridge
+cd alive
 bun install
 ```
 
@@ -53,7 +53,7 @@ Create `apps/web/.env.local`:
 
 ```bash
 BRIDGE_ENV=local
-LOCAL_TEMPLATE_PATH=/your/path/to/claude-bridge/.alive/template
+LOCAL_TEMPLATE_PATH=/your/path/to/alive/.alive/template
 ANTH_API_SECRET=sk-ant-your-key-here
 ```
 

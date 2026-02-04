@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { LINEAR, getDisplayConfig, shouldAutoExpand } from "@alive-brug/tools/display"
+ * import { LINEAR, getDisplayConfig, shouldAutoExpand } from "@webalive/tools/display"
  * ```
  */
 

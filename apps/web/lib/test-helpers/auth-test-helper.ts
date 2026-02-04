@@ -29,7 +29,7 @@ export interface TestUser {
  * Allowed domains (NEVER use these for real users):
  * - @bridge-vitest.internal (for vitest tests)
  * - @bridge-playwright.internal (for E2E tests)
- * - @claude-bridge-test.local (for other tests)
+ * - @alive-test.local (for other tests)
  *
  * DO NOT use @test.com, @example.com, etc. - real users might use these!
  *

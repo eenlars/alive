@@ -177,7 +177,7 @@ This would provide:
 **Symptoms**: Verification method shows "none" even though file exists
 
 **Solutions**:
-1. Check server config: `cat /var/lib/claude-bridge/server-config.json`
+1. Check server config: `cat /var/lib/alive/server-config.json`
 2. Update verification file: `echo "YOUR_SERVER_IP" > /srv/webalive/sites/domain/user/public/.well-known/bridge-verify.txt`
 3. Fix ownership: `chown site-domain-slug:site-domain-slug /srv/webalive/sites/domain/user/public/.well-known/bridge-verify.txt`
 
@@ -188,4 +188,4 @@ This would provide:
 - `apps/web/types/domain.ts` - Type definitions
 - `packages/template/user/public/.well-known/bridge-verify.txt` - Template file
 - `scripts/add-verification-files.sh` - Migration script
-- `/var/lib/claude-bridge/server-config.json` - Server IP configuration
+- `/var/lib/alive/server-config.json` - Server IP configuration

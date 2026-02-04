@@ -1,6 +1,6 @@
 // Test the shared package directly (display config lives there now)
 // Using /display entry point to avoid pulling in server-only MCP code
-import { getDisplayConfig, isVisibleInNormalMode, shouldAutoExpand } from "@alive-brug/tools/display"
+import { getDisplayConfig, isVisibleInNormalMode, shouldAutoExpand } from "@webalive/tools/display"
 import { describe, expect, it } from "vitest"
 
 // Alias for backwards compatibility tests

@@ -156,7 +156,7 @@ Supabase: Check/create user, hash password, store
 ```
 TypeScript: getOrAssignPort(domain)
   ↓
-Read: /var/lib/claude-bridge/domain-passwords.json
+Read: /var/lib/alive/domain-passwords.json
   ↓
 Domain exists?
   YES → Reuse port
@@ -179,7 +179,7 @@ API writes port to Supabase: app.domains.port
 
 ### Port Registry
 
-**Location:** `/var/lib/claude-bridge/domain-passwords.json`
+**Location:** `/var/lib/alive/domain-passwords.json`
 
 **Format:**
 ```json
@@ -204,7 +204,7 @@ API writes port to Supabase: app.domains.port
 
 ### Caddy Configuration
 
-**Location:** `/root/webalive/claude-bridge/Caddyfile`
+**Location:** `/root/alive/Caddyfile`
 
 **Per-domain block:**
 ```
@@ -343,7 +343,7 @@ CREATE TABLE app.domains (
 
 **Two sources of truth:**
 
-1. **JSON:** `/var/lib/claude-bridge/domain-passwords.json`
+1. **JSON:** `/var/lib/alive/domain-passwords.json`
    - Written during `deploySite()` (before Supabase)
 
 2. **Database:** `app.domains.port`

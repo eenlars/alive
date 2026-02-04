@@ -1,12 +1,12 @@
 /**
- * @alive-brug/tools
+ * @webalive/tools
  *
  * Comprehensive MCP tool suite for Claude Bridge development platform.
  * Provides guides, debugging tools, and diagnostic capabilities.
  *
  * @example
  * ```typescript
- * import { toolsInternalMcp, workspaceInternalMcp } from "@alive-brug/tools"
+ * import { toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
  *
  * const claudeOptions = {
  *   mcpServers: {

@@ -31,7 +31,7 @@ This allows any `<label>.preview.terminal.goalive.nl` to resolve to the Caddy se
 
 ### 2. Caddyfile Configuration
 
-**Location:** `/root/webalive/claude-bridge/Caddyfile`
+**Location:** `/root/alive/Caddyfile`
 
 **Auto-generated section:**
 ```caddyfile
@@ -78,7 +78,7 @@ protino-alive-best.preview.terminal.goalive.nl {
 
 ### 3. Generation Script
 
-**Location:** `/root/webalive/claude-bridge/scripts/generate-preview-caddyfile.ts`
+**Location:** `/root/alive/scripts/generate-preview-caddyfile.ts`
 
 **Purpose:**
 - Parses existing Caddyfile to extract domain→port mappings
@@ -88,7 +88,7 @@ protino-alive-best.preview.terminal.goalive.nl {
 **Usage:**
 ```bash
 # Regenerate preview blocks (overwrites existing section)
-cd /root/webalive/claude-bridge
+cd /root/alive
 head -344 Caddyfile > Caddyfile.tmp && mv Caddyfile.tmp Caddyfile
 bun run scripts/generate-preview-caddyfile.ts >> Caddyfile 2>/dev/null
 systemctl reload caddy
@@ -96,7 +96,7 @@ systemctl reload caddy
 
 ### 4. Authentication Guard
 
-**Location:** `/root/webalive/claude-bridge/apps/web/app/api/auth/preview-guard/route.ts`
+**Location:** `/root/alive/apps/web/app/api/auth/preview-guard/route.ts`
 
 **Purpose:**
 - Validates session cookie before allowing access to preview subdomains
@@ -112,7 +112,7 @@ GET /api/auth/preview-guard
 
 ### 5. Sandbox Component Update
 
-**Location:** `/root/webalive/claude-bridge/apps/web/features/chat/components/Sandbox.tsx`
+**Location:** `/root/alive/apps/web/features/chat/components/Sandbox.tsx`
 
 **Changes:**
 ```typescript
@@ -193,7 +193,7 @@ Vite dev servers expect:
 
 **Option 1: Manual (current)**
 ```bash
-cd /root/webalive/claude-bridge
+cd /root/alive
 ./scripts/deploy-site-systemd.sh newsite.com
 # Then regenerate preview blocks:
 head -344 Caddyfile > Caddyfile.tmp && mv Caddyfile.tmp Caddyfile
@@ -235,7 +235,7 @@ dig protino-alive-best.preview.terminal.goalive.nl
 
 ### 2. Caddy Configuration
 ```bash
-grep -A 20 "protino-alive-best.preview.terminal.goalive.nl" /root/webalive/claude-bridge/Caddyfile
+grep -A 20 "protino-alive-best.preview.terminal.goalive.nl" /root/alive/Caddyfile
 # Should show preview block with forward_auth
 ```
 
@@ -293,7 +293,7 @@ dig protino-alive-best.preview.terminal.goalive.nl
 systemctl status site@protino-alive-best.service
 
 # Check port mapping
-grep "protino.alive.best" /root/webalive/claude-bridge/Caddyfile | grep reverse_proxy
+grep "protino.alive.best" /root/alive/Caddyfile | grep reverse_proxy
 
 # Test direct access
 curl -I http://localhost:3357/
@@ -318,7 +318,7 @@ window.vite_plugin_react_preamble_installed === true
 ### Caddy reload fails
 **Check Caddyfile syntax:**
 ```bash
-caddy validate --config /root/webalive/claude-bridge/Caddyfile
+caddy validate --config /root/alive/Caddyfile
 
 # Common issues:
 # - forward_auth URL must be scheme+host+port only (no path in URL)
@@ -393,8 +393,8 @@ useEffect(() => {
 
 ## References
 
-- **Caddyfile:** `/root/webalive/claude-bridge/Caddyfile`
-- **Generation script:** `/root/webalive/claude-bridge/scripts/generate-preview-caddyfile.ts`
-- **Auth guard:** `/root/webalive/claude-bridge/apps/web/app/api/auth/preview-guard/route.ts`
-- **Sandbox component:** `/root/webalive/claude-bridge/apps/web/features/chat/components/Sandbox.tsx`
-- **Main docs:** `/root/webalive/claude-bridge/README.md`
+- **Caddyfile:** `/root/alive/Caddyfile`
+- **Generation script:** `/root/alive/scripts/generate-preview-caddyfile.ts`
+- **Auth guard:** `/root/alive/apps/web/app/api/auth/preview-guard/route.ts`
+- **Sandbox component:** `/root/alive/apps/web/features/chat/components/Sandbox.tsx`
+- **Main docs:** `/root/alive/README.md`

@@ -1,4 +1,4 @@
-# @alive-brug/redis
+# @webalive/redis
 
 Redis infrastructure package for the monorepo.
 
@@ -7,7 +7,7 @@ Redis infrastructure package for the monorepo.
 From monorepo root:
 
 ```bash
-bun --filter @alive-brug/redis install
+bun --filter @webalive/redis install
 ```
 
 Or install dependencies for the client:
@@ -23,7 +23,7 @@ cd packages/redis && bun install
 This package exports a pre-configured Redis client that you can use in your applications:
 
 ```typescript
-import { createRedisClient, type RedisClient } from '@alive-brug/redis';
+import { createRedisClient, type RedisClient } from '@webalive/redis';
 
 // Create a client (uses REDIS_URL env var or default connection)
 const redis = createRedisClient();
@@ -53,20 +53,20 @@ REDIS_URL=redis://:dev_password_only@127.0.0.1:6379
 ### Start Redis
 
 ```bash
-bun --filter @alive-brug/redis start
+bun --filter @webalive/redis start
 ```
 
 ### Stop Redis
 
 ```bash
-bun --filter @alive-brug/redis stop
+bun --filter @webalive/redis stop
 ```
 
 ### Check Status
 
 ```bash
-bun --filter @alive-brug/redis status
-bun --filter @alive-brug/redis health
+bun --filter @webalive/redis status
+bun --filter @webalive/redis health
 ```
 
 ### Test Redis
@@ -74,7 +74,7 @@ bun --filter @alive-brug/redis health
 Run comprehensive behavioral tests to verify Redis configuration and operations:
 
 ```bash
-bun --filter @alive-brug/redis test
+bun --filter @webalive/redis test
 ```
 
 This test suite verifies:
@@ -95,13 +95,13 @@ Tests are designed to catch real problems, not just check if Redis responds.
 ### View Logs
 
 ```bash
-bun --filter @alive-brug/redis logs
+bun --filter @webalive/redis logs
 ```
 
 ### Access Redis CLI
 
 ```bash
-bun --filter @alive-brug/redis cli
+bun --filter @webalive/redis cli
 ```
 
 ## Connection String
@@ -114,9 +114,9 @@ bun --filter @alive-brug/redis cli
 
 ## For New Developers
 
-1. Install: `bun --filter @alive-brug/redis install`
-2. Start: `bun --filter @alive-brug/redis start`
-3. Verify: `bun --filter @alive-brug/redis health`
+1. Install: `bun --filter @webalive/redis install`
+2. Start: `bun --filter @webalive/redis start`
+3. Verify: `bun --filter @webalive/redis health`
 
 That's it! Your app can now connect to Redis.
 
@@ -147,15 +147,15 @@ lsof -i :6379
 ### View detailed logs
 
 ```bash
-bun --filter @alive-brug/redis logs
+bun --filter @webalive/redis logs
 ```
 
 ### Clean everything and restart
 
 ```bash
-bun --filter @alive-brug/redis clean
-bun --filter @alive-brug/redis install
-bun --filter @alive-brug/redis start
+bun --filter @webalive/redis clean
+bun --filter @webalive/redis install
+bun --filter @webalive/redis start
 ```
 
 ## Configuration
@@ -171,7 +171,7 @@ The Redis configuration is located at `config/redis.conf`. Key settings:
 **Security Note:** The default password `dev_password_only` is for development only. For production deployments:
 1. Change `requirepass` in `config/redis.conf`
 2. Update `REDIS_URL` in your application's `.env`
-3. Restart Redis: `bun --filter @alive-brug/redis stop && bun --filter @alive-brug/redis start`
+3. Restart Redis: `bun --filter @webalive/redis stop && bun --filter @webalive/redis start`
 
 Modify the configuration file and restart Redis to apply changes.
 
@@ -183,10 +183,10 @@ The package includes a TypeScript client that can be imported into other package
 
 ```bash
 # Build the client once
-bun --filter @alive-brug/redis build
+bun --filter @webalive/redis build
 
 # Watch mode for development
-bun --filter @alive-brug/redis dev
+bun --filter @webalive/redis dev
 ```
 
 Build output goes to `dist/` and includes:

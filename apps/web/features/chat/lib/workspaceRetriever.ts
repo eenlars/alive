@@ -29,7 +29,7 @@ export type WorkspaceResult =
  * - Must start with 'webalive/sites/' (or will be auto-prepended)
  * - Returns full path: /srv/{workspace}
  *
- * Special case: claude-bridge workspace for superadmins
+ * Special case: alive workspace for superadmins
  * - Returns SUPERADMIN.WORKSPACE_PATH directly
  * - Auth layer MUST verify superadmin status before this is called
  * - This function does NOT verify permissions (that's done in verifyWorkspaceAccess)
@@ -37,7 +37,7 @@ export type WorkspaceResult =
 export function getWorkspace({ host, body, requestId }: GetWorkspaceParams): WorkspaceResult {
   console.log(`[Workspace ${requestId}] Resolving workspace for host: ${host}`)
 
-  // Special case: claude-bridge workspace
+  // Special case: alive workspace
   // SECURITY NOTE: This only resolves the path - auth layer (verifyWorkspaceAccess)
   // MUST verify the user is a superadmin before this function is called.
   // This function trusts that auth has already been verified.

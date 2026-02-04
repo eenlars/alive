@@ -4,31 +4,31 @@ These are **templates only**. Do not copy them directly to /etc/systemd/system/.
 
 ## Server-Agnostic Setup
 
-The actual service files are **generated** from `/var/lib/claude-bridge/server-config.json`:
+The actual service files are **generated** from `/var/lib/alive/server-config.json`:
 
 ```bash
 # Generate service files
 bun run gen:systemd
 
 # Install generated services
-sudo cp /var/lib/claude-bridge/generated/claude-bridge-*.service /etc/systemd/system/
+sudo cp /var/lib/alive/generated/alive-*.service /etc/systemd/system/
 sudo systemctl daemon-reload
 
 # Start services
-sudo systemctl start claude-bridge-dev
-sudo systemctl enable claude-bridge-dev  # auto-start on boot
+sudo systemctl start alive-dev
+sudo systemctl enable alive-dev  # auto-start on boot
 ```
 
 ## Available Services
 
-- `claude-bridge-dev.service` - Development server (port 8997)
-- `claude-bridge-staging.service` - Staging server (port 8998)
-- `claude-bridge-production.service` - Production server (port 9000)
-- `claude-bridge-broker.service` - WebSocket broker
+- `alive-dev.service` - Development server (port 8997)
+- `alive-staging.service` - Staging server (port 8998)
+- `alive-production.service` - Production server (port 9000)
+- `alive-broker.service` - WebSocket broker
 
 ## Configuration
 
-All paths are read from `/var/lib/claude-bridge/server-config.json`:
+All paths are read from `/var/lib/alive/server-config.json`:
 
 ```json
 {

@@ -103,7 +103,7 @@ packages/worker-pool/
 - Isolated concern (worker lifecycle management)
 - Independent testing
 - Clear API boundary
-- Follows existing pattern (`@webalive/site-controller`, `@alive-brug/tools`)
+- Follows existing pattern (`@webalive/site-controller`, `@webalive/tools`)
 - Next.js just imports and uses: `import { WorkerPoolManager } from '@webalive/worker-pool'`
 
 ## Files to Modify in apps/web
@@ -209,7 +209,7 @@ if (isSessionNotFound && existingSessionId && sessionKey) {
 The base directory is created on service start:
 
 ```ini
-# In ops/systemd/claude-bridge-*.service
+# In ops/systemd/alive-*.service
 ExecStartPre=/usr/bin/mkdir -p /var/lib/claude-sessions
 ExecStartPre=/usr/bin/chmod 755 /var/lib/claude-sessions
 ```
@@ -389,7 +389,7 @@ async function handleQuery(ipc, requestId, payload) {
 **Why It Fails:**
 1. Worker starts as root to read node_modules and connect to Unix socket
 2. Worker drops privileges to workspace user (e.g., UID 986) via `setuid()`
-3. After privilege drop, worker can't read `/root/webalive/claude-bridge/node_modules/`
+3. After privilege drop, worker can't read `/root/alive/node_modules/`
 4. Any `import()` or `require()` inside functions happens AFTER privilege drop → EACCES
 
 **The Fix:**
@@ -397,7 +397,7 @@ async function handleQuery(ipc, requestId, payload) {
 // ✅ CORRECT - All imports at module level, BEFORE privilege drop
 import { query } from "@anthropic-ai/claude-agent-sdk"
 import { isOAuthMcpTool } from "@webalive/shared"
-import { workspaceInternalMcp, toolsInternalMcp } from "@alive-brug/tools"
+import { workspaceInternalMcp, toolsInternalMcp } from "@webalive/tools"
 
 // ... later in the file ...
 dropPrivileges()  // Now running as workspace user

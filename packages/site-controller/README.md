@@ -93,7 +93,7 @@ bun run test
 
 ## Migration from old deploy-scripts
 
-The \`@alive-brug/deploy-scripts\` package has been deprecated. Use this package instead.
+The \`@webalive/deploy-scripts\` package has been deprecated. Use this package instead.
 
 ## License
 

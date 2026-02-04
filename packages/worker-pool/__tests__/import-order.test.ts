@@ -76,11 +76,11 @@ describe("Import Order Check", () => {
     }).toThrow()
   })
 
-  it("should detect if @alive-brug/tools import is missing", () => {
+  it("should detect if @webalive/tools import is missing", () => {
     // Remove the tools import
     const badContent = originalContent.replace(
-      /import { workspaceInternalMcp, toolsInternalMcp } from "@alive-brug\/tools"/,
-      '// import { workspaceInternalMcp, toolsInternalMcp } from "@alive-brug/tools"',
+      /import { workspaceInternalMcp, toolsInternalMcp } from "@webalive\/tools"/,
+      '// import { workspaceInternalMcp, toolsInternalMcp } from "@webalive/tools"',
     )
     writeFileSync(tempWorkerPath, badContent)
 
@@ -98,7 +98,7 @@ describe("Import Order Check", () => {
 
     // Verify imports appear before any function definitions
     const importSectionEnd = originalContent.indexOf("function dropPrivileges")
-    const imports = ["@anthropic-ai/claude-agent-sdk", "@webalive/shared", "@alive-brug/tools"]
+    const imports = ["@anthropic-ai/claude-agent-sdk", "@webalive/shared", "@webalive/tools"]
 
     for (const pkg of imports) {
       const importPos = originalContent.indexOf(`from "${pkg}"`)

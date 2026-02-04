@@ -60,17 +60,17 @@
       "outputs": ["coverage/**"],
       "env": ["VITEST_POOL_ID"]
     },
-    "@alive-brug/redis#start": {
+    "@webalive/redis#start": {
       "cache": false,
       "persistent": true
     },
-    "@alive-brug/redis#stop": {
+    "@webalive/redis#stop": {
       "cache": false
     },
-    "@alive-brug/redis#status": {
+    "@webalive/redis#status": {
       "cache": false
     },
-    "@alive-brug/redis#health": {
+    "@webalive/redis#health": {
       "cache": false
     },
     "@webalive/broker#dev": {

@@ -13,7 +13,7 @@ Run these checks first:
 bun --version
 
 # Check we're in the right directory
-test -f package.json && grep -q "claude-bridge-mono" package.json && echo "OK: In claude-bridge root"
+test -f package.json && grep -q "alive-mono" package.json && echo "OK: In alive root"
 
 # Check if already set up
 test -f apps/web/.env.local && echo "NOTICE: .env.local exists"
@@ -51,7 +51,7 @@ Create `apps/web/.env.local` with these **required** values:
 ```bash
 # REQUIRED for local development
 BRIDGE_ENV=local
-LOCAL_TEMPLATE_PATH=/absolute/path/to/claude-bridge/.alive/template
+LOCAL_TEMPLATE_PATH=/absolute/path/to/alive/.alive/template
 
 # REQUIRED - your Anthropic API key
 # If using Claude Code CLI, this is already set as ANTHROPIC_API_KEY

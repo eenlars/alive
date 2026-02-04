@@ -125,7 +125,7 @@ export interface AgentConfig {
    *
    * Internal MCP servers (alive-workspace, alive-tools) are NOT included here
    * because createSdkMcpServer returns function objects that cannot be serialized
-   * via IPC. The worker imports and creates those locally from @alive-brug/tools.
+   * via IPC. The worker imports and creates those locally from @webalive/tools.
    */
   oauthMcpServers: Record<string, unknown>
   /** Bridge stream type constants (from @webalive/shared) */

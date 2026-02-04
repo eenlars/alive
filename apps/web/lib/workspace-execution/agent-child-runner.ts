@@ -52,7 +52,7 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
   const runnerPath = resolve(import.meta.dirname, "../../scripts/run-agent.mjs")
 
   // SUPERADMIN: Skip privilege drop - run as root
-  // Only applies when user is superadmin AND workspace is claude-bridge
+  // Only applies when user is superadmin AND workspace is alive
   let uid: number
   let gid: number
   if (payload.isSuperadmin) {

@@ -298,7 +298,7 @@ See [Authentication](../security/authentication.md) for JWT details.
 
 **Bad:**
 ```markdown
-See the authentication documentation at /root/webalive/claude-bridge/docs/security/authentication.md
+See the authentication documentation at /root/alive/docs/security/authentication.md
 ```
 
 ### External Links
@@ -332,7 +332,7 @@ The credit system is implemented in `apps/web/lib/credits/supabase-credits.ts:18
 cd apps/web && bun run test
 
 # From anywhere (absolute path)
-bun /root/webalive/claude-bridge/apps/web/test
+bun /root/alive/apps/web/test
 ```
 
 ### Configuration Examples

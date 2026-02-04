@@ -20,7 +20,7 @@ BRIDGE_ENV=local
 ### Directory Structure
 
 ```
-alive-brug/
+alive/
 ├── .alive/                      # Local-only workspace (gitignored)
 │   └── template/                # Your test workspace
 ├── packages/
@@ -52,10 +52,10 @@ Create or update `apps/web/.env.local`:
 
 ```bash
 BRIDGE_ENV=local
-LOCAL_TEMPLATE_PATH=/absolute/path/to/alive-brug/.alive/template
+LOCAL_TEMPLATE_PATH=/absolute/path/to/alive/.alive/template
 ```
 
-**Note**: Replace `/absolute/path/to/alive-brug` with your actual monorepo root path.
+**Note**: Replace `/absolute/path/to/alive` with your actual monorepo root path.
 
 The setup script will output the exact path you need to use.
 
@@ -150,7 +150,7 @@ If you want to change what new local workspaces start with:
 
 **Cause**: The path is relative (e.g., `../../.alive/template`) instead of absolute.
 
-**Fix**: Use the full absolute path shown by `bun run setup` (e.g., `/Users/you/alive-brug/.alive/template`).
+**Fix**: Use the full absolute path shown by `bun run setup` (e.g., `/Users/you/alive/.alive/template`).
 
 ### Error: "LOCAL_TEMPLATE_PATH exists but is not a directory"
 
@@ -184,7 +184,7 @@ Ensure you have read/write access to the monorepo directory.
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
 | `BRIDGE_ENV` | Yes | Enable local development mode | `local` |
-| `LOCAL_TEMPLATE_PATH` | Yes | Absolute path to local workspace | `/Users/you/alive-brug/.alive/template` |
+| `LOCAL_TEMPLATE_PATH` | Yes | Absolute path to local workspace | `/Users/you/alive/.alive/template` |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key | `sk-ant-...` |
 | `BRIDGE_PASSCODE` | No | Bridge passcode (any works if unset) | `your-password` |
 
@@ -207,7 +207,7 @@ This document outlines all edge cases handled by the local development setup.
 ### 1. **Wrong Directory**
 **Scenario**: User runs `bun run setup` from outside the project.
 
-**Detection**: Check for `package.json` with name `"claude-bridge-mono"`.
+**Detection**: Check for `package.json` with name `"alive-mono"`.
 
 **Behavior**: Error and exit with clear message.
 

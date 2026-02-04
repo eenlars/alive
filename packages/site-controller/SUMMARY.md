@@ -2,7 +2,7 @@
 
 ## Package Created: `@webalive/site-controller`
 
-**Location**: `/root/webalive/claude-bridge/packages/site-controller`
+**Location**: `/root/alive/packages/site-controller`
 
 ## What Was Built
 
@@ -153,7 +153,7 @@ import { SiteOrchestrator } from '@webalive/site-controller'
 const result = await SiteOrchestrator.deploy({
   domain: 'example.com',
   slug: 'example-com',
-  templatePath: '/root/webalive/claude-bridge/packages/template',
+  templatePath: '/root/alive/packages/template',
 })
 
 if (result.success) {
@@ -185,7 +185,7 @@ const dns = await validateDns({
 
 const { port } = await assignPort({
   domain: 'example.com',
-  registryPath: '/var/lib/claude-bridge/domain-passwords.json',
+  registryPath: '/var/lib/alive/domain-passwords.json',
 })
 ```
 

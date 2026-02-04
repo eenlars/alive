@@ -50,7 +50,7 @@ The server uses the same `config.json` format as the TypeScript version:
   "production": {
     "port": 3888,
     "defaultWorkspace": "root",
-    "defaultCwd": "/root/webalive/claude-bridge",
+    "defaultCwd": "/root/alive",
     "uploadDefaultCwd": "/root/uploads",
     "sitesPath": "/srv/webalive/sites",
     "workspaceBase": "/root/webalive",

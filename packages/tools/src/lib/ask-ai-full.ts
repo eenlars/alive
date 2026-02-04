@@ -9,7 +9,7 @@
  *
  * @example
  * ```typescript
- * import { askAIFull, askBridge } from "@alive-brug/tools"
+ * import { askAIFull, askBridge } from "@webalive/tools"
  *
  * // Full mode - all tools enabled
  * const result = await askAIFull({

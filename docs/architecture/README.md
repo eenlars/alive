@@ -100,7 +100,7 @@ apps/web/
 |---------|---------|
 | [@webalive/site-controller](../../packages/site-controller/README.md) | Site deployment with Shell-Operator Pattern |
 | [@webalive/oauth-core](../../packages/oauth-core/README.md) | Multi-tenant OAuth with AES-256-GCM encryption |
-| [@alive-brug/redis](../../packages/redis/README.md) | Redis client with automatic retry |
+| [@webalive/redis](../../packages/redis/README.md) | Redis client with automatic retry |
 | [@webalive/template](../../packages/template/README.md) | Template for new site deployments |
 | [@webalive/guides](../../packages/guides/README.md) | Shared guide templates |
 | [@webalive/images](../../packages/images/README.md) | Shared images and assets |

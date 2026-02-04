@@ -55,7 +55,7 @@ https://larsvandeneeden.com/_images/t/larsvandeneeden.com/o/f4b33c6157d6346d/v/t
 All domains use `handle_path /_images/*` which strips the `/_images` prefix:
 
 ```caddyfile
-# In /root/webalive/claude-bridge/Caddyfile
+# In /root/alive/Caddyfile
 (image_serving) {
     handle_path /_images/* {
         root * /srv/webalive/storage

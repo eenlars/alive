@@ -1,5 +1,5 @@
 {
-  "name": "@alive-brug/mcp-gmail",
+  "name": "@webalive/mcp-gmail",
   "version": "1.0.0",
   "description": "Gmail MCP server with Bearer token authentication. Forked from https://github.com/GongRzhe/Gmail-MCP-Server and adapted for multi-tenant OAuth.",
   "author": "WebAlive (forked from GongRzhe)",

@@ -86,7 +86,7 @@ Workspace 'test' not found
 **Fix:**
 ```bash
 # Check template exists
-ls -la /root/webalive/claude-bridge/packages/template/user
+ls -la /root/alive/packages/template/user
 
 # Update playwright.config.ts with correct path
 ```
@@ -685,13 +685,13 @@ Test after Next.js updates, update tests if needed.
 lsof -i :9547
 
 # Stop production temporarily
-pm2 stop claude-bridge
+pm2 stop alive
 
 # Run tests
 bun run test:e2e
 
 # Restart production
-pm2 start claude-bridge
+pm2 start alive
 ```
 
 ### Missing System Dependencies
