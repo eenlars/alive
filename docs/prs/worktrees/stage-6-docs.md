@@ -1,12 +1,12 @@
 # Stage 6 - Docs
 
 ## New Doc
-- `docs/features/worktrees.md`
-  - What worktrees are
-  - How to create/switch/remove
-  - Limits (slug rules, branch naming)
+- Add `docs/features/worktrees.md`.
+- Include a short overview, creation flow, switching, and removal.
+- Document slug rules, branch naming, and limits.
 
 ## Update Existing Docs
-- `docs/architecture/workspace-isolation.md`
-  - Add worktree root and containment checks
-  - Note that auth remains domain-based
+- Update `docs/architecture/workspace-isolation.md` with:
+  - Worktree root layout under each site.
+  - Containment checks for worktree resolution.
+  - Reminder that auth remains domain-based.

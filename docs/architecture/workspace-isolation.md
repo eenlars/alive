@@ -22,6 +22,8 @@ Claude Bridge uses multi-layered isolation to prevent cross-tenant file access:
 │   │   ├── src/             # Application code
 │   │   ├── package.json
 │   │   └── index.ts
+│   └── worktrees/
+│       └── feature-x/        # Git worktree checkout
 │   └── .env
 │
 └── demo.site.com/            # Owned by site-demo-site-com
@@ -84,6 +86,17 @@ export function resolveWorkspace(host: string): string {
   return real
 }
 ```
+
+### Worktree Resolution (When Provided)
+
+When an optional `worktree` slug is present in the request, the resolver must:
+
+1. Resolve the base workspace from the domain as usual.
+2. Build the worktree path: `<siteRoot>/worktrees/<slug>`.
+3. Resolve realpath and enforce containment against `<siteRoot>/worktrees`.
+4. Verify the target exists in `git worktree list --porcelain`.
+
+This prevents path traversal, symlink escapes, and phantom worktree paths. Auth remains domain-based; worktrees do not change access rules.
 
 ## Path Validation
 

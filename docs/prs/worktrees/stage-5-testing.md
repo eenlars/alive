@@ -4,8 +4,9 @@
 For each new route:
 - 401 without session
 - 403 when workspace not authorized
-- 400 on invalid slug/branch
+- 400 on invalid slug or branch
 - Success path
+- 409 when the per-site lock is held
 
 ## Workspace Resolution Tests
 - Resolves base workspace without worktree.
@@ -17,3 +18,9 @@ For each new route:
 ## Session Key Tests
 - Base workspace and worktree do not collide.
 - Worktree tab IDs are stable and deterministic.
+
+## Recommended Test Setup
+- Create a temp repo in tests with `git init` and one commit.
+- Create a worktree under a temp `worktrees` folder.
+- Use `runAsWorkspaceUser` in tests only if required by the helper.
+- Clean up temp directories after each test run.

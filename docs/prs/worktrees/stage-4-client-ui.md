@@ -1,26 +1,35 @@
-# Stage 4 - Client UI + Session Scoping
+# Stage 4 - Client UI and Session Scoping
 
 ## UI Flow
-- Replace the current toast in `handleNewWorktree` with a modal:
-  - Name/slug input (auto-suggest from project name + timestamp).
-  - Optional base branch selector.
-- After creation, switch to the new worktree and open a fresh tab group.
+- Add a worktree switcher near the workspace selector.
+- Provide actions: Create, Switch, Remove.
+- Replace the current toast in `handleNewWorktree` with a modal.
+
+### Create Modal
+- Slug input with live validation and auto-suggest.
+- Optional base branch input. Default to the current branch if available.
+- Submit calls `POST /api/worktrees/create` and shows progress.
+
+### After Create
+- Switch to the new worktree immediately.
+- Start a new tab group to avoid session collisions.
 
 ## Store Updates
-- Add `currentWorktree` to workspace store.
-- Persist to localStorage with workspace context.
-- Ensure `worktree` is included in requests (Claude + file ops).
+- Add `currentWorktree` to the workspace store.
+- Persist by workspace domain so each site has its own selection.
+- Include `worktree` in all requests that resolve a workspace path.
 
-## Session/Lock Scoping
+## Session and Concurrency Scoping
 Goal: avoid collisions between base workspace and worktrees.
 
-Option A (lighter):
-- Prefix `tabId` with `wt/<slug>/` when worktree selected.
-- No schema changes in IAM sessions.
+Option A (lighter, recommended)
+- Prefix `tabId` with `wt/<slug>/` when a worktree is selected.
+- Keep IAM session schema unchanged.
 
-Option B (cleaner, heavier):
+Option B (cleaner, heavier)
 - Extend `tabKey` to include `worktree` explicitly.
-- Requires schema + session store updates.
+- Requires schema and session store migration.
 
-## Open Decision
-- Should new worktree auto-switch immediately, or just be created and left inactive?
+## Edge Cases
+- Removing the active worktree should fall back to base workspace.
+- Switching worktrees should reset conversation context and create a new tabId.
