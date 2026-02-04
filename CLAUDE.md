@@ -581,17 +581,16 @@ bun run dev
 
 ## Production Deployment
 
-**⚠️ CRITICAL: Production deployment is intentionally restricted.** Contact devops for production deploys.
-
 For troubleshooting, inspecting production, and dev/staging work, see `docs/deployment/deployment.md`.
 
 ### Available Commands
 
-**Dev & Staging:**
 ```bash
+make ship        # Full production deployment (port 9000)
 make staging     # Full staging deployment (port 8998)
 make dev         # Rebuild tools + restart dev server (port 8997)
 make devchat     # Restart dev server via systemctl (safe from chat)
+make logs        # View production logs
 make logs-staging # View staging logs
 make logs-dev    # View dev environment logs
 

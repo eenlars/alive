@@ -87,16 +87,24 @@ function cfg<T>(serverValue: T | undefined, defaultValue: T): T {
 // Derived values from server config
 // =============================================================================
 
+// Environment variable helper (server-side only)
+const getEnv = (key: string): string | undefined => {
+  if (isBrowser || typeof process === "undefined") return undefined
+  return process.env[key]
+}
+
 const BRIDGE_ROOT = cfg(serverConfig.paths?.bridgeRoot, "/root/webalive/claude-bridge")
 const SITES_ROOT = cfg(serverConfig.paths?.sitesRoot, "/srv/webalive/sites")
 const IMAGES_STORAGE = cfg(serverConfig.paths?.imagesStorage, "/srv/webalive/storage")
-const MAIN_DOMAIN = cfg(serverConfig.domains?.main, "goalive.nl")
-const WILDCARD_DOMAIN = cfg(serverConfig.domains?.wildcard, "alive.best")
-const PREVIEW_BASE = cfg(serverConfig.domains?.previewBase, "preview.terminal.goalive.nl")
-const COOKIE_DOMAIN = cfg(serverConfig.domains?.cookieDomain, ".terminal.goalive.nl")
+
+// Domain config from environment (required)
+const MAIN_DOMAIN = getEnv("MAIN_DOMAIN") || serverConfig.domains?.main || ""
+const WILDCARD_DOMAIN = getEnv("WILDCARD_DOMAIN") || serverConfig.domains?.wildcard || ""
+const PREVIEW_BASE = getEnv("PREVIEW_BASE") || serverConfig.domains?.previewBase || `preview.terminal.${MAIN_DOMAIN}`
+const COOKIE_DOMAIN = getEnv("COOKIE_DOMAIN") || serverConfig.domains?.cookieDomain || `.terminal.${MAIN_DOMAIN}`
 
 // Server IP: from env var, then server config, then empty (must be configured)
-const SERVER_IP_ENV = !isBrowser && typeof process !== "undefined" ? process.env.SERVER_IP : undefined
+const SERVER_IP_ENV = getEnv("SERVER_IP")
 const SERVER_IP = SERVER_IP_ENV || cfg(serverConfig.serverIp, "")
 
 // =============================================================================
