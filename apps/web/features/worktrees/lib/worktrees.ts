@@ -300,7 +300,7 @@ export async function listWorktrees(baseWorkspacePath: string): Promise<Worktree
       const entryReal = safeRealpath(entry.path)
       return { entry, entryReal }
     })
-    .filter(({ entryReal }) => entryReal && entryReal.startsWith(worktreeRootReal + path.sep))
+    .filter(({ entryReal }) => entryReal?.startsWith(worktreeRootReal + path.sep))
     .map(({ entry, entryReal }) => {
       if (!entryReal) return null
       const relative = path.relative(worktreeRootReal, entryReal)
