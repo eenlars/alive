@@ -138,6 +138,10 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
   // fall back to the first available tab
   const effectiveTab = tabs.find(t => t.id === activeTab) || tabs[0]
   const currentTab = effectiveTab || { id: "account" as const, label: "Profile", icon: User }
+  const isWideTab = currentTab.id === "automations"
+  const mainClassName = isWideTab
+    ? "flex-1 min-h-0 overflow-hidden px-4 md:px-8 py-2 md:py-0"
+    : "flex-1 overflow-auto px-4 md:px-8 py-2 md:py-0"
 
   // Sync URL to effective tab if user doesn't have access to the URL-specified tab
   useEffect(() => {
@@ -256,8 +260,8 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 overflow-auto px-4 md:px-8 py-2 md:py-0">
-          <div className="max-w-3xl">
+        <main className={mainClassName}>
+          <div className={isWideTab ? "max-w-none w-full h-full min-h-0" : "max-w-3xl"}>
             <Suspense
               fallback={<div className="py-12 text-center text-zinc-400 dark:text-zinc-500 text-sm">Loading...</div>}
             >

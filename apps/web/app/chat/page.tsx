@@ -470,6 +470,11 @@ function ChatPageContent() {
     setTimeout(() => chatInputRef.current?.focus(), 0)
   }, [tabId, streamingActions, startNewTabGroup, workspace])
 
+  const handleNewWorktree = useCallback(() => {
+    // TODO: Implement worktree creation
+    toast("Worktree feature coming soon!", { icon: "🌳" })
+  }, [])
+
   const handleInsertTemplate = useCallback((prompt: string) => {
     setMsg(prompt)
   }, [])
@@ -554,6 +559,7 @@ function ChatPageContent() {
         onUnarchiveTabGroup={handleUnarchiveTabGroup}
         onRenameTabGroup={handleRenameTabGroup}
         onNewConversation={handleNewTabGroup}
+        onNewWorktree={handleNewWorktree}
         onOpenSettings={modals.openSettings}
         onOpenInvite={modals.openInvite}
       />

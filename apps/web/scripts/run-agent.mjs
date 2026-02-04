@@ -53,6 +53,15 @@ async function readStdinJson() {
       chownSync(join(tempHome, ".claude"), targetUid, targetGid)
       chownSync(credDest, targetUid, targetGid)
       process.env.HOME = tempHome
+      // Ensure temp directory is writable by the workspace user
+      const tempDir = join(tempHome, "tmp")
+      if (!existsSync(tempDir)) {
+        mkdirSync(tempDir, { recursive: true, mode: 0o700 })
+      }
+      chownSync(tempDir, targetUid, targetGid)
+      process.env.TMPDIR = tempDir
+      process.env.TMP = tempDir
+      process.env.TEMP = tempDir
       console.error(`[runner] Copied credentials to ${tempHome}`)
     }
 

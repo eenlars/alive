@@ -147,6 +147,10 @@ run_quiet() {
 
 # Force-restart a service, handling stuck states
 # Returns 0 if service is active after restart, 1 otherwise
+#
+# CRITICAL: This function uses an interrupt trap to ensure the service is always
+# started, even if the script is killed during the restart window. This prevents
+# the service from being left in a stopped state.
 service_force_restart() {
     local service="$1"
     local max_wait="${2:-15}"
@@ -155,6 +159,18 @@ service_force_restart() {
     local main_pid
     local control_group
     local cgroup_path
+
+    # CRITICAL: Set up trap to ensure service starts even if script is interrupted
+    # This prevents the race condition where stop succeeds but start never happens
+    local _service_restart_trap_set=0
+    _ensure_service_started() {
+        if [[ $_service_restart_trap_set -eq 1 ]]; then
+            log_warn "Script interrupted - ensuring $service is started..."
+            systemctl start "$service" 2>/dev/null || true
+        fi
+    }
+    trap _ensure_service_started EXIT INT TERM
+    _service_restart_trap_set=1
 
     # Check current state
     state=$(systemctl show -p ActiveState --value "$service" 2>/dev/null || echo "unknown")
@@ -188,14 +204,18 @@ service_force_restart() {
     # Reset any failed state
     systemctl reset-failed "$service" 2>/dev/null || true
 
-    # Stop first (in case it's running), then start
-    # Using stop + start instead of restart to avoid restart's dependency on clean stop
-    systemctl stop "$service" 2>/dev/null || true
-    sleep 1
-
-    # Start the service (use --no-block for immediate feedback)
-    if ! systemctl start --no-block "$service" 2>/dev/null; then
-        return 1
+    # Use systemctl restart which is atomic (systemd handles stop+start internally)
+    # This is safer than separate stop/start which can leave service down if interrupted
+    # The --no-block allows us to monitor progress, but systemd ensures atomicity
+    if ! systemctl restart --no-block "$service" 2>/dev/null; then
+        # If restart fails immediately, try stop+start as fallback
+        systemctl stop "$service" 2>/dev/null || true
+        sleep 1
+        if ! systemctl start --no-block "$service" 2>/dev/null; then
+            _service_restart_trap_set=0
+            trap - EXIT INT TERM
+            return 1
+        fi
     fi
 
     # Wait for service to become active
@@ -206,15 +226,23 @@ service_force_restart() {
 
         state=$(systemctl show -p ActiveState --value "$service" 2>/dev/null || echo "unknown")
         if [[ "$state" == "active" ]]; then
+            # Success - disable trap and return
+            _service_restart_trap_set=0
+            trap - EXIT INT TERM
             return 0
         fi
 
         # If it failed, no point waiting
         if [[ "$state" == "failed" ]]; then
+            _service_restart_trap_set=0
+            trap - EXIT INT TERM
             return 1
         fi
     done
 
+    # Timeout - disable trap
+    _service_restart_trap_set=0
+    trap - EXIT INT TERM
     return 1
 }
 

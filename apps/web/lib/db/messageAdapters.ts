@@ -1,5 +1,6 @@
 "use client"
 
+import type { Attachment } from "@/features/chat/components/ChatInput/types"
 import type { UIMessage } from "@/features/chat/lib/message-parser"
 import type { DbMessage, DbMessageContent, DbMessageStatus, DbMessageType } from "./messageDb"
 
@@ -16,6 +17,60 @@ import type { DbMessage, DbMessageContent, DbMessageStatus, DbMessageType } from
 // =============================================================================
 // UIMessage -> DbMessage (for persistence)
 // =============================================================================
+
+/**
+ * Serialize attachments for storage.
+ * Removes transient fields like uploadProgress and error.
+ */
+function serializeAttachments(attachments?: unknown[]): Record<string, unknown>[] | undefined {
+  if (!attachments || attachments.length === 0) return undefined
+
+  return attachments.map(att => {
+    const obj = att as Record<string, unknown>
+    // Keep essential fields, drop transient ones
+    const serialized: Record<string, unknown> = {
+      kind: obj.kind,
+      id: obj.id,
+    }
+
+    // Include type-specific fields based on kind
+    const kind = obj.kind as string
+    switch (kind) {
+      case "library-image":
+        serialized.photobookKey = obj.photobookKey
+        serialized.preview = obj.preview
+        serialized.mode = obj.mode
+        break
+      case "supertemplate":
+        serialized.templateId = obj.templateId
+        serialized.name = obj.name
+        serialized.preview = obj.preview
+        break
+      case "user-prompt":
+        serialized.promptType = obj.promptType
+        serialized.data = obj.data
+        serialized.displayName = obj.displayName
+        serialized.userFacingDescription = obj.userFacingDescription
+        break
+      case "skill":
+        serialized.skillId = obj.skillId
+        serialized.displayName = obj.displayName
+        serialized.description = obj.description
+        serialized.prompt = obj.prompt
+        serialized.source = obj.source
+        break
+      case "uploaded-file":
+        serialized.workspacePath = obj.workspacePath
+        serialized.originalName = obj.originalName
+        serialized.mimeType = obj.mimeType
+        serialized.size = obj.size
+        serialized.preview = obj.preview
+        break
+    }
+
+    return serialized
+  })
+}
 
 /**
  * Convert UIMessage to structured DbMessageContent for storage.
@@ -93,7 +148,7 @@ export function toDbMessage(
   const now = Date.now()
   const createdAt = message.timestamp instanceof Date ? message.timestamp.getTime() : now
 
-  return {
+  const dbMessage: DbMessage = {
     id: message.id,
     tabId,
     type: toDbMessageType(message.type),
@@ -106,6 +161,13 @@ export function toDbMessage(
     seq,
     pendingSync: options.pendingSync ?? true,
   }
+
+  // Persist attachments for user messages
+  if (message.type === "user" && message.attachments) {
+    dbMessage.attachments = serializeAttachments(message.attachments)
+  }
+
+  return dbMessage
 }
 
 // =============================================================================
@@ -113,13 +175,31 @@ export function toDbMessage(
 // =============================================================================
 
 /**
+ * Deserialize attachments from storage.
+ */
+function deserializeAttachments(serialized?: Record<string, unknown>[]): Attachment[] | undefined {
+  if (!serialized || serialized.length === 0) return undefined
+
+  return serialized.map(obj => {
+    // Reconstructed attachments - these are the stored versions
+    // Transient fields (uploadProgress, error) will be undefined, which is correct
+    return obj as unknown as Attachment
+  })
+}
+
+/**
  * Convert DbMessage to UIMessage for display in React components.
  */
 export function toUIMessage(dbMessage: DbMessage): UIMessage {
-  const { content, id, createdAt, status } = dbMessage
+  const { content, id, createdAt, status, attachments } = dbMessage
 
   const timestamp = new Date(createdAt)
   const isStreaming = status === "streaming"
+
+  const baseUIMessage = {
+    timestamp,
+    isStreaming,
+  }
 
   switch (content.kind) {
     case "text":
@@ -127,8 +207,8 @@ export function toUIMessage(dbMessage: DbMessage): UIMessage {
         id,
         type: dbMessage.type === "user" ? "user" : "sdk_message",
         content: content.text,
-        timestamp,
-        isStreaming,
+        attachments: deserializeAttachments(attachments),
+        ...baseUIMessage,
       }
 
     case "sdk_message":
@@ -136,8 +216,7 @@ export function toUIMessage(dbMessage: DbMessage): UIMessage {
         id,
         type: "sdk_message",
         content: content.data,
-        timestamp,
-        isStreaming,
+        ...baseUIMessage,
       }
 
     case "tool_use":
@@ -150,8 +229,7 @@ export function toUIMessage(dbMessage: DbMessage): UIMessage {
           id: content.toolUseId,
           input: content.args,
         },
-        timestamp,
-        isStreaming,
+        ...baseUIMessage,
       }
 
     case "tool_result":
@@ -164,8 +242,7 @@ export function toUIMessage(dbMessage: DbMessage): UIMessage {
           content: content.result,
           tool_name: content.toolName,
         },
-        timestamp,
-        isStreaming,
+        ...baseUIMessage,
       }
 
     case "thinking":
@@ -173,8 +250,7 @@ export function toUIMessage(dbMessage: DbMessage): UIMessage {
         id,
         type: "sdk_message",
         content: { type: "thinking", text: content.text },
-        timestamp,
-        isStreaming,
+        ...baseUIMessage,
       }
 
     case "system":
@@ -182,8 +258,7 @@ export function toUIMessage(dbMessage: DbMessage): UIMessage {
         id,
         type: "sdk_message",
         content: { type: "system", text: content.text },
-        timestamp,
-        isStreaming,
+        ...baseUIMessage,
       }
 
     case "file":
@@ -193,8 +268,7 @@ export function toUIMessage(dbMessage: DbMessage): UIMessage {
         id,
         type: "sdk_message",
         content,
-        timestamp,
-        isStreaming,
+        ...baseUIMessage,
       }
 
     default: {
@@ -204,8 +278,7 @@ export function toUIMessage(dbMessage: DbMessage): UIMessage {
         id,
         type: "sdk_message",
         content: _exhaustive,
-        timestamp,
-        isStreaming,
+        ...baseUIMessage,
       }
     }
   }
