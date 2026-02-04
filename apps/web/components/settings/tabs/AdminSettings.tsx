@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { EmailDraftDemo } from "@/components/ui/chat/tools/email/EmailDraftOutput"
 import { Toggle } from "@/components/ui/Toggle"
 import { useSuperadmin } from "@/hooks/use-superadmin"
-import buildInfo from "@/lib/build-info.json"
+import buildInfo from "@/lib/get-build-info"
 import { SettingsTabLayout } from "./SettingsTabLayout"
 
 type DeployAction = "staging" | "production" | "production-skip-e2e" | "status"

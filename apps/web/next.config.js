@@ -18,9 +18,22 @@ function writeBuildInfo() {
     const branch = execSync("git branch --show-current", { encoding: "utf-8" }).trim()
     const buildTime = new Date().toISOString()
     const buildInfo = { commit, branch, buildTime }
-    fs.writeFileSync(path.join(import.meta.dirname, "lib/build-info.json"), JSON.stringify(buildInfo, null, 2))
-  } catch {
-    // Ignore errors in dev mode
+
+    // Use __dirname equivalent for CommonJS context
+    // next.config.js runs in Node.js, so use __filename with path resolution
+    const configDir = path.dirname(new URL(import.meta.url).pathname)
+    const targetPath = path.join(configDir, "lib", "build-info.json")
+
+    fs.writeFileSync(targetPath, JSON.stringify(buildInfo, null, 2))
+  } catch (error) {
+    // Log errors but don't fail the build
+    // build-info.json is optional and will fall back to "unknown" values
+    if (process.env.DEBUG_BUILD_INFO) {
+      console.warn(
+        "[build-info] Error writing build-info.json:",
+        error instanceof Error ? error.message : String(error),
+      )
+    }
   }
 }
 

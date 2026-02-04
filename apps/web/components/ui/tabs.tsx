@@ -40,7 +40,7 @@ export function TabsList({ children, className = "" }: { children: React.ReactNo
   return (
     <div
       role="tablist"
-      className={`inline-flex h-9 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5 p-1 text-black/60 dark:text-white/60 ${className}`}
+      className={`flex items-center gap-1 border-b border-black/10 dark:border-white/10 ${className}`}
     >
       {children}
     </div>
@@ -68,8 +68,10 @@ export function TabsTrigger({
       aria-selected={isActive}
       aria-controls={`tab-panel-${value}`}
       id={`tab-${value}`}
-      className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-white dark:ring-offset-zinc-950 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-        isActive ? "bg-white dark:bg-zinc-900 text-black dark:text-white shadow" : ""
+      className={`relative px-6 py-3 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-950 disabled:pointer-events-none disabled:opacity-50 ${
+        isActive
+          ? "text-black dark:text-white border-b-2 border-black dark:border-white"
+          : "text-black/60 dark:text-white/60 border-b-2 border-transparent hover:text-black/80 dark:hover:text-white/80"
       } ${className}`}
       onClick={() => context.onValueChange(value)}
     >
