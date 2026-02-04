@@ -1,17 +1,17 @@
 # Shell Server: How to Never Go Down Again
 
-**Updated**: 2025-11-20
-**Service**: shell.terminal.goalive.nl
+**Updated**: 2026-02-04
+**Service**: go.goalive.nl
 
 ## The Actual Solution (Simple)
 
-The shell-server now runs as a **systemd service** with automatic restarts. That's it.
+The shell-server-go now runs as a **systemd service** with automatic restarts. That's it.
 
 ### What Systemd Does
 
 1. **Auto-restart on crash** - Service crashes? Systemd restarts it in 5 seconds
 2. **Auto-start on boot** - Server reboots? Service comes back up automatically
-3. **Resource limits** - Memory leaks? Service won't exceed 500MB
+3. **Resource limits** - Memory leaks? Service won't exceed 4GB
 4. **Logging** - Everything goes to journalctl, not random log files
 5. **Single source of truth** - One way to run it, not PM2 + cron + scripts
 
@@ -19,26 +19,26 @@ The shell-server now runs as a **systemd service** with automatic restarts. That
 
 ```bash
 # Check if it's running
-systemctl status shell-server
+systemctl status shell-server-go
 
 # View logs
-journalctl -u shell-server -n 50
+journalctl -u shell-server-go -n 50
 
 # Restart it
-systemctl restart shell-server
+systemctl restart shell-server-go
 
 # Stop it (for maintenance)
-systemctl stop shell-server
+systemctl stop shell-server-go
 
 # Start it
-systemctl start shell-server
+systemctl start shell-server-go
 ```
 
 ## After Code Changes
 
 **Automatic (Recommended):**
 ```bash
-# Deploy staging or dev - shell-server rebuilds automatically
+# Deploy staging or dev - shell-server-go rebuilds automatically
 make staging
 # or
 make dev
@@ -46,38 +46,38 @@ make dev
 
 **Manual (if needed):**
 ```bash
-cd /root/webalive/claude-bridge/apps/shell-server
-bun run build
-systemctl restart shell-server
-systemctl status shell-server
+cd /root/webalive/claude-bridge/apps/shell-server-go
+make build
+systemctl restart shell-server-go
+systemctl status shell-server-go
 ```
 
 ## Verify It's Working
 
 ```bash
 # 1. Check systemd
-systemctl status shell-server
+systemctl status shell-server-go
 # Should show: "active (running)"
 
 # 2. Check port
 lsof -i :3888
-# Should show node process
+# Should show shell-server-go process
 
 # 3. Check HTTP
 curl -I http://localhost:3888
 # Should return: HTTP/1.1 200 OK
 
 # 4. Check domain
-curl -I https://shell.terminal.goalive.nl
+curl -I https://go.goalive.nl
 # Should return: HTTP/2 200
 ```
 
 ## Files
 
-- **Service definition**: `/etc/systemd/system/shell-server.service`
-- **Environment vars**: `/root/webalive/claude-bridge/apps/shell-server/.env.production`
-- **App code**: `/root/webalive/claude-bridge/apps/shell-server/`
-- **Built output**: `/root/webalive/claude-bridge/apps/shell-server/dist/index.js`
+- **Service definition**: `/etc/systemd/system/shell-server-go.service` (also in ops/systemd/)
+- **Environment vars**: `/root/webalive/claude-bridge/apps/shell-server-go/.env.production`
+- **App code**: `/root/webalive/claude-bridge/apps/shell-server-go/`
+- **Built binary**: `/root/webalive/claude-bridge/apps/shell-server-go/shell-server-go`
 
 ## What We Removed
 
@@ -88,14 +88,14 @@ curl -I https://shell.terminal.goalive.nl
 
 ## If It's Down
 
-1. Check status: `systemctl status shell-server`
-2. Check logs: `journalctl -u shell-server -n 100`
+1. Check status: `systemctl status shell-server-go`
+2. Check logs: `journalctl -u shell-server-go -n 100`
 3. Common issues:
    - **"failed"** → Check logs for error message
    - **"activating" loop** → App is crashing immediately, check build
    - **Port conflict** → Something else on 3888: `lsof -i :3888`
-4. Rebuild if needed: `bun run build`
-5. Restart: `systemctl restart shell-server`
+4. Rebuild if needed: `cd apps/shell-server-go && make build`
+5. Restart: `systemctl restart shell-server-go`
 
 ## Why This Won't Happen Again
 

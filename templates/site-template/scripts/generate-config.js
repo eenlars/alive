@@ -43,12 +43,23 @@ export default defineConfig(({ mode }) => ({
 	server: {
 		host: "::",
 		port: ${port},
-		allowedHosts: ["${domain}"],
+		allowedHosts: ["${domain}", ".${domain.split('.').slice(-2).join('.')}"],
+		hmr: {
+			// For reverse proxy (Caddy) with HTTPS
+			protocol: "wss",
+			clientPort: 443,
+		},
+		headers: {
+			"X-Frame-Options": "ALLOWALL",
+		},
 	},
 	preview: {
 		host: "::",
 		port: ${port},
-		allowedHosts: ["${domain}"],
+		allowedHosts: ["${domain}", ".${domain.split('.').slice(-2).join('.')}"],
+		headers: {
+			"X-Frame-Options": "ALLOWALL",
+		},
 	},
 	plugins: [react(), mode === "development" && aliveTagger()].filter(
 		Boolean,
@@ -73,7 +84,7 @@ export default defineConfig(({ mode }) => ({
 		host: "0.0.0.0",
 		port: ${port},
 		strictPort: true,
-		allowedHosts: ["${domain}"],
+		allowedHosts: ["${domain}", ".${domain.split('.').slice(-2).join('.')}"],
 		hmr: {
 			protocol: "wss",
 			host: "${domain}",
@@ -89,7 +100,7 @@ export default defineConfig(({ mode }) => ({
 	preview: {
 		host: "0.0.0.0",
 		port: ${port},
-		allowedHosts: ["${domain}"],
+		allowedHosts: ["${domain}", ".${domain.split('.').slice(-2).join('.')}"],
 	},
 	plugins: [react(), mode === "development" && aliveTagger()].filter(
 		Boolean,

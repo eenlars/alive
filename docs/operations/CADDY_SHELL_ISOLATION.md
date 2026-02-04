@@ -2,7 +2,7 @@
 
 **Created**: 2025-12-07
 **Updated**: 2025-12-07 (nginx SNI router fix)
-**Services**: `nginx`, `caddy`, `caddy-shell`, `shell.terminal.goalive.nl`, `go.goalive.nl`, `sk.goalive.nl`
+**Services**: `nginx`, `caddy`, `caddy-shell`, `go.goalive.nl`
 
 ## Problem
 
@@ -34,7 +34,7 @@ A lightweight nginx layer in front of both Caddy instances routes traffic based 
                               │                         │
                               ▼                         ▼
                     ┌─────────────────────┐   ┌─────────────────────┐
-                    │  shell-server:3889  │   │  All other backends │
+                    │  shell-server:3888  │   │  All other backends │
                     │   (Go SSE shell)    │   │  (Bridge, sites,..) │
                     └─────────────────────┘   └─────────────────────┘
 ```
@@ -90,10 +90,8 @@ stream {
     # Shell domains -> caddy-shell (isolated for long-lived SSE connections)
     # Everything else -> caddy-main
     map $ssl_preread_server_name $backend {
-        # Go Shell domains - route to caddy-shell for SSE isolation
-        shell.terminal.goalive.nl   caddy_shell;
+        # Go Shell domain - route to caddy-shell for SSE isolation
         go.goalive.nl               caddy_shell;
-        sk.goalive.nl               caddy_shell;
 
         # Default: all other domains go to main Caddy
         default                     caddy_main;
@@ -219,21 +217,9 @@ import /root/webalive/claude-bridge/ops/caddy/Caddyfile
 }
 
 # Go Shell server - handles Claude Code SSE connections
-shell.terminal.goalive.nl:8443 {
-    reverse_proxy localhost:3889 {
-        # Extra safety: delay stream close on the rare manual reload
-        stream_close_delay 5m
-    }
-}
-
 go.goalive.nl:8443 {
-    reverse_proxy localhost:3889 {
-        stream_close_delay 5m
-    }
-}
-
-sk.goalive.nl:8443 {
-    reverse_proxy localhost:3889 {
+    reverse_proxy localhost:3888 {
+        # Extra safety: delay stream close on the rare manual reload
         stream_close_delay 5m
     }
 }
@@ -304,7 +290,7 @@ systemctl enable nginx caddy caddy-shell
 # 10. Verify
 ss -tlnp | grep -E ':80|:443|:8443|:8444|:8081'
 curl -sI https://app.alive.best | head -3
-curl -sI https://shell.terminal.goalive.nl | head -3
+curl -sI https://go.goalive.nl | head -3
 ```
 
 ## Management Commands
@@ -329,7 +315,7 @@ systemctl reload caddy-shell
 systemctl reload nginx
 
 # Test domains
-for d in app.alive.best shell.terminal.goalive.nl go.goalive.nl; do
+for d in app.alive.best go.goalive.nl; do
     echo -n "$d: "; curl -s -o /dev/null -w "%{http_code}\n" https://$d/
 done
 ```
@@ -341,9 +327,7 @@ When adding a new domain to caddy-shell:
 1. Add to nginx SNI map in `/etc/nginx/nginx.conf`:
    ```nginx
    map $ssl_preread_server_name $backend {
-       shell.terminal.goalive.nl   caddy_shell;
        go.goalive.nl               caddy_shell;
-       sk.goalive.nl               caddy_shell;
        newdomain.example.com       caddy_shell;  # NEW
        default                     caddy_main;
    }
@@ -352,7 +336,7 @@ When adding a new domain to caddy-shell:
 2. Add to `/etc/caddy/Caddyfile.shell`:
    ```caddyfile
    newdomain.example.com:8443 {
-       reverse_proxy localhost:3889 {
+       reverse_proxy localhost:3888 {
            stream_close_delay 5m
        }
    }
@@ -379,7 +363,7 @@ When adding a new domain to caddy-shell:
 
 1. Check nginx routing:
    ```bash
-   grep shell.terminal.goalive.nl /var/log/nginx/stream_access.log | tail -5
+   grep go.goalive.nl /var/log/nginx/stream_access.log | tail -5
    ```
 
 2. Check caddy-shell:
@@ -390,7 +374,7 @@ When adding a new domain to caddy-shell:
 
 3. Check shell-server-go backend:
    ```bash
-   curl -I http://localhost:3889
+   curl -I http://localhost:3888
    ```
 
 ### Port conflicts
@@ -419,7 +403,7 @@ ls -la /var/lib/caddy/.local/share/caddy/certificates/
 ls -la /var/lib/caddy-shell/certificates/
 
 # Check certificate validity
-openssl x509 -in /var/lib/caddy-shell/certificates/acme-v02.api.letsencrypt.org-directory/shell.terminal.goalive.nl/shell.terminal.goalive.nl.crt -text -noout | head -15
+openssl x509 -in /var/lib/caddy-shell/certificates/acme-v02.api.letsencrypt.org-directory/go.goalive.nl/go.goalive.nl.crt -text -noout | head -15
 ```
 
 ## Why nginx Instead of Alternatives?

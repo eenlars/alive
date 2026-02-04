@@ -1,0 +1,32 @@
+[Unit]
+Description=Shell Terminal Server (Go - WebSocket PTY)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/webalive/claude-bridge/apps/shell-server-go
+EnvironmentFile=/root/webalive/claude-bridge/apps/shell-server-go/.env.production
+
+# Binary name matches module name in go.mod (shell-server-go)
+# Built by: cd apps/shell-server-go && make build
+ExecStart=/root/webalive/claude-bridge/apps/shell-server-go/shell-server-go
+
+# Automatic restart on failure
+Restart=always
+RestartSec=5s
+StartLimitInterval=60s
+StartLimitBurst=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=shell-server
+
+# Resource limits (Go is more memory efficient)
+MemoryMax=4G
+TasksMax=500
+
+[Install]
+WantedBy=multi-user.target

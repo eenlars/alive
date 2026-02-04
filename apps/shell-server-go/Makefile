@@ -4,8 +4,10 @@
 build: build-client build-server
 
 # Build the Go server (embeds client files)
+# Output: shell-server-go (matches module name in go.mod)
+# The systemd service expects this exact name: /etc/systemd/system/shell-server-go.service
 build-server:
-	go build -o shell-server .
+	go build -o shell-server-go .
 
 # Build the client (Vite + Tailwind)
 build-client:
@@ -13,7 +15,7 @@ build-client:
 
 # Run the server (requires SHELL_PASSWORD env var)
 run: build
-	./shell-server
+	./shell-server-go
 
 # Development mode with auto-reload (requires air)
 dev:
@@ -42,7 +44,7 @@ test:
 
 # Build for production (static binary with embedded files)
 build-prod: build-client
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o shell-server .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o shell-server-go .
 
 # Format code
 fmt:
