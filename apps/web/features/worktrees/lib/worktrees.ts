@@ -114,6 +114,20 @@ async function assertBaseRepo(baseWorkspacePath: string) {
   await runGit(baseWorkspacePath, ["rev-parse", "--git-dir"], 15000)
 }
 
+function ensureWorktreeRoot(baseWorkspacePath: string): string {
+  const worktreeRoot = getWorktreeRoot(baseWorkspacePath)
+  if (!fs.existsSync(worktreeRoot)) {
+    fs.mkdirSync(worktreeRoot, { recursive: true })
+    try {
+      const st = fs.statSync(baseWorkspacePath)
+      fs.chownSync(worktreeRoot, st.uid, st.gid)
+    } catch {
+      // Best-effort: ownership correction is not critical for local dev.
+    }
+  }
+  return worktreeRoot
+}
+
 async function assertFromRef(baseWorkspacePath: string, from: string) {
   const result = await runAsWorkspaceUser({
     command: "git",
@@ -329,8 +343,7 @@ export async function createWorktree({
 }: CreateWorktreeInput): Promise<CreateWorktreeResult> {
   await assertBaseRepo(baseWorkspacePath)
 
-  const worktreeRoot = getWorktreeRoot(baseWorkspacePath)
-  fs.mkdirSync(worktreeRoot, { recursive: true })
+  const worktreeRoot = ensureWorktreeRoot(baseWorkspacePath)
 
   const normalizedSlug = normalizeSlug(slug ?? `wt-${formatTimestampUTC()}`)
   assertValidSlug(normalizedSlug)

@@ -6,7 +6,7 @@ For each new route:
 - 403 when workspace not authorized
 - 400 on invalid slug or branch
 - Success path
-- 409 when the per-site lock is held
+- 409 when the per-repo lock is held
 
 ## Workspace Resolution Tests
 - Resolves base workspace without worktree.

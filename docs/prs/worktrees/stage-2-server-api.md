@@ -1,16 +1,15 @@
 # Stage 2 - Server API
 
 ## Routes and Files
-- `POST /api/worktrees/create` in `apps/web/app/api/worktrees/create/route.ts`
-- `GET /api/worktrees` in `apps/web/app/api/worktrees/route.ts`
-- `DELETE /api/worktrees` in `apps/web/app/api/worktrees/route.ts`
+- Single route file: `apps/web/app/api/worktrees/route.ts`
+- Handle `GET`, `POST`, and `DELETE` in that file to reduce boilerplate.
 
 ## Common Auth and Resolution
 - `requireSessionUser` then `verifyWorkspaceAccess` using the domain only.
 - Resolve base workspace via `getWorkspace({ host, body, requestId })`.
 - All git operations must run via `runAsWorkspaceUser` on the base workspace.
 
-## POST /api/worktrees/create
+## POST /api/worktrees
 
 ### Body
 - `workspace: string` domain
@@ -20,7 +19,7 @@
 
 ### Behavior
 - Validate `slug` and `branch` early.
-- Acquire the per-site lock before any mutation.
+- Acquire the per-repo lock before any mutation.
 - Create the worktree via the worktree service.
 - Return `201` with `{ ok: true, slug, branch, worktreePath }`.
 - `worktreePath` should be relative to `worktreeRoot` to avoid leaking absolute paths.
@@ -28,7 +27,7 @@
 ### Errors
 - `400` invalid slug or branch.
 - `409` lock held or slug already exists.
-- `404` base repo not found or not a git repo.
+- `404` base repo not found or `WORKTREE_NOT_GIT`.
 
 ## GET /api/worktrees
 

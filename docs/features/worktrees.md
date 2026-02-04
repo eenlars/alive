@@ -27,7 +27,7 @@ Worktrees allow a single site repo to have multiple checked out branches at once
 
 ### Create
 
-`POST /api/worktrees/create`
+`POST /api/worktrees`
 
 Body:
 - `workspace` domain

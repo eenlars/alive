@@ -8,7 +8,7 @@
 ### Create Modal
 - Slug input with live validation and auto-suggest.
 - Optional base branch input. Default to the current branch if available.
-- Submit calls `POST /api/worktrees/create` and shows progress.
+- Submit calls `POST /api/worktrees` and shows progress.
 
 ### After Create
 - Switch to the new worktree immediately.

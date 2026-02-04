@@ -18,7 +18,6 @@
 - Allowed: `^[a-z0-9][a-z0-9-]{0,48}$`
 - Must be lowercase.
 - Reject reserved slugs like `user`, `worktrees`, and `.` or `..`.
-- Reject anything that changes when `path.normalize` runs.
 
 ## Branch Rules
 - Validate branch refs with `git check-ref-format --branch <branch>`.
@@ -29,7 +28,7 @@
 - `baseWorkspacePath` must exist and be a git repo.
 - Verify with `.git` existence plus `git -C <baseWorkspacePath> rev-parse --git-dir`.
 - Return a clear `WORKTREE_NOT_GIT` error when the base workspace is not a repo.
-- Ensure `worktreeRoot` exists and is owned by the workspace user.
+- Ensure `worktreeRoot` exists and is owned by the workspace user (chown to base workspace uid/gid when created).
 
 ## Concurrency and Safety
 - Use a per-repo lock to serialize `git worktree` mutations.
@@ -46,6 +45,7 @@ Create `apps/web/features/worktrees/lib/worktrees.ts` with:
 - Runs `git worktree list --porcelain` via `runAsWorkspaceUser`.
 - Parses blocks into `{ path, branch, head, isBare }`.
 - Filters to `worktreeRoot` only. Do not include the base workspace.
+- If `worktreeRoot` does not exist, return an empty list.
 
 ### `resolveWorktreePath(baseWorkspacePath, slug)`
 - Builds `<worktreeRoot>/<slug>` and resolves realpath.
@@ -59,7 +59,6 @@ Create `apps/web/features/worktrees/lib/worktrees.ts` with:
 - Default `from` is the current HEAD (`git rev-parse --abbrev-ref HEAD`).
 - Acquire the lock before any git mutation.
 - Create the worktree with `git worktree add <path> -b <branch> <from>`.
-- On failure, attempt `git worktree remove <path>` and delete the branch if created.
 
 ### `removeWorktree({ baseWorkspacePath, slug, deleteBranch })`
 - Resolves the path with `resolveWorktreePath`.
