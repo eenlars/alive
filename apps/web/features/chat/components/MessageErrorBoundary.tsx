@@ -31,7 +31,7 @@ export class MessageErrorBoundary extends React.Component<Props, State> {
       componentStack: errorInfo.componentStack,
     })
     captureException(error, {
-      $exception_source: "message_error_boundary",
+      error_source: "message_error_boundary",
       messageId: this.props.messageId,
       componentStack: errorInfo.componentStack,
     })

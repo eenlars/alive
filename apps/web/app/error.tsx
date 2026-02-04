@@ -13,7 +13,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   useEffect(() => {
     console.error("Root error boundary caught:", error)
     captureException(error, {
-      $exception_source: "root_error_boundary",
+      error_source: "root_error_boundary",
       digest: error.digest,
     })
   }, [error])

@@ -8,7 +8,7 @@ import { useEffect, type ReactNode } from "react"
  * PostHog Analytics & Error Tracking Provider
  *
  * Initializes PostHog with:
- * - Exception autocapture for automatic error tracking
+ * - Exception autocapture for automatic error tracking (window.onerror, unhandledrejection)
  * - Session recording for debugging
  * - Feature flags support
  *
@@ -31,23 +31,19 @@ function initPostHog() {
     api_host: posthogHost,
     // Use latest defaults for all features including error tracking
     defaults: "2025-05-24",
-    // Enable exception autocapture for error tracking
+    // Enable exception autocapture - this automatically captures:
+    // - window.onerror events
+    // - unhandledrejection events
+    // - console.error calls
+    capture_exceptions: true,
+    // General autocapture for clicks, form submissions, etc.
     autocapture: true,
     capture_pageview: true,
     capture_pageleave: true,
-    // Exception capture - the main error tracking feature
-    capture_exceptions: true,
     // Session recording for debugging
     session_recording: {
       // Mask all text inputs for privacy
       maskTextSelector: "*",
-    },
-    // Disable in development
-    loaded: _ph => {
-      if (process.env.NODE_ENV === "development") {
-        // Optional: disable in dev to reduce noise
-        // _ph.opt_out_capturing()
-      }
     },
     // Respect Do Not Track
     respect_dnt: true,
@@ -59,7 +55,10 @@ function initPostHog() {
 }
 
 /**
- * Hook to manually capture exceptions with PostHog
+ * Hook to manually capture exceptions with PostHog.
+ * Use this for caught errors that you want to track.
+ *
+ * Note: Uncaught errors are automatically captured when capture_exceptions: true
  *
  * @example
  * ```tsx
@@ -84,18 +83,17 @@ export function usePostHogErrorCapture() {
 
       const errorObj = error instanceof Error ? error : new Error(String(error))
 
-      ph.captureException(errorObj, {
-        ...properties,
-        $exception_message: errorObj.message,
-        $exception_stack_trace_raw: errorObj.stack,
-      })
+      // Let the SDK handle formatting - it creates the proper $exception_list structure
+      ph.captureException(errorObj, properties)
     },
   }
 }
 
 /**
- * Standalone function to capture exceptions without hook context
- * Use this in error boundaries or non-React code
+ * Standalone function to capture exceptions without hook context.
+ * Use this in error boundaries or non-React code.
+ *
+ * The SDK automatically formats the error into PostHog's $exception_list structure.
  */
 export function captureException(error: Error | unknown, properties?: Record<string, unknown>) {
   if (!posthogKey || typeof window === "undefined") {
@@ -105,49 +103,8 @@ export function captureException(error: Error | unknown, properties?: Record<str
 
   const errorObj = error instanceof Error ? error : new Error(String(error))
 
-  posthog.captureException(errorObj, {
-    ...properties,
-    $exception_message: errorObj.message,
-    $exception_stack_trace_raw: errorObj.stack,
-  })
-}
-
-/**
- * Internal component to setup global error handlers
- */
-function PostHogErrorHandler() {
-  useEffect(() => {
-    if (!posthogKey) return
-
-    // Capture unhandled promise rejections
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      captureException(event.reason, {
-        $exception_type: "unhandled_rejection",
-        $exception_source: "window",
-      })
-    }
-
-    // Capture runtime errors
-    const handleError = (event: ErrorEvent) => {
-      captureException(event.error ?? new Error(event.message), {
-        $exception_type: "runtime_error",
-        $exception_source: "window",
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno,
-      })
-    }
-
-    window.addEventListener("unhandledrejection", handleUnhandledRejection)
-    window.addEventListener("error", handleError)
-
-    return () => {
-      window.removeEventListener("unhandledrejection", handleUnhandledRejection)
-      window.removeEventListener("error", handleError)
-    }
-  }, [])
-
-  return null
+  // Let the SDK handle formatting - it creates the proper $exception_list structure
+  posthog.captureException(errorObj, properties)
 }
 
 export function PostHogProvider({ children }: { children: ReactNode }) {
@@ -161,10 +118,7 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
     return <>{children}</>
   }
 
-  return (
-    <PHProvider client={posthog}>
-      <PostHogErrorHandler />
-      {children}
-    </PHProvider>
-  )
+  // Note: No custom error handlers needed - capture_exceptions: true
+  // automatically sets up window.onerror and unhandledrejection handlers
+  return <PHProvider client={posthog}>{children}</PHProvider>
 }

@@ -32,9 +32,9 @@ export async function logError(category: string, message: string, details?: Erro
     // Extract error info if details contains an Error object
     const error = details?.error instanceof Error ? details.error : new Error(message)
 
-    // Build properties for PostHog
+    // Build properties for PostHog (custom context, not reserved $exception_* fields)
     const properties: Record<string, unknown> = {
-      $exception_source: "client_error_logger",
+      error_source: "client_error_logger",
       category,
       url: typeof window !== "undefined" ? window.location.href : undefined,
     }
