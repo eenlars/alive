@@ -18,14 +18,14 @@ describe("SiteOrchestrator", () => {
   it("should export PATHS constant", () => {
     expect(PATHS).toBeDefined()
     expect(PATHS.SITES_ROOT).toBe("/srv/webalive/sites")
-    expect(PATHS.TEMPLATE_PATH).toBe("/root/webalive/claude-bridge/packages/template")
+    expect(PATHS.TEMPLATE_PATH).toBe("/root/alive/templates/site-template")
   })
 })
 
 describe("Configuration", () => {
   it("should have correct default paths", () => {
-    expect(PATHS.REGISTRY_PATH).toBe("/var/lib/claude-bridge/domain-passwords.json")
-    expect(PATHS.CADDYFILE_PATH).toBe("/root/webalive/claude-bridge/ops/caddy/Caddyfile")
+    expect(PATHS.REGISTRY_PATH).toBe("/var/lib/alive/domain-passwords.json")
+    expect(PATHS.CADDYFILE_PATH).toBe("/root/alive/ops/caddy/Caddyfile")
     expect(PATHS.SYSTEMD_ENV_DIR).toBe("/etc/sites")
   })
 })

@@ -185,7 +185,7 @@ import /etc/caddy/Caddyfile.prod
 import /etc/caddy/Caddyfile.staging
 
 # WebAlive sites (auto-reload safe)
-import /root/webalive/claude-bridge/ops/caddy/Caddyfile
+import /root/alive/ops/caddy/Caddyfile
 
 # ... other config
 ```

@@ -66,7 +66,7 @@ export function getWorkspace(host: string): Workspace {
 
 /**
  * Atomic write helper with proper ownership and durability
- * Implements Patrick's invariant: "All edits happen as the workspace owner, not as whoever is running the bridge"
+ * Implements Patrick's invariant: "All edits happen as the workspace owner, not as whoever is running the stream"
  */
 export function writeAsWorkspaceOwner(
   filePath: string,

@@ -71,10 +71,10 @@ export function DevTerminal() {
     // Handle specific event types
     if (eventName === "outgoing_request") return "text-orange-400 font-semibold"
     if (eventName === "client_error") return "text-red-400 font-semibold"
-    if (eventName === "bridge_error") return "text-red-400 font-semibold"
-    if (eventName === "bridge_interrupt") return "text-yellow-400 font-semibold"
-    if (eventName === "bridge_complete") return "text-green-400 font-semibold"
-    if (eventName.startsWith("bridge_")) return "text-cyan-400 font-semibold"
+    if (eventName === "stream_error") return "text-red-400 font-semibold"
+    if (eventName === "stream_interrupt") return "text-yellow-400 font-semibold"
+    if (eventName === "stream_complete") return "text-green-400 font-semibold"
+    if (eventName.startsWith("stream_")) return "text-cyan-400 font-semibold"
     if (eventName === "done") return "text-yellow-500 font-semibold"
 
     // Default for unknown types: treat as error

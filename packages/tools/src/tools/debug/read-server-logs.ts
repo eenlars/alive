@@ -1,7 +1,7 @@
 import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { truncateOutput } from "@webalive/shared"
 import { z } from "zod"
-import { callBridgeApi } from "../../lib/bridge-api-client.js"
+import { callBridgeApi } from "../../lib/api-client.js"
 
 export const readServerLogsParamsSchema = {
   workspace: z

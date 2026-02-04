@@ -169,7 +169,7 @@ test("session cookie flows from parent to MCP tool", async () => {
 **Files to test**:
 - `apps/web/app/api/claude/stream/route.ts:358` (extract cookie)
 - `apps/web/lib/workspace-execution/agent-child-runner.ts:62` (env var)
-- `packages/tools/src/lib/bridge-api-client.ts:52` (read env)
+- `packages/tools/src/lib/api-client.ts:52` (read env)
 
 **Why critical**: Breaks all MCP tools that need API calls
 

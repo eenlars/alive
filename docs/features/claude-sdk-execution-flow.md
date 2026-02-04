@@ -106,7 +106,7 @@ When a user sends a message in the chat UI, it flows through several layers of a
 | `apps/web/app/api/claude/stream/route.ts` | API route, auth, orchestration |
 | `apps/web/features/auth/lib/auth.ts` | JWT verification, workspace access |
 | `apps/web/lib/claude/agent-constants.mjs` | Tool configuration |
-| `packages/shared/src/bridge-tools.ts` | Tool whitelist source of truth |
+| `packages/shared/src/stream-tools.ts` | Tool whitelist source of truth |
 | `apps/web/lib/workspace-execution/agent-child-runner.ts` | Child process spawning |
 | `apps/web/scripts/run-agent.mjs` | Claude SDK execution with privilege drop |
 | `packages/tools/src/mcp-server.ts` | Custom MCP tools |
@@ -176,7 +176,7 @@ const canUseTool = async (toolName, input) => {
 | **Authorization** | Workspace must be in JWT's workspaces array | `verifyWorkspaceAccess()` |
 | **Workspace Isolation** | Each site = dedicated system user | systemd service |
 | **File Ownership** | Child drops to site user before SDK runs | `run-agent.mjs` |
-| **Tool Whitelist** | `allowedTools` + `canUseTool` callback | `bridge-tools.ts` |
+| **Tool Whitelist** | `allowedTools` + `canUseTool` callback | `stream-tools.ts` |
 | **Path Enforcement** | SDK runs in workspace cwd, can't escape | `process.chdir()` |
 | **Concurrent Request Lock** | One request per conversation at a time | `tryLockConversation()` |
 
@@ -216,21 +216,21 @@ Messages flow as NDJSON (Newline-Delimited JSON):
 ```typescript
 // Event types
 type BridgeStreamType =
-  | "bridge_start"     // Stream initialization
-  | "bridge_session"   // Session ID for resumption
-  | "bridge_message"   // SDK message wrapper
-  | "bridge_complete"  // Successful completion
-  | "bridge_error"     // Error with code
-  | "bridge_ping"      // Keepalive
-  | "bridge_done"      // Clean end
-  | "bridge_interrupt" // User cancelled
+  | "stream_start"     // Stream initialization
+  | "stream_session"   // Session ID for resumption
+  | "stream_message"   // SDK message wrapper
+  | "stream_complete"  // Successful completion
+  | "stream_error"     // Error with code
+  | "stream_ping"      // Keepalive
+  | "stream_done"      // Clean end
+  | "stream_interrupt" // User cancelled
 ```
 
 Each line is a complete JSON object:
 
 ```json
-{"type":"bridge_message","requestId":"abc123","timestamp":"...","data":{...}}
-{"type":"bridge_complete","requestId":"abc123","timestamp":"...","data":{...}}
+{"type":"stream_message","requestId":"abc123","timestamp":"...","data":{...}}
+{"type":"stream_complete","requestId":"abc123","timestamp":"...","data":{...}}
 ```
 
 ## See Also

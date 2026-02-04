@@ -17,7 +17,7 @@ import process from "node:process"
 import { query } from "@anthropic-ai/claude-agent-sdk"
 import { allowTool, DEFAULTS, denyTool, isOAuthMcpTool, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
 import {
-  BRIDGE_STREAM_TYPES,
+  STREAM_TYPES,
   getAllowedTools,
   getDisallowedTools,
   getMcpServers,
@@ -53,6 +53,15 @@ async function readStdinJson() {
       chownSync(join(tempHome, ".claude"), targetUid, targetGid)
       chownSync(credDest, targetUid, targetGid)
       process.env.HOME = tempHome
+      // Ensure temp directory is writable by the workspace user
+      const tempDir = join(tempHome, "tmp")
+      if (!existsSync(tempDir)) {
+        mkdirSync(tempDir, { recursive: true, mode: 0o700 })
+      }
+      chownSync(tempDir, targetUid, targetGid)
+      process.env.TMPDIR = tempDir
+      process.env.TMP = tempDir
+      process.env.TEMP = tempDir
       console.error(`[runner] Copied credentials to ${tempHome}`)
     }
 
@@ -229,7 +238,7 @@ async function readStdinJson() {
 
         process.stdout.write(
           `${JSON.stringify({
-            type: BRIDGE_STREAM_TYPES.SESSION,
+            type: STREAM_TYPES.SESSION,
             sessionId: message.session_id,
           })}\n`,
         )
@@ -248,7 +257,7 @@ async function readStdinJson() {
 
       process.stdout.write(
         `${JSON.stringify({
-          type: BRIDGE_STREAM_TYPES.MESSAGE,
+          type: STREAM_TYPES.MESSAGE,
           messageCount,
           messageType: message.type,
           content: outputMessage,
@@ -258,7 +267,7 @@ async function readStdinJson() {
 
     process.stdout.write(
       `${JSON.stringify({
-        type: BRIDGE_STREAM_TYPES.COMPLETE,
+        type: STREAM_TYPES.COMPLETE,
         totalMessages: messageCount,
         result: queryResult,
       })}\n`,

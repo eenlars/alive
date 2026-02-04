@@ -10,7 +10,7 @@
  *
  * @example
  * ```typescript
- * import { getDisplayConfig, shouldAutoExpand, getPreview } from "@alive-brug/tools"
+ * import { getDisplayConfig, shouldAutoExpand, getPreview } from "@webalive/tools"
  *
  * const config = getDisplayConfig("mcp__linear__create_issue")
  * const preview = getPreview("mcp__linear__list_issues", data)

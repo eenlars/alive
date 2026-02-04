@@ -7,7 +7,7 @@
  * Used by sessions_history tool.
  */
 
-import type { SessionMessage } from "@alive-brug/tools"
+import type { SessionMessage } from "@webalive/tools"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"

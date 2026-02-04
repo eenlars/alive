@@ -52,7 +52,7 @@ Claude implements feature following template steps
 ## File Structure
 
 ```
-claude-bridge/
+alive/
 ├── packages/tools/supertemplate/
 │   ├── README.md                  # Overview and usage
 │   ├── TEMPLATE_CHECKLIST.md      # Quality requirements (49 items)

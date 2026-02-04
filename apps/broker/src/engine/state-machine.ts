@@ -5,7 +5,7 @@
  * States: idle → queued → running → (completed | failed | cancelled | timed_out)
  */
 
-import { type StreamState, type StreamContext, STREAM_STATES, type BridgeEvent, BRIDGE_EVENT_TYPES } from "../types.js"
+import { type StreamState, type StreamContext, STREAM_STATES, type StreamEvent, STREAM_EVENT_TYPES } from "../types.js"
 
 // Valid state transitions
 const VALID_TRANSITIONS: Record<StreamState, StreamState[]> = {
@@ -155,7 +155,7 @@ export class StreamStateMachine {
   // Event Creation Helpers
   // ===========================================================================
 
-  createEvent(type: (typeof BRIDGE_EVENT_TYPES)[keyof typeof BRIDGE_EVENT_TYPES], extra?: object): BridgeEvent {
+  createEvent(type: (typeof STREAM_EVENT_TYPES)[keyof typeof STREAM_EVENT_TYPES], extra?: object): StreamEvent {
     const base = {
       requestId: this.context.requestId,
       tabId: this.context.tabId,
@@ -163,21 +163,21 @@ export class StreamStateMachine {
     }
 
     switch (type) {
-      case BRIDGE_EVENT_TYPES.START:
-        return { ...base, type: BRIDGE_EVENT_TYPES.START }
-      case BRIDGE_EVENT_TYPES.COMPLETE:
-        return { ...base, type: BRIDGE_EVENT_TYPES.COMPLETE, ...extra }
-      case BRIDGE_EVENT_TYPES.ERROR:
+      case STREAM_EVENT_TYPES.START:
+        return { ...base, type: STREAM_EVENT_TYPES.START }
+      case STREAM_EVENT_TYPES.COMPLETE:
+        return { ...base, type: STREAM_EVENT_TYPES.COMPLETE, ...extra }
+      case STREAM_EVENT_TYPES.ERROR:
         return {
           ...base,
-          type: BRIDGE_EVENT_TYPES.ERROR,
+          type: STREAM_EVENT_TYPES.ERROR,
           error: this.context.error ?? "Unknown error",
           ...extra,
         }
-      case BRIDGE_EVENT_TYPES.INTERRUPT:
+      case STREAM_EVENT_TYPES.INTERRUPT:
         return {
           ...base,
-          type: BRIDGE_EVENT_TYPES.INTERRUPT,
+          type: STREAM_EVENT_TYPES.INTERRUPT,
           reason: this.state === STREAM_STATES.TIMED_OUT ? "timeout" : "cancelled",
         }
       default:

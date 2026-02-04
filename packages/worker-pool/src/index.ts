@@ -59,7 +59,7 @@ export type {
   WorkerPoolEvents,
   WorkerPoolEventListener,
   // Stream
-  BridgeStreamType,
+  StreamType,
   WorkerMessageType,
   ParentMessageType,
   EnvVarName,
@@ -68,7 +68,7 @@ export type {
 
 // Constants
 export {
-  BRIDGE_STREAM_TYPES,
+  STREAM_TYPES,
   WORKER_MESSAGE_TYPES,
   PARENT_MESSAGE_TYPES,
   WORKER_STATES,

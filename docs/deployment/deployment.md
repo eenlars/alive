@@ -36,8 +36,8 @@ bun run deploy-site <domain.com>  # Deploy a website to the infrastructure
 
 ```bash
 curl -I http://localhost:8997/              # Test dev environment
-systemctl status claude-bridge-dev          # Check dev process status
-journalctl -u claude-bridge-dev -n 50       # View dev logs
+systemctl status alive-dev          # Check dev process status
+journalctl -u alive-dev -n 50       # View dev logs
 ```
 
 ## Dev Environment Troubleshooting
@@ -101,7 +101,7 @@ make dev
 
 **Solution:**
 ```bash
-systemctl restart claude-bridge-dev  # Regenerates dev files
+systemctl restart alive-dev  # Regenerates dev files
 # or
 make dev
 ```
@@ -139,16 +139,16 @@ apps/web/.next/                                # Build source
 ### Systemd Services
 ```bash
 # Dev (port 8997) - hot reload
-systemctl status claude-bridge-dev
-journalctl -u claude-bridge-dev -f
+systemctl status alive-dev
+journalctl -u alive-dev -f
 
 # Staging (port 8998)
-systemctl status claude-bridge-staging
-journalctl -u claude-bridge-staging -f
+systemctl status alive-staging
+journalctl -u alive-staging -f
 
 # Production (port 8999)
-systemctl status claude-bridge
-journalctl -u claude-bridge -f
+systemctl status alive
+journalctl -u alive -f
 ```
 
 All services are managed by systemd.

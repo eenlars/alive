@@ -1,5 +1,5 @@
 {
-  "name": "@alive-brug/redis",
+  "name": "@webalive/redis",
   "version": "1.0.0",
   "private": true,
   "description": "Redis infrastructure for monorepo",

@@ -102,14 +102,14 @@ if (payload.apiKey) {
 
 ### 3. Restart Workers After /login (Stale Handles)
 
-Because `/login` does an atomic replace, long-lived workers may keep reading the deleted inode. Restart the bridge service (or worker pool) after credentials change so the SDK re-reads the file. This is only necessary for persistent workers.
+Because `/login` does an atomic replace, long-lived workers may keep reading the deleted inode. Restart the stream service (or worker pool) after credentials change so the SDK re-reads the file. This is only necessary for persistent workers.
 
 ```
 # Production helper (detects changes + restarts service)
 scripts/sync-credentials.sh
 
 # Or restart the service directly (env-specific)
-systemctl restart claude-bridge-production
+systemctl restart alive-production
 ```
 
 ### 4. Single Source of Truth

@@ -4,7 +4,7 @@
  * This file validates that our Bridge tool lists (from @webalive/shared)
  * match the actual SDK types. Provides compile-time safety.
  *
- * SOURCE OF TRUTH for tool arrays: @webalive/shared/bridge-tools.ts
+ * SOURCE OF TRUTH for tool arrays: @webalive/shared/stream-tools.ts
  * This file only does TYPE VALIDATION.
  */
 
@@ -32,24 +32,24 @@ import type {
 
 // Import from shared - single source of truth
 import {
-  BRIDGE_ADMIN_ONLY_SDK_TOOLS,
-  BRIDGE_ALLOWED_SDK_TOOLS,
-  BRIDGE_ALWAYS_DISALLOWED_SDK_TOOLS,
-  type BridgeAllowedSDKTool,
-  type BridgeDisallowedSDKTool,
-  getBridgeDisallowedTools,
+  STREAM_ADMIN_ONLY_SDK_TOOLS,
+  STREAM_ALLOWED_SDK_TOOLS,
+  STREAM_ALWAYS_DISALLOWED_SDK_TOOLS,
+  type StreamAllowedSDKTool,
+  type StreamDisallowedSDKTool,
+  getStreamDisallowedTools,
 } from "@webalive/shared"
 
 // Re-export for use in tests
-export const ALLOWED_SDK_TOOLS = BRIDGE_ALLOWED_SDK_TOOLS
+export const ALLOWED_SDK_TOOLS = STREAM_ALLOWED_SDK_TOOLS
 // Combined list for tests (all disallowed for non-admin = full list)
-export const DISALLOWED_SDK_TOOLS = getBridgeDisallowedTools(false)
-export type AllowedSDKTool = BridgeAllowedSDKTool
-export type DisallowedSDKTool = BridgeDisallowedSDKTool
+export const DISALLOWED_SDK_TOOLS = getStreamDisallowedTools(false)
+export type AllowedSDKTool = StreamAllowedSDKTool
+export type DisallowedSDKTool = StreamDisallowedSDKTool
 
 // Export granular lists for advanced use cases
-export const ADMIN_ONLY_SDK_TOOLS = BRIDGE_ADMIN_ONLY_SDK_TOOLS
-export const ALWAYS_DISALLOWED_SDK_TOOLS = BRIDGE_ALWAYS_DISALLOWED_SDK_TOOLS
+export const ADMIN_ONLY_SDK_TOOLS = STREAM_ADMIN_ONLY_SDK_TOOLS
+export const ALWAYS_DISALLOWED_SDK_TOOLS = STREAM_ALWAYS_DISALLOWED_SDK_TOOLS
 
 /**
  * Maps SDK Input types to their tool names.
@@ -150,20 +150,20 @@ export const SDK_TOOL_NAMES = [
 /**
  * Compile-time check: Ensure allowed and disallowed don't overlap.
  */
-type _OverlapCheck = BridgeAllowedSDKTool & BridgeDisallowedSDKTool
+type _OverlapCheck = StreamAllowedSDKTool & StreamDisallowedSDKTool
 const _assertNoOverlap: _OverlapCheck extends never ? true : never = true
 
 /**
  * Compile-time check: Ensure all SDK tools are categorized.
  */
-type _AllCategorized = BridgeAllowedSDKTool | BridgeDisallowedSDKTool
+type _AllCategorized = StreamAllowedSDKTool | StreamDisallowedSDKTool
 type _MissingTools = Exclude<SDKToolName, _AllCategorized>
 const _assertAllCategorized: _MissingTools extends never ? true : never = true
 
 /**
  * Compile-time check: Ensure no extra tools beyond SDK.
- * Note: "Skill" is a Bridge-specific tool (loaded from .claude/skills/) not in SDK's ToolInputSchemas.
+ * Note: "Skill" is a Stream-specific tool (loaded from .claude/skills/) not in SDK's ToolInputSchemas.
  */
-type _BridgeOnlyTools = "Skill"
-type _ExtraTools = Exclude<_AllCategorized, SDKToolName | _BridgeOnlyTools>
+type _StreamOnlyTools = "Skill"
+type _ExtraTools = Exclude<_AllCategorized, SDKToolName | _StreamOnlyTools>
 const _assertNoExtraTools: _ExtraTools extends never ? true : never = true

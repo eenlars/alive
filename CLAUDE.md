@@ -13,14 +13,14 @@ AI assistant guidelines for working on Claude Bridge.
 5. **NO RANDOM ENV VARS** - Don't add environment variables unless absolutely necessary. Use existing config, constants, or code-level defaults instead. Adding .env variables creates deployment complexity and hidden dependencies.
 6. **NO EXPLORE AGENT** - Never use `Task(subagent_type=Explore)`. Use Glob and Grep directly instead - they're faster and more precise for this codebase.
 7. **USE THE BRAIN** - Query `use_this_to_remember.db` for past decisions, insights, and context before starting work. Store important learnings when you're done.
-8. **CADDYFILE IS LARGE** - The Caddyfile at `/root/webalive/claude-bridge/ops/caddy/Caddyfile` is too large to read in one go. Use `Read` with `offset` and `limit` parameters, or use `Grep` to find specific domain configurations.
+8. **CADDYFILE IS LARGE** - The Caddyfile at `/root/alive/ops/caddy/Caddyfile` is too large to read in one go. Use `Read` with `offset` and `limit` parameters, or use `Grep` to find specific domain configurations.
 9. **OWN YOUR CHANGES** - When deploying or committing, NEVER say "these unrelated changes are not mine" or refuse to include changes in the working directory. If changes exist, they are part of the current work. Take responsibility and include them.
 10. **SEEMINGLY UNRELATED ISSUES ARE OFTEN RELATED** - When you see multiple errors or issues, assume they share a common cause until proven otherwise. Type errors in test files often stem from the same interface change. Build failures across packages usually have one root cause. Don't treat each error as isolated - find the pattern first.
 11. **INVESTIGATE BEFORE FIXING** - When something is "broken", first understand what it IS. Not all `*.goalive.nl` domains are Vite websites. Check nginx config, caddy-shell config, and existing services before creating anything new.
 12. **DEPLOYMENTS REQUIRE NOHUP** - When deploying staging/production, ALWAYS use `nohup make staging > /tmp/staging-deploy.log 2>&1 &` (never bare `make staging`). If your chat session disconnects or you cancel, bare commands leave orphaned build processes that stack up and crash production. Check `tail -f /tmp/staging-deploy.log` for progress. NEVER run deployment commands multiple times - wait for the first to complete.
 13. **ONE DEPLOYMENT AT A TIME** - Before starting any deployment, check if one is already running: `make deploy-status`. If a deployment is running, WAIT. Do not start another. Stacked deployments cause memory exhaustion and production outages.
-14. **CLEAN BEFORE DEPLOY** - Before ANY deployment, check for orphaned processes: `ps aux | grep -E "make|ship|turbo|next build" | grep -v grep`. If you see old ones, kill them: `pkill -9 -f "ship.sh|build-and-serve|turbo|next build"` and remove stale lock: `rm -f /tmp/claude-bridge-deploy.lock`. Only then deploy.
-15. **DEBUG STREAM ERRORS** - When users report "error while streaming", find root cause: `journalctl -u claude-bridge-staging | grep "STREAM_ERROR:<error-id>"`. See [docs/troubleshooting/stream-errors.md](./docs/troubleshooting/stream-errors.md).
+14. **CLEAN BEFORE DEPLOY** - Before ANY deployment, check for orphaned processes: `ps aux | grep -E "make|ship|turbo|next build" | grep -v grep`. If you see old ones, kill them: `pkill -9 -f "ship.sh|build-and-serve|turbo|next build"` and remove stale lock: `rm -f /tmp/alive-deploy.lock`. Only then deploy.
+15. **DEBUG STREAM ERRORS** - When users report "error while streaming", find root cause: `journalctl -u alive-staging | grep "STREAM_ERROR:<error-id>"`. See [docs/troubleshooting/stream-errors.md](./docs/troubleshooting/stream-errors.md).
 
 ## Learn from OpenClaw (IMPORTANT)
 
@@ -134,7 +134,7 @@ Claude Bridge is a **multi-tenant development platform** that enables Claude AI 
 - **TURBOREPO Next.js 16 + React 19**: Modern App Router architecture using **Turborepo** for building and deploying the project.
 - **SSE streaming**: Real-time Claude responses via Server-Sent Events
 - **Tool-based interaction**: Limited to safe file operations (Read, Write, Edit, Glob, Grep)
-- **Superadmin access**: Users in `SUPERADMIN_EMAILS` env var can edit this repo via the frontend (workspace: `claude-bridge`, runs as root, all tools enabled)
+- **Superadmin access**: Users in `SUPERADMIN_EMAILS` env var can edit this repo via the frontend (workspace: `alive`, runs as root, all tools enabled)
 
 ## Monorepo Structure
 
@@ -155,22 +155,22 @@ Claude Bridge is a **multi-tenant development platform** that enables Claude AI 
 |---------|---------|
 | `@webalive/shared` | Constants, environment definitions, database types. Almost everything depends on this. |
 | `@webalive/database` | Auto-generated Supabase types (`iam.*`, `app.*` schemas) |
-| `@alive-brug/tools` | Claude's workspace tools (Read, Write, Edit, Glob, Grep) + MCP server |
+| `@webalive/tools` | Claude's workspace tools (Read, Write, Edit, Glob, Grep) + MCP server |
 | `@webalive/site-controller` | Shell-Operator deployment: TS orchestrates, bash executes systemd/caddy/users |
 | `@webalive/oauth-core` | Multi-tenant OAuth with AES-256-GCM encrypted token storage |
-| `@alive-brug/redis` | ioredis wrapper with Docker setup for sessions/caching |
+| `@webalive/redis` | ioredis wrapper with Docker setup for sessions/caching |
 | `@webalive/env` | Zod-validated env vars via @t3-oss/env-nextjs |
 | `@webalive/worker-pool` | Unix socket IPC for warm Claude SDK workers |
-| `@alive-brug/images` | Native image processing via @napi-rs/image |
+| `@webalive/images` | Native image processing via @napi-rs/image |
 | `@alive-game/alive-tagger` | Vite plugin: injects source locations so Claude knows file:line from UI clicks |
-| `@webalive/bridge-types` | TypeScript types for SSE streaming protocol |
+| `@webalive/stream-types` | TypeScript types for SSE streaming protocol |
 
 ### Request Flow (Claude Chat)
 
 ```
 Browser → /api/claude/stream → Claude Agent SDK → tool callbacks
                                                        ↓
-                                              @alive-brug/tools
+                                              @webalive/tools
                                                        ↓
                                               workspace sandbox
                                               /srv/webalive/sites/[domain]/
@@ -394,7 +394,7 @@ bun run unit
 1. ✅ Document the migration plan
 2. ✅ Search for ALL references: `grep -r "old-file" .`
 3. ✅ Validate before deleting: `./scripts/validate-no-deleted-refs.sh old-file`
-4. ✅ Test service restarts: `systemctl restart claude-bridge-dev && journalctl -u claude-bridge-dev -n 20`
+4. ✅ Test service restarts: `systemctl restart alive-dev && journalctl -u alive-dev -n 20`
 5. ✅ Run full test suite: `bun run test && bun run test:e2e`
 
 **Never**:
@@ -452,11 +452,11 @@ if (result.success) {
 
 #### Updating Caddy Configuration
 
-**Location**: `/root/webalive/claude-bridge/ops/caddy/Caddyfile`
+**Location**: `/root/alive/ops/caddy/Caddyfile`
 
 ```bash
 # 1. Edit Caddyfile (add domain block)
-nano /root/webalive/claude-bridge/ops/caddy/Caddyfile
+nano /root/alive/ops/caddy/Caddyfile
 
 # 2. Reload (zero-downtime, preserves active connections)
 systemctl reload caddy
@@ -465,7 +465,7 @@ systemctl reload caddy
 systemctl status caddy
 ```
 
-**Auto-sync architecture**: Main `/etc/caddy/Caddyfile` imports the webalive Caddyfile via `import /root/webalive/claude-bridge/ops/caddy/Caddyfile`.
+**Auto-sync architecture**: Main `/etc/caddy/Caddyfile` imports the webalive Caddyfile via `import /root/alive/ops/caddy/Caddyfile`.
 
 ## Testing Guidelines
 
@@ -553,15 +553,15 @@ bun run setup
 
 # 3. Add .env.local (as shown by setup script)
 # ANTHROPIC_API_KEY=your_key
-# BRIDGE_ENV=local
+# ALIVE_ENV=local
 # LOCAL_TEMPLATE_PATH=/path/to/.alive/template
 
 # 4. Start dev server
 bun run dev
 ```
 
-**Test Credentials** (when `BRIDGE_ENV=local`):
-- Email: `test@bridge.local`
+**Test Credentials** (when `ALIVE_ENV=local`):
+- Email: `test@alive.local`
 - Password: `test`
 
 ### Before Committing
@@ -629,11 +629,11 @@ curl -X POST https://terminal.goalive.nl/api/deploy-subdomain \
 - **@webalive/database**: Supabase schema types - `iam` schema (users, orgs, org_memberships, sessions), `app` schema (domains, user_quotas, feedback, templates)
 - **@webalive/site-controller**: Site deployment orchestration (Shell-Operator Pattern)
 - **@webalive/oauth-core**: Multi-tenant OAuth with AES-256-GCM encryption
-- **@alive-brug/redis**: Redis client with automatic retry and error handling
+- **@webalive/redis**: Redis client with automatic retry and error handling
 - **@webalive/template**: Template for new site deployments
 
 ### Legacy (Deprecated)
-- **@alive-brug/deploy-scripts**: Replaced by site-controller (no longer maintained)
+- **@webalive/deploy-scripts**: Replaced by site-controller (no longer maintained)
 
 ## Common Issues & Solutions
 
@@ -747,7 +747,7 @@ systemctl restart site@four-goalive-nl.service
 
 ## Git Workflow
 
-**Custom SSH Key**: Uses `alive_brug_deploy` for GitHub
+**Custom SSH Key**: Uses `alive_deploy` for GitHub
 
 ```bash
 # Push changes
@@ -809,7 +809,7 @@ We have a custom in-process automation scheduler (NOT n8n). Jobs are stored in S
 **Debugging:**
 ```bash
 # Check if cron service is running (look for "[CronService]" logs)
-journalctl -u claude-bridge-staging | grep CronService | tail -20
+journalctl -u alive-staging | grep CronService | tail -20
 
 # Check automation_jobs table
 sqlite3 use_this_to_remember.db "SELECT 'Check app.automation_jobs in Supabase'"

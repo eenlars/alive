@@ -68,7 +68,7 @@ import { env } from "@webalive/env/server"  // Will fail with node:fs error
 
 **Anthropic API:**
 - `ANTHROPIC_API_KEY` or `ANTH_API_SECRET` - Anthropic API key (sk-ant-...)
-  - Optional in local development mode (`BRIDGE_ENV=local`)
+  - Optional in local development mode (`ALIVE_ENV=local`)
 
 **Supabase:**
 - `SUPABASE_URL` - Supabase project URL (must be HTTPS)
@@ -80,8 +80,8 @@ import { env } from "@webalive/env/server"  // Will fail with node:fs error
 
 **Bridge Configuration:**
 - `WORKSPACE_BASE` - Base directory for workspaces (default: `/srv/webalive/sites`)
-- `BRIDGE_PASSCODE` - Optional passcode for bridge access
-- `BRIDGE_ENV` - Environment: `local` | `dev` | `staging` | `production`
+- `ALIVE_PASSCODE` - Optional passcode for alive access
+- `ALIVE_ENV` - Environment: `local` | `dev` | `staging` | `production`
 - `LOCAL_TEMPLATE_PATH` - Path to template for local development
 
 **Claude Configuration:**
@@ -105,14 +105,14 @@ For local development without a real Anthropic API key:
 
 ```bash
 # .env.local
-BRIDGE_ENV=local
+ALIVE_ENV=local
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=eyJ...
 ```
 
-When `BRIDGE_ENV=local`, the Anthropic API key requirement is bypassed and a mock key is used.
+When `ALIVE_ENV=local`, the Anthropic API key requirement is bypassed and a mock key is used.
 
 ## Validation Behavior
 
@@ -209,7 +209,7 @@ A: You're importing `@webalive/env/server` in a client component. Use `@webalive
 
 **Q: How do I use this in tests?**
 
-A: Set `BRIDGE_ENV=local` in your test environment, or use `SKIP_ENV_VALIDATION=true` for unit tests.
+A: Set `ALIVE_ENV=local` in your test environment, or use `SKIP_ENV_VALIDATION=true` for unit tests.
 
 **Q: Can I access `process.env` directly?**
 

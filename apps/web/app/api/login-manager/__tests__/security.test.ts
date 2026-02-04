@@ -25,7 +25,7 @@ function createMockRequest(url: string, options?: RequestInit & { cookies?: Reco
   const req = new Request(url, options) as any
   req.nextUrl = urlObj
   req.headers.get = (name: string) => {
-    if (name === "origin") return DOMAINS.BRIDGE_PROD
+    if (name === "origin") return DOMAINS.STREAM_PROD
     if (name === "cookie" && options?.cookies) {
       return Object.entries(options.cookies)
         .map(([k, v]) => `${k}=${v}`)

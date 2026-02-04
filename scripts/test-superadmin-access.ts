@@ -3,7 +3,7 @@
  * Test script to verify superadmin access control
  *
  * Tests that:
- * 1. Lars (superadmin) CAN access claude-bridge workspace
+ * 1. Lars (superadmin) CAN access alive workspace
  * 2. Unauthenticated requests are blocked
  * 3. (Manual) Non-superadmin users are blocked by verifyWorkspaceAccess()
  *
@@ -73,7 +73,7 @@ async function login(email: string, password: string): Promise<string | null> {
 }
 
 async function testClaudeBridgeAccess(sessionCookie: string, userLabel: string): Promise<boolean> {
-  console.log(`\n🧪 Testing claude-bridge access for ${userLabel}...`)
+  console.log(`\n🧪 Testing alive access for ${userLabel}...`)
 
   const res = await fetch(`${DEV_SERVER}/api/claude/stream`, {
     method: "POST",
@@ -83,7 +83,7 @@ async function testClaudeBridgeAccess(sessionCookie: string, userLabel: string):
     },
     body: JSON.stringify({
       message: "Hello, just testing access",
-      workspace: "claude-bridge",
+      workspace: "alive",
       tabGroupId: randomUUID(),
       tabId: randomUUID(),
     }),
@@ -109,7 +109,7 @@ async function testClaudeBridgeAccess(sessionCookie: string, userLabel: string):
 }
 
 async function testUnauthenticatedAccess(): Promise<boolean> {
-  console.log(`\n🧪 Testing unauthenticated access to claude-bridge...`)
+  console.log(`\n🧪 Testing unauthenticated access to alive...`)
 
   const res = await fetch(`${DEV_SERVER}/api/claude/stream`, {
     method: "POST",
@@ -119,7 +119,7 @@ async function testUnauthenticatedAccess(): Promise<boolean> {
     },
     body: JSON.stringify({
       message: "Hello, just testing access",
-      workspace: "claude-bridge",
+      workspace: "alive",
       tabGroupId: randomUUID(),
       tabId: randomUUID(),
     }),
@@ -141,7 +141,7 @@ async function main() {
   console.log("🔒 SUPERADMIN ACCESS CONTROL TEST")
   console.log("=".repeat(60))
   console.log(`\nTarget: ${DEV_SERVER}`)
-  console.log(`Superadmin workspace: claude-bridge`)
+  console.log(`Superadmin workspace: alive`)
 
   let larsResult = false
   let unauthResult = false
@@ -157,7 +157,7 @@ async function main() {
   } else {
     const superadminAccess = await testClaudeBridgeAccess(superadminSession, "Superadmin")
     if (superadminAccess) {
-      console.log("   ✅ PASS: Superadmin CAN access claude-bridge")
+      console.log("   ✅ PASS: Superadmin CAN access alive")
       larsResult = true
     } else {
       console.log("   ❌ FAIL: Superadmin should have access but was denied!")
@@ -187,7 +187,7 @@ async function main() {
   if (larsResult && unauthResult) {
     console.log("\n🎉 ALL TESTS PASSED - Superadmin access control is working correctly!")
     console.log("\n📋 Note: The security enforcement for non-superadmin users with")
-    console.log("   claude-bridge in their JWT is handled in verifyWorkspaceAccess()")
+    console.log("   alive in their JWT is handled in verifyWorkspaceAccess()")
     console.log("   (features/auth/lib/auth.ts:257-267)")
   } else {
     console.log("\n⚠️  SOME TESTS FAILED - Check output above")

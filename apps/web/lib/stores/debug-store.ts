@@ -13,11 +13,11 @@ function isDevOrStaging(): boolean {
   const hostname = window.location.hostname
   return (
     // Staging environments
-    hostname === DOMAINS.BRIDGE_STAGING_HOST ||
+    hostname === DOMAINS.STREAM_STAGING_HOST ||
     hostname.endsWith(DOMAINS.STAGING_SUFFIX) ||
     hostname.includes(".staging.") ||
     // Dev environments
-    hostname === DOMAINS.BRIDGE_DEV_HOST ||
+    hostname === DOMAINS.STREAM_DEV_HOST ||
     hostname.endsWith(DOMAINS.DEV_SUFFIX) ||
     hostname.startsWith("dev.") ||
     // Localhost
@@ -104,7 +104,7 @@ export const useDebugStoreBase = create<DebugStore>()(
       }
     },
     {
-      name: "claude-bridge-debug-view-v6",
+      name: "alive-debug-view-v6",
       partialize: state => ({
         isDebugView: state.isDebugView,
         showSSETerminal: state.showSSETerminal,

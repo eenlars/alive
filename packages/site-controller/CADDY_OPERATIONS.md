@@ -291,7 +291,7 @@ Use these constants for consistent configuration:
 import { PATHS, DEFAULTS } from '@webalive/site-controller'
 
 // Paths
-PATHS.CADDYFILE_PATH     // '/root/webalive/claude-bridge/Caddyfile'
+PATHS.CADDYFILE_PATH     // '/root/alive/Caddyfile'
 PATHS.CADDY_LOCK         // '/tmp/caddyfile.lock'
 
 // Defaults
@@ -507,4 +507,4 @@ For issues or questions:
 1. Check this documentation
 2. Review bash scripts in `packages/site-controller/scripts/`
 3. Check TypeScript source in `packages/site-controller/src/executors/caddy.ts`
-4. Consult main README: `/root/webalive/claude-bridge/packages/site-controller/README.md`
+4. Consult main README: `/root/alive/packages/site-controller/README.md`

@@ -137,7 +137,7 @@ async function checkDnsResolution(
     }
 
     // Try to fetch the verification file via HTTPS first, then HTTP
-    const verificationPath = "/.well-known/bridge-verify.txt"
+    const verificationPath = "/.well-known/alive-verify.txt"
 
     for (const protocol of ["https", "http"]) {
       try {

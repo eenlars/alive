@@ -77,8 +77,8 @@ export async function callBridgeApi(options: ApiCallOptions): Promise<ToolResult
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-    // Include session cookie from environment (set by Bridge)
-    const sessionCookie = process.env.BRIDGE_SESSION_COOKIE
+    // Include session cookie from environment (set by Alive)
+    const sessionCookie = process.env.ALIVE_SESSION_COOKIE
 
     // Include internal tools secret for privileged API calls
     const internalSecret = process.env.INTERNAL_TOOLS_SECRET

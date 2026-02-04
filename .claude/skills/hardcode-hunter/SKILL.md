@@ -41,14 +41,14 @@ COOKIE_NAMES.MANAGER_SESSION   // "manager_session"
 // TEST_CONFIG
 TEST_CONFIG.PORT               // 9547
 TEST_CONFIG.BASE_URL           // "http://localhost:9547"
-TEST_CONFIG.EMAIL_DOMAIN       // "bridge.local"
+TEST_CONFIG.EMAIL_DOMAIN       // "alive.local"
 TEST_CONFIG.TEST_PASSWORD      // "test-password-123"
 TEST_CONFIG.DEFAULT_CREDITS    // 1000
 TEST_CONFIG.WORKER_EMAIL_PREFIX // "e2e_w"
 TEST_CONFIG.WORKSPACE_PREFIX   // "e2e-w"
 
 // SECURITY
-SECURITY.LOCAL_TEST.EMAIL      // "test@bridge.local"
+SECURITY.LOCAL_TEST.EMAIL      // "test@alive.local"
 SECURITY.LOCAL_TEST.PASSWORD   // "test"
 SECURITY.LOCAL_TEST.SESSION_VALUE // "test-user" (for local test mode auth bypass)
 
@@ -56,12 +56,12 @@ SECURITY.LOCAL_TEST.SESSION_VALUE // "test-user" (for local test mode auth bypas
 DOMAINS.WILDCARD               // "alive.best"
 DOMAINS.MAIN                   // "goalive.nl"
 DOMAINS.MAIN_SUFFIX            // ".goalive.nl" (for origin checks)
-DOMAINS.BRIDGE_PROD            // "https://terminal.goalive.nl"
-DOMAINS.BRIDGE_PROD_HOST       // "terminal.goalive.nl"
-DOMAINS.BRIDGE_DEV             // "https://dev.terminal.goalive.nl"
-DOMAINS.BRIDGE_DEV_HOST        // "dev.terminal.goalive.nl"
-DOMAINS.BRIDGE_STAGING         // "https://staging.terminal.goalive.nl"
-DOMAINS.BRIDGE_STAGING_HOST    // "staging.terminal.goalive.nl"
+DOMAINS.ALIVE_PROD            // "https://terminal.goalive.nl"
+DOMAINS.ALIVE_PROD_HOST       // "terminal.goalive.nl"
+DOMAINS.ALIVE_DEV             // "https://dev.terminal.goalive.nl"
+DOMAINS.ALIVE_DEV_HOST        // "dev.terminal.goalive.nl"
+DOMAINS.ALIVE_STAGING         // "https://staging.terminal.goalive.nl"
+DOMAINS.ALIVE_STAGING_HOST    // "staging.terminal.goalive.nl"
 DOMAINS.STAGING_SUFFIX         // ".staging.goalive.nl"
 DOMAINS.DEV_SUFFIX             // ".dev.goalive.nl"
 
@@ -89,9 +89,9 @@ grep -rn "manager_session" apps/ --include="*.ts"
 
 # Test config values
 grep -rn "9547" apps/ --include="*.ts"
-grep -rn "bridge\.local" apps/ --include="*.ts"
+grep -rn "alive.local" apps/ --include="*.ts"
 grep -rn "test-password-123" apps/ --include="*.ts"
-grep -rn "test@bridge\.local" apps/ --include="*.ts"
+grep -rn "test@alive.local" apps/ --include="*.ts"
 
 # Local test mode session value
 grep -rn '"test-user"' apps/ --include="*.ts"
@@ -218,8 +218,8 @@ import { TEST_CONFIG } from "@webalive/shared"
 
 **SEARCH:**
 ```bash
-grep -rn 'test@bridge.local' apps/
-grep -rn 'bridge\.local' apps/
+grep -rn 'test@alive.local' apps/
+grep -rn 'alive.local' apps/
 grep -rn 'test-password-123' apps/
 ```
 
@@ -265,8 +265,8 @@ const baseUrl = "https://terminal.goalive.nl"
 const devUrl = "https://dev.terminal.goalive.nl"
 
 // CORRECT
-const baseUrl = DOMAINS.BRIDGE_PROD
-const devUrl = DOMAINS.BRIDGE_DEV
+const baseUrl = DOMAINS.ALIVE_PROD
+const devUrl = DOMAINS.ALIVE_DEV
 ```
 
 ### Pattern 7: Hardcoded Domain Suffix Checks
@@ -288,7 +288,7 @@ if (hostname === "dev.terminal.goalive.nl") { ... }
 
 // CORRECT
 if (origin.endsWith(DOMAINS.MAIN_SUFFIX)) { ... }
-if (hostname === DOMAINS.BRIDGE_DEV_HOST) { ... }
+if (hostname === DOMAINS.ALIVE_DEV_HOST) { ... }
 ```
 
 ### Pattern 8: Hardcoded Localhost with Port
@@ -363,8 +363,8 @@ After fixing, run these commands and expect **ZERO MATCHES** in `apps/`:
 grep -rn '"auth_session"' apps/ --include="*.ts" | grep -v '//'
 grep -rn '"manager_session"' apps/ --include="*.ts" | grep -v '//'
 grep -rn '"test-password-123"' apps/ --include="*.ts"
-grep -rn '"test@bridge.local"' apps/ --include="*.ts"
-grep -rn '"test.bridge.local"' apps/ --include="*.ts"
+grep -rn '"test@alive.local"' apps/ --include="*.ts"
+grep -rn '"test.alive.local"' apps/ --include="*.ts"
 
 # Domain URLs - should use DOMAINS.* constants
 grep -rn '"https://terminal.goalive.nl"' apps/ --include="*.ts"

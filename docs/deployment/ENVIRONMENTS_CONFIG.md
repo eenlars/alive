@@ -35,14 +35,14 @@ export const environments: Record<EnvironmentKey, Environment> = {
     prefix: "staging",
     port: 8997,
     domain: "your-staging-domain.goalive.nl",
-    processName: "claude-bridge-staging",
+    processName: "alive-staging",
     serverScript: "node_modules/.bin/next",
     workspacePath: "/srv/webalive/sites",
     isProduction: false,
     hasHotReload: true,
     deployCommand: "make staging",
     logsCommand: "make logs-staging",
-    restartCommand: "pm2 restart claude-bridge-staging"
+    restartCommand: "pm2 restart alive-staging"
   }
 }
 ```
@@ -73,12 +73,12 @@ import { environments, getEnvironment, getEnvironmentByPort } from '@webalive/sh
 // Get by key
 const devEnv = environments.dev
 console.log(devEnv.port)        // 8997
-console.log(devEnv.processName) // claude-bridge-dev
+console.log(devEnv.processName) // alive-dev
 
 // Helper functions
 const env = getEnvironment('production')
 const byPort = getEnvironmentByPort(8999)
-const byProcess = getEnvironmentByProcessName('claude-bridge')
+const byProcess = getEnvironmentByProcessName('alive')
 ```
 
 ### Bash Scripts
@@ -102,9 +102,9 @@ pm2 logs "$(jq -r '.environments.dev.processName' "$ENV_CONFIG")" --lines 1000
 ### Node.js (CommonJS)
 
 ```javascript
-const config = require('./bridge.config.js')
+const config = require('./alive.config.js')
 console.log(config.ports.dev)     // 8998
-console.log(config.appName.prod)  // claude-bridge
+console.log(config.appName.prod)  // alive
 ```
 
 ## Validation
@@ -133,17 +133,17 @@ Example of how the "staging" environment was renamed to "dev":
 **Before:**
 ```
 packages/shared/src/environments.ts:
-  staging: { port: 8998, processName: 'claude-bridge-staging', ... }
+  staging: { port: 8998, processName: 'alive-staging', ... }
 
 scripts/*.sh:
-  pm2 logs claude-bridge-staging
-  pm2 restart claude-bridge-staging
+  pm2 logs alive-staging
+  pm2 restart alive-staging
 ```
 
 **After:**
 ```
 packages/shared/src/environments.ts:
-  dev: { port: 8997, processName: 'claude-bridge-dev', ... }
+  dev: { port: 8997, processName: 'alive-dev', ... }
 
 scripts/*.sh:
   DEV_PROCESS=$(jq -r '.environments.dev.processName' "$ENV_CONFIG")
@@ -158,4 +158,4 @@ scripts/*.sh:
 4. **Documented** - All properties in one place
 5. **Queryable** - Helper functions to find envs by port, name, domain
 6. **Bash-friendly** - Scripts read directly with `jq` (standard JSON tool)
-7. **Backward compatible** - Legacy code still works with bridge.config.js
+7. **Backward compatible** - Legacy code still works with alive.config.js

@@ -51,7 +51,7 @@ export const isLocalTestServer = TEST_ENV === "local"
  * Remote environments (staging, production, etc.) do NOT have:
  * - PLAYWRIGHT_TEST=true
  * - BRIDGE_ENV=local
- * - Test credentials (test@bridge.local)
+ * - Test credentials (test@alive.local)
  *
  * This is the inverse of isLocalTestServer - if a new environment
  * is added and TEST_ENV is set to something other than "local",

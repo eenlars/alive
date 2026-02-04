@@ -2,7 +2,7 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { truncateOutput } from "@webalive/shared"
-import { errorResult, successResult, type ToolResult } from "../../lib/bridge-api-client.js"
+import { errorResult, successResult, type ToolResult } from "../../lib/api-client.js"
 import { safeSpawnSync } from "../../lib/safe-spawn.js"
 import { hasPackageJson, validateWorkspacePath } from "../../lib/workspace-validator.js"
 

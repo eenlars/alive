@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest"
 import { ALLOWED_SDK_TOOLS, DISALLOWED_SDK_TOOLS, SDK_TOOL_NAMES } from "../sdk-tools-sync"
 
 // Bridge-only tools that are not in the SDK but are valid in ALLOWED_SDK_TOOLS
-const BRIDGE_ONLY_TOOLS = ["Skill"]
+const STREAM_ONLY_TOOLS = ["Skill"]
 
 describe("SDK Tools Sync", () => {
   describe("Array completeness", () => {
     it("should have all SDK tools categorized (allowed + disallowed = all)", () => {
       // Filter out Bridge-only tools for this check
-      const allowedSDKOnly = ALLOWED_SDK_TOOLS.filter(t => !BRIDGE_ONLY_TOOLS.includes(t))
+      const allowedSDKOnly = ALLOWED_SDK_TOOLS.filter(t => !STREAM_ONLY_TOOLS.includes(t))
       const allCategorized = new Set([...allowedSDKOnly, ...DISALLOWED_SDK_TOOLS])
       const allSDK = new Set(SDK_TOOL_NAMES)
 
@@ -21,10 +21,10 @@ describe("SDK Tools Sync", () => {
 
     it("should not have extra tools that are not in SDK (except Bridge-only tools)", () => {
       const allSDK = new Set<string>(SDK_TOOL_NAMES)
-      const bridgeOnly = new Set<string>(BRIDGE_ONLY_TOOLS)
+      const streamOnly = new Set<string>(STREAM_ONLY_TOOLS)
 
       // Bridge-only tools are expected in allowed, not in SDK
-      const extraInAllowed = ALLOWED_SDK_TOOLS.filter(t => !allSDK.has(t) && !bridgeOnly.has(t))
+      const extraInAllowed = ALLOWED_SDK_TOOLS.filter(t => !allSDK.has(t) && !streamOnly.has(t))
       const extraInDisallowed = DISALLOWED_SDK_TOOLS.filter(t => !allSDK.has(t))
 
       expect(extraInAllowed).toEqual([])
@@ -71,7 +71,7 @@ describe("SDK Tools Sync", () => {
       // 14 SDK allowed + 1 Bridge-only (Skill) = 15 in ALLOWED_SDK_TOOLS
       // 4 disallowed (Task, WebSearch, ExitPlanMode, KillShell)
       // 14 + 4 = 18 SDK total
-      const allowedSDKOnly = ALLOWED_SDK_TOOLS.filter(t => !BRIDGE_ONLY_TOOLS.includes(t))
+      const allowedSDKOnly = ALLOWED_SDK_TOOLS.filter(t => !STREAM_ONLY_TOOLS.includes(t))
       expect(ALLOWED_SDK_TOOLS.length).toBe(15) // 14 SDK + 1 Bridge-only
       expect(allowedSDKOnly.length).toBe(14) // Pure SDK tools
       expect(DISALLOWED_SDK_TOOLS.length).toBe(4)

@@ -1,5 +1,5 @@
 import { appendFileSync } from "node:fs"
-import { askAIFull } from "@alive-brug/tools"
+import { askAIFull } from "@webalive/tools"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"

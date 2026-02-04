@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { NdjsonParser, isWorkerMessage, isParentMessage } from "../src/ipc"
-import { WORKER_MESSAGE_TYPES, PARENT_MESSAGE_TYPES, BRIDGE_STREAM_TYPES } from "../src/types"
+import { WORKER_MESSAGE_TYPES, PARENT_MESSAGE_TYPES, STREAM_TYPES } from "../src/types"
 import type { WorkerToParentMessage, AgentRequest, AgentConfig } from "../src/types"
 
 /** Create minimal valid AgentConfig for tests */
@@ -11,7 +11,7 @@ function createTestAgentConfig(): AgentConfig {
     permissionMode: "default",
     settingSources: [],
     oauthMcpServers: {},
-    bridgeStreamTypes: BRIDGE_STREAM_TYPES,
+    streamTypes: STREAM_TYPES,
   }
 }
 

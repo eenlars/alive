@@ -11,6 +11,8 @@ interface WorktreeSwitcherProps {
   workspace: string | null
   currentWorktree: string | null
   onChange: (worktree: string | null) => void
+  isOpen?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 interface WorktreeListItem {
@@ -20,8 +22,14 @@ interface WorktreeListItem {
   head: string | null
 }
 
-export function WorktreeSwitcher({ workspace, currentWorktree, onChange }: WorktreeSwitcherProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function WorktreeSwitcher({
+  workspace,
+  currentWorktree,
+  onChange,
+  isOpen,
+  onOpenChange,
+}: WorktreeSwitcherProps) {
+  const [internalOpen, setInternalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [worktrees, setWorktrees] = useState<WorktreeListItem[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -33,6 +41,19 @@ export function WorktreeSwitcher({ workspace, currentWorktree, onChange }: Workt
   const [from, setFrom] = useState("")
   const [createError, setCreateError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+
+  const isControlled = typeof isOpen === "boolean"
+  const modalOpen = isControlled ? isOpen : internalOpen
+  const setModalOpen = useCallback(
+    (value: boolean) => {
+      if (onOpenChange) {
+        onOpenChange(value)
+        return
+      }
+      setInternalOpen(value)
+    },
+    [onOpenChange],
+  )
 
   const workspaceKey = useMemo(() => buildWorkspaceKey(workspace, currentWorktree), [workspace, currentWorktree])
 
@@ -55,14 +76,14 @@ export function WorktreeSwitcher({ workspace, currentWorktree, onChange }: Workt
   }, [workspace])
 
   useEffect(() => {
-    if (isOpen) {
+    if (modalOpen) {
       void loadWorktrees()
     }
-  }, [isOpen, loadWorktrees])
+  }, [modalOpen, loadWorktrees])
 
   const handleSelect = (target: string | null) => {
     onChange(target)
-    setIsOpen(false)
+    setModalOpen(false)
   }
 
   const handleRemove = async (target: string) => {
@@ -139,7 +160,7 @@ export function WorktreeSwitcher({ workspace, currentWorktree, onChange }: Workt
       setBranch("")
       setFrom("")
       onChange(response.slug)
-      setIsOpen(false)
+      setModalOpen(false)
     } catch (err) {
       if (err instanceof ApiError) {
         setCreateError(err.message)
@@ -157,7 +178,7 @@ export function WorktreeSwitcher({ workspace, currentWorktree, onChange }: Workt
     <>
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={() => setModalOpen(true)}
         className="ml-2 text-[11px] font-medium text-black/50 dark:text-white/50 hover:text-black/80 dark:hover:text-white/80 transition-colors inline-flex items-center gap-1.5 px-2 py-1 rounded-full border border-black/[0.08] dark:border-white/[0.08] hover:border-black/20 dark:hover:border-white/20"
         title={workspaceKey ? `Workspace key: ${workspaceKey}` : "Worktree"}
       >
@@ -165,7 +186,7 @@ export function WorktreeSwitcher({ workspace, currentWorktree, onChange }: Workt
         <ChevronDown size={12} />
       </button>
 
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Worktrees" description={workspace} size="sm">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Worktrees" description={workspace} size="sm">
         <div className="p-5 space-y-5">
           <div className="flex items-center justify-between">
             <div className="text-xs text-black/50 dark:text-white/50">Select or create a worktree.</div>

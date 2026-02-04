@@ -7,7 +7,7 @@ This document describes how environment variables are organized in the Claude Br
 ## Architecture Overview
 
 ```
-claude-bridge/
+alive/
 ├── .env                          # ⚠️  Makefile/build variables ONLY (no secrets)
 ├── .env.local                    # ✅ Local development overrides (optional)
 ├── apps/web/
@@ -60,7 +60,7 @@ HOSTED_ENV=server
 
 ```bash
 # .env.local - Local dev overrides
-BRIDGE_ENV=local
+ALIVE_ENV=local
 JWT_SECRET=local-dev-secret  # Override for local testing only
 ```
 
@@ -156,7 +156,7 @@ For production, systemd loads `apps/web/.env.production` directly via `Environme
 
 3. **Restart dev server:**
    ```bash
-   systemctl restart claude-bridge-dev
+   systemctl restart alive-dev
    ```
 
 ### Adding an Environment-Specific Override
@@ -186,9 +186,9 @@ For production, systemd loads `apps/web/.env.production` directly via `Environme
 
 3. **Restart all environments:**
    ```bash
-   systemctl restart claude-bridge-dev      # Dev
-   systemctl restart claude-bridge-staging  # Staging
-   systemctl restart claude-bridge-prod     # Production
+   systemctl restart alive-dev      # Dev
+   systemctl restart alive-staging  # Staging
+   systemctl restart alive-prod     # Production
    ```
 
 4. **Users must log out and log back in** to get new tokens
@@ -207,7 +207,7 @@ For production, systemd loads `apps/web/.env.production` directly via `Environme
 **Solution:**
 1. Check `apps/web/.env.production` file exists
 2. Verify variables are set (not empty)
-3. Restart server: `systemctl restart claude-bridge-prod`
+3. Restart server: `systemctl restart alive-prod`
 
 ### Error: "invalid signature" (JWT verification)
 
@@ -231,7 +231,7 @@ For production, systemd loads `apps/web/.env.production` directly via `Environme
 **Solution:**
 1. **Hard restart required** for env changes (not hot-reload):
    ```bash
-   systemctl restart claude-bridge-dev
+   systemctl restart alive-dev
    ```
 2. For Next.js, clear Turbo cache if needed:
    ```bash

@@ -6,10 +6,10 @@ import { createAppClient } from "@/lib/supabase/app"
  * Check if a domain exists on this server (has a site directory)
  * Used to filter domains from shared database to only show local domains
  *
- * Special case: claude-bridge is always available (it's the codebase itself)
+ * Special case: alive is always available (it's the codebase itself)
  */
 export function domainExistsOnThisServer(hostname: string): boolean {
-  // claude-bridge is always available - it's the Bridge codebase itself
+  // alive is always available - it's the codebase itself
   if (hostname === SUPERADMIN.WORKSPACE_NAME) {
     return true
   }

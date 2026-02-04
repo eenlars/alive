@@ -48,7 +48,7 @@ Set it in your environment:
   export DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres"
 
   # For local PostgreSQL
-  export DATABASE_URL="postgresql://postgres:password@localhost:5432/claude_bridge"
+  export DATABASE_URL="postgresql://postgres:password@localhost:5432/alive"
 
 Then run this script again.
 `)

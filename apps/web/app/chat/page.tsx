@@ -101,6 +101,7 @@ function ChatPageContent() {
   const isSidebarOpen = useSidebarOpen()
   const isHydrated = useAppHydrated()
   const [subdomainInitialized, setSubdomainInitialized] = useState(false)
+  const [worktreeModalOpen, setWorktreeModalOpen] = useState(false)
   const [_showCompletionDots, setShowCompletionDots] = useState(false)
   const modals = useModals()
 
@@ -231,7 +232,7 @@ function ChatPageContent() {
     }
   }, [mounted, sessionTabId, tabParam, setTabParam])
 
-  // Superadmin workspace (claude-bridge) shows terminal & code views only
+  // Superadmin workspace (alive) shows terminal & code views only
   const isSuperadminWorkspace = workspace === SUPERADMIN.WORKSPACE_NAME
   const showSandbox = showSandboxRaw // Show for all workspaces
 
@@ -523,6 +524,18 @@ function ChatPageContent() {
     setTimeout(() => chatInputRef.current?.focus(), 0)
   }, [tabId, streamingActions, startNewTabGroup, tabWorkspace])
 
+  const handleNewWorktree = useCallback(() => {
+    if (!workspace) {
+      toast.error("Select a site before creating a worktree.")
+      return
+    }
+    if (isSuperadminWorkspace) {
+      toast.error("Worktrees are not available in the Bridge workspace.")
+      return
+    }
+    setWorktreeModalOpen(true)
+  }, [workspace, isSuperadminWorkspace])
+
   const handleInsertTemplate = useCallback((prompt: string) => {
     setMsg(prompt)
   }, [])
@@ -607,6 +620,7 @@ function ChatPageContent() {
         onUnarchiveTabGroup={handleUnarchiveTabGroup}
         onRenameTabGroup={handleRenameTabGroup}
         onNewConversation={handleNewTabGroup}
+        onNewWorktree={handleNewWorktree}
         onOpenSettings={modals.openSettings}
         onOpenInvite={modals.openInvite}
       />
@@ -665,6 +679,8 @@ function ChatPageContent() {
             onNewTabGroup={handleNewTabGroup}
             onMobilePreview={modals.openMobilePreview}
             onSelectWorktree={setWorktree}
+            worktreeModalOpen={worktreeModalOpen}
+            onWorktreeModalOpenChange={setWorktreeModalOpen}
             onToggleTabs={handleToggleTabs}
             showTabsToggle={showTabs && !!workspace}
             tabsExpanded={tabsExpanded}
@@ -833,7 +849,7 @@ function ChatPageContent() {
         </AnimatePresence>
       )}
 
-      {/* Mobile preview overlay - not shown for claude-bridge workspace */}
+      {/* Mobile preview overlay - not shown for alive workspace */}
       {isHydrated && (
         <AnimatePresence>
           {modals.mobilePreview && !isSuperadminWorkspace && (

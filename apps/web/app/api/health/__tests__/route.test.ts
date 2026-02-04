@@ -14,7 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Mock Redis client
-vi.mock("@alive-brug/redis", () => ({
+vi.mock("@webalive/redis", () => ({
   createRedisClient: vi.fn(() => ({
     ping: vi.fn(),
     status: "ready",
@@ -48,7 +48,7 @@ vi.mock("@webalive/env/server", () => ({
 
 // Import after mocking
 const { GET, _resetHealthCheckRedis } = await import("../route")
-const { createRedisClient } = await import("@alive-brug/redis")
+const { createRedisClient } = await import("@webalive/redis")
 // createClient no longer used - health route uses direct fetch
 
 // Type helpers for mocks - cast partial mocks to satisfy full type requirements

@@ -56,7 +56,7 @@ SDK receives filtered allowedTools (blocked tools cannot be called)
 ## Blocked Tools
 
 ```typescript
-// From @webalive/shared/bridge-tools.ts
+// From @webalive/shared/stream-tools.ts
 export const PLAN_MODE_BLOCKED_TOOLS = [
   "Write", "Edit", "MultiEdit", "Bash", "NotebookEdit",
   "mcp__alive-workspace__delete_file",
@@ -104,7 +104,7 @@ const createBody = useCallback(() => ({
 
 ## Related Files
 
-- `packages/shared/src/bridge-tools.ts` - Constants and helpers (`PLAN_MODE_BLOCKED_TOOLS`, `filterToolsForPlanMode`, `allowTool`, `denyTool`)
+- `packages/shared/src/stream-tools.ts` - Constants and helpers (`PLAN_MODE_BLOCKED_TOOLS`, `filterToolsForPlanMode`, `allowTool`, `denyTool`)
 - `apps/web/lib/stores/planModeStore.ts` - Zustand store for UI toggle
 - `apps/web/app/api/claude/stream/route.ts` - Receives planMode, filters tools before sending to worker
 - `apps/web/scripts/run-agent.mjs` - Legacy spawn runner (backup filtering in canUseTool)

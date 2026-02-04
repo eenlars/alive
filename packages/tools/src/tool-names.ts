@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { LINEAR, FILE_OPS } from "@alive-brug/tools"
+ * import { LINEAR, FILE_OPS } from "@webalive/tools"
  *
  * if (toolName === LINEAR.CREATE_ISSUE) { ... }
  * ```

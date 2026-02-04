@@ -8,7 +8,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
 import { structuredErrorResponse } from "@/lib/api/responses"
-import { getJob, triggerJob } from "@alive-brug/tools"
+import { getJob, triggerJob } from "@webalive/tools"
 
 interface RouteContext {
   params: Promise<{ jobId: string }>

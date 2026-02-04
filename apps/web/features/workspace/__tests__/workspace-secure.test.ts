@@ -125,8 +125,8 @@ describe("Workspace Security - Path Traversal Prevention", () => {
       }
     })
 
-    it("should block attempts to read claude-bridge source", () => {
-      const attacks = ["../../../../claude-bridge/.env", "../../../../claude-bridge/domain-passwords.json"]
+    it("should block attempts to read alive source", () => {
+      const attacks = ["../../../../alive/.env", "../../../../alive/domain-passwords.json"]
 
       for (const attack of attacks) {
         const fullPath = path.join(workspaceRoot, attack)

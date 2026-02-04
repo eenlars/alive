@@ -181,9 +181,9 @@ async function processChildEvent(
   onMessage?: (message: StreamMessage | BridgeErrorMessage) => void,
 ): Promise<{ isComplete: boolean }> {
   // Handle session ID storage (server-side only)
-  if (childEvent.type === "bridge_session" && childEvent.sessionId) {
+  if (childEvent.type === "stream_session" && childEvent.sessionId) {
     console.log(
-      `[NDJSON Stream ${requestId}] [SESSION DEBUG] Received bridge_session event, sessionId: ${childEvent.sessionId}`,
+      `[NDJSON Stream ${requestId}] [SESSION DEBUG] Received stream_session event, sessionId: ${childEvent.sessionId}`,
     )
     console.log(`[NDJSON Stream ${requestId}] [SESSION DEBUG] Storing to key: ${conversationKey}`)
     try {
@@ -229,7 +229,7 @@ async function processChildEvent(
 
   controller.enqueue(encodeNDJSON(message))
 
-  // Signal completion when we receive bridge_complete event
+  // Signal completion when we receive stream_complete event
   // This allows early lock release before child process finishes SDK cleanup
   const isComplete = childEvent.type === BridgeStreamType.COMPLETE
   return { isComplete }

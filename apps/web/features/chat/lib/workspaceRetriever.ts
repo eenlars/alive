@@ -58,7 +58,7 @@ function mapWorktreeError(error: WorktreeError): { code: ErrorCode; status: numb
  * - If 'worktree' is provided, resolves to /srv/.../worktrees/<slug>
  * - Worktree must exist and be registered in git worktree list
  *
- * Special case: claude-bridge workspace for superadmins
+ * Special case: alive workspace for superadmins
  * - Returns SUPERADMIN.WORKSPACE_PATH directly
  * - Auth layer MUST verify superadmin status before this is called
  * - This function does NOT verify permissions (that's done in verifyWorkspaceAccess)
@@ -66,7 +66,7 @@ function mapWorktreeError(error: WorktreeError): { code: ErrorCode; status: numb
 export async function getWorkspace({ host, body, requestId }: GetWorkspaceParams): Promise<WorkspaceResult> {
   console.log(`[Workspace ${requestId}] Resolving workspace for host: ${host}`)
 
-  // Special case: claude-bridge workspace
+  // Special case: alive workspace
   // SECURITY NOTE: This only resolves the path - auth layer (verifyWorkspaceAccess)
   // MUST verify the user is a superadmin before this function is called.
   // This function trusts that auth has already been verified.
@@ -110,7 +110,7 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
     }
   }
 
-  // Allow "test" or "test.bridge.local" workspace in local development mode (for E2E tests)
+  // Allow "test" or "test.alive.local" workspace in local development mode (for E2E tests)
   // Test workspace is created by e2e-tests/genuine-setup.ts
   const testWorkspace = `test.${TEST_CONFIG.EMAIL_DOMAIN}`
   if (process.env.BRIDGE_ENV === "local" && (customWorkspace === "test" || customWorkspace === testWorkspace)) {

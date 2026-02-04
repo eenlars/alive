@@ -35,7 +35,7 @@ This document describes the comprehensive test suite created to prevent regressi
 
 ### Test Files Created/Updated
 
-1. **`packages/tools/test/bridge-api-client.test.ts`** (Updated)
+1. **`packages/tools/test/api-client.test.ts`** (Updated)
    - Added 9 new tests for cookie name authentication
    - Total tests: 25 (16 existing + 9 new)
    - ✅ All tests pass
@@ -58,7 +58,7 @@ This document describes the comprehensive test suite created to prevent regressi
 
 ### 1. Unit Tests - Cookie Header Formatting
 
-**File:** `packages/tools/test/bridge-api-client.test.ts`
+**File:** `packages/tools/test/api-client.test.ts`
 
 **Tests:**
 - ✅ Uses `auth_session` not `session` as cookie name
@@ -125,7 +125,7 @@ expect(sourceCode).not.toMatch(/Cookie:\s*`session=/)
 - **If someone hardcodes again:** Test fails immediately
 
 ### 2. Header Validation
-**Test:** `bridge-api-client.test.ts`
+**Test:** `api-client.test.ts`
 - Mocks fetch and captures headers
 - Verifies exact cookie format
 - Checks all endpoints
@@ -138,7 +138,7 @@ expect(sourceCode).not.toMatch(/Cookie:\s*`session=/)
 - **If packages diverge:** Test fails immediately
 
 ### 4. Regression Detection
-**Test:** `bridge-api-client.test.ts`
+**Test:** `api-client.test.ts`
 - Explicitly checks for old bug pattern (`session=`)
 - Tests named "THE COOKIE NAME BUG"
 - **If regression occurs:** Test fails with clear error message
@@ -155,14 +155,14 @@ bun run test cookie
 
 ### Run Specific Test Files
 ```bash
-bun run test bridge-api-client.test.ts
+bun run test api-client.test.ts
 bun run test cookie-name-sync.test.ts
 bun run test cookie-name.test.ts
 ```
 
 ### Test Results
 ```
-✓ bridge-api-client.test.ts (16 tests) 18ms
+✓ api-client.test.ts (16 tests) 18ms
 ✓ cookie-name-sync.test.ts (10 tests) 9ms
 ✓ cookie-name.test.ts (3 tests) 4ms
 
@@ -177,7 +177,7 @@ Tests follow the existing pattern of documenting bugs they prevent:
 
 - `"THE COOKIE NAME BUG"` - Primary regression test
 - `"should use 'auth_session' cookie name from shared constant, not hardcoded 'session'"`
-- `"should import COOKIE_NAMES from @webalive/shared in bridge-api-client.ts"`
+- `"should import COOKIE_NAMES from @webalive/shared in stream-api-client.ts"`
 
 This naming makes it clear:
 1. What bug occurred
@@ -190,7 +190,7 @@ This naming makes it clear:
 
 The fix includes documentation in the source code:
 
-**`packages/tools/src/lib/bridge-api-client.ts`:**
+**`packages/tools/src/lib/api-client.ts`:**
 ```typescript
 import { COOKIE_NAMES } from "@webalive/shared"
 
@@ -198,7 +198,7 @@ import { COOKIE_NAMES } from "@webalive/shared"
 ...(sessionCookie && { Cookie: `${COOKIE_NAMES.SESSION}=${sessionCookie}` }),
 ```
 
-**`packages/tools/test/bridge-api-client.test.ts`:**
+**`packages/tools/test/api-client.test.ts`:**
 ```typescript
 /**
  * COOKIE NAME AUTHENTICATION BUG TESTS

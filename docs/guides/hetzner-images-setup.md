@@ -37,7 +37,7 @@ Tenant IDs are derived from workspace paths:
 
 - **Workspace**: `/srv/webalive/sites/larsvandeneeden.com/user/src`
 - **Tenant ID**: `larsvandeneeden.com` (extracted from path)
-- **Terminal mode**: Uses workspace-specific tenant IDs, not `terminal-bridge-main`
+- **Terminal mode**: Uses workspace-specific tenant IDs, not `terminal-alive-main`
 
 ## URL Structure
 
@@ -55,7 +55,7 @@ https://larsvandeneeden.com/_images/t/larsvandeneeden.com/o/f4b33c6157d6346d/v/t
 All domains use `handle_path /_images/*` which strips the `/_images` prefix:
 
 ```caddyfile
-# In /root/webalive/claude-bridge/Caddyfile
+# In /root/alive/Caddyfile
 (image_serving) {
     handle_path /_images/* {
         root * /srv/webalive/storage

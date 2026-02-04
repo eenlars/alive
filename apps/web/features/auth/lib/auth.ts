@@ -264,19 +264,19 @@ export async function verifyWorkspaceAccess(
     return null
   }
 
-  // SECURITY: claude-bridge workspace requires SUPERADMIN status
-  // This is defense-in-depth - even if someone adds claude-bridge to their org,
+  // SECURITY: alive workspace requires SUPERADMIN status
+  // This is defense-in-depth - even if someone adds alive to their org,
   // they cannot access it without being a superadmin
   if (workspace === SUPERADMIN.WORKSPACE_NAME) {
     if (!user.isSuperadmin) {
-      console.log(`${logPrefix} ⛔ BLOCKED: Non-superadmin attempted claude-bridge access: ${user.email}`)
+      console.log(`${logPrefix} ⛔ BLOCKED: Non-superadmin attempted alive access: ${user.email}`)
       return null
     }
-    console.log(`${logPrefix} ✅ Superadmin access granted for claude-bridge: ${user.email}`)
+    console.log(`${logPrefix} ✅ Superadmin access granted for alive: ${user.email}`)
     return workspace
   }
 
-  // Test mode allows all workspaces (except claude-bridge which is checked above)
+  // Test mode allows all workspaces (except alive which is checked above)
   if (env.BRIDGE_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return workspace
   }

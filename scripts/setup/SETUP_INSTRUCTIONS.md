@@ -13,7 +13,7 @@ Run these checks first:
 bun --version
 
 # Check we're in the right directory
-test -f package.json && grep -q "claude-bridge-mono" package.json && echo "OK: In claude-bridge root"
+test -f package.json && grep -q "alive-mono" package.json && echo "OK: In alive root"
 
 # Check if already set up
 test -f apps/web/.env.local && echo "NOTICE: .env.local exists"
@@ -50,8 +50,8 @@ Create `apps/web/.env.local` with these **required** values:
 
 ```bash
 # REQUIRED for local development
-BRIDGE_ENV=local
-LOCAL_TEMPLATE_PATH=/absolute/path/to/claude-bridge/.alive/template
+ALIVE_ENV=local
+LOCAL_TEMPLATE_PATH=/absolute/path/to/alive/.alive/template
 
 # REQUIRED - your Anthropic API key
 # If using Claude Code CLI, this is already set as ANTHROPIC_API_KEY
@@ -81,7 +81,7 @@ echo "$(pwd)/.alive/template"
 
 ```bash
 # Check environment file exists and has required vars
-grep -E "^BRIDGE_ENV=|^LOCAL_TEMPLATE_PATH=|^ANTH_API_SECRET=" apps/web/.env.local
+grep -E "^ALIVE_ENV=|^LOCAL_TEMPLATE_PATH=|^ANTH_API_SECRET=" apps/web/.env.local
 
 # Check template workspace exists
 ls -la .alive/template/
@@ -102,10 +102,10 @@ Server starts at `http://localhost:8999`
 ## Step 6: Test Login
 
 Open `http://localhost:8999` and log in with:
-- **Email**: `test@bridge.local`
+- **Email**: `test@alive.local`
 - **Password**: `test`
 
-These test credentials only work when `BRIDGE_ENV=local`.
+These test credentials only work when `ALIVE_ENV=local`.
 
 ---
 
@@ -164,8 +164,8 @@ See `docs/database/SETUP.md` for:
 
 After setup:
 1. Open `http://localhost:8999`
-2. Log in with `test@bridge.local` / `test`
-3. Start chatting with Claude in the bridge interface
+2. Log in with `test@alive.local` / `test`
+3. Start chatting with Claude in the stream interface
 4. Your files are in `.alive/template/`
 
 For architecture and contributing, see:

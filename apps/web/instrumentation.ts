@@ -29,8 +29,9 @@ export async function register() {
       }
     }
 
-    // Only start services in production to avoid duplicate schedulers in dev
-    const isProduction = process.env.NODE_ENV === "production"
+    // Only start services in production to avoid duplicate schedulers in staging/dev
+    const bridgeEnv = process.env.BRIDGE_ENV
+    const isProduction = bridgeEnv ? bridgeEnv === "production" : process.env.NODE_ENV === "production"
 
     // Start the CronService for automation scheduling
     try {
@@ -38,6 +39,7 @@ export async function register() {
 
       if (isProduction) {
         await startCronService({
+          enabled: isProduction,
           maxConcurrent: 3,
           maxRetries: 3,
           retryBaseDelayMs: 60_000,
@@ -51,9 +53,9 @@ export async function register() {
             })
           },
         })
-        console.log("[Instrumentation] CronService started")
+        console.log(`[Instrumentation] CronService started (BRIDGE_ENV=${bridgeEnv ?? "unset"})`)
       } else {
-        console.log("[Instrumentation] CronService disabled (not production)")
+        console.log(`[Instrumentation] CronService disabled (BRIDGE_ENV=${bridgeEnv ?? "unset"})`)
       }
     } catch (error) {
       console.error("[Instrumentation] Failed to start CronService:", error)

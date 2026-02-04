@@ -14,6 +14,8 @@ interface WorkspaceInfoBarProps {
   onNewTabGroup: () => void
   onMobilePreview: () => void
   onSelectWorktree: (worktree: string | null) => void
+  worktreeModalOpen?: boolean
+  onWorktreeModalOpenChange?: (open: boolean) => void
   onToggleTabs?: () => void
   showTabsToggle?: boolean
   tabsExpanded?: boolean
@@ -28,6 +30,8 @@ export function WorkspaceInfoBar({
   onSelectSite,
   onMobilePreview,
   onSelectWorktree,
+  worktreeModalOpen,
+  onWorktreeModalOpenChange,
   onToggleTabs,
   showTabsToggle = false,
   tabsExpanded = false,
@@ -56,7 +60,13 @@ export function WorkspaceInfoBar({
               <div className="flex items-center min-w-0">
                 <WorkspaceSwitcher currentWorkspace={workspace} onOpenSettings={onSelectSite} />
                 {!isSuperadminWorkspace && (
-                  <WorktreeSwitcher workspace={workspace} currentWorktree={worktree} onChange={onSelectWorktree} />
+                  <WorktreeSwitcher
+                    workspace={workspace}
+                    currentWorktree={worktree}
+                    onChange={onSelectWorktree}
+                    isOpen={worktreeModalOpen}
+                    onOpenChange={onWorktreeModalOpenChange}
+                  />
                 )}
               </div>
             ) : showWarning ? (

@@ -35,8 +35,8 @@ export const FREE_CREDITS = 100
  * Used for passing configuration to child processes and MCP tools.
  */
 export const ENV_VARS = {
-  BRIDGE_SESSION_COOKIE: "BRIDGE_SESSION_COOKIE",
-  BRIDGE_SESSION_COOKIE_NAME: "BRIDGE_SESSION_COOKIE_NAME",
+  STREAM_SESSION_COOKIE: "STREAM_SESSION_COOKIE",
+  STREAM_SESSION_COOKIE_NAME: "STREAM_SESSION_COOKIE_NAME",
   INTERNAL_TOOLS_SECRET: "INTERNAL_TOOLS_SECRET",
 } as const
 
@@ -48,10 +48,10 @@ export const ENV_VARS = {
 export const TEST_CONFIG = {
   PORT: 9547,
   BASE_URL: "http://localhost:9547",
-  EMAIL_DOMAIN: "bridge.local",
+  EMAIL_DOMAIN: "alive.local",
   DEFAULT_CREDITS: 1000,
-  WORKER_EMAIL_PREFIX: "e2e_w", // e2e_w0@bridge.local
-  WORKSPACE_PREFIX: "e2e-w", // e2e-w0.bridge.local
+  WORKER_EMAIL_PREFIX: "e2e_w", // e2e_w0@alive.local
+  WORKSPACE_PREFIX: "e2e-w", // e2e-w0.alive.local
   TEST_PASSWORD: "test-password-123", // Password for all E2E test users
   JWT_SECRET: "test-jwt-secret-for-e2e-tests", // JWT secret for E2E tests (copy to .env.test from .env.test.example)
   DEFAULT_TEMPLATE_ID: "tmpl_landing", // Default template for deployment tests (must exist in Supabase)
@@ -63,45 +63,45 @@ export const TEST_CONFIG = {
 } as const
 
 /**
- * Bridge Stream Types - Single Source of Truth
+ * Stream Stream Types - Single Source of Truth
  *
  * Event types for NDJSON streaming protocol between:
  * - Claude Agent SDK child process (producer)
- * - Bridge API routes (consumer/transformer)
+ * - Stream API routes (consumer/transformer)
  * - Frontend chat page (consumer)
  *
  * All packages MUST import from here. DO NOT duplicate.
  */
-export const BRIDGE_STREAM_TYPES = {
-  START: "bridge_start",
-  SESSION: "bridge_session",
-  MESSAGE: "bridge_message",
-  COMPLETE: "bridge_complete",
-  ERROR: "bridge_error",
-  PING: "bridge_ping",
-  DONE: "bridge_done",
-  INTERRUPT: "bridge_interrupt",
+export const STREAM_TYPES = {
+  START: "stream_start",
+  SESSION: "stream_session",
+  MESSAGE: "stream_message",
+  COMPLETE: "stream_complete",
+  ERROR: "stream_error",
+  PING: "stream_ping",
+  DONE: "stream_done",
+  INTERRUPT: "stream_interrupt",
 } as const
 
-export type BridgeStreamType = (typeof BRIDGE_STREAM_TYPES)[keyof typeof BRIDGE_STREAM_TYPES]
+export type StreamType = (typeof STREAM_TYPES)[keyof typeof STREAM_TYPES]
 
 /**
- * Bridge Synthetic Message Types
+ * Stream Synthetic Message Types
  *
- * Additional message types created by the Bridge (not from SDK).
+ * Additional message types created by the Stream (not from SDK).
  */
-export const BRIDGE_SYNTHETIC_MESSAGE_TYPES = {
-  WARNING: "bridge_warning",
+export const STREAM_SYNTHETIC_MESSAGE_TYPES = {
+  WARNING: "stream_warning",
 } as const
 
 /**
- * Bridge Interrupt Sources
+ * Stream Interrupt Sources
  *
  * Sources that can trigger stream interruption.
  */
-export const BRIDGE_INTERRUPT_SOURCES = {
-  HTTP_ABORT: "bridge_http_abort",
-  CLIENT_CANCEL: "bridge_client_cancel",
+export const STREAM_INTERRUPT_SOURCES = {
+  HTTP_ABORT: "stream_http_abort",
+  CLIENT_CANCEL: "stream_client_cancel",
 } as const
 
 /**
@@ -310,8 +310,8 @@ export const STORE_STORAGE_KEYS = {
   WORKSPACE: "workspace-storage",
   MESSAGE: "claude-messages-v4",
   TAB: "claude-tabs-v1",
-  LLM: "claude-bridge-llm-settings-v2",
-  DEBUG: "claude-bridge-debug-view-v6",
+  LLM: "alive-llm-settings-v2",
+  DEBUG: "alive-debug-view-v6",
   FEATURE_FLAG: "feature-flag-overrides-v1",
   SESSION: "claude-session-storage",
   GOAL: "goal-storage",
@@ -330,7 +330,7 @@ export const STORE_STORAGE_KEYS = {
  * @example
  * ```typescript
  * const storageEntries = createTestStorageState({
- *   workspace: "e2e-w0.bridge.local",
+ *   workspace: "e2e-w0.alive.local",
  *   orgId: "org-123",
  * })
  *
@@ -344,7 +344,7 @@ export const STORE_STORAGE_KEYS = {
  * ```
  */
 export interface TestStorageStateOptions {
-  /** Workspace domain (e.g., "e2e-w0.bridge.local") */
+  /** Workspace domain (e.g., "e2e-w0.alive.local") */
   workspace: string
   /** Organization ID */
   orgId: string
