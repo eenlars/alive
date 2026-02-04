@@ -22,7 +22,6 @@ export function WorkspaceInfoBar({
   isTerminal,
   isSuperadminWorkspace,
   onSelectSite,
-  onNewTabGroup,
   onMobilePreview,
   onToggleTabs,
   showTabsToggle = false,
@@ -91,15 +90,6 @@ export function WorkspaceInfoBar({
                   <span>open</span>
                 </a>
               )}
-              <button
-                type="button"
-                onClick={onNewTabGroup}
-                data-testid="new-tab-group-button"
-                className="inline-flex items-center h-7 px-2 md:px-2.5 text-xs font-medium text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] active:scale-95 rounded-full transition-all duration-150"
-              >
-                <span className="hidden sm:inline">+ new</span>
-                <span className="sm:hidden">+</span>
-              </button>
               {showTabsToggle && onToggleTabs && (
                 <button
                   type="button"

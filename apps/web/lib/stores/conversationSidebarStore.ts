@@ -17,6 +17,7 @@ interface ConversationSidebarActions {
 type ConversationSidebarStore = ConversationSidebarState & ConversationSidebarActions
 
 const useConversationSidebarStoreBase = create<ConversationSidebarStore>()(set => ({
+  // Default to closed to keep server and client render consistent.
   isOpen: false,
   actions: {
     toggleSidebar: () => set(state => ({ isOpen: !state.isOpen })),

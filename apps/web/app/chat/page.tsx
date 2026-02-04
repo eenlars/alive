@@ -2,7 +2,6 @@
 import { SUPERADMIN } from "@webalive/shared"
 import { AnimatePresence, motion } from "framer-motion"
 import { PanelLeft } from "lucide-react"
-import { useQueryState } from "nuqs"
 import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import toast, { Toaster } from "react-hot-toast"
 import { FeedbackModal } from "@/components/modals/FeedbackModal"
@@ -42,11 +41,14 @@ import { useOrganizations } from "@/lib/hooks/useOrganizations"
 import { validateOAuthToastParams } from "@/lib/integrations/toast-validation"
 import { useIsSessionExpired } from "@/lib/stores/authStore"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
+import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { isDevelopment, useDebugActions, useDebugVisible, useSandbox, useSSETerminal } from "@/lib/stores/debug-store"
 import { useApiKey, useModel } from "@/lib/stores/llmStore"
 import { useLastSeenStreamSeq, useStreamingActions } from "@/lib/stores/streamingStore"
 import { useTabActions } from "@/lib/stores/tabStore"
 import { useSelectedOrgId } from "@/lib/stores/workspaceStore"
+import { useQueryState } from "nuqs"
+import { QUERY_KEYS } from "@/lib/url/queryState"
 // Local components
 import {
   AgentManagerIndicator,
@@ -96,6 +98,7 @@ function ChatPageContent() {
   )
   const { toggleSidebar } = useSidebarActions()
   const isSidebarOpen = useSidebarOpen()
+  const isHydrated = useAppHydrated()
   const [subdomainInitialized, setSubdomainInitialized] = useState(false)
   const [_showCompletionDots, setShowCompletionDots] = useState(false)
   const modals = useModals()
@@ -136,7 +139,7 @@ function ChatPageContent() {
   } = useTabIsolatedMessages({ workspace })
 
   // Handle ?wk= URL parameter to pre-select workspace (e.g., from widget "Edit me" button)
-  const [wkParam] = useQueryState("wk")
+  const [wkParam] = useQueryState(QUERY_KEYS.workspace)
   useEffect(() => {
     if (mounted && wkParam && wkParam !== workspace) {
       console.log("[ChatPage] Setting workspace from URL param:", wkParam)
@@ -145,7 +148,7 @@ function ChatPageContent() {
   }, [mounted, wkParam, workspace, setWorkspace])
 
   // Sync tab ID to URL for shareable links and browser history
-  const [tabParam, setTabParam] = useQueryState("tab")
+  const [tabParam, setTabParam] = useQueryState(QUERY_KEYS.chatTab)
   const { setActiveTab: setStoreActiveTab } = useTabActions()
   const initialTabRestored = useRef(false)
 
@@ -559,6 +562,7 @@ function ChatPageContent() {
         <button
           type="button"
           onClick={toggleSidebar}
+          suppressHydrationWarning={true}
           className="fixed top-[6px] left-3 z-40 inline-flex items-center justify-center size-10 rounded-xl text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 bg-black/[0.03] dark:bg-white/[0.03] hover:bg-black/[0.07] dark:hover:bg-white/[0.07] active:bg-black/[0.12] dark:active:bg-white/[0.12] active:scale-95 transition-all duration-150 ease-out"
           aria-label="Open tab groups"
         >
@@ -707,25 +711,27 @@ function ChatPageContent() {
           {/* Input */}
           <div className="relative mx-auto w-full md:max-w-2xl">
             {/* Jump to bottom button - positioned above input, transparent background */}
-            <AnimatePresence>
-              {isScrolledAway && messages.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute left-0 right-0 bottom-full mb-2 z-10 flex justify-center pointer-events-none"
-                >
-                  <button
-                    type="button"
-                    onClick={() => forceScrollToBottom()}
-                    className="pointer-events-auto px-3 py-1.5 rounded-full bg-black/80 dark:bg-white/90 text-white dark:text-black text-sm font-medium shadow-lg hover:bg-black dark:hover:bg-white transition-colors active:scale-95"
+            {isHydrated && (
+              <AnimatePresence>
+                {isScrolledAway && messages.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 right-0 bottom-full mb-2 z-10 flex justify-center pointer-events-none"
                   >
-                    ↓ New messages
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <button
+                      type="button"
+                      onClick={() => forceScrollToBottom()}
+                      className="pointer-events-auto px-3 py-1.5 rounded-full bg-black/80 dark:bg-white/90 text-white dark:text-black text-sm font-medium shadow-lg hover:bg-black dark:hover:bg-white transition-colors active:scale-95"
+                    >
+                      ↓ New messages
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
             <ChatInput
               ref={chatInputRef}
               message={msg}
@@ -753,47 +759,56 @@ function ChatPageContent() {
       </div>
 
       {/* Side panel sandbox - desktop only */}
-      <AnimatePresence>
-        {showSandbox && (
-          <motion.div
-            key="desktop-sandbox"
-            initial={{ width: 0 }}
-            animate={{ width: "auto" }}
-            exit={{ width: 0 }}
-            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-            className="hidden md:flex h-full overflow-hidden"
-          >
-            <Sandbox />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {isHydrated && (
+        <AnimatePresence>
+          {showSandbox && (
+            <motion.div
+              key="desktop-sandbox"
+              initial={{ width: 0 }}
+              animate={{ width: "auto" }}
+              exit={{ width: 0 }}
+              transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+              className="hidden md:flex h-full overflow-hidden"
+            >
+              <Sandbox />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       {/* Mobile preview overlay - not shown for claude-bridge workspace */}
-      <AnimatePresence>
-        {modals.mobilePreview && !isSuperadminWorkspace && (
-          <SandboxMobile onClose={modals.closeMobilePreview} busy={busy} statusText={statusText} onStop={stopStreaming}>
-            <ChatInput
-              ref={chatInputRef}
-              message={msg}
-              setMessage={setMsg}
+      {isHydrated && (
+        <AnimatePresence>
+          {modals.mobilePreview && !isSuperadminWorkspace && (
+            <SandboxMobile
+              onClose={modals.closeMobilePreview}
               busy={busy}
-              isReady={isChatReady && !!workspace}
-              isStopping={isStopping}
-              onSubmit={sendMessage}
+              statusText={statusText}
               onStop={stopStreaming}
-              hideToolbar
-              config={{
-                enableAttachments: true,
-                enableCamera: false,
-                maxAttachments: 5,
-                maxFileSize: 20 * 1024 * 1024,
-                placeholder: "Tell me what to change...",
-                onAttachmentUpload: handleAttachmentUpload,
-              }}
-            />
-          </SandboxMobile>
-        )}
-      </AnimatePresence>
+            >
+              <ChatInput
+                ref={chatInputRef}
+                message={msg}
+                setMessage={setMsg}
+                busy={busy}
+                isReady={isChatReady && !!workspace}
+                isStopping={isStopping}
+                onSubmit={sendMessage}
+                onStop={stopStreaming}
+                hideToolbar
+                config={{
+                  enableAttachments: true,
+                  enableCamera: false,
+                  maxAttachments: 5,
+                  maxFileSize: 20 * 1024 * 1024,
+                  placeholder: "Tell me what to change...",
+                  onAttachmentUpload: handleAttachmentUpload,
+                }}
+              />
+            </SandboxMobile>
+          )}
+        </AnimatePresence>
+      )}
 
       {showSSETerminal && <DevTerminal />}
       {modals.feedback && (

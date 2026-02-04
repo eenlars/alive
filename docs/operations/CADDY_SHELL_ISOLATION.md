@@ -1,7 +1,7 @@
 # Caddy Shell Isolation: Preserving SSE Connections During Deploys
 
 **Created**: 2025-12-07
-**Updated**: 2025-12-07 (nginx SNI router fix)
+**Updated**: 2026-02-04 (consolidated to single shell domain go.goalive.nl)
 **Services**: `nginx`, `caddy`, `caddy-shell`, `go.goalive.nl`
 
 ## Problem

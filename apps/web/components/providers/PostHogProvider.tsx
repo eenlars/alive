@@ -29,6 +29,8 @@ function initPostHog() {
 
   posthog.init(posthogKey, {
     api_host: posthogHost,
+    // Use latest defaults for all features including error tracking
+    defaults: "2025-05-24",
     // Enable exception autocapture for error tracking
     autocapture: true,
     capture_pageview: true,

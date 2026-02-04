@@ -17,9 +17,11 @@ import {
   X,
   Zap,
 } from "lucide-react"
-import { useQueryState } from "nuqs"
-import { lazy, Suspense, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
+import { useQueryState } from "nuqs"
+import { QUERY_KEYS } from "@/lib/url/queryState"
+import { SettingsTabLayout } from "./tabs/SettingsTabLayout"
 
 // Lazy load tab components - same as SettingsModal
 const AccountSettings = lazy(() =>
@@ -43,9 +45,6 @@ const FlagsSettings = lazy(() =>
 )
 const AdminSettings = lazy(() =>
   import("@/components/settings/tabs/AdminSettings").then(m => ({ default: m.AdminSettings })),
-)
-const SettingsTabLayout = lazy(() =>
-  import("@/components/settings/tabs/SettingsTabLayout").then(m => ({ default: m.SettingsTabLayout })),
 )
 const IntegrationsList = lazy(() =>
   import("@/components/settings/integrations-list").then(m => ({ default: m.IntegrationsList })),
@@ -100,24 +99,34 @@ interface SettingsPageClientProps {
 }
 
 export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientProps) {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
 
-  // Filter tabs based on admin status
-  const tabs = allTabs.filter(tab => !tab.adminOnly || user?.isAdmin)
+  // Mark hydration as complete after first render
+  // This prevents hydration mismatch when user data loads asynchronously
+  useEffect(() => {
+    setHydrated(true)
+  }, [])
+
+  // Filter tabs based on admin status only after hydration completes
+  // During initial hydration, show all tabs to prevent server/client mismatch
+  const tabs = hydrated && !loading ? allTabs.filter(tab => !tab.adminOnly || !!user?.isAdmin) : allTabs
 
   // Use URL search params to persist active tab across page reloads
-  const [activeTab, setActiveTab] = useQueryState<SettingsTab>("tab", {
+  const [activeTab, setActiveTab] = useQueryState(QUERY_KEYS.settingsTab, {
     defaultValue: initialTab || "account",
-    parse: value => {
+    parse: (value: string) => {
       const parsed = value as SettingsTab
       // Validate that the parsed value is a valid tab
-      if (tabs.some(t => t.id === parsed)) {
+      // Note: During hydration, tabs might not be fully loaded yet,
+      // so we validate against ALL_TABS instead of filtered tabs
+      if (SETTINGS_TABS.includes(parsed)) {
         return parsed
       }
       return initialTab || "account"
     },
-    serialize: value => value,
+    serialize: (value: string) => value,
   })
 
   const handleTabChange = (tabId: SettingsTab) => {
@@ -125,7 +134,17 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
     setSidebarOpen(false)
   }
 
-  const currentTab = tabs.find(t => t.id === activeTab) || tabs[0]
+  // Derive effective tab - if activeTab points to an admin-only tab the user can't see,
+  // fall back to the first available tab
+  const effectiveTab = tabs.find(t => t.id === activeTab) || tabs[0]
+  const currentTab = effectiveTab || { id: "account" as const, label: "Profile", icon: User }
+
+  // Sync URL to effective tab if user doesn't have access to the URL-specified tab
+  useEffect(() => {
+    if (hydrated && !loading && effectiveTab && effectiveTab.id !== activeTab) {
+      void setActiveTab(effectiveTab.id)
+    }
+  }, [hydrated, loading, effectiveTab, activeTab, setActiveTab])
 
   return (
     <div className="h-full bg-zinc-50 dark:bg-zinc-950 flex flex-col md:flex-row">
