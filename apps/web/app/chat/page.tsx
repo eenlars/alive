@@ -615,8 +615,8 @@ function ChatPageContent() {
             tabsExpanded={tabsExpanded}
           />
 
-          {/* Tabs - shown when expanded, or when there are closed tabs to reopen */}
-          {showTabs && (tabsExpanded || closedTabs.length > 0) && (
+          {/* Tabs - shown when there are tabs, or when there are closed tabs to reopen */}
+          {showTabs && (tabs.length > 0 || closedTabs.length > 0) && (
             <TabBar
               tabs={tabs}
               closedTabs={closedTabs}

@@ -1,18 +1,7 @@
 "use client"
 
 import { REFERRAL } from "@webalive/shared"
-import {
-  Archive,
-  ArchiveRestore,
-  Check,
-  ChevronRight,
-  Heart,
-  PanelLeftClose,
-  Pencil,
-  Plus,
-  Settings2,
-  X,
-} from "lucide-react"
+import { Archive, ArchiveRestore, Check, ChevronRight, Heart, PanelLeftClose, Pencil, Settings2, X } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useDexieArchivedConversations, useDexieConversations, useDexieSession } from "@/lib/db/dexieMessageStore"
 import type { DbConversation } from "@/lib/db/messageDb"
@@ -35,18 +24,21 @@ const styles = {
   textPrimary: "text-black dark:text-white",
   textMuted: "text-black/40 dark:text-white/40",
   textSubtle: "text-black/30 dark:text-white/30",
+  // Button styles
+  iconButton:
+    "inline-flex items-center justify-center size-8 rounded-lg text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.07] dark:hover:bg-white/[0.08] active:bg-black/[0.12] dark:active:bg-white/[0.12] active:scale-95",
   // Transitions
   transition: "transition-colors duration-150 ease-in-out",
   transitionAll: "transition-all duration-150 ease-in-out",
 } as const
 
-// Reusable close button component - matches header icon button style
+// Reusable close button component
 function CloseButton({ onClick, isMobile }: { onClick: () => void; isMobile?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center justify-center size-10 rounded-xl text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 bg-black/[0.03] dark:bg-white/[0.03] hover:bg-black/[0.07] dark:hover:bg-white/[0.07] active:bg-black/[0.12] dark:active:bg-white/[0.12] active:scale-95 transition-all duration-150 ease-out"
+      className={`${styles.iconButton} ${styles.transitionAll}`}
       aria-label="Close sidebar"
     >
       {isMobile ? <X size={18} strokeWidth={1.75} /> : <PanelLeftClose size={18} strokeWidth={1.75} />}
@@ -162,31 +154,32 @@ export function ConversationSidebar({
       {/* Header */}
       <div className={`flex items-center justify-between px-4 py-3.5 border-b ${styles.borderSubtle}`}>
         <h2 className={`text-sm font-medium ${styles.textPrimary}`}>Conversations</h2>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              onNewConversation()
-              if (isMobile) closeSidebar()
-            }}
-            className="inline-flex items-center justify-center size-10 rounded-xl text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 bg-black/[0.03] dark:bg-white/[0.03] hover:bg-black/[0.07] dark:hover:bg-white/[0.07] active:bg-black/[0.12] dark:active:bg-white/[0.12] active:scale-95 transition-all duration-150 ease-out"
-            aria-label="New conversation"
-          >
-            <Plus size={18} strokeWidth={1.75} />
-          </button>
-          <CloseButton onClick={closeSidebar} isMobile={isMobile} />
-        </div>
+        <CloseButton onClick={closeSidebar} isMobile={isMobile} />
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto flex flex-col">
         {conversations.length === 0 && archivedConversations.length === 0 ? (
           <EmptyState>No conversations yet</EmptyState>
         ) : (
-          <div className="py-1">
-            {/* Active conversations */}
+          <>
+            {/* New Chat button */}
+            <div className="px-2 py-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  onNewConversation()
+                  if (isMobile) closeSidebar()
+                }}
+                className={`w-full flex items-center justify-center py-2 px-3 rounded-lg text-sm ${styles.activeFill} ${styles.hoverFillStrong} ${styles.transition} ${styles.textPrimary}`}
+              >
+                New Chat
+              </button>
+            </div>
+
+            {/* Active conversations - grows to fill space */}
             {conversations.length > 0 && (
-              <div>
+              <div className="flex-1 overflow-y-auto border-t border-black/[0.06] dark:border-white/[0.06]">
                 {conversations.map(conversation => (
                   <ConversationItem
                     key={conversation.id}
@@ -202,14 +195,17 @@ export function ConversationSidebar({
                 ))}
               </div>
             )}
+            {conversations.length > 0 && (
+              <div className="border-b border-black/[0.06] dark:border-white/[0.06] shrink-0" />
+            )}
 
-            {/* Archived section */}
+            {/* Archived section - always at bottom */}
             {archivedConversations.length > 0 && (
-              <div className="mt-2">
+              <div className="shrink-0 border-t border-black/[0.06] dark:border-white/[0.06]">
                 <button
                   type="button"
                   onClick={() => setArchivedExpanded(prev => !prev)}
-                  className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium ${styles.textMuted} hover:text-black/60 dark:hover:text-white/60 ${styles.hoverFill} ${styles.transition} rounded-lg mx-1`}
+                  className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium ${styles.textMuted} hover:text-black/60 dark:hover:text-white/60 ${styles.hoverFill} ${styles.transition}`}
                 >
                   <ChevronRight
                     size={14}
@@ -234,7 +230,7 @@ export function ConversationSidebar({
                 )}
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
@@ -295,31 +291,31 @@ function FooterActions({
 }) {
   return (
     <div className={`border-t ${styles.borderSubtle}`}>
-      <div className="p-3 space-y-2">
+      <div className="px-2 py-2.5 space-y-1.5">
         {REFERRAL.ENABLED && (
           <button
             type="button"
             onClick={onOpenInvite}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl ${styles.activeFill} ${styles.hoverFillStrong} ${styles.transition} group`}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg ${styles.activeFill} ${styles.hoverFillStrong} ${styles.transition} group`}
           >
             <Heart
-              size={18}
-              className={`${styles.textMuted} group-hover:text-black/60 dark:group-hover:text-white/60`}
+              size={16}
+              className={`shrink-0 ${styles.textMuted} group-hover:text-black/60 dark:group-hover:text-white/60 ${styles.transition}`}
             />
             <div className="flex-1 min-w-0 text-left">
               <div className={`text-sm ${styles.textPrimary} truncate`}>Share Alive</div>
               <div className={`text-xs ${styles.textMuted} truncate`}>with someone you love</div>
             </div>
-            <ChevronRight size={14} className={styles.textSubtle} />
+            <ChevronRight size={14} className={`shrink-0 ${styles.textSubtle}`} />
           </button>
         )}
         <button
           type="button"
           onClick={onOpenSettings}
-          className="inline-flex items-center justify-center size-10 rounded-xl text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 bg-black/[0.03] dark:bg-white/[0.03] hover:bg-black/[0.07] dark:hover:bg-white/[0.07] active:bg-black/[0.12] dark:active:bg-white/[0.12] active:scale-95 transition-all duration-150 ease-out"
+          className={`${styles.iconButton} ${styles.transitionAll}`}
           aria-label="Settings"
         >
-          <Settings2 size={18} strokeWidth={1.75} />
+          <Settings2 size={16} strokeWidth={1.75} />
         </button>
       </div>
       {/* iOS 26 Liquid Glass: extend background into bottom safe area */}
@@ -338,7 +334,7 @@ function StreamingDot() {
   )
 }
 
-// Conversation item component
+// Conversation item component - refined with clarity and intention
 function ConversationItem({
   conversation,
   isActive,
@@ -394,16 +390,23 @@ function ConversationItem({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: Interactive when not editing
     <div
-      className={`mx-2 px-3 py-2.5 rounded-xl cursor-pointer group ${styles.transition} ${
-        isActive ? `${styles.activeFill} ring-1 ring-black/[0.08] dark:ring-white/[0.08]` : styles.hoverFill
-      } text-left`}
+      className="border-b border-black/[0.06] dark:border-white/[0.06] last:border-b-0 group"
+      onClick={isEditing ? undefined : onClick}
+      tabIndex={isEditing ? undefined : 0}
+      onKeyDown={e => {
+        if (!isEditing && (e.key === "Enter" || e.key === " ")) {
+          onClick?.()
+        }
+      }}
     >
-      <button
-        type="button"
-        disabled={isEditing}
-        onClick={isEditing ? undefined : onClick}
-        className="w-full flex items-start justify-between gap-2 text-left disabled:cursor-default bg-transparent border-none p-0 cursor-pointer"
+      <div
+        className={`
+          w-full px-4 py-3 flex items-start justify-between gap-3
+          text-left ${styles.transitionAll} cursor-pointer
+          ${isActive ? "bg-black/[0.02] dark:bg-white/[0.02]" : "hover:bg-black/[0.01] dark:hover:bg-white/[0.01]"}
+        `}
       >
         <div className="flex-1 min-w-0">
           {isEditing ? (
@@ -414,7 +417,12 @@ function ConversationItem({
               onChange={e => setEditValue(e.target.value)}
               onBlur={handleSaveEdit}
               onKeyDown={handleEditKeyDown}
-              className={`w-full text-sm font-medium ${styles.textPrimary} bg-black/[0.02] dark:bg-white/[0.04] border-0 rounded-lg px-2 py-1 outline-none ring-1 ring-black/[0.12] dark:ring-white/[0.12] focus:ring-black/[0.2] dark:focus:ring-white/[0.2] transition-all duration-150`}
+              onClick={e => e.stopPropagation()}
+              className={`
+                w-full text-sm font-medium ${styles.textPrimary}
+                bg-transparent outline-none
+                ${styles.transitionAll}
+              `}
             />
           ) : (
             <div className={`text-sm font-medium ${styles.textPrimary} line-clamp-2 flex items-center gap-2`}>
@@ -422,43 +430,90 @@ function ConversationItem({
               <span className="flex-1 min-w-0 truncate">{conversation.title}</span>
             </div>
           )}
-          <div className={`text-xs ${styles.textMuted} mt-0.5 flex items-center gap-1.5`}>
+          <div className={`text-xs ${styles.textMuted} mt-1 flex items-center gap-1.5`}>
             <span>{formatTimestamp(conversation.updatedAt)}</span>
             <span className={styles.textSubtle}>·</span>
             <span>{conversation.messageCount ?? 0} messages</span>
           </div>
         </div>
-      </button>
-      {!isEditing && (
-        <div className="flex items-center gap-0.5 shrink-0 mt-2 -mx-3 -mb-2 px-3 pb-2">
-          {isConfirming && (
+
+        {!isEditing && (
+          <div
+            className={`
+            flex items-center gap-2 shrink-0 -mx-2 px-2
+            opacity-40 md:opacity-0 md:group-hover:opacity-100
+            transition-opacity duration-150
+          `}
+          >
+            {/* Cancel archive button */}
+            {isConfirming && (
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation()
+                  onCancelArchive(e)
+                }}
+                className={`
+                  size-6 rounded flex items-center justify-center
+                  text-black/50 dark:text-white/50
+                  hover:text-black/70 dark:hover:text-white/70
+                  hover:bg-black/[0.05] dark:hover:bg-white/[0.08]
+                  ${styles.transitionAll}
+                  active:scale-90
+                `}
+                aria-label="Cancel archive"
+              >
+                <X size={13} strokeWidth={2.5} />
+              </button>
+            )}
+
+            {/* Rename button */}
             <button
               type="button"
-              onClick={onCancelArchive}
-              className={`opacity-100 size-7 rounded-full flex items-center justify-center ${styles.hoverFillStrong} ${styles.transitionAll} active:scale-95 text-black/40 dark:text-white/40`}
-              aria-label="Cancel archive"
+              onClick={e => {
+                e.stopPropagation()
+                handleStartEdit(e)
+              }}
+              className={`
+                ${isConfirming ? "hidden" : ""}
+                size-6 rounded flex items-center justify-center
+                text-black/40 dark:text-white/40
+                hover:text-black/60 dark:hover:text-white/60
+                hover:bg-black/[0.05] dark:hover:bg-white/[0.08]
+                ${styles.transitionAll}
+                active:scale-90
+              `}
+              aria-label="Rename conversation"
             >
-              <X size={13} />
+              <Pencil size={13} strokeWidth={1.75} />
             </button>
-          )}
-          <button
-            type="button"
-            onClick={handleStartEdit}
-            className={`${isConfirming ? "hidden" : "opacity-40 md:opacity-0 md:group-hover:opacity-100"} size-7 rounded-full flex items-center justify-center ${styles.hoverFillStrong} ${styles.transitionAll} active:scale-95 md:hover:scale-110`}
-            aria-label="Rename conversation"
-          >
-            <Pencil size={13} className={styles.textMuted} />
-          </button>
-          <button
-            type="button"
-            onClick={e => onArchive(e, conversation)}
-            className={`${isConfirming ? "bg-black dark:bg-white text-white dark:text-black" : "opacity-40 md:opacity-0 md:group-hover:opacity-100"} size-7 rounded-full flex items-center justify-center ${isConfirming ? "" : styles.hoverFillStrong} ${styles.transitionAll} active:scale-95 md:hover:scale-110`}
-            aria-label={isConfirming ? "Confirm archive" : "Archive conversation"}
-          >
-            {isConfirming ? <Check size={13} /> : <Archive size={13} className={styles.textMuted} />}
-          </button>
-        </div>
-      )}
+
+            {/* Archive button */}
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation()
+                onArchive(e, conversation)
+              }}
+              className={`
+                size-6 rounded flex items-center justify-center
+                ${styles.transitionAll}
+                active:scale-90
+                ${
+                  isConfirming
+                    ? "bg-black/[0.15] dark:bg-white/[0.15] text-black dark:text-white hover:bg-black/[0.2] dark:hover:bg-white/[0.2]"
+                    : `text-black/40 dark:text-white/40
+                       hover:text-black/60 dark:hover:text-white/60
+                       hover:bg-black/[0.05] dark:hover:bg-white/[0.08]`
+                }
+              `}
+              aria-label={isConfirming ? "Confirm archive" : "Archive conversation"}
+            >
+              {isConfirming ? <Check size={13} strokeWidth={3} /> : <Archive size={13} strokeWidth={1.75} />}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -474,12 +529,12 @@ function ArchivedConversationItem({
   onRestore: () => void
 }) {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={`mx-2 px-3 py-2 rounded-xl group cursor-pointer ${styles.transition} ${styles.hoverFill} w-full text-left`}
-    >
-      <div className="flex items-center justify-between gap-2">
+    <div className="border-b border-black/[0.06] dark:border-white/[0.06] last:border-b-0 group">
+      <button
+        type="button"
+        onClick={onOpen}
+        className={`w-full px-4 py-3 flex items-center justify-between gap-3 text-left cursor-pointer ${styles.transition} ${styles.hoverFill}`}
+      >
         <div className="flex-1 min-w-0 opacity-50 group-hover:opacity-70 transition-opacity">
           <div className={`text-sm ${styles.textPrimary} truncate`}>{conversation.title}</div>
           <div className={`text-xs ${styles.textMuted} mt-0.5`}>
@@ -501,13 +556,13 @@ function ArchivedConversationItem({
               onRestore()
             }
           }}
-          className={`opacity-40 md:opacity-0 md:group-hover:opacity-100 size-7 rounded-full flex items-center justify-center ${styles.hoverFillStrong} ${styles.transitionAll} active:scale-95 md:hover:scale-110`}
+          className={`opacity-40 md:opacity-0 md:group-hover:opacity-100 size-6 rounded flex items-center justify-center text-black/40 dark:text-white/40 hover:text-black/60 dark:hover:text-white/60 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] ${styles.transitionAll} active:scale-90 shrink-0`}
           aria-label="Restore without opening"
         >
-          <ArchiveRestore size={13} className={styles.textMuted} />
+          <ArchiveRestore size={13} strokeWidth={1.75} />
         </span>
-      </div>
-    </button>
+      </button>
+    </div>
   )
 }
 

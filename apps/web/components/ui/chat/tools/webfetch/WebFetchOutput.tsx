@@ -24,7 +24,7 @@ function getHostname(url: string): string {
 }
 
 export function WebFetchOutput({ content, url, error }: WebFetchOutputProps) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const hostname = url ? getHostname(url) : "website"
 
   // Error state - compact inline error

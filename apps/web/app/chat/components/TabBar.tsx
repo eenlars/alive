@@ -97,89 +97,95 @@ export function TabBar({
   }, [showClosedMenu])
 
   return (
-    <div data-testid="tab-bar" className="flex-shrink-0 border-b border-black/[0.04] dark:border-white/[0.04]">
-      <div className="px-3 md:px-6 mx-auto w-full md:max-w-2xl">
-        <div className="flex items-center gap-1 py-1.5 overflow-x-auto scrollbar-hide">
-          {tabs.length > 0 && (
-            <>
-              {tabs.map(tab => {
-                const isActive = tab.id === activeTabId
-                const isEditing = tab.id === editingId
+    <div data-testid="tab-bar" className="flex-shrink-0 border-b border-black/[0.06] dark:border-white/[0.06]">
+      <div className="px-3 md:px-6 mx-auto w-full">
+        <div className="flex items-center justify-between py-2 pb-0">
+          {/* Left side: tabs and add button */}
+          <div className="flex items-center gap-2 min-w-0 overflow-x-auto scrollbar-hide flex-1">
+            {tabs.length > 0 && (
+              <>
+                {tabs.map(tab => {
+                  const isActive = tab.id === activeTabId
+                  const isEditing = tab.id === editingId
 
-                return (
-                  <div
-                    key={tab.id}
-                    data-testid={`tab-${tab.id}`}
-                    data-tab-name={tab.name}
-                    data-active={isActive}
-                    className={`group flex items-center gap-1 h-7 px-2.5 text-xs font-medium rounded-full transition-all duration-150 min-w-0 ${
-                      isActive
-                        ? "bg-black/[0.08] dark:bg-white/[0.08] text-black/80 dark:text-white/80"
-                        : "text-black/40 dark:text-white/40 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-black/70 dark:hover:text-white/70"
-                    }`}
-                  >
-                    {isEditing ? (
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={editValue}
-                        onChange={e => setEditValue(e.target.value)}
-                        onBlur={commitEdit}
-                        onKeyDown={handleKeyDown}
-                        className="bg-transparent border-none outline-none w-16 text-xs font-medium text-black dark:text-white"
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onTabSelect(tab.id)}
-                        onDoubleClick={() => startEdit(tab.id, tab.name)}
-                        className="truncate max-w-20 bg-transparent border-none cursor-pointer"
-                      >
-                        {tab.name}
-                      </button>
-                    )}
-                    {tabs.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation()
-                          onTabClose(tab.id)
-                        }}
-                        data-testid={`close-tab-${tab.id}`}
-                        className={`size-4 flex items-center justify-center rounded-full transition-all duration-150 hover:bg-black/[0.08] dark:hover:bg-white/[0.08] ${
-                          isActive
-                            ? "opacity-50 hover:opacity-100"
-                            : "opacity-0 group-hover:opacity-50 hover:!opacity-100"
-                        }`}
-                        aria-label={`Close ${tab.name}`}
-                      >
-                        <X size={10} strokeWidth={2} />
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-              <button
-                type="button"
-                onClick={onAddTab}
-                data-testid="add-tab-button"
-                className="flex items-center justify-center size-7 rounded-full text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-all duration-150"
-                title="Add new tab"
-              >
-                <Plus size={14} strokeWidth={2} />
-              </button>
-            </>
-          )}
+                  return (
+                    <div
+                      key={tab.id}
+                      data-testid={`tab-${tab.id}`}
+                      data-tab-name={tab.name}
+                      data-active={isActive}
+                      className={`group relative flex items-center h-9 px-3 text-xs font-medium rounded-t-lg transition-all duration-200 min-w-32 shrink-0 ${
+                        isActive
+                          ? "bg-black/[0.06] dark:bg-white/[0.06] text-black dark:text-white pb-0"
+                          : "text-black/60 dark:text-white/60 hover:text-black/80 dark:hover:text-white/80 hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                      }`}
+                    >
+                      {isActive && (
+                        <div className="absolute -bottom-2 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-t transition-all duration-200" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        {isEditing ? (
+                          <input
+                            ref={inputRef}
+                            type="text"
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onBlur={commitEdit}
+                            onKeyDown={handleKeyDown}
+                            className="w-full bg-transparent border-none outline-none text-xs font-medium text-black dark:text-white"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onTabSelect(tab.id)}
+                            onDoubleClick={() => startEdit(tab.id, tab.name)}
+                            className="w-full truncate text-left bg-transparent border-none cursor-pointer"
+                          >
+                            {tab.name}
+                          </button>
+                        )}
+                      </div>
+                      {tabs.length > 1 && !isEditing && (
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation()
+                            onTabClose(tab.id)
+                          }}
+                          data-testid={`close-tab-${tab.id}`}
+                          className="size-5 flex-shrink-0 flex items-center justify-center rounded-md transition-all duration-200 text-black/35 dark:text-white/35 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-hover:text-black/60 dark:group-hover:text-white/60 hover:bg-black/[0.08] dark:hover:bg-white/[0.08] ml-1"
+                          aria-label={`Close ${tab.name}`}
+                        >
+                          <X size={12} strokeWidth={2} />
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+                <button
+                  type="button"
+                  onClick={onAddTab}
+                  data-testid="add-tab-button"
+                  className="flex items-center justify-center size-8 rounded-full text-black/50 dark:text-white/50 hover:text-black/80 dark:hover:text-white/80 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-all duration-200 shrink-0"
+                  title="Add new tab"
+                >
+                  <Plus size={16} strokeWidth={2} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Right side: history/rewind button */}
           {closedTabs.length > 0 && (
-            <>
+            <div className="flex items-center shrink-0">
               <button
                 ref={closedBtnRef}
                 type="button"
                 onClick={() => setShowClosedMenu(prev => !prev)}
-                className="flex items-center justify-center size-7 rounded-full text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-all duration-150"
+                className="flex items-center justify-center size-8 rounded-full text-black/50 dark:text-white/50 hover:text-black/80 dark:hover:text-white/80 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-all duration-200"
                 title="Reopen closed tab"
               >
-                <History size={14} strokeWidth={2} />
+                <History size={16} strokeWidth={2} />
               </button>
               {showClosedMenu &&
                 createPortal(
@@ -207,7 +213,7 @@ export function TabBar({
                   </div>,
                   document.body,
                 )}
-            </>
+            </div>
           )}
         </div>
       </div>
