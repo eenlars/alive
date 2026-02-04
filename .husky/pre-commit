@@ -1,6 +1,13 @@
 #!/bin/sh
 # .husky/pre-commit
 
+# SECURITY: Block .env files immediately (fast check)
+if ! ./scripts/validation/check-no-env-files.sh; then
+    echo ""
+    echo "❌ SECURITY: .env files staged. Remove them before committing."
+    exit 1
+fi
+
 # Pre-commit hooks should be instant
 # Only format files that are staged for commit (not the entire repo)
 bun x lint-staged

@@ -8,6 +8,7 @@
 #   - enabled: true/false to enable/disable the check
 
 declare -a CHECKS=(
+    "env-files|No .env files in git|check-no-env-files.sh|true"
     "workspace|Workspace validation|detect-workspace-issues.sh|true"
     "knip|Dead code detection (Knip)|check-knip.sh|false"
     "lint|Linting (Biome)|check-lint.sh|true"

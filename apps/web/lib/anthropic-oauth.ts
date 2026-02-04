@@ -288,3 +288,25 @@ export function hasOAuthCredentials(): boolean {
   const credentials = readClaudeCredentials()
   return credentials !== null && !!credentials.refreshToken
 }
+
+/**
+ * Get access token WITHOUT refreshing. Returns null if expired.
+ * Use this in production to avoid competing with CLI for token refresh.
+ * If token is expired, user should run /login in CLI.
+ */
+export function getAccessTokenReadOnly(): {
+  accessToken: string
+  expiresAt: number
+  isExpired: boolean
+} | null {
+  const credentials = readClaudeCredentials()
+  if (!credentials) {
+    return null
+  }
+
+  return {
+    accessToken: credentials.accessToken,
+    expiresAt: credentials.expiresAt,
+    isExpired: isTokenExpired(credentials.expiresAt),
+  }
+}

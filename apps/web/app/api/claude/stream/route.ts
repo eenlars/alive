@@ -20,7 +20,7 @@ import { hasSessionCookie } from "@/features/auth/types/guards"
 import { isInputSafe } from "@/features/chat/lib/formatMessage"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
-import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
+import { getAccessTokenReadOnly, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import {
   BRIDGE_STREAM_TYPES,
@@ -187,53 +187,48 @@ export async function POST(req: NextRequest) {
       }
       cwd = workspaceResult.workspace
 
-      // Determine which API key to use: org credits vs user-provided key vs OAuth
-      const orgCredits = (await getOrgCredits(resolvedWorkspaceName)) ?? 0
-      const COST_ESTIMATE = 1 // Conservative estimate - 1 credit minimum for 200 credit starting balance
-
-      // Case 1: Workspace has sufficient credits - use them
-      if (orgCredits >= COST_ESTIMATE) {
-        tokenSource = "workspace"
-        logger.log(`Using org credits (${orgCredits} available)`)
-      }
-      // Case 2: User provided their own API key - use it
-      else if (userApiKey) {
-        tokenSource = "user_provided"
-        logger.log(`Using user-provided API key (workspace has ${orgCredits} credits)`)
-      }
-      // Case 3: Try OAuth credentials from ~/.claude/.credentials.json
-      else if (hasOAuthCredentials()) {
-        logger.log(`Workspace has ${orgCredits} credits, trying OAuth credentials...`)
-        try {
-          const oauthResult = await getValidAccessToken()
-          if (oauthResult) {
-            effectiveApiKey = oauthResult.accessToken // Use OAuth token as API key
-            tokenSource = "user_provided" // Treat as user-provided (no credit deduction)
-            logger.log(`Using OAuth token (refreshed: ${oauthResult.refreshed})`)
-          } else {
-            logger.log("OAuth credentials exist but token retrieval failed")
-            return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {
-              workspace: resolvedWorkspaceName,
-              requestId,
-              message: "OAuth token expired and refresh failed",
-            })
-          }
-        } catch (oauthError) {
-          logger.error("OAuth token refresh failed:", oauthError)
+      // Step 1: Get API key for authentication (user-provided OR OAuth)
+      // Workers run as non-root and cannot read /root/.claude/.credentials.json,
+      // so we MUST pass the API key via IPC.
+      if (userApiKey) {
+        logger.log("Using user-provided API key")
+      } else if (hasOAuthCredentials()) {
+        // OAuth: Don't pass token as API key - SDK reads credentials file directly
+        // Workers have CLAUDE_CONFIG_DIR=/root/.claude and file has 644 permissions
+        logger.log("Using OAuth credentials (SDK reads from CLAUDE_CONFIG_DIR)")
+        const oauthResult = getAccessTokenReadOnly()
+        if (oauthResult?.isExpired) {
+          logger.log("OAuth token expired - user needs to run /login")
           return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {
             workspace: resolvedWorkspaceName,
             requestId,
-            message: oauthError instanceof Error ? oauthError.message : "OAuth refresh failed",
+            message: "OAuth token expired. Please run /login in Claude Code CLI to refresh.",
           })
         }
-      }
-      // Case 4: No credits, no API key, no OAuth - reject
-      else {
-        logger.log(`Insufficient credits (${orgCredits}/${COST_ESTIMATE} required) and no fallback API key or OAuth`)
+        // effectiveApiKey stays undefined - worker will use OAuth
+      } else {
+        logger.log("No API key or OAuth credentials available")
         return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {
           workspace: resolvedWorkspaceName,
           requestId,
+          message: "No API key available. Please provide an API key or run /login",
         })
+      }
+
+      // Step 2: Determine billing (workspace credits vs user-provided)
+      const orgCredits = (await getOrgCredits(resolvedWorkspaceName)) ?? 0
+      const COST_ESTIMATE = 1
+
+      if (orgCredits >= COST_ESTIMATE) {
+        tokenSource = "workspace"
+        logger.log(`Billing: workspace credits (${orgCredits} available)`)
+      } else if (userApiKey) {
+        tokenSource = "user_provided"
+        logger.log(`Billing: user-provided key (workspace has ${orgCredits} credits)`)
+      } else {
+        // Using OAuth - no credit deduction
+        tokenSource = "user_provided"
+        logger.log(`Billing: OAuth (no credit deduction, workspace has ${orgCredits} credits)`)
       }
     } catch (workspaceError) {
       logger.error("Workspace resolution failed:", workspaceError)
