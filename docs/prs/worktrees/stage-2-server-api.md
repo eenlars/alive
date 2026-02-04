@@ -9,6 +9,18 @@
 - Resolve base workspace via `getWorkspace({ host, body, requestId })`.
 - All git operations must run via `runAsWorkspaceUser` on the base workspace.
 
+## Type-Safe API Pattern (Required)
+- Define schemas in `apps/web/lib/api/schemas.ts`:
+  - `worktrees` (GET)
+  - `worktrees/create` (POST)
+  - `worktrees/delete` (DELETE)
+- Use `handleBody` + `isHandleBodyError` for POST bodies.
+- Return success responses via `alrighty(endpoint, payload)` to enforce schema.
+- Errors should use `structuredErrorResponse(ErrorCodes.*)` or `createErrorResponse(ErrorCodes.*)` for consistency with the codebase.
+- For client calls, prefer typed helpers from `apps/web/lib/api/api-client.ts` (`getty`, `postty`, `delly`) with `pathOverride` when sharing the same `/api/worktrees` route.
+- For server-side typing, use `Res<"worktrees">` and `Res<"worktrees/create">` to avoid manual type duplication.
+- Reference: `apps/web/lib/api/README.md`.
+
 ## POST /api/worktrees
 
 ### Body
@@ -44,7 +56,7 @@
 
 ## DELETE /api/worktrees
 
-### Body
+### Query
 - `workspace: string` domain
 - `slug: string`
 - `deleteBranch?: boolean`
@@ -59,5 +71,5 @@
 - `409` worktree dirty or lock held.
 
 ## Error Handling
-- Use `ErrorCodes` + `createErrorResponse` for consistency.
-- Ensure response includes `requestId` for debugging.
+- Use `ErrorCodes` with `structuredErrorResponse` or `createErrorResponse`.
+- Include `requestId` on error responses when available.

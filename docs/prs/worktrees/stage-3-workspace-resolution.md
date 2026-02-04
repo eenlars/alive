@@ -2,7 +2,7 @@
 
 ## Request Shape
 - Continue sending `workspace: <domain>` for auth.
-- Add optional `worktree: <slug>` in request bodies and query params where relevant.
+- Add optional `worktree: <slug>` in request bodies (POST) and query params (GET/DELETE).
 
 ## Workspace Resolution Changes
 - Update the resolver used by API routes to:

@@ -47,12 +47,7 @@ Returns:
 
 ### Remove
 
-`DELETE /api/worktrees`
-
-Body:
-- `workspace` domain
-- `slug`
-- `deleteBranch` optional
+`DELETE /api/worktrees?workspace=<domain>&slug=<slug>&deleteBranch=true`
 
 Returns:
 - `{ ok: true }`
@@ -83,3 +78,15 @@ Returns:
 - `WORKTREE_INVALID_FROM` for invalid base refs.
 - `WORKTREE_LOCKED` when a worktree lock is held.
 - `WORKTREE_DIRTY` when removing a dirty worktree without override.
+
+## Typed API Pattern
+
+- Add schemas in `apps/web/lib/api/schemas.ts` for:
+  - `worktrees` (GET)
+  - `worktrees/create` (POST)
+  - `worktrees/delete` (DELETE)
+- Use `handleBody` + `alrighty` server-side.
+- Use typed client helpers with `pathOverride`:
+  - `getty("worktrees", ..., "/api/worktrees?workspace=...")`
+  - `postty("worktrees/create", body, ..., "/api/worktrees")`
+  - `delly("worktrees/delete", ..., "/api/worktrees?workspace=...&slug=...")`

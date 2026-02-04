@@ -9,6 +9,7 @@
 - Slug input with live validation and auto-suggest.
 - Optional base branch input. Default to the current branch if available.
 - Submit calls `POST /api/worktrees` and shows progress.
+  - Use typed client: `postty("worktrees/create", body, undefined, "/api/worktrees")`.
 
 ### After Create
 - Switch to the new worktree immediately.
@@ -18,6 +19,11 @@
 - Add `currentWorktree` to the workspace store.
 - Persist by workspace domain so each site has its own selection.
 - Include `worktree` in all requests that resolve a workspace path.
+
+## Typed API Calls (Client)
+- List: `getty("worktrees", undefined, "/api/worktrees?workspace=<domain>")`
+- Create: `postty("worktrees/create", body, undefined, "/api/worktrees")`
+- Delete: `delly("worktrees/delete", undefined, "/api/worktrees?workspace=<domain>&slug=<slug>&deleteBranch=true")`
 
 ## Session and Concurrency Scoping
 Goal: avoid collisions between base workspace and worktrees.

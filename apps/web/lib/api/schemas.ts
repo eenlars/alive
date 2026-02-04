@@ -463,6 +463,57 @@ export const apiSchemas = {
   },
 
   /**
+   * GET /api/worktrees?workspace=<domain>
+   * List worktrees for a workspace
+   */
+  worktrees: {
+    req: z.undefined().brand<"WorktreesRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      worktrees: z.array(
+        z.object({
+          slug: z.string(),
+          pathRelative: z.string(),
+          branch: z.string().nullable(),
+          head: z.string().nullable(),
+        }),
+      ),
+    }),
+  },
+
+  /**
+   * POST /api/worktrees
+   * Create a worktree
+   */
+  "worktrees/create": {
+    req: z
+      .object({
+        workspace: z.string(),
+        slug: z.string().optional(),
+        branch: z.string().optional(),
+        from: z.string().optional(),
+      })
+      .brand<"WorktreesCreateRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      slug: z.string(),
+      branch: z.string(),
+      worktreePath: z.string(),
+    }),
+  },
+
+  /**
+   * DELETE /api/worktrees?workspace=<domain>&slug=<slug>
+   * Remove a worktree
+   */
+  "worktrees/delete": {
+    req: z.undefined().brand<"WorktreesDeleteRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+    }),
+  },
+
+  /**
    * GET /api/automations/[id]/runs
    * List runs for an automation job
    */

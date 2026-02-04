@@ -10,6 +10,16 @@ export const ErrorCodes = {
   WORKSPACE_NOT_AUTHENTICATED: "WORKSPACE_NOT_AUTHENTICATED",
   PATH_OUTSIDE_WORKSPACE: "PATH_OUTSIDE_WORKSPACE",
 
+  // Worktree errors (1.5xxx)
+  WORKTREE_NOT_GIT: "WORKTREE_NOT_GIT",
+  WORKTREE_NOT_FOUND: "WORKTREE_NOT_FOUND",
+  WORKTREE_EXISTS: "WORKTREE_EXISTS",
+  WORKTREE_INVALID_SLUG: "WORKTREE_INVALID_SLUG",
+  WORKTREE_INVALID_BRANCH: "WORKTREE_INVALID_BRANCH",
+  WORKTREE_INVALID_FROM: "WORKTREE_INVALID_FROM",
+  WORKTREE_LOCKED: "WORKTREE_LOCKED",
+  WORKTREE_DIRTY: "WORKTREE_DIRTY",
+
   // Authentication errors (2xxx)
   NO_SESSION: "NO_SESSION",
   AUTH_REQUIRED: "AUTH_REQUIRED",
@@ -156,6 +166,30 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
       return details?.attemptedPath
         ? `I cannot access '${details.attemptedPath}' - it's outside my allowed workspace. I can only access files within your project directory.`
         : "I cannot access this file - it's outside my allowed workspace. I can only access files within your project directory."
+
+    case ErrorCodes.WORKTREE_NOT_GIT:
+      return "This workspace does not appear to be a git repository."
+
+    case ErrorCodes.WORKTREE_NOT_FOUND:
+      return details?.slug ? `I cannot find the worktree '${details.slug}'.` : "I cannot find that worktree."
+
+    case ErrorCodes.WORKTREE_EXISTS:
+      return details?.slug ? `The worktree '${details.slug}' already exists.` : "That worktree already exists."
+
+    case ErrorCodes.WORKTREE_INVALID_SLUG:
+      return "The worktree slug is invalid. Use lowercase letters, numbers, and hyphens."
+
+    case ErrorCodes.WORKTREE_INVALID_BRANCH:
+      return "The branch name is invalid."
+
+    case ErrorCodes.WORKTREE_INVALID_FROM:
+      return "The base ref does not exist."
+
+    case ErrorCodes.WORKTREE_LOCKED:
+      return "A worktree operation is already in progress. Please retry in a moment."
+
+    case ErrorCodes.WORKTREE_DIRTY:
+      return "The worktree has uncommitted changes. Commit or clean it before removing."
 
     case ErrorCodes.NO_SESSION:
     case ErrorCodes.AUTH_REQUIRED:
