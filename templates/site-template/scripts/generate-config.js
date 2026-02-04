@@ -5,6 +5,7 @@
 
 const fs = require("node:fs")
 const path = require("node:path")
+const { parse } = require("tldts")
 
 const [domain, port, targetDir] = process.argv.slice(2)
 
@@ -32,6 +33,10 @@ if (Number.isNaN(portNum) || portNum < 1024 || portNum > 65535) {
 const safeName = domain.replace(/\./g, "-")
 const packageName = domain.replace(/\./g, "_")
 
+// Compute registrable domain (eTLD+1) for safe allowedHosts
+const registrableDomain = parse(domain).domain ?? domain
+const allowedHosts = [domain, `.${registrableDomain}`]
+
 // Generate vite.config.ts
 const viteConfig = `import path from "node:path";
 import react from "@vitejs/plugin-react-swc";
@@ -43,7 +48,7 @@ export default defineConfig(({ mode }) => ({
 	server: {
 		host: "::",
 		port: ${port},
-		allowedHosts: ["${domain}", ".${domain.split('.').slice(-2).join('.')}"],
+		allowedHosts: ${JSON.stringify(allowedHosts)},
 		hmr: {
 			// For reverse proxy (Caddy) with HTTPS
 			protocol: "wss",
@@ -56,7 +61,7 @@ export default defineConfig(({ mode }) => ({
 	preview: {
 		host: "::",
 		port: ${port},
-		allowedHosts: ["${domain}", ".${domain.split('.').slice(-2).join('.')}"],
+		allowedHosts: ${JSON.stringify(allowedHosts)},
 		headers: {
 			"X-Frame-Options": "ALLOWALL",
 		},
@@ -84,7 +89,7 @@ export default defineConfig(({ mode }) => ({
 		host: "0.0.0.0",
 		port: ${port},
 		strictPort: true,
-		allowedHosts: ["${domain}", ".${domain.split('.').slice(-2).join('.')}"],
+		allowedHosts: ${JSON.stringify(allowedHosts)},
 		hmr: {
 			protocol: "wss",
 			host: "${domain}",
@@ -100,7 +105,7 @@ export default defineConfig(({ mode }) => ({
 	preview: {
 		host: "0.0.0.0",
 		port: ${port},
-		allowedHosts: ["${domain}", ".${domain.split('.').slice(-2).join('.')}"],
+		allowedHosts: ${JSON.stringify(allowedHosts)},
 	},
 	plugins: [react(), mode === "development" && aliveTagger()].filter(
 		Boolean,
