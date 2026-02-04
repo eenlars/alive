@@ -72,10 +72,23 @@ export function useChatMessaging({
   const isSubmittingByTab = useRef<Map<string, boolean>>(new Map())
   const agentManagerAbortRef = useRef<AbortController | null>(null)
   const agentManagerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const lastSeenSeqRef = useRef<number>(0)
-  const lastAckedSeqRef = useRef<number>(0)
-  const ackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const ackInFlightRef = useRef<boolean>(false)
+
+  // Per-tab ACK state to prevent cross-tab cursor corruption when multiple streams are active
+  type AckState = {
+    lastSeenSeq: number
+    lastAckedSeq: number
+    ackTimeout: NodeJS.Timeout | null
+    ackInFlight: boolean
+  }
+  const ackStateByTabRef = useRef<Map<string, AckState>>(new Map())
+  const getAckState = (tabIdKey: string): AckState => {
+    let state = ackStateByTabRef.current.get(tabIdKey)
+    if (!state) {
+      state = { lastSeenSeq: 0, lastAckedSeq: 0, ackTimeout: null, ackInFlight: false }
+      ackStateByTabRef.current.set(tabIdKey, state)
+    }
+    return state
+  }
 
   // Get active tab for message routing
   const activeTab = useActiveTab(workspace)
@@ -245,11 +258,12 @@ export function useChatMessaging({
     async (targetTabId: string) => {
       if (!workspace || !tabGroupId) return
 
-      const seq = lastSeenSeqRef.current
-      if (!seq || seq <= lastAckedSeqRef.current) return
-      if (ackInFlightRef.current) return
+      const ackState = getAckState(targetTabId)
+      const seq = ackState.lastSeenSeq
+      if (!seq || seq <= ackState.lastAckedSeq) return
+      if (ackState.ackInFlight) return
 
-      ackInFlightRef.current = true
+      ackState.ackInFlight = true
       try {
         await fetch("/api/claude/stream/reconnect", {
           method: "POST",
@@ -263,16 +277,16 @@ export function useChatMessaging({
             lastSeenSeq: seq,
           }),
         })
-        lastAckedSeqRef.current = Math.max(lastAckedSeqRef.current, seq)
+        ackState.lastAckedSeq = Math.max(ackState.lastAckedSeq, seq)
       } catch {
         // Best-effort; replay fallback will handle missed acks
       } finally {
-        ackInFlightRef.current = false
-        if (lastSeenSeqRef.current > lastAckedSeqRef.current) {
+        ackState.ackInFlight = false
+        if (ackState.lastSeenSeq > ackState.lastAckedSeq) {
           // Schedule another ack if we advanced during the request
-          if (!ackTimeoutRef.current) {
-            ackTimeoutRef.current = setTimeout(() => {
-              ackTimeoutRef.current = null
+          if (!ackState.ackTimeout) {
+            ackState.ackTimeout = setTimeout(() => {
+              ackState.ackTimeout = null
               void flushAck(targetTabId)
             }, ACK_DEBOUNCE_MS)
           }
@@ -285,9 +299,10 @@ export function useChatMessaging({
   const scheduleAck = useCallback(
     (targetTabId: string) => {
       if (!workspace || !tabGroupId) return
-      if (ackTimeoutRef.current) return
-      ackTimeoutRef.current = setTimeout(() => {
-        ackTimeoutRef.current = null
+      const ackState = getAckState(targetTabId)
+      if (ackState.ackTimeout) return
+      ackState.ackTimeout = setTimeout(() => {
+        ackState.ackTimeout = null
         void flushAck(targetTabId)
       }, ACK_DEBOUNCE_MS)
     },
@@ -305,11 +320,13 @@ export function useChatMessaging({
 
       // Track seen messageIds for idempotency (prevents duplicate processing)
       const seenMessageIds = new Set<string>()
-      lastSeenSeqRef.current = 0
-      lastAckedSeqRef.current = 0
-      if (ackTimeoutRef.current) {
-        clearTimeout(ackTimeoutRef.current)
-        ackTimeoutRef.current = null
+      // Reset per-tab ACK state for this stream
+      const ackState = getAckState(targetTabId)
+      ackState.lastSeenSeq = 0
+      ackState.lastAckedSeq = 0
+      if (ackState.ackTimeout) {
+        clearTimeout(ackState.ackTimeout)
+        ackState.ackTimeout = null
       }
 
       try {
@@ -462,14 +479,15 @@ export function useChatMessaging({
                   continue
                 }
 
-                // Track stream sequence for cursor-based replay
+                // Track stream sequence for cursor-based replay (per-tab)
                 const streamSeq = (eventData as { streamSeq?: number }).streamSeq
                 if (typeof streamSeq === "number") {
-                  if (streamSeq > lastSeenSeqRef.current) {
-                    lastSeenSeqRef.current = streamSeq
+                  const ackStateForSeq = getAckState(targetTabId)
+                  if (streamSeq > ackStateForSeq.lastSeenSeq) {
+                    ackStateForSeq.lastSeenSeq = streamSeq
                   }
                   streamingActions.recordStreamSeq(targetTabId, streamSeq)
-                  if (streamSeq - lastAckedSeqRef.current >= ACK_BATCH_SIZE) {
+                  if (streamSeq - ackStateForSeq.lastAckedSeq >= ACK_BATCH_SIZE) {
                     void flushAck(targetTabId)
                   } else {
                     scheduleAck(targetTabId)
@@ -646,9 +664,10 @@ export function useChatMessaging({
       } finally {
         if (timeoutId) clearTimeout(timeoutId)
         void flushAck(targetTabId)
-        if (ackTimeoutRef.current) {
-          clearTimeout(ackTimeoutRef.current)
-          ackTimeoutRef.current = null
+        const ackStateCleanup = getAckState(targetTabId)
+        if (ackStateCleanup.ackTimeout) {
+          clearTimeout(ackStateCleanup.ackTimeout)
+          ackStateCleanup.ackTimeout = null
         }
         abortControllerRef.current = null
         clearAbortController(targetTabId)
