@@ -150,29 +150,35 @@ run_quiet() {
 service_force_restart() {
     local service="$1"
     local max_wait="${2:-15}"
+    local state
+    local substate
+    local main_pid
+    local control_group
+    local cgroup_path
 
     # Check current state
-    local state=$(systemctl show -p ActiveState --value "$service" 2>/dev/null || echo "unknown")
-    local substate=$(systemctl show -p SubState --value "$service" 2>/dev/null || echo "unknown")
+    state=$(systemctl show -p ActiveState --value "$service" 2>/dev/null || echo "unknown")
+    substate=$(systemctl show -p SubState --value "$service" 2>/dev/null || echo "unknown")
 
     # If service is stuck in a transitional state, force-kill it
     if [[ "$state" == "deactivating" ]] || [[ "$substate" == "stop-sigterm" ]] || [[ "$substate" == "stop-sigkill" ]]; then
         log_step "Service stuck in $state/$substate, force-killing..."
 
         # Get the main PID and kill it directly
-        local main_pid=$(systemctl show -p MainPID --value "$service" 2>/dev/null || echo "0")
+        main_pid=$(systemctl show -p MainPID --value "$service" 2>/dev/null || echo "0")
         if [[ "$main_pid" != "0" ]] && [[ -n "$main_pid" ]]; then
             kill -9 "$main_pid" 2>/dev/null || true
         fi
 
-        # Kill any remaining processes in the cgroup
-        # Ensure service name has .service suffix for cgroup path (avoid duplication)
-        local unit_name="${service%.service}.service"
-        local cgroup_path="/sys/fs/cgroup/system.slice/${unit_name}"
-        if [[ -f "${cgroup_path}/cgroup.procs" ]]; then
-            while read pid; do
-                [[ -n "$pid" ]] && kill -9 "$pid" 2>/dev/null || true
-            done < "${cgroup_path}/cgroup.procs"
+        # Kill any remaining processes in the cgroup (use systemd-reported path)
+        control_group=$(systemctl show -p ControlGroup --value "$service" 2>/dev/null || echo "")
+        if [[ -n "$control_group" ]]; then
+            cgroup_path="/sys/fs/cgroup${control_group}"
+            if [[ -f "${cgroup_path}/cgroup.procs" ]]; then
+                while read pid; do
+                    [[ -n "$pid" ]] && kill -9 "$pid" 2>/dev/null || true
+                done < "${cgroup_path}/cgroup.procs"
+            fi
         fi
 
         # Wait briefly for systemd to notice
@@ -187,9 +193,10 @@ service_force_restart() {
     systemctl stop "$service" 2>/dev/null || true
     sleep 1
 
-    # Start the service
-    systemctl start "$service" 2>/dev/null &
-    local start_pid=$!
+    # Start the service (use --no-block for immediate feedback)
+    if ! systemctl start --no-block "$service" 2>/dev/null; then
+        return 1
+    fi
 
     # Wait for service to become active
     local waited=0
