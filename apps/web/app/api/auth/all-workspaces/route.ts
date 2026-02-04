@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { SECURITY, TEST_CONFIG } from "@webalive/shared"
+import { SECURITY, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -57,6 +57,11 @@ export async function GET(req: NextRequest) {
     if (domains) {
       for (const domain of domains) {
         if (domain.org_id && domain.hostname) {
+          // SECURITY: Never include claude-bridge workspace unless user is superadmin
+          if (domain.hostname === SUPERADMIN.WORKSPACE_NAME && !user.isSuperadmin) {
+            continue
+          }
+
           if (!workspacesByOrg[domain.org_id]) {
             workspacesByOrg[domain.org_id] = []
           }

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { SECURITY, TEST_CONFIG } from "@webalive/shared"
+import { SECURITY, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -58,7 +58,13 @@ export async function GET(req: NextRequest) {
     // Exception: test domains (is_test_env=true) are always included - they don't exist on filesystem
     const realDomains = domains?.filter(d => !d.is_test_env).map(d => d.hostname) || []
     const testDomains = domains?.filter(d => d.is_test_env).map(d => d.hostname) || []
-    const workspaces = [...filterLocalDomains(realDomains), ...testDomains]
+    let workspaces = [...filterLocalDomains(realDomains), ...testDomains]
+
+    // SECURITY: claude-bridge workspace is only visible to superadmins
+    // Non-superadmins should never see it in the list
+    if (!user.isSuperadmin) {
+      workspaces = workspaces.filter(w => w !== SUPERADMIN.WORKSPACE_NAME)
+    }
 
     return createCorsSuccessResponse(origin, {
       workspaces,
