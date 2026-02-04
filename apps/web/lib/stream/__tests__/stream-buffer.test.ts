@@ -2,7 +2,7 @@
  * Stream Buffer Tests
  *
  * Tests the Lua script for unread message retrieval.
- * Verifies the off-by-one fix in the GET_UNREAD_SCRIPT.
+ * Verifies cursor-based replay in the GET_UNREAD_SCRIPT.
  *
  * NOTE: These tests require Redis and are skipped in CI.
  */
@@ -38,16 +38,37 @@ if data.userId ~= ARGV[1] then
   return cjson.encode({unauthorized = true})
 end
 
--- Get unread messages (FIXED: +1 instead of +2)
-local startIndex = data.lastReadIndex + 1  -- Lua arrays are 1-indexed, +1 for next message
+-- Initialize cursor for legacy buffers
+if not data.lastReadSeq then
+  data.lastReadSeq = data.lastReadIndex or 0
+end
+
+-- Get unread messages by seq (supports legacy string arrays)
 local unreadMessages = {}
-for i = startIndex, #data.messages do
-  table.insert(unreadMessages, data.messages[i])
+local lastReturned = data.lastReadSeq
+for i = 1, #data.messages do
+  local msg = data.messages[i]
+  local seq = 0
+  local line = nil
+  if type(msg) == 'table' then
+    seq = tonumber(msg.seq) or 0
+    line = msg.line
+  else
+    seq = i
+    line = msg
+  end
+
+  if seq > data.lastReadSeq then
+    table.insert(unreadMessages, line)
+    if seq > lastReturned then
+      lastReturned = seq
+    end
+  end
 end
 
 -- Update cursor atomically if there are unread messages
 if #unreadMessages > 0 then
-  data.lastReadIndex = #data.messages  -- 1-indexed Lua position of last message read
+  data.lastReadSeq = lastReturned
   local ttl = redis.call('TTL', KEYS[1])
   if ttl > 0 then
     redis.call('SETEX', KEYS[1], ttl, cjson.encode(data))
@@ -57,7 +78,8 @@ end
 return cjson.encode({
   messages = unreadMessages,
   state = data.state,
-  error = data.error
+  error = data.error,
+  lastReadSeq = data.lastReadSeq
 })
 `
 
@@ -70,32 +92,31 @@ return cjson.encode({
       tabKey: "tab-123",
       userId,
       state: "streaming",
-      messages: ["msg1", "msg2", "msg3"],
+      messages: [
+        { seq: 1, line: "msg1" },
+        { seq: 2, line: "msg2" },
+        { seq: 3, line: "msg3" },
+      ],
       startedAt: Date.now(),
       lastMessageAt: Date.now(),
-      lastReadIndex: -1, // Initial state
+      lastReadSeq: 0, // Initial state
     }
 
     await redis.setex(testKey, 3600, JSON.stringify(initialEntry))
 
     // First read: should get all 3 messages
-    // With lastReadIndex = -1, startIndex = -1 + 1 = 0
-    // In Lua 1-indexed loop: for i = 0 to 3 gets array[1], array[2], array[3]
-    // (Loop skips 0 since array indices start at 1)
     const result1 = await redis.eval(GET_UNREAD_SCRIPT, 1, testKey, userId)
     const parsed1 = JSON.parse(result1 as string)
 
     expect(parsed1.messages).toEqual(["msg1", "msg2", "msg3"])
     expect(parsed1.state).toBe("streaming")
 
-    // Verify cursor was updated to 1-indexed position of last message read
+    // Verify cursor was updated to last seq read
     const buffer1 = await redis.get(testKey)
     const data1 = JSON.parse(buffer1 || "{}")
-    expect(data1.lastReadIndex).toBe(3) // Fixed: should be 3 (1-indexed position), not 2
+    expect(data1.lastReadSeq).toBe(3)
 
     // Second read: should get no messages (already read all)
-    // With lastReadIndex = 3, startIndex = 3 + 1 = 4
-    // In Lua: for i = 4 to 3 is a no-op (4 > 3), so no messages returned
     const result2 = await redis.eval(GET_UNREAD_SCRIPT, 1, testKey, userId)
     const parsed2 = JSON.parse(result2 as string)
 
@@ -108,7 +129,7 @@ return cjson.encode({
     // Add a new message
     const buffer2 = await redis.get(testKey)
     const data2 = JSON.parse(buffer2 || "{}")
-    data2.messages.push("msg4")
+    data2.messages.push({ seq: 4, line: "msg4" })
     data2.lastMessageAt = Date.now()
     await redis.setex(testKey, 3600, JSON.stringify(data2))
 
@@ -116,13 +137,12 @@ return cjson.encode({
     const result3 = await redis.eval(GET_UNREAD_SCRIPT, 1, testKey, userId)
     const parsed3 = JSON.parse(result3 as string)
 
-    // With lastReadIndex = 3, startIndex = 3 + 1 = 4, gets array[4] = msg4
     expect(parsed3.messages).toEqual(["msg4"])
 
-    // Verify cursor was updated to position of msg4
+    // Verify cursor was updated to seq of msg4
     const buffer3 = await redis.get(testKey)
     const data3 = JSON.parse(buffer3 || "{}")
-    expect(data3.lastReadIndex).toBe(4) // 1-indexed position of msg4
+    expect(data3.lastReadSeq).toBe(4)
 
     // Cleanup
     await redis.del(testKey)
@@ -140,14 +160,35 @@ if data.userId ~= ARGV[1] then
   return cjson.encode({unauthorized = true})
 end
 
-local startIndex = data.lastReadIndex + 1
+-- Initialize cursor for legacy buffers
+if not data.lastReadSeq then
+  data.lastReadSeq = data.lastReadIndex or 0
+end
+
 local unreadMessages = {}
-for i = startIndex, #data.messages do
-  table.insert(unreadMessages, data.messages[i])
+local lastReturned = data.lastReadSeq
+for i = 1, #data.messages do
+  local msg = data.messages[i]
+  local seq = 0
+  local line = nil
+  if type(msg) == 'table' then
+    seq = tonumber(msg.seq) or 0
+    line = msg.line
+  else
+    seq = i
+    line = msg
+  end
+
+  if seq > data.lastReadSeq then
+    table.insert(unreadMessages, line)
+    if seq > lastReturned then
+      lastReturned = seq
+    end
+  end
 end
 
 if #unreadMessages > 0 then
-  data.lastReadIndex = #data.messages  -- 1-indexed Lua position of last message read
+  data.lastReadSeq = lastReturned
   local ttl = redis.call('TTL', KEYS[1])
   if ttl > 0 then
     redis.call('SETEX', KEYS[1], ttl, cjson.encode(data))
@@ -157,7 +198,8 @@ end
 return cjson.encode({
   messages = unreadMessages,
   state = data.state,
-  error = data.error
+  error = data.error,
+  lastReadSeq = data.lastReadSeq
 })
 `
 
@@ -171,10 +213,10 @@ return cjson.encode({
       tabKey: "tab-123",
       userId,
       state: "streaming",
-      messages: ["msg1"],
+      messages: [{ seq: 1, line: "msg1" }],
       startedAt: Date.now(),
       lastMessageAt: Date.now(),
-      lastReadIndex: -1,
+      lastReadSeq: 0,
     }
 
     await redis.setex(testKey, 3600, JSON.stringify(entry))

@@ -27,7 +27,7 @@ if (!existsSync(ENV_FILE)) {
   )
 }
 
-const result = dotenv.config({ path: ENV_FILE, override: true })
+const result = dotenv.config({ path: ENV_FILE, override: true, quiet: true })
 
 if (result.error) {
   throw new Error(`Failed to load ${ENV_FILE}: ${result.error.message}`)

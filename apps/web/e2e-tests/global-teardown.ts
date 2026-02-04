@@ -41,6 +41,7 @@ export default async function globalTeardown() {
   const stats = {
     sessions: 0,
     domains: 0,
+    userQuotas: 0,
     memberships: 0,
     orgs: 0,
     users: 0,
@@ -72,7 +73,20 @@ export default async function globalTeardown() {
     }
   }
 
-  // 5. Delete memberships
+  // 5. Delete user_quotas (must happen before users due to FK constraint)
+  if (userIds.length > 0) {
+    try {
+      const { count, error } = await app.from("user_quotas").delete({ count: "exact" }).in("user_id", userIds)
+      if (error) throw error
+      stats.userQuotas = count || 0
+    } catch (error) {
+      console.error(`⚠️  [Global Teardown] Failed to delete user_quotas for user_ids: ${userIds.join(", ")}`)
+      console.error(`   Error: ${formatError(error)}`)
+      stats.userQuotas = 0
+    }
+  }
+
+  // 6. Delete memberships
   if (userIds.length > 0) {
     try {
       const { count, error } = await iam.from("org_memberships").delete({ count: "exact" }).in("user_id", userIds)
@@ -85,7 +99,7 @@ export default async function globalTeardown() {
     }
   }
 
-  // 6. Delete orgs
+  // 7. Delete orgs
   if (orgIds.length > 0) {
     try {
       const { count, error } = await iam.from("orgs").delete({ count: "exact" }).in("org_id", orgIds)
@@ -98,7 +112,7 @@ export default async function globalTeardown() {
     }
   }
 
-  // 7. Delete users
+  // 8. Delete users
   if (userIds.length > 0) {
     try {
       const { count, error } = await iam.from("users").delete({ count: "exact" }).in("user_id", userIds)
@@ -113,6 +127,7 @@ export default async function globalTeardown() {
 
   console.log(`✓ Sessions: ${stats.sessions}`)
   console.log(`✓ Domains: ${stats.domains}`)
+  console.log(`✓ User Quotas: ${stats.userQuotas}`)
   console.log(`✓ Memberships: ${stats.memberships}`)
   console.log(`✓ Orgs: ${stats.orgs}`)
   console.log(`✓ Users: ${stats.users}`)

@@ -30,8 +30,8 @@ export interface StreamBufferEntry {
   tabId?: string
   /** Current state of the stream */
   state: "streaming" | "complete" | "error"
-  /** Buffered messages (NDJSON lines) */
-  messages: string[]
+  /** Buffered messages (NDJSON lines with sequence) */
+  messages: Array<{ seq: number; line: string }>
   /** When the stream started */
   startedAt: number
   /** When the last message was received (for stale detection) */
@@ -40,8 +40,8 @@ export interface StreamBufferEntry {
   completedAt?: number
   /** Error message (if state is error) */
   error?: string
-  /** Index of last message read by client (for cursor-based retrieval) */
-  lastReadIndex: number
+  /** Last stream sequence acknowledged by client (cursor) */
+  lastReadSeq: number
 }
 
 // ============================================================================
@@ -100,7 +100,7 @@ export async function createStreamBuffer(
     messages: [],
     startedAt: now,
     lastMessageAt: now,
-    lastReadIndex: -1,
+    lastReadSeq: 0,
   }
 
   // Store with TTL
@@ -115,9 +115,10 @@ export async function createStreamBuffer(
  * Lua script for atomic message append
  * Prevents race conditions in concurrent append operations
  *
- * ARGV[1]: message to append
+ * ARGV[1]: stream sequence (number)
  * ARGV[2]: max messages limit
- * ARGV[3]: current timestamp (ms)
+ * ARGV[3]: message to append
+ * ARGV[4]: current timestamp (ms)
  *
  * Returns:
  *  -1: Buffer doesn't exist
@@ -128,9 +129,11 @@ const APPEND_SCRIPT = `
 local entry = redis.call('GET', KEYS[1])
 if not entry then return -1 end
 local data = cjson.decode(entry)
+local seq = tonumber(ARGV[1])
+if not seq then return -2 end
 if #data.messages >= tonumber(ARGV[2]) then return 0 end
-table.insert(data.messages, ARGV[1])
-data.lastMessageAt = tonumber(ARGV[3])
+table.insert(data.messages, {seq = seq, line = ARGV[3]})
+data.lastMessageAt = tonumber(ARGV[4])
 local ttl = redis.call('TTL', KEYS[1])
 if ttl > 0 then
   redis.call('SETEX', KEYS[1], ttl, cjson.encode(data))
@@ -144,7 +147,7 @@ return 1
  *
  * Uses Lua script to prevent race conditions in concurrent appends
  */
-export async function appendToStreamBuffer(requestId: string, message: string): Promise<boolean> {
+export async function appendToStreamBuffer(requestId: string, message: string, streamSeq: number): Promise<boolean> {
   const redis = getRedis()
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
@@ -152,8 +155,9 @@ export async function appendToStreamBuffer(requestId: string, message: string): 
     APPEND_SCRIPT,
     1,
     key,
-    message,
+    streamSeq.toString(),
     MAX_BUFFERED_MESSAGES.toString(),
+    message,
     Date.now().toString(),
   )
 
@@ -163,6 +167,11 @@ export async function appendToStreamBuffer(requestId: string, message: string): 
 
   if (result === 0) {
     console.warn(`[StreamBuffer] Buffer full for ${requestId}, dropping message`)
+    return false
+  }
+
+  if (result === -2) {
+    console.warn(`[StreamBuffer] Missing stream sequence for ${requestId}, dropping message`)
     return false
   }
 
@@ -237,7 +246,8 @@ export async function findStreamBufferByTab(tabKey: string): Promise<string | nu
  * Prevents race conditions when multiple clients reconnect simultaneously
  *
  * ARGV[1]: userId for verification
- * Returns: JSON string with {messages, state, error, unauthorized} or nil if not found
+ * ARGV[2]: afterSeq (optional, can be -1)
+ * Returns: JSON string with {messages, state, error, lastReadSeq, unauthorized} or nil if not found
  */
 const GET_UNREAD_SCRIPT = `
 local entry = redis.call('GET', KEYS[1])
@@ -250,16 +260,47 @@ if data.userId ~= ARGV[1] then
   return cjson.encode({unauthorized = true})
 end
 
--- Get unread messages
-local startIndex = data.lastReadIndex + 1  -- Lua arrays are 1-indexed, +1 for next message
-local unreadMessages = {}
-for i = startIndex, #data.messages do
-  table.insert(unreadMessages, data.messages[i])
+-- Initialize cursor for legacy buffers
+if not data.lastReadSeq then
+  data.lastReadSeq = data.lastReadIndex or 0
 end
 
--- Update cursor atomically if there are unread messages
-if #unreadMessages > 0 then
-  data.lastReadIndex = #data.messages  -- 1-indexed Lua position of last message read
+-- Optional: advance cursor from client-provided afterSeq
+local afterSeq = tonumber(ARGV[2])
+local advanced = false
+if afterSeq and afterSeq > data.lastReadSeq then
+  data.lastReadSeq = afterSeq
+  advanced = true
+end
+
+-- Get unread messages by seq (supports legacy string arrays)
+local unreadMessages = {}
+local lastReturned = data.lastReadSeq
+for i = 1, #data.messages do
+  local msg = data.messages[i]
+  local seq = 0
+  local line = nil
+  if type(msg) == 'table' then
+    seq = tonumber(msg.seq) or 0
+    line = msg.line
+  else
+    seq = i
+    line = msg
+  end
+
+  if seq > data.lastReadSeq then
+    table.insert(unreadMessages, line)
+    if seq > lastReturned then
+      lastReturned = seq
+    end
+  end
+end
+
+-- Persist cursor if advanced or messages read
+if advanced or #unreadMessages > 0 then
+  if lastReturned > data.lastReadSeq then
+    data.lastReadSeq = lastReturned
+  end
   local ttl = redis.call('TTL', KEYS[1])
   if ttl > 0 then
     redis.call('SETEX', KEYS[1], ttl, cjson.encode(data))
@@ -269,24 +310,32 @@ end
 return cjson.encode({
   messages = unreadMessages,
   state = data.state,
-  error = data.error
+  error = data.error,
+  lastReadSeq = data.lastReadSeq
 })
 `
 
 /**
  * Get unread messages from buffer (cursor-based, atomic operation)
- * Returns messages after lastReadIndex and updates the cursor
+ * Returns messages after lastReadSeq and updates the cursor
  *
  * Uses Lua script to prevent race conditions in concurrent reconnections
  */
 export async function getUnreadMessages(
   requestId: string,
   userId: string,
-): Promise<{ messages: string[]; state: StreamBufferEntry["state"]; error?: string } | null> {
+  afterSeq?: number,
+): Promise<{ messages: string[]; state: StreamBufferEntry["state"]; error?: string; lastReadSeq: number } | null> {
   const redis = getRedis()
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
-  const result = await redis.eval(GET_UNREAD_SCRIPT, 1, key, userId)
+  const result = await redis.eval(
+    GET_UNREAD_SCRIPT,
+    1,
+    key,
+    userId,
+    typeof afterSeq === "number" ? afterSeq.toString() : "-1",
+  )
 
   if (!result) return null
 
@@ -302,7 +351,61 @@ export async function getUnreadMessages(
     messages: parsed.messages || [],
     state: parsed.state,
     error: parsed.error,
+    lastReadSeq: parsed.lastReadSeq ?? 0,
   }
+}
+
+/**
+ * Acknowledge a stream cursor without fetching messages
+ */
+const ACK_SCRIPT = `
+local entry = redis.call('GET', KEYS[1])
+if not entry then return nil end
+
+local data = cjson.decode(entry)
+
+-- Security: verify user owns this buffer
+if data.userId ~= ARGV[1] then
+  return cjson.encode({unauthorized = true})
+end
+
+-- Initialize cursor for legacy buffers
+if not data.lastReadSeq then
+  data.lastReadSeq = data.lastReadIndex or 0
+end
+
+local seq = tonumber(ARGV[2])
+if seq and seq > data.lastReadSeq then
+  data.lastReadSeq = seq
+  local ttl = redis.call('TTL', KEYS[1])
+  if ttl > 0 then
+    redis.call('SETEX', KEYS[1], ttl, cjson.encode(data))
+  end
+end
+
+return cjson.encode({
+  lastReadSeq = data.lastReadSeq
+})
+`
+
+export async function ackStreamCursor(
+  requestId: string,
+  userId: string,
+  lastSeenSeq: number,
+): Promise<{ lastReadSeq: number } | null> {
+  const redis = getRedis()
+  const key = `${BUFFER_KEY_PREFIX}${requestId}`
+
+  const result = await redis.eval(ACK_SCRIPT, 1, key, userId, lastSeenSeq.toString())
+  if (!result) return null
+
+  const parsed = JSON.parse(result as string)
+  if (parsed.unauthorized) {
+    console.warn(`[StreamBuffer] User ${userId} attempted to ack buffer owned by another user`)
+    return null
+  }
+
+  return { lastReadSeq: parsed.lastReadSeq ?? 0 }
 }
 
 /**

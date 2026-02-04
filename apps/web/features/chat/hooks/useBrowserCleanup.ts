@@ -9,6 +9,8 @@ interface UseBrowserCleanupOptions {
   tabGroupId: string | null
   /** Current workspace */
   workspace: string | null
+  /** Last stream sequence seen by client (for cursor ack) */
+  lastSeenStreamSeq: number | null
   /** Ref to the current request ID */
   currentRequestIdRef: React.MutableRefObject<string | null>
   /** Whether we're currently streaming */
@@ -31,17 +33,39 @@ export function useBrowserCleanup({
   tabId,
   tabGroupId,
   workspace,
+  lastSeenStreamSeq,
   currentRequestIdRef,
   isStreaming,
 }: UseBrowserCleanupOptions): void {
   // Track streaming state in ref so handler sees current value
   const isStreamingRef = useRef(isStreaming)
   isStreamingRef.current = isStreaming
+  const lastSeenSeqRef = useRef(lastSeenStreamSeq)
+  lastSeenSeqRef.current = lastSeenStreamSeq
 
   useEffect(() => {
     const handleBeforeUnload = () => {
       // Only send if we're actually streaming
       if (!isStreamingRef.current) return
+
+      // Best-effort cursor ack to prevent replay bursts on reconnect
+      if (tabId && tabGroupId && workspace && typeof lastSeenSeqRef.current === "number") {
+        navigator.sendBeacon(
+          "/api/claude/stream/reconnect",
+          new Blob(
+            [
+              JSON.stringify({
+                tabId,
+                tabGroupId,
+                workspace,
+                ackOnly: true,
+                lastSeenSeq: lastSeenSeqRef.current,
+              }),
+            ],
+            { type: "application/json" },
+          ),
+        )
+      }
 
       const requestId = currentRequestIdRef.current
 

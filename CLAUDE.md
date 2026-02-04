@@ -55,8 +55,6 @@ These domains are **NOT** Vite website templates. Do not deploy them as sites:
 | Domain | What it is | Service | Port | Routing |
 |--------|-----------|---------|------|---------|
 | `go.goalive.nl` | Go shell-server | `shell-server-go.service` | 3888 | nginx → caddy-shell (8443) → 3888 |
-| `shell.terminal.goalive.nl` | Go shell-server | `shell-server-go.service` | 3889 | nginx → caddy-shell (8443) → 3889 |
-| `sk.goalive.nl` | Go shell-server | `shell-server-go.service` | 3889 | nginx → caddy-shell (8443) → 3889 |
 **Nginx SNI routing**: These domains route through `caddy-shell` (not main Caddy) for SSE/WebSocket isolation. Config: `/etc/nginx/nginx.conf` and `/etc/caddy/caddy-shell.Caddyfile`.
 
 ## Architecture Smell Detector

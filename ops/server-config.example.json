@@ -20,9 +20,9 @@
     ]
   },
   "shell": {
-    "domains": ["shell.terminal.goalive.nl", "go.goalive.nl", "sk.goalive.nl"],
+    "domains": ["go.goalive.nl"],
     "listen": ":8443",
-    "upstream": "localhost:3889"
+    "upstream": "localhost:3888"
   },
   "generated": {
     "dir": "/var/lib/claude-bridge/generated",

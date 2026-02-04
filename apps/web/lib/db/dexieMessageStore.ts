@@ -408,6 +408,12 @@ export const useDexieMessageStore = create<DexieMessageStore>((set, get) => ({
     await enqueueTabWrite(targetTabId, async () => {
       const db = getMessageDb(session.userId)
 
+      // Idempotency: if message already exists, don't re-sequence or bump counts
+      const existing = await db.messages.get(message.id)
+      if (existing) {
+        return
+      }
+
       // Resolve tabGroupId for the target tab
       // If target tab differs from current, look up its tabGroupId from Dexie
       let effectiveTabGroupId = currentTabGroupId

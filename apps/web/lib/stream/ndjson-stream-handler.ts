@@ -238,11 +238,16 @@ async function processChildEvent(
 /** Counter for generating unique message IDs within a request */
 const messageCounters = new Map<string, number>()
 
-/** Generate a unique message ID for idempotency */
-function generateMessageId(requestId: string): string {
+/** Generate the next stream sequence number (1-based, monotonic per request) */
+function nextStreamSeq(requestId: string): number {
   const count = (messageCounters.get(requestId) ?? 0) + 1
   messageCounters.set(requestId, count)
-  return `${requestId}-${count}`
+  return count
+}
+
+/** Build a message ID from requestId + streamSeq */
+function buildMessageId(requestId: string, streamSeq: number): string {
+  return `${requestId}-${streamSeq}`
 }
 
 /** Clean up message counter when stream ends */
@@ -301,13 +306,15 @@ function buildStreamMessage(
   tabId?: string,
 ): StreamMessage | BridgeErrorMessage {
   const timestamp = new Date().toISOString()
-  const messageId = generateMessageId(requestId)
+  const streamSeq = nextStreamSeq(requestId)
+  const messageId = buildMessageId(requestId, streamSeq)
 
   if (childEvent.type === "error") {
     return {
       type: BridgeStreamType.ERROR,
       requestId,
       messageId,
+      streamSeq,
       tabId,
       timestamp,
       data: {
@@ -323,6 +330,7 @@ function buildStreamMessage(
     type: childEvent.type,
     requestId,
     messageId,
+    streamSeq,
     tabId,
     timestamp,
     data:
@@ -495,10 +503,12 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
         logStreamError({ requestId, workspace: conversationWorkspace, model, error })
 
         // Send minimal error to frontend (user sees error ID for correlation)
+        const streamSeq = nextStreamSeq(requestId)
         const errorMessage: BridgeErrorMessage = {
           type: BridgeStreamType.ERROR,
           requestId,
-          messageId: generateMessageId(requestId),
+          messageId: buildMessageId(requestId, streamSeq),
+          streamSeq,
           timestamp: new Date().toISOString(),
           data: {
             error: ErrorCodes.STREAM_ERROR,

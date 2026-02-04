@@ -85,6 +85,7 @@ export interface TabStreamState {
   isStreamActive: boolean
   lastMessageReceivedAt: number | null
   messagesReceivedInStream: number
+  lastSeenStreamSeq: number | null
 }
 
 export interface StreamingStoreState {
@@ -121,6 +122,8 @@ export interface StreamingStoreState {
     // Stream health
     startStream: (tabId: string) => void
     recordMessageReceived: (tabId: string) => void
+    recordStreamSeq: (tabId: string, streamSeq: number) => void
+    getLastSeenStreamSeq: (tabId: string) => number | null
     endStream: (tabId: string) => void
     getStreamHealth: (tabId: string) => {
       isActive: boolean
@@ -146,6 +149,7 @@ const defaultTabState: TabStreamState = {
   isStreamActive: false,
   lastMessageReceivedAt: null,
   messagesReceivedInStream: 0,
+  lastSeenStreamSeq: null,
 }
 
 export const useStreamingStore = create<StreamingStoreState>((set, get) => {
@@ -287,6 +291,7 @@ export const useStreamingStore = create<StreamingStoreState>((set, get) => {
         updateTab(tabId, {
           isStreamActive: true,
           messagesReceivedInStream: 0,
+          lastSeenStreamSeq: null,
         })
       },
 
@@ -297,6 +302,18 @@ export const useStreamingStore = create<StreamingStoreState>((set, get) => {
           lastMessageReceivedAt: Date.now(),
           messagesReceivedInStream: tabState.messagesReceivedInStream + 1,
         })
+      },
+
+      recordStreamSeq: (tabId: string, streamSeq: number): void => {
+        const state = get()
+        const tabState = state.tabs[tabId] || { ...defaultTabState }
+        const nextSeq = Math.max(tabState.lastSeenStreamSeq ?? 0, streamSeq)
+        updateTab(tabId, { lastSeenStreamSeq: nextSeq })
+      },
+
+      getLastSeenStreamSeq: (tabId: string): number | null => {
+        const state = get()
+        return state.tabs[tabId]?.lastSeenStreamSeq ?? null
       },
 
       endStream: (tabId: string): void => {
@@ -347,6 +364,9 @@ export const useStreamHealth = (tabId: string) => {
   const actions = useStreamingActions()
   return actions.getStreamHealth(tabId)
 }
+
+export const useLastSeenStreamSeq = (tabId: string | null) =>
+  useStreamingStore(state => (tabId ? (state.tabs[tabId]?.lastSeenStreamSeq ?? null) : null))
 
 /** Returns true if the specified tab has an active stream (busy) */
 export const useIsStreamActive = (tabId: string | null) =>

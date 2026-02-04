@@ -73,6 +73,23 @@ export function useChatMessaging({
   const agentManagerAbortRef = useRef<AbortController | null>(null)
   const agentManagerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Per-tab ACK state to prevent cross-tab cursor corruption when multiple streams are active
+  type AckState = {
+    lastSeenSeq: number
+    lastAckedSeq: number
+    ackTimeout: NodeJS.Timeout | null
+    ackInFlight: boolean
+  }
+  const ackStateByTabRef = useRef<Map<string, AckState>>(new Map())
+  const getAckState = (tabIdKey: string): AckState => {
+    let state = ackStateByTabRef.current.get(tabIdKey)
+    if (!state) {
+      state = { lastSeenSeq: 0, lastAckedSeq: 0, ackTimeout: null, ackInFlight: false }
+      ackStateByTabRef.current.set(tabIdKey, state)
+    }
+    return state
+  }
+
   // Get active tab for message routing
   const activeTab = useActiveTab(workspace)
 
@@ -234,6 +251,64 @@ export function useChatMessaging({
     [agentSupervisorEnabled, prGoal, workspace, building, targetUsers, userModel, addMessage, setMsg],
   )
 
+  const ACK_DEBOUNCE_MS = 1000
+  const ACK_BATCH_SIZE = 20
+
+  const flushAck = useCallback(
+    async (targetTabId: string) => {
+      if (!workspace || !tabGroupId) return
+
+      const ackState = getAckState(targetTabId)
+      const seq = ackState.lastSeenSeq
+      if (!seq || seq <= ackState.lastAckedSeq) return
+      if (ackState.ackInFlight) return
+
+      ackState.ackInFlight = true
+      try {
+        await fetch("/api/claude/stream/reconnect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            tabGroupId,
+            tabId: targetTabId,
+            workspace,
+            ackOnly: true,
+            lastSeenSeq: seq,
+          }),
+        })
+        ackState.lastAckedSeq = Math.max(ackState.lastAckedSeq, seq)
+      } catch {
+        // Best-effort; replay fallback will handle missed acks
+      } finally {
+        ackState.ackInFlight = false
+        if (ackState.lastSeenSeq > ackState.lastAckedSeq) {
+          // Schedule another ack if we advanced during the request
+          if (!ackState.ackTimeout) {
+            ackState.ackTimeout = setTimeout(() => {
+              ackState.ackTimeout = null
+              void flushAck(targetTabId)
+            }, ACK_DEBOUNCE_MS)
+          }
+        }
+      }
+    },
+    [workspace, tabGroupId],
+  )
+
+  const scheduleAck = useCallback(
+    (targetTabId: string) => {
+      if (!workspace || !tabGroupId) return
+      const ackState = getAckState(targetTabId)
+      if (ackState.ackTimeout) return
+      ackState.ackTimeout = setTimeout(() => {
+        ackState.ackTimeout = null
+        void flushAck(targetTabId)
+      }, ACK_DEBOUNCE_MS)
+    },
+    [flushAck, workspace, tabGroupId],
+  )
+
   const sendStreaming = useCallback(
     async (userMessage: UIMessage, targetTabId: string) => {
       let receivedAnyMessage = false
@@ -245,6 +320,14 @@ export function useChatMessaging({
 
       // Track seen messageIds for idempotency (prevents duplicate processing)
       const seenMessageIds = new Set<string>()
+      // Reset per-tab ACK state for this stream
+      const ackState = getAckState(targetTabId)
+      ackState.lastSeenSeq = 0
+      ackState.lastAckedSeq = 0
+      if (ackState.ackTimeout) {
+        clearTimeout(ackState.ackTimeout)
+        ackState.ackTimeout = null
+      }
 
       try {
         const { prompt, analyzeImageUrls } = buildPromptForClaude(userMessage)
@@ -396,6 +479,21 @@ export function useChatMessaging({
                   continue
                 }
 
+                // Track stream sequence for cursor-based replay (per-tab)
+                const streamSeq = (eventData as { streamSeq?: number }).streamSeq
+                if (typeof streamSeq === "number") {
+                  const ackStateForSeq = getAckState(targetTabId)
+                  if (streamSeq > ackStateForSeq.lastSeenSeq) {
+                    ackStateForSeq.lastSeenSeq = streamSeq
+                  }
+                  streamingActions.recordStreamSeq(targetTabId, streamSeq)
+                  if (streamSeq - ackStateForSeq.lastAckedSeq >= ACK_BATCH_SIZE) {
+                    void flushAck(targetTabId)
+                  } else {
+                    scheduleAck(targetTabId)
+                  }
+                }
+
                 if (isWarningMessage(eventData)) {
                   const warning = eventData.data.content as BridgeWarningContent
                   console.log("[Chat] OAuth warning received:", warning.provider, warning.message)
@@ -421,6 +519,7 @@ export function useChatMessaging({
                   ) {
                     receivedAnyMessage = true
                     isSubmittingByTab.current.set(targetTabId, false)
+                    void flushAck(targetTabId)
                     if (
                       (isCompleteEvent(eventData) || isDoneEvent(eventData)) &&
                       !isErrorEvent(eventData) &&
@@ -564,6 +663,12 @@ export function useChatMessaging({
         streamingActions.endStream(targetTabId)
       } finally {
         if (timeoutId) clearTimeout(timeoutId)
+        void flushAck(targetTabId)
+        const ackStateCleanup = getAckState(targetTabId)
+        if (ackStateCleanup.ackTimeout) {
+          clearTimeout(ackStateCleanup.ackTimeout)
+          ackStateCleanup.ackTimeout = null
+        }
         abortControllerRef.current = null
         clearAbortController(targetTabId)
         currentRequestIdRef.current = null
@@ -577,6 +682,8 @@ export function useChatMessaging({
       addMessage,
       setShowCompletionDots,
       handleCompletionFeatures,
+      flushAck,
+      scheduleAck,
     ],
   )
 

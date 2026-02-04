@@ -23,7 +23,7 @@ import { tabKey } from "@/features/auth/lib/sessionStore"
 import { hasSessionCookie } from "@/features/auth/types/guards"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { ErrorCodes } from "@/lib/error-codes"
-import { deleteStreamBuffer, getUnreadMessages, hasActiveStream } from "@/lib/stream/stream-buffer"
+import { ackStreamCursor, deleteStreamBuffer, getUnreadMessages, hasActiveStream } from "@/lib/stream/stream-buffer"
 
 export const runtime = "nodejs"
 
@@ -34,6 +34,10 @@ const ReconnectSchema = z.object({
   workspace: z.string().min(1),
   /** If true, deletes the buffer after returning messages (client confirms receipt) */
   acknowledge: z.boolean().optional(),
+  /** Last stream sequence seen by client (for cursor-based replay) */
+  lastSeenSeq: z.number().int().nonnegative().optional(),
+  /** If true, only update cursor (no message replay) */
+  ackOnly: z.boolean().optional(),
 })
 
 /**
@@ -79,7 +83,7 @@ export async function POST(req: Request) {
       })
     }
 
-    const { tabGroupId, tabId, workspace, acknowledge } = parseResult.data
+    const { tabGroupId, tabId, workspace, acknowledge, lastSeenSeq, ackOnly } = parseResult.data
 
     // Build tab key (same format as stream route)
     const tabKeyValue = tabKey({
@@ -99,8 +103,20 @@ export async function POST(req: Request) {
       })
     }
 
-    // Get unread messages
-    const result = await getUnreadMessages(requestId, user.id)
+    // If client only wants to acknowledge cursor, update and return
+    if (ackOnly) {
+      if (typeof lastSeenSeq === "number") {
+        await ackStreamCursor(requestId, user.id, lastSeenSeq)
+      }
+      return NextResponse.json({
+        ok: true,
+        hasStream: true,
+        acknowledged: true,
+      })
+    }
+
+    // Get unread messages (optionally advancing cursor)
+    const result = await getUnreadMessages(requestId, user.id, lastSeenSeq)
 
     if (!result) {
       // Buffer exists but couldn't read (might have expired between checks)

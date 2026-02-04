@@ -44,7 +44,7 @@ import { useIsSessionExpired } from "@/lib/stores/authStore"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
 import { isDevelopment, useDebugActions, useDebugVisible, useSandbox, useSSETerminal } from "@/lib/stores/debug-store"
 import { useApiKey, useModel } from "@/lib/stores/llmStore"
-import { useStreamingActions } from "@/lib/stores/streamingStore"
+import { useLastSeenStreamSeq, useStreamingActions } from "@/lib/stores/streamingStore"
 import { useTabActions } from "@/lib/stores/tabStore"
 import { useSelectedOrgId } from "@/lib/stores/workspaceStore"
 // Local components
@@ -186,6 +186,7 @@ function ChatPageContent() {
   const _userApiKey = useApiKey()
   const _userModel = useModel()
   const streamingActions = useStreamingActions()
+  const lastSeenStreamSeq = useLastSeenStreamSeq(sessionTabId)
   const { registerElementSelectHandler } = usePanelContext()
 
   // Custom hooks
@@ -323,6 +324,7 @@ function ChatPageContent() {
     tabId: sessionTabId,
     tabGroupId: sessionTabGroupId,
     workspace,
+    lastSeenStreamSeq,
     currentRequestIdRef,
     isStreaming: busy,
   })

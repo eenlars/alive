@@ -28,7 +28,7 @@ nginx (443) → SNI routing → caddy-shell (8443) or caddy-main (8444)
 └── import /root/webalive/claude-bridge/ops/caddy/Caddyfile  ← This folder's main file
 
 /etc/caddy/Caddyfile.shell (Caddyfile.shell)
-└── shell.terminal.goalive.nl, go.goalive.nl, sk.goalive.nl
+└── go.goalive.nl
 ```
 
 ## Installation

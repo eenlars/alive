@@ -19,17 +19,27 @@ type StreamEvent = StreamMessage
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 
 const FIXED_TIMESTAMP = "2025-01-01T00:00:00.000Z"
-const FIXED_REQUEST_ID = "test-req-123"
+let requestCounter = 0
+
+function nextRequestId(): string {
+  requestCounter += 1
+  return `test-req-${requestCounter}`
+}
 
 export class StreamBuilder {
   private events: StreamEvent[] = []
   private msgCount = 0
   private messageIdCounter = 0
+  private requestId: string
+
+  constructor(requestId?: string) {
+    this.requestId = requestId ?? nextRequestId()
+  }
 
   /** Generate unique message ID for test events */
   private nextMessageId(): string {
     this.messageIdCounter++
-    return `${FIXED_REQUEST_ID}-test-${this.messageIdCounter}`
+    return `${this.requestId}-test-${this.messageIdCounter}`
   }
 
   /**
@@ -38,7 +48,7 @@ export class StreamBuilder {
   start(cwd = "/test", host = "test"): this {
     const startMsg: BridgeStartMessage = {
       type: BridgeStreamType.START,
-      requestId: FIXED_REQUEST_ID,
+      requestId: this.requestId,
       messageId: this.nextMessageId(),
       timestamp: FIXED_TIMESTAMP,
       data: {
@@ -60,7 +70,7 @@ export class StreamBuilder {
     this.msgCount++
     const textMsg: BridgeMessageEvent = {
       type: BridgeStreamType.MESSAGE,
-      requestId: FIXED_REQUEST_ID,
+      requestId: this.requestId,
       messageId: this.nextMessageId(),
       timestamp: FIXED_TIMESTAMP,
       data: {
@@ -90,7 +100,7 @@ export class StreamBuilder {
     this.msgCount++
     const thinkingMsg: BridgeMessageEvent = {
       type: BridgeStreamType.MESSAGE,
-      requestId: FIXED_REQUEST_ID,
+      requestId: this.requestId,
       messageId: this.nextMessageId(),
       timestamp: FIXED_TIMESTAMP,
       data: {
@@ -122,7 +132,7 @@ export class StreamBuilder {
 
     const toolUseMsg: BridgeMessageEvent = {
       type: BridgeStreamType.MESSAGE,
-      requestId: FIXED_REQUEST_ID,
+      requestId: this.requestId,
       messageId: this.nextMessageId(),
       timestamp: FIXED_TIMESTAMP,
       data: {
@@ -146,7 +156,7 @@ export class StreamBuilder {
     this.msgCount++
     const toolResultMsg: BridgeMessageEvent = {
       type: BridgeStreamType.MESSAGE,
-      requestId: FIXED_REQUEST_ID,
+      requestId: this.requestId,
       messageId: this.nextMessageId(),
       timestamp: FIXED_TIMESTAMP,
       data: {
@@ -187,7 +197,7 @@ export class StreamBuilder {
   ): this {
     const completeMsg: BridgeCompleteMessage = {
       type: BridgeStreamType.COMPLETE,
-      requestId: FIXED_REQUEST_ID,
+      requestId: this.requestId,
       messageId: this.nextMessageId(),
       timestamp: FIXED_TIMESTAMP,
       data: {
@@ -209,7 +219,7 @@ export class StreamBuilder {
   error(message: string, code: ErrorCode = ErrorCodes.QUERY_FAILED): this {
     const errorMsg: BridgeErrorMessage = {
       type: BridgeStreamType.ERROR,
-      requestId: FIXED_REQUEST_ID,
+      requestId: this.requestId,
       messageId: this.nextMessageId(),
       timestamp: FIXED_TIMESTAMP,
       data: {
@@ -230,7 +240,7 @@ export class StreamBuilder {
     const lines = this.events.map(e => JSON.stringify(e))
     const doneMessage: StreamEvent = {
       type: BridgeStreamType.DONE,
-      requestId: FIXED_REQUEST_ID,
+      requestId: this.requestId,
       messageId: this.nextMessageId(),
       timestamp: FIXED_TIMESTAMP,
       data: {},
