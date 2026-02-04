@@ -14,6 +14,7 @@
     "preview": "cd user && bun run preview"
   },
   "devDependencies": {
-    "@alive-game/alive-tagger": "0.1.1"
+    "@alive-game/alive-tagger": "0.1.1",
+    "tldts": "^7.0.22"
   }
 }

@@ -22,7 +22,7 @@ StartLimitBurst=5
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=shell-server
+SyslogIdentifier=shell-server-go
 
 # Resource limits (Go is more memory efficient)
 MemoryMax=4G
