@@ -26,7 +26,13 @@ export async function POST(request: NextRequest) {
     // 3. Security: Verify workspace authorization BEFORE any operations
     console.log(`[Image Upload ${requestId}] Step 3: Verifying workspace access`)
     const workspaceParam = formData.get("workspace") as string | null
-    const body = workspaceParam ? { workspace: workspaceParam } : {}
+    const worktreeParam = formData.get("worktree") as string | null
+    const body =
+      workspaceParam && worktreeParam
+        ? { workspace: workspaceParam, worktree: worktreeParam }
+        : workspaceParam
+          ? { workspace: workspaceParam }
+          : {}
     console.log(`[Image Upload ${requestId}] Workspace param: ${workspaceParam || "(none)"}`)
 
     const workspace = await verifyWorkspaceAccess(user, body, `[Upload ${requestId}]`)
@@ -38,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Resolve workspace path (after authorization)
     console.log(`[Image Upload ${requestId}] Step 4: Resolving workspace path`)
-    const workspaceResult = resolveWorkspace(host, body, requestId)
+    const workspaceResult = await resolveWorkspace(host, body, requestId)
     if (!workspaceResult.success) {
       console.log(`[Image Upload ${requestId}] ✗ Workspace resolution failed`)
       return workspaceResult.response

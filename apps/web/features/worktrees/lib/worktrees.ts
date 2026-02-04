@@ -4,6 +4,7 @@ import { runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
 import { ensurePathWithinWorkspace } from "@/features/workspace/lib/workspace-secure"
 
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,48}$/
+const RESERVED_SLUGS = new Set(["user", "worktrees", ".", ".."])
 
 export interface WorktreeEntry {
   path: string
@@ -59,7 +60,7 @@ function assertValidSlug(slug: string) {
   if (!SLUG_REGEX.test(slug)) {
     throw new WorktreeError("WORKTREE_INVALID_SLUG", `Invalid worktree slug: ${slug}`)
   }
-  if (slug === "user" || slug === "worktrees" || slug === "." || slug === "..") {
+  if (RESERVED_SLUGS.has(slug)) {
     throw new WorktreeError("WORKTREE_INVALID_SLUG", `Reserved worktree slug: ${slug}`)
   }
 }
@@ -108,9 +109,22 @@ async function assertBranchName(baseWorkspacePath: string, branch: string) {
 
 async function assertBaseRepo(baseWorkspacePath: string) {
   const gitDir = path.join(baseWorkspacePath, ".git")
-  if (!fs.existsSync(gitDir)) {
+  let stat: fs.Stats | null = null
+
+  try {
+    stat = fs.statSync(gitDir)
+  } catch {
+    stat = null
+  }
+
+  if (!stat) {
     throw new WorktreeError("WORKTREE_NOT_GIT", `Base workspace is not a git repo: ${baseWorkspacePath}`)
   }
+
+  if (!stat.isDirectory()) {
+    throw new WorktreeError("WORKTREE_BASE_INVALID", `Base workspace must be a git root: ${baseWorkspacePath}`)
+  }
+
   await runGit(baseWorkspacePath, ["rev-parse", "--git-dir"], 15000)
 }
 
@@ -256,6 +270,16 @@ function safeRealpath(target: string): string | null {
   }
 }
 
+function isBranchInUse(worktrees: WorktreeListItem[], branchName: string): boolean {
+  return worktrees.some(item => item.branch === branchName)
+}
+
+function isSlugAllowed(slug: string): boolean {
+  if (!SLUG_REGEX.test(slug)) return false
+  if (RESERVED_SLUGS.has(slug)) return false
+  return true
+}
+
 export async function listWorktrees(baseWorkspacePath: string): Promise<WorktreeListItem[]> {
   await assertBaseRepo(baseWorkspacePath)
 
@@ -281,6 +305,9 @@ export async function listWorktrees(baseWorkspacePath: string): Promise<Worktree
       if (!entryReal) return null
       const relative = path.relative(worktreeRootReal, entryReal)
       if (!relative || relative.includes(path.sep)) {
+        return null
+      }
+      if (!isSlugAllowed(relative)) {
         return null
       }
       return {
@@ -348,31 +375,42 @@ export async function createWorktree({
   const normalizedSlug = normalizeSlug(slug ?? `wt-${formatTimestampUTC()}`)
   assertValidSlug(normalizedSlug)
 
-  const existing = await listWorktrees(baseWorkspacePath)
-  if (existing.some(item => item.slug === normalizedSlug)) {
-    throw new WorktreeError("WORKTREE_EXISTS", `Worktree already exists: ${normalizedSlug}`)
-  }
-
   const baseRef = from ?? (await runGit(baseWorkspacePath, ["rev-parse", "--abbrev-ref", "HEAD"]))
   if (from) {
     await assertFromRef(baseWorkspacePath, from)
   }
 
   const defaultBranch = `worktree/${normalizedSlug}`
-  let branchName = branch?.trim() || defaultBranch
-  await assertBranchName(baseWorkspacePath, branchName)
-
-  if (!branch) {
-    let suffix = ""
-    while (await gitRefExists(baseWorkspacePath, `refs/heads/${branchName}${suffix}`)) {
-      suffix = `-${formatTimestampUTC()}`
-    }
-    branchName = `${branchName}${suffix}`
-  }
+  const requestedBranch = branch?.trim() || defaultBranch
+  await assertBranchName(baseWorkspacePath, requestedBranch)
 
   const worktreePath = path.join(worktreeRoot, normalizedSlug)
 
   return await withWorktreeLock(baseWorkspacePath, async () => {
+    const existing = await listWorktrees(baseWorkspacePath)
+    if (existing.some(item => item.slug === normalizedSlug)) {
+      throw new WorktreeError("WORKTREE_EXISTS", `Worktree already exists: ${normalizedSlug}`)
+    }
+
+    let branchName = requestedBranch
+    if (!branch) {
+      let attempt = 0
+      while (
+        (await gitRefExists(baseWorkspacePath, `refs/heads/${branchName}`)) ||
+        isBranchInUse(existing, branchName)
+      ) {
+        attempt += 1
+        const suffix = attempt > 1 ? `-${attempt}` : ""
+        branchName = `${requestedBranch}-${formatTimestampUTC()}${suffix}`
+      }
+    } else if (isBranchInUse(existing, branchName)) {
+      throw new WorktreeError("WORKTREE_BRANCH_IN_USE", `Branch already checked out: ${branchName}`)
+    }
+
+    if (fs.existsSync(worktreePath)) {
+      throw new WorktreeError("WORKTREE_PATH_EXISTS", `Worktree path already exists: ${normalizedSlug}`)
+    }
+
     const branchExists = await gitRefExists(baseWorkspacePath, `refs/heads/${branchName}`)
     if (branchExists && branch) {
       await runGit(baseWorkspacePath, ["worktree", "add", worktreePath, branchName])
@@ -415,12 +453,21 @@ export async function removeWorktree({
       }
     }
 
+    if (deleteBranch) {
+      if (!branchName) {
+        throw new WorktreeError("WORKTREE_BRANCH_UNKNOWN", "Cannot delete branch for detached worktree")
+      }
+
+      const baseBranch = await runGit(baseWorkspacePath, ["rev-parse", "--abbrev-ref", "HEAD"])
+      if (baseBranch === branchName) {
+        throw new WorktreeError("WORKTREE_DELETE_BRANCH_BLOCKED", `Refusing to delete base branch: ${branchName}`)
+      }
+    }
+
     await runGit(baseWorkspacePath, ["worktree", "remove", targetPath])
 
-    if (deleteBranch) {
-      if (branchName) {
-        await runGit(baseWorkspacePath, ["branch", "-D", branchName])
-      }
+    if (deleteBranch && branchName) {
+      await runGit(baseWorkspacePath, ["branch", "-D", branchName])
     }
   })
 }

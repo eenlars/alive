@@ -202,4 +202,56 @@ describe("worktrees service", () => {
 
     await expect(listWorktrees(repo.baseWorkspacePath)).rejects.toMatchObject({ code: "WORKTREE_NOT_GIT" })
   })
+
+  it("rejects worktree creation when base path is itself a worktree", async () => {
+    if (!repo) throw new Error("missing repo")
+
+    const { worktreePath } = await createWorktree({
+      baseWorkspacePath: repo.baseWorkspacePath,
+      slug: "nested-base",
+    })
+
+    await expect(
+      createWorktree({
+        baseWorkspacePath: worktreePath,
+        slug: "nested-attempt",
+      }),
+    ).rejects.toMatchObject({ code: "WORKTREE_BASE_INVALID" })
+  })
+
+  it("rejects create when branch is already checked out by another worktree", async () => {
+    if (!repo) throw new Error("missing repo")
+
+    const first = await createWorktree({
+      baseWorkspacePath: repo.baseWorkspacePath,
+      slug: "branch-in-use",
+    })
+
+    await expect(
+      createWorktree({
+        baseWorkspacePath: repo.baseWorkspacePath,
+        slug: "branch-in-use-2",
+        branch: first.branch,
+      }),
+    ).rejects.toMatchObject({ code: "WORKTREE_BRANCH_IN_USE" })
+  })
+
+  it("auto-suffixes when default branch already exists", async () => {
+    if (!repo) throw new Error("missing repo")
+
+    runGit(repo.baseWorkspacePath, ["branch", "worktree/suffix-test"])
+
+    const created = await createWorktree({
+      baseWorkspacePath: repo.baseWorkspacePath,
+      slug: "suffix-test",
+    })
+
+    expect(created.branch).toMatch(/^worktree\/suffix-test-/)
+
+    await removeWorktree({
+      baseWorkspacePath: repo.baseWorkspacePath,
+      slug: "suffix-test",
+      allowDirty: true,
+    })
+  })
 })

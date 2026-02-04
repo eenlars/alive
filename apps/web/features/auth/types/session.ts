@@ -3,7 +3,7 @@
  * These guards prevent overlapping requests and manage conversation state
  */
 
-/** Branded key: userId::workspace::tabGroupId::tabId — only created by tabKey() */
+/** Branded key: userId::workspace(::wt/<slug>)::tabGroupId::tabId — only created by tabKey() */
 export type TabSessionKey = string & { readonly __brand: "TabSessionKey" }
 
 // Concurrency guard to prevent overlapping sessions

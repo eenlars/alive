@@ -17,6 +17,11 @@ export const ErrorCodes = {
   WORKTREE_INVALID_SLUG: "WORKTREE_INVALID_SLUG",
   WORKTREE_INVALID_BRANCH: "WORKTREE_INVALID_BRANCH",
   WORKTREE_INVALID_FROM: "WORKTREE_INVALID_FROM",
+  WORKTREE_BASE_INVALID: "WORKTREE_BASE_INVALID",
+  WORKTREE_BRANCH_IN_USE: "WORKTREE_BRANCH_IN_USE",
+  WORKTREE_PATH_EXISTS: "WORKTREE_PATH_EXISTS",
+  WORKTREE_BRANCH_UNKNOWN: "WORKTREE_BRANCH_UNKNOWN",
+  WORKTREE_DELETE_BRANCH_BLOCKED: "WORKTREE_DELETE_BRANCH_BLOCKED",
   WORKTREE_LOCKED: "WORKTREE_LOCKED",
   WORKTREE_DIRTY: "WORKTREE_DIRTY",
 
@@ -184,6 +189,21 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
 
     case ErrorCodes.WORKTREE_INVALID_FROM:
       return "The base ref does not exist."
+
+    case ErrorCodes.WORKTREE_BASE_INVALID:
+      return "This path is not a git repository root. Use the base workspace."
+
+    case ErrorCodes.WORKTREE_BRANCH_IN_USE:
+      return "That branch is already checked out by another worktree."
+
+    case ErrorCodes.WORKTREE_PATH_EXISTS:
+      return "That worktree path already exists on disk."
+
+    case ErrorCodes.WORKTREE_BRANCH_UNKNOWN:
+      return "Cannot delete the branch for a detached worktree."
+
+    case ErrorCodes.WORKTREE_DELETE_BRANCH_BLOCKED:
+      return "Refusing to delete the base workspace branch."
 
     case ErrorCodes.WORKTREE_LOCKED:
       return "A worktree operation is already in progress. Please retry in a moment."
@@ -507,6 +527,15 @@ export function getErrorHelp(code: ErrorCode, details?: Record<string, any>): st
       return details?.workspacePath
         ? `I can only work with files in: ${details.workspacePath}`
         : "For security, I can only access files within your project workspace."
+
+    case ErrorCodes.WORKTREE_BRANCH_IN_USE:
+      return "Pick a different branch or remove the existing worktree using that branch."
+
+    case ErrorCodes.WORKTREE_PATH_EXISTS:
+      return "Choose a different slug or delete the existing folder under /worktrees."
+
+    case ErrorCodes.WORKTREE_DELETE_BRANCH_BLOCKED:
+      return "Switch the base workspace to another branch before deleting this one."
 
     case ErrorCodes.ERROR_MAX_TURNS:
       return "Click 'New Conversation' to start fresh and continue working."

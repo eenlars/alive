@@ -7,6 +7,7 @@ import { FileTree } from "./FileTree"
 
 interface SandboxCodePanelProps {
   workspace: string
+  worktree?: string | null
   filePath: string | null
   expandedFolders: Set<string>
   treeWidth: number
@@ -23,6 +24,7 @@ const MAX_TREE_WIDTH = 400
 
 export function SandboxCodePanel({
   workspace,
+  worktree,
   filePath,
   expandedFolders,
   treeWidth,
@@ -101,6 +103,7 @@ export function SandboxCodePanel({
           <div className="flex-1 overflow-hidden">
             <FileTree
               workspace={workspace}
+              worktree={worktree}
               activeFile={filePath}
               expandedFolders={expandedFolders}
               onToggleFolder={onToggleFolder}
@@ -139,7 +142,7 @@ export function SandboxCodePanel({
 
         {/* Code content */}
         {filePath ? (
-          <CodeViewer workspace={workspace} filePath={filePath} onClose={onCloseFile} />
+          <CodeViewer workspace={workspace} worktree={worktree} filePath={filePath} onClose={onCloseFile} />
         ) : (
           <div className="flex-1 flex items-center justify-center text-neutral-600 text-sm">
             <span>Select a file to view</span>

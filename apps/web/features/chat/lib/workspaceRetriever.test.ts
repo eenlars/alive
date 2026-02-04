@@ -9,6 +9,8 @@ import { existsSync } from "node:fs"
 import { DOMAINS } from "@webalive/shared"
 import { describe, expect, it, vi } from "vitest"
 import { domainToSlug, normalizeDomain } from "@/features/manager/lib/domain-utils"
+import * as worktrees from "@/features/worktrees/lib/worktrees"
+import { ErrorCodes } from "@/lib/error-codes"
 import { getWorkspace } from "./workspaceRetriever"
 
 // Check if we're in an environment with actual workspace directories
@@ -51,8 +53,8 @@ describe("Workspace Resolution", () => {
   })
 
   describe("Integration with existing workspace", () => {
-    it.skipIf(!hasWorkspaces)("resolves demo-goalive-nl workspace correctly (legacy hyphenated format)", () => {
-      const result = getWorkspace({
+    it.skipIf(!hasWorkspaces)("resolves demo-goalive-nl workspace correctly (legacy hyphenated format)", async () => {
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: { workspace: "demo.goalive.nl" }, // User sends with dots
         requestId: "test-int-001",
@@ -65,8 +67,8 @@ describe("Workspace Resolution", () => {
       }
     })
 
-    it.skipIf(!hasWorkspaces)("path always ends with /user", () => {
-      const result = getWorkspace({
+    it.skipIf(!hasWorkspaces)("path always ends with /user", async () => {
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: { workspace: "demo.goalive.nl" },
         requestId: "test-int-002",
@@ -78,8 +80,8 @@ describe("Workspace Resolution", () => {
       }
     })
 
-    it.skipIf(!hasWorkspaces)("path always contains /webalive/sites/", () => {
-      const result = getWorkspace({
+    it.skipIf(!hasWorkspaces)("path always contains /webalive/sites/", async () => {
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: { workspace: "demo.goalive.nl" },
         requestId: "test-int-003",
@@ -103,9 +105,9 @@ describe("Workspace Resolution", () => {
      * 1. New sites: domain.com → /srv/webalive/sites/domain.com/user
      * 2. Legacy sites: domain.com → /srv/webalive/sites/domain-com/user
      */
-    it.skipIf(!hasWorkspaces)("finds workspace with dots in directory name (new convention)", () => {
+    it.skipIf(!hasWorkspaces)("finds workspace with dots in directory name (new convention)", async () => {
       // Test case: New sites like evermore.alive.best use dots in filesystem
-      const result = getWorkspace({
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: { workspace: "evermore.alive.best" },
         requestId: "test-naming-001",
@@ -118,9 +120,9 @@ describe("Workspace Resolution", () => {
       }
     })
 
-    it.skipIf(!hasWorkspaces)("falls back to hyphens when dots directory doesn't exist (legacy)", () => {
+    it.skipIf(!hasWorkspaces)("falls back to hyphens when dots directory doesn't exist (legacy)", async () => {
       // Test case: Legacy sites like demo.goalive.nl use hyphens in filesystem
-      const result = getWorkspace({
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: { workspace: "demo.goalive.nl" },
         requestId: "test-naming-002",
@@ -135,7 +137,7 @@ describe("Workspace Resolution", () => {
 
     it("provides helpful error message with both attempted paths", async () => {
       // Test case: Non-existent workspace should show what paths were tried
-      const result = getWorkspace({
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: { workspace: "nonexistent.site.com" },
         requestId: "test-naming-003",
@@ -152,10 +154,10 @@ describe("Workspace Resolution", () => {
       }
     })
 
-    it.skipIf(!hasWorkspaces)("prefers dots over hyphens when both exist", () => {
+    it.skipIf(!hasWorkspaces)("prefers dots over hyphens when both exist", async () => {
       // Edge case: If somehow both naming conventions exist, prefer new (dots)
       // This test documents the preference order
-      const result = getWorkspace({
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: { workspace: "evermore.alive.best" },
         requestId: "test-naming-004",
@@ -171,8 +173,8 @@ describe("Workspace Resolution", () => {
   })
 
   describe("Error Handling", () => {
-    it("returns error when workspace parameter is missing", () => {
-      const result = getWorkspace({
+    it("returns error when workspace parameter is missing", async () => {
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: {},
         requestId: "test-err-001",
@@ -184,8 +186,8 @@ describe("Workspace Resolution", () => {
       }
     })
 
-    it("returns error when workspace directory doesn't exist", () => {
-      const result = getWorkspace({
+    it("returns error when workspace directory doesn't exist", async () => {
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: { workspace: "nonexistent.example.com" },
         requestId: "test-err-002",
@@ -197,8 +199,8 @@ describe("Workspace Resolution", () => {
       }
     })
 
-    it("prevents path traversal attacks", () => {
-      const result = getWorkspace({
+    it("prevents path traversal attacks", async () => {
+      const result = await getWorkspace({
         host: DOMAINS.BRIDGE_DEV_HOST,
         body: { workspace: "../../../etc/passwd" },
         requestId: "test-err-003",
@@ -213,11 +215,78 @@ describe("Workspace Resolution", () => {
     })
   })
 
-  describe("Local Development Mode", () => {
-    it("allows 'test' workspace in BRIDGE_ENV=local", () => {
+  describe("Worktree Resolution", () => {
+    it("resolves worktree paths in local mode", async () => {
       vi.stubEnv("BRIDGE_ENV", "local")
 
-      const result = getWorkspace({
+      const resolveSpy = vi
+        .spyOn(worktrees, "resolveWorktreePath")
+        .mockResolvedValue("/tmp/test-workspace/worktrees/feature")
+
+      const result = await getWorkspace({
+        host: "localhost",
+        body: { workspace: "test", worktree: "feature" },
+        requestId: "test-wt-001",
+      })
+
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.workspace).toBe("/tmp/test-workspace/worktrees/feature")
+      }
+
+      resolveSpy.mockRestore()
+      vi.unstubAllEnvs()
+    })
+
+    it("rejects empty worktree slugs", async () => {
+      vi.stubEnv("BRIDGE_ENV", "local")
+
+      const result = await getWorkspace({
+        host: "localhost",
+        body: { workspace: "test", worktree: "" },
+        requestId: "test-wt-002",
+      })
+
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        const body = await result.response.json()
+        expect(result.response.status).toBe(400)
+        expect(body.error).toBe(ErrorCodes.WORKTREE_INVALID_SLUG)
+      }
+
+      vi.unstubAllEnvs()
+    })
+
+    it("maps worktree not-found errors", async () => {
+      vi.stubEnv("BRIDGE_ENV", "local")
+
+      const resolveSpy = vi
+        .spyOn(worktrees, "resolveWorktreePath")
+        .mockRejectedValue(new worktrees.WorktreeError("WORKTREE_NOT_FOUND", "missing"))
+
+      const result = await getWorkspace({
+        host: "localhost",
+        body: { workspace: "test", worktree: "missing" },
+        requestId: "test-wt-003",
+      })
+
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        const body = await result.response.json()
+        expect(result.response.status).toBe(404)
+        expect(body.error).toBe(ErrorCodes.WORKTREE_NOT_FOUND)
+      }
+
+      resolveSpy.mockRestore()
+      vi.unstubAllEnvs()
+    })
+  })
+
+  describe("Local Development Mode", () => {
+    it("allows 'test' workspace in BRIDGE_ENV=local", async () => {
+      vi.stubEnv("BRIDGE_ENV", "local")
+
+      const result = await getWorkspace({
         host: "localhost",
         body: { workspace: "test" },
         requestId: "test-local-001",

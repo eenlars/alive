@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Parse and validate request body
-    let body: { path?: string; workspace?: string; recursive?: boolean }
+    let body: { path?: string; workspace?: string; worktree?: string; recursive?: boolean }
     try {
       body = await request.json()
     } catch {
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Resolve workspace path
     const host = request.headers.get("host") || "localhost"
-    const workspaceResult = getWorkspace({ host, body, requestId })
+    const workspaceResult = await getWorkspace({ host, body, requestId })
 
     if (!workspaceResult.success) {
       return workspaceResult.response

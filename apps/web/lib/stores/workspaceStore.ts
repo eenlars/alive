@@ -3,6 +3,7 @@
 import { WORKSPACE_STORAGE } from "@webalive/shared"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import type { Organization } from "@/lib/api/types"
 import { queueSyncToServer } from "./workspacePreferencesSync"
 
@@ -22,12 +23,14 @@ interface WorkspaceState {
   currentWorkspace: string | null // The active workspace (persisted)
   selectedOrgId: string | null
   recentWorkspaces: RecentWorkspace[]
+  currentWorktreeByWorkspace: Record<string, string | null>
 }
 
 // Actions interface - grouped under stable object (Guide §14.3)
 interface WorkspaceActions {
   actions: {
     setCurrentWorkspace: (workspace: string | null, orgId?: string) => void
+    setCurrentWorktree: (workspace: string, worktree: string | null) => void
     setSelectedOrg: (orgId: string | null) => void
     autoSelectOrg: (organizations: Organization[]) => void
     autoSelectWorkspace: () => boolean // Returns true if a workspace was auto-selected
@@ -51,12 +54,44 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
          * Also updates recentWorkspaces if orgId is provided.
          */
         setCurrentWorkspace: (workspace: string | null, orgId?: string) => {
-          set({ currentWorkspace: workspace })
+          set(state => {
+            const nextWorktrees = { ...state.currentWorktreeByWorkspace }
+            if (workspace && nextWorktrees[workspace] === undefined) {
+              nextWorktrees[workspace] = null
+            }
+            return { currentWorkspace: workspace, currentWorktreeByWorkspace: nextWorktrees }
+          })
           // Also track in recent workspaces for history
           if (workspace && orgId) {
             actions.addRecentWorkspace(workspace, orgId)
           }
           // Sync to server for cross-device access
+          queueSyncToServer()
+        },
+
+        setCurrentWorktree: (workspace: string, worktree: string | null) => {
+          if (!workspace) return
+
+          // Normalize and validate worktree to ensure consistent casing
+          // This prevents issues where URL has "Feature" but workspaceKey uses "feature"
+          let normalizedWorktree: string | null = null
+          if (worktree) {
+            const validation = validateWorktreeSlug(worktree)
+            if (validation.valid) {
+              normalizedWorktree = validation.slug
+            } else {
+              console.warn(`[WorkspaceStore] Invalid worktree slug rejected: "${worktree}" - ${validation.reason}`)
+              // Invalid worktree - clear it rather than store bad data
+              normalizedWorktree = null
+            }
+          }
+
+          set(state => ({
+            currentWorktreeByWorkspace: {
+              ...state.currentWorktreeByWorkspace,
+              [workspace]: normalizedWorktree,
+            },
+          }))
           queueSyncToServer()
         },
 
@@ -194,6 +229,7 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
         currentWorkspace: null,
         selectedOrgId: null,
         recentWorkspaces: [],
+        currentWorktreeByWorkspace: {},
         actions,
       }
     },
@@ -219,6 +255,7 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
         currentWorkspace: state.currentWorkspace,
         selectedOrgId: state.selectedOrgId,
         recentWorkspaces: state.recentWorkspaces,
+        currentWorktreeByWorkspace: state.currentWorktreeByWorkspace,
       }),
       migrate: (persistedState: unknown, version: number): WorkspaceState => {
         const state = persistedState as Partial<WorkspaceState>
@@ -228,12 +265,14 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
             currentWorkspace: null,
             selectedOrgId: state.selectedOrgId ?? null,
             recentWorkspaces: state.recentWorkspaces ?? [],
+            currentWorktreeByWorkspace: state.currentWorktreeByWorkspace ?? {},
           }
         }
         return {
           currentWorkspace: state.currentWorkspace ?? null,
           selectedOrgId: state.selectedOrgId ?? null,
           recentWorkspaces: state.recentWorkspaces ?? [],
+          currentWorktreeByWorkspace: state.currentWorktreeByWorkspace ?? {},
         }
       },
       onRehydrateStorage: () => (state, error) => {
@@ -254,6 +293,8 @@ export { useWorkspaceStoreBase }
 
 // Atomic selectors (Guide §14.1)
 export const useCurrentWorkspace = () => useWorkspaceStoreBase(state => state.currentWorkspace)
+export const useCurrentWorktree = (workspace: string | null) =>
+  useWorkspaceStoreBase(state => (workspace ? (state.currentWorktreeByWorkspace[workspace] ?? null) : null))
 export const useSelectedOrgId = () => useWorkspaceStoreBase(state => state.selectedOrgId)
 export const useRecentWorkspaces = () => useWorkspaceStoreBase(state => state.recentWorkspaces)
 

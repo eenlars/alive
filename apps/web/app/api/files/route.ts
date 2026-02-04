@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const host = request.headers.get("host") || "localhost"
 
-    const workspaceResult = getWorkspace({ host, body, requestId })
+    const workspaceResult = await getWorkspace({ host, body, requestId })
     if (!workspaceResult.success) {
       return workspaceResult.response
     }

@@ -4,6 +4,7 @@ import { addCorsHeaders } from "@/lib/cors-utils"
 
 export interface WorkspaceRequest {
   workspace?: string
+  worktree?: string
   [key: string]: unknown
 }
 
@@ -17,13 +18,13 @@ export interface WorkspaceError {
   response: NextResponse
 }
 
-export function resolveWorkspace(
+export async function resolveWorkspace(
   host: string,
   body: WorkspaceRequest,
   requestId: string,
   origin: string | null = null,
-): WorkspaceResult {
-  const workspaceResult = getWorkspace({ host, body, requestId })
+): Promise<WorkspaceResult> {
+  const workspaceResult = await getWorkspace({ host, body, requestId })
 
   if (!workspaceResult.success) {
     // Pass through the original error response from workspaceRetriever

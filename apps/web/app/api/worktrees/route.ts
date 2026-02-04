@@ -18,14 +18,24 @@ function mapWorktreeError(
       return { code: ErrorCodes.WORKTREE_INVALID_BRANCH, status: 400, details }
     case "WORKTREE_INVALID_FROM":
       return { code: ErrorCodes.WORKTREE_INVALID_FROM, status: 400, details }
+    case "WORKTREE_BASE_INVALID":
+      return { code: ErrorCodes.WORKTREE_BASE_INVALID, status: 400, details }
     case "WORKTREE_NOT_FOUND":
       return { code: ErrorCodes.WORKTREE_NOT_FOUND, status: 404, details }
     case "WORKTREE_EXISTS":
       return { code: ErrorCodes.WORKTREE_EXISTS, status: 409, details }
+    case "WORKTREE_BRANCH_IN_USE":
+      return { code: ErrorCodes.WORKTREE_BRANCH_IN_USE, status: 409, details }
+    case "WORKTREE_PATH_EXISTS":
+      return { code: ErrorCodes.WORKTREE_PATH_EXISTS, status: 409, details }
     case "WORKTREE_LOCKED":
       return { code: ErrorCodes.WORKTREE_LOCKED, status: 409, details }
     case "WORKTREE_DIRTY":
       return { code: ErrorCodes.WORKTREE_DIRTY, status: 409, details }
+    case "WORKTREE_BRANCH_UNKNOWN":
+      return { code: ErrorCodes.WORKTREE_BRANCH_UNKNOWN, status: 400, details }
+    case "WORKTREE_DELETE_BRANCH_BLOCKED":
+      return { code: ErrorCodes.WORKTREE_DELETE_BRANCH_BLOCKED, status: 409, details }
     case "WORKTREE_NOT_GIT":
       return { code: ErrorCodes.WORKTREE_NOT_GIT, status: 404, details }
     default:
@@ -60,7 +70,7 @@ export async function GET(req: NextRequest) {
     }
 
     const host = req.headers.get("host") || "localhost"
-    const workspaceResult = getWorkspace({ host, body: { workspace }, requestId })
+    const workspaceResult = await getWorkspace({ host, body: { workspace }, requestId })
     if (!workspaceResult.success) {
       return workspaceResult.response
     }
@@ -110,7 +120,7 @@ export async function POST(req: NextRequest) {
     }
 
     const host = req.headers.get("host") || "localhost"
-    const workspaceResult = getWorkspace({ host, body, requestId })
+    const workspaceResult = await getWorkspace({ host, body, requestId })
     if (!workspaceResult.success) {
       return workspaceResult.response
     }
@@ -179,7 +189,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const host = req.headers.get("host") || "localhost"
-    const workspaceResult = getWorkspace({ host, body: { workspace }, requestId })
+    const workspaceResult = await getWorkspace({ host, body: { workspace }, requestId })
     if (!workspaceResult.success) {
       return workspaceResult.response
     }

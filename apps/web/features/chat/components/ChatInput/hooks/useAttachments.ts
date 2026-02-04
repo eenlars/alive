@@ -80,11 +80,15 @@ function revokeBlobUrl(url: string | undefined): void {
 async function uploadToWorkspace(
   file: File,
   workspace: string | undefined,
+  worktree: string | null | undefined,
 ): Promise<{ path: string; originalName: string; size: number; mimeType: string }> {
   const formData = new FormData()
   formData.append("file", file)
   if (workspace) {
     formData.append("workspace", workspace)
+  }
+  if (worktree) {
+    formData.append("worktree", worktree)
   }
 
   const response = await fetch("/api/files/upload", {
@@ -368,7 +372,7 @@ export function useAttachments(config: ChatInputConfig) {
    * Uploads the file to the workspace's .uploads/ directory.
    */
   const addFileForAnalysis = useCallback(
-    async (file: File, workspace?: string) => {
+    async (file: File, workspace?: string, worktree?: string | null) => {
       // Validate file (use same validation as regular attachments)
       const validation = validateFile(file, {
         maxFileSize: config.maxFileSize,
@@ -409,7 +413,7 @@ export function useAttachments(config: ChatInputConfig) {
         setAttachments(prev => prev.map(a => (a.id === tempAttachment.id ? { ...a, uploadProgress: 50 } : a)))
 
         // Upload to workspace
-        const result = await uploadToWorkspace(file, workspace)
+        const result = await uploadToWorkspace(file, workspace ?? config.workspace, worktree ?? config.worktree)
 
         // Convert to uploaded-file attachment
         setAttachments(prev =>

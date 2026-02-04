@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { OptionalWorktreeSchema } from "@/types/guards/api"
 
 // ============================================================================
 // STANDARDIZED RESPONSE ENVELOPES
@@ -129,6 +130,7 @@ export const apiSchemas = {
         tabGroupId: z.string().optional(), // Tab group ID for lock key
         tabId: z.string().optional(), // Primary session key (replaces conversationId for fallback)
         workspace: z.string().optional(),
+        worktree: OptionalWorktreeSchema, // Validated to prevent session key corruption
         clientStack: z.string().optional(), // Debug: client-side stack trace for tracking cancel origin
       })
       .refine(data => data.requestId || (data.tabGroupId && data.tabId && data.workspace), {

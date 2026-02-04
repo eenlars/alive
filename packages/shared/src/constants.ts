@@ -185,7 +185,7 @@ export const WORKSPACE_STORAGE = {
   /** localStorage key for workspace state */
   KEY: "workspace-storage",
   /** Current schema version - increment when changing state structure */
-  VERSION: 3,
+  VERSION: 4,
 } as const
 
 /**
@@ -203,6 +203,7 @@ export interface WorkspaceStorageState {
   currentWorkspace: string | null
   selectedOrgId: string | null
   recentWorkspaces: WorkspaceStorageRecentItem[]
+  currentWorktreeByWorkspace: Record<string, string | null>
 }
 
 export interface WorkspaceStorageValue {
@@ -234,6 +235,7 @@ export function createWorkspaceStorageValue(workspace: string, orgId: string | n
       currentWorkspace: workspace,
       selectedOrgId: orgId,
       recentWorkspaces: [],
+      currentWorktreeByWorkspace: {},
     },
     version: WORKSPACE_STORAGE.VERSION,
   }

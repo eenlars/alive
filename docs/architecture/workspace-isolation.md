@@ -98,6 +98,10 @@ When an optional `worktree` slug is present in the request, the resolver must:
 
 This prevents path traversal, symlink escapes, and phantom worktree paths. Auth remains domain-based; worktrees do not change access rules.
 
+Additional constraints:
+- The base workspace must be a repo root. Reject `.git` files (worktree paths) and return a clear error.
+- Worktree mutations use a per-repo lock at `.git/bridge-worktree.lock` to prevent concurrent git worktree changes.
+
 ## Path Validation
 
 ### ensurePathWithinWorkspace()

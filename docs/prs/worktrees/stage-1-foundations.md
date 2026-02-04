@@ -18,15 +18,18 @@
 - Allowed: `^[a-z0-9][a-z0-9-]{0,48}$`
 - Must be lowercase.
 - Reject reserved slugs like `user`, `worktrees`, and `.` or `..`.
+- Reject any slug that would produce a nested path (no `/`).
 
 ## Branch Rules
 - Validate branch refs with `git check-ref-format --branch <branch>`.
 - Default branch name: `worktree/<slug>`.
-- If branch exists, append a timestamp suffix `worktree/<slug>-YYYYMMDD-HHMM` (UTC).
+- If the default branch exists *or is already checked out by another worktree*, append a timestamp suffix `worktree/<slug>-YYYYMMDD-HHMM` (UTC). If that still collides, append `-2`, `-3`, etc.
+- If `branch` is provided and already checked out by another worktree, return `WORKTREE_BRANCH_IN_USE`.
 
 ## Preconditions
 - `baseWorkspacePath` must exist and be a git repo.
 - Verify with `.git` existence plus `git -C <baseWorkspacePath> rev-parse --git-dir`.
+- `.git` must be a **directory** (reject if `.git` is a file → likely a worktree path). Return `WORKTREE_BASE_INVALID`.
 - Return a clear `WORKTREE_NOT_GIT` error when the base workspace is not a repo.
 - Ensure `worktreeRoot` exists and is owned by the workspace user (chown to base workspace uid/gid when created).
 
@@ -45,11 +48,12 @@ Create `apps/web/features/worktrees/lib/worktrees.ts` with:
 - Runs `git worktree list --porcelain` via `runAsWorkspaceUser`.
 - Parses blocks into `{ path, branch, head, isBare }`.
 - Filters to `worktreeRoot` only. Do not include the base workspace.
+- Ignore entries whose slug is invalid or nested (defensive against manual git worktree add).
 - If `worktreeRoot` does not exist, return an empty list.
 
 ### `resolveWorktreePath(baseWorkspacePath, slug)`
 - Builds `<worktreeRoot>/<slug>` and resolves realpath.
-- Uses `ensurePathWithinWorkspace` on `worktreeRoot`.
+- Uses `ensurePathWithinWorkspace` on `worktreeRoot` **after** `realpath`.
 - Verifies the real path exists in `git worktree list --porcelain`.
 - Returns the real path only if it is a listed worktree.
 
@@ -58,11 +62,16 @@ Create `apps/web/features/worktrees/lib/worktrees.ts` with:
 - If `slug` is empty, generate `wt-YYYYMMDD-HHMM`.
 - Default `from` is the current HEAD (`git rev-parse --abbrev-ref HEAD`).
 - Acquire the lock before any git mutation.
+- Reject if `worktreePath` already exists on disk (`WORKTREE_PATH_EXISTS`).
+- Re-check existing worktrees *inside* the lock to prevent races (`WORKTREE_EXISTS`).
 - Create the worktree with `git worktree add <path> -b <branch> <from>`.
 
 ### `removeWorktree({ baseWorkspacePath, slug, deleteBranch })`
 - Resolves the path with `resolveWorktreePath`.
 - Optionally reject dirty worktrees unless `force` is explicitly allowed later.
+- If `deleteBranch` is true, validate **before** removal:
+  - Reject if the worktree is detached (`WORKTREE_BRANCH_UNKNOWN`).
+  - Reject if the branch matches the base workspace branch (`WORKTREE_DELETE_BRANCH_BLOCKED`).
 - Run `git worktree remove <path>`.
 - If `deleteBranch` is true, delete with `git branch -D <branch>`.
 

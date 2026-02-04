@@ -58,7 +58,7 @@ describe("/api/worktrees", () => {
 
     vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
     vi.mocked(verifyWorkspaceAccess).mockResolvedValue("example.com")
-    vi.mocked(getWorkspace).mockReturnValue({
+    vi.mocked(getWorkspace).mockResolvedValue({
       success: true,
       workspace: "/tmp/example/user",
     })
