@@ -85,6 +85,7 @@ export const baseTestConfig = {
     // TODO: Fix react/jsx-dev-runtime resolution in vitest 4.x with happy-dom
     "**/components/ui/__tests__/PhotoMenu.test.tsx",
     "**/features/chat/hooks/__tests__/useStreamCancellation.test.ts",
+    "**/lib/db/__tests__/useTabMessages.test.ts",
   ],
 }
 

@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
     let cwd: string
     let resolvedWorkspaceName: string | null
     let tokenSource: TokenSource
-    let effectiveApiKey: string | undefined = userApiKey
+    const effectiveApiKey: string | undefined = userApiKey
 
     try {
       // Security: Verify workspace authorization BEFORE resolving paths
