@@ -1,7 +1,20 @@
 "use client"
 
 import { REFERRAL } from "@webalive/shared"
-import { Archive, ArchiveRestore, Check, ChevronRight, Heart, PanelLeftClose, Pencil, Settings2, X } from "lucide-react"
+import {
+  Archive,
+  ArchiveRestore,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  GitBranch,
+  Heart,
+  MessageSquare,
+  PanelLeftClose,
+  Pencil,
+  Settings2,
+  X,
+} from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useDexieArchivedConversations, useDexieConversations, useDexieSession } from "@/lib/db/dexieMessageStore"
 import type { DbConversation } from "@/lib/db/messageDb"
@@ -46,6 +59,81 @@ function CloseButton({ onClick, isMobile }: { onClick: () => void; isMobile?: bo
   )
 }
 
+// New Chat dropdown with Chat/Worktree options
+function NewChatDropdown({ onNewChat, onNewWorktree }: { onNewChat: () => void; onNewWorktree: () => void }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close on click outside
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [isOpen])
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false)
+    }
+    document.addEventListener("keydown", handleEscape)
+    return () => document.removeEventListener("keydown", handleEscape)
+  }, [isOpen])
+
+  const handleSelect = (action: () => void) => {
+    setIsOpen(false)
+    action()
+  }
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm ${styles.activeFill} ${styles.hoverFillStrong} ${styles.transition} ${styles.textPrimary}`}
+      >
+        <span>New Chat</span>
+        <ChevronDown
+          size={14}
+          strokeWidth={2}
+          className={`${styles.textMuted} transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {/* Dropdown menu */}
+      <div
+        className={`absolute left-0 right-0 mt-1 bg-white dark:bg-neutral-800 rounded-lg border ${styles.border} shadow-lg overflow-hidden z-50 ${
+          isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1 pointer-events-none"
+        } ${styles.transitionAll}`}
+      >
+        <button
+          type="button"
+          onClick={() => handleSelect(onNewChat)}
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left ${styles.textPrimary} ${styles.hoverFill} ${styles.transition}`}
+        >
+          <MessageSquare size={16} strokeWidth={1.75} className={styles.textMuted} />
+          <span>Chat</span>
+        </button>
+        <div className={`border-t ${styles.borderSubtle}`} />
+        <button
+          type="button"
+          onClick={() => handleSelect(onNewWorktree)}
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left ${styles.textPrimary} ${styles.hoverFill} ${styles.transition}`}
+        >
+          <GitBranch size={16} strokeWidth={1.75} className={styles.textMuted} />
+          <span>Worktree</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 interface ConversationSidebarProps {
   workspace: string | null
   activeTabGroupId: string | null
@@ -54,6 +142,7 @@ interface ConversationSidebarProps {
   onUnarchiveTabGroup: (tabGroupId: string) => void
   onRenameTabGroup: (tabGroupId: string, title: string) => void
   onNewConversation: () => void
+  onNewWorktree: () => void
   onOpenSettings: () => void
   onOpenInvite: () => void
 }
@@ -66,6 +155,7 @@ export function ConversationSidebar({
   onUnarchiveTabGroup,
   onRenameTabGroup,
   onNewConversation,
+  onNewWorktree,
   onOpenSettings,
   onOpenInvite,
 }: ConversationSidebarProps) {
@@ -163,18 +253,18 @@ export function ConversationSidebar({
           <EmptyState>No conversations yet</EmptyState>
         ) : (
           <>
-            {/* New Chat button */}
+            {/* New Chat dropdown */}
             <div className="px-2 py-3 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
+              <NewChatDropdown
+                onNewChat={() => {
                   onNewConversation()
                   if (isMobile) closeSidebar()
                 }}
-                className={`w-full flex items-center justify-center py-2 px-3 rounded-lg text-sm ${styles.activeFill} ${styles.hoverFillStrong} ${styles.transition} ${styles.textPrimary}`}
-              >
-                New Chat
-              </button>
+                onNewWorktree={() => {
+                  onNewWorktree()
+                  if (isMobile) closeSidebar()
+                }}
+              />
             </div>
 
             {/* Active conversations - grows to fill space */}

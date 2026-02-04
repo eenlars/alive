@@ -333,6 +333,23 @@ function dropPrivileges() {
     }
   }
 
+  // Ensure temp directory is writable by the workspace user
+  const tempDir = join(process.env.HOME || "/tmp", "tmp")
+  try {
+    if (!existsSync(tempDir)) {
+      mkdirSync(tempDir, { recursive: true, mode: 0o700 })
+    }
+    if (typeof targetUid === "number" && typeof targetGid === "number") {
+      chownSync(tempDir, targetUid, targetGid)
+    }
+    process.env.TMPDIR = tempDir
+    process.env.TMP = tempDir
+    process.env.TEMP = tempDir
+    console.error(`[worker] TMPDIR set to: ${tempDir}`)
+  } catch (error) {
+    console.error(`[worker] Failed to set TMPDIR: ${error.message}`)
+  }
+
   // Drop privileges with validation
   // CRITICAL: Must drop GID before UID (can't setgid after dropping root UID)
   try {
