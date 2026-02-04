@@ -112,7 +112,6 @@
         "@supabase/supabase-js": "^2.81.1",
         "@types/bcrypt": "^6.0.0",
         "@webalive/automation": "workspace:*",
-        "@webalive/bridge-types": "workspace:*",
         "@webalive/database": "workspace:*",
         "@webalive/env": "workspace:*",
         "@webalive/images": "workspace:*",
@@ -120,6 +119,7 @@
         "@webalive/redis": "workspace:*",
         "@webalive/shared": "workspace:*",
         "@webalive/site-controller": "workspace:*",
+        "@webalive/stream-types": "workspace:*",
         "@webalive/tools": "workspace:*",
         "@webalive/worker-pool": "workspace:*",
         "@xterm/addon-fit": "^0.10.0",
@@ -197,13 +197,6 @@
       "devDependencies": {
         "@types/node": "^22.0.3",
         "typescript": "^5.7.2",
-      },
-    },
-    "packages/bridge-types": {
-      "name": "@webalive/bridge-types",
-      "version": "1.0.0",
-      "devDependencies": {
-        "typescript": "^5.0.0",
       },
     },
     "packages/database": {
@@ -294,6 +287,13 @@
       },
       "devDependencies": {
         "bun-types": "^1.3.8",
+      },
+    },
+    "packages/stream-types": {
+      "name": "@webalive/stream-types",
+      "version": "1.0.0",
+      "devDependencies": {
+        "typescript": "^5.0.0",
       },
     },
     "packages/tools": {
@@ -975,8 +975,6 @@
 
     "@webalive/automation": ["@webalive/automation@workspace:packages/automation"],
 
-    "@webalive/bridge-types": ["@webalive/bridge-types@workspace:packages/bridge-types"],
-
     "@webalive/broker": ["@webalive/broker@workspace:apps/broker"],
 
     "@webalive/database": ["@webalive/database@workspace:packages/database"],
@@ -998,6 +996,8 @@
     "@webalive/shared": ["@webalive/shared@workspace:packages/shared"],
 
     "@webalive/site-controller": ["@webalive/site-controller@workspace:packages/site-controller"],
+
+    "@webalive/stream-types": ["@webalive/stream-types@workspace:packages/stream-types"],
 
     "@webalive/tools": ["@webalive/tools@workspace:packages/tools"],
 
