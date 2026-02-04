@@ -71,6 +71,8 @@ The running Claude process had a file handle to a DELETED version of the credent
 
 ## The Fix
 
+**Current behavior (worker pool enabled):** the pool checks `CLAUDE_CONFIG_DIR/.credentials.json` before OAuth queries, fixes permissions if needed, and restarts idle workers when credentials change. Manual steps below are still useful if you’re on an older build or diagnosing a running system.
+
 ### 1. File Permissions (Required)
 
 Ensure the credentials file is readable by worker users:
@@ -112,9 +114,9 @@ systemctl restart claude-bridge-production
 
 ### 4. Single Source of Truth
 
-`/root/.claude/.credentials.json` is the ONLY credentials location:
+By default, `/root/.claude/.credentials.json` is the single credentials source:
 - CLI writes here after `/login`
-- All workers read from here via `CLAUDE_CONFIG_DIR=/root/.claude`
+- All workers read from here via `CLAUDE_CONFIG_DIR=/root/.claude` (unless the service sets a different `CLAUDE_CONFIG_DIR`)
 - File permissions: `644` (readable by all)
 - Per-request runner (when worker pool is disabled) copies from here to a temp HOME
 

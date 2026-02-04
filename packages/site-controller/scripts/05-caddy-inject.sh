@@ -63,9 +63,33 @@ else
 
     # Generate preview subdomain label (e.g., windowsxp.alive.best -> windowsxp-alive-best)
     PREVIEW_LABEL=$(echo "$SITE_DOMAIN" | tr '.' '-')
-    PREVIEW_BASE="${PREVIEW_BASE:-preview.terminal.goalive.nl}"
-    PREVIEW_DOMAIN="${PREVIEW_LABEL}.${PREVIEW_BASE}"
-    log_info "Preview subdomain: $PREVIEW_DOMAIN"
+
+    # Read environments from environments.json
+    ENV_CONFIG_PATH="${BRIDGE_ROOT}/packages/shared/environments.json"
+    if [[ -f "$ENV_CONFIG_PATH" ]] && command -v jq &> /dev/null; then
+        log_info "Reading environments from: $ENV_CONFIG_PATH"
+        # Extract environments as JSON array: [{"key":"production","port":9000,"previewBase":"preview.terminal.goalive.nl","domain":"terminal.goalive.nl"},...]
+        ENVIRONMENTS=$(jq -c '[.environments | to_entries[] | {key: .value.key, port: .value.port, previewBase: .value.previewBase, domain: .value.domain}]' "$ENV_CONFIG_PATH")
+        # Build frame ancestors from all environment domains
+        FRAME_ANCESTORS=$(jq -r '[.environments[].domain] | map("https://" + .) | join(" ")' "$ENV_CONFIG_PATH")" https://app.alive.best"
+    else
+        # jq is required for parsing environments - check if it's available
+        if ! command -v jq &> /dev/null; then
+            log_error "jq is required but not installed. Please install jq or use generator mode."
+            exit 18
+        fi
+        log_warn "environments.json not found, using single environment fallback"
+        # Fallback to single environment from env vars
+        PREVIEW_BASE="${PREVIEW_BASE:-preview.terminal.goalive.nl}"
+        AUTH_PORT="${AUTH_PORT:-8998}"
+        ENVIRONMENTS=$(cat <<EOF
+[{"key":"default","port":${AUTH_PORT},"previewBase":"${PREVIEW_BASE}","domain":"terminal.goalive.nl"}]
+EOF
+)
+        FRAME_ANCESTORS="${FRAME_ANCESTORS:-https://dev.terminal.goalive.nl https://staging.terminal.goalive.nl https://terminal.goalive.nl https://app.alive.best}"
+    fi
+
+    log_info "Frame ancestors: $FRAME_ANCESTORS"
 
     # Acquire lock on Caddyfile (30 second timeout)
     log_info "Acquiring Caddyfile lock..."
@@ -113,21 +137,32 @@ EOF
         mv "$TMP_FILE" "$CADDYFILE_PATH"
     fi
 
-    # Also add/update preview subdomain block
-    ESCAPED_PREVIEW=$(echo "$PREVIEW_DOMAIN" | sed 's/\./\\./g')
+    # Generate preview subdomain blocks for ALL environments
+    ENV_COUNT=$(echo "$ENVIRONMENTS" | jq 'length')
+    log_info "Generating preview blocks for $ENV_COUNT environments..."
 
-    # Get frame ancestors from env or use defaults
-    FRAME_ANCESTORS="${FRAME_ANCESTORS:-https://dev.terminal.goalive.nl https://staging.terminal.goalive.nl https://terminal.goalive.nl https://app.alive.best}"
+    for i in $(seq 0 $((ENV_COUNT - 1))); do
+        ENV_KEY=$(echo "$ENVIRONMENTS" | jq -r ".[$i].key")
+        ENV_PORT=$(echo "$ENVIRONMENTS" | jq -r ".[$i].port")
+        ENV_PREVIEW_BASE=$(echo "$ENVIRONMENTS" | jq -r ".[$i].previewBase")
 
-    if grep -q "^${PREVIEW_DOMAIN} {" "$CADDYFILE_PATH"; then
-        log_info "Preview block exists, updating port..."
-        sed -i "/^${ESCAPED_PREVIEW} {/,/^}/ s/reverse_proxy localhost:[0-9]*/reverse_proxy localhost:${SITE_PORT}/" "$CADDYFILE_PATH"
-    else
-        log_info "Creating preview subdomain block..."
-        TMP_FILE="${CADDYFILE_PATH}.tmp.$$"
-        cp "$CADDYFILE_PATH" "$TMP_FILE"
+        PREVIEW_DOMAIN="${PREVIEW_LABEL}.${ENV_PREVIEW_BASE}"
+        ESCAPED_PREVIEW=$(echo "$PREVIEW_DOMAIN" | sed 's/\./\\./g')
 
-        cat >> "$TMP_FILE" <<EOF
+        log_info "  - $ENV_KEY: $PREVIEW_DOMAIN → auth:$ENV_PORT"
+
+        if grep -q "^${PREVIEW_DOMAIN} {" "$CADDYFILE_PATH"; then
+            log_info "    Preview block exists, updating ports..."
+            # Update reverse_proxy port (site's dev server)
+            sed -i "/^${ESCAPED_PREVIEW} {/,/^}/ s/reverse_proxy localhost:[0-9]*/reverse_proxy localhost:${SITE_PORT}/" "$CADDYFILE_PATH"
+            # Update forward_auth port (environment's auth server)
+            sed -i "/^${ESCAPED_PREVIEW} {/,/^}/ s/forward_auth localhost:[0-9]*/forward_auth localhost:${ENV_PORT}/" "$CADDYFILE_PATH"
+        else
+            log_info "    Creating preview subdomain block..."
+            TMP_FILE="${CADDYFILE_PATH}.tmp.$$"
+            cp "$CADDYFILE_PATH" "$TMP_FILE"
+
+            cat >> "$TMP_FILE" <<EOF
 
 ${PREVIEW_DOMAIN} {
     import image_serving
@@ -145,12 +180,25 @@ ${PREVIEW_DOMAIN} {
         -X-Powered-By
     }
 
+    # SECURITY: Strip any client-supplied X-Preview-Set-Cookie header to prevent cookie injection
+    request_header -X-Preview-Set-Cookie
+
+    # Auth check via forward_auth (routes to ${ENV_KEY} environment)
+    forward_auth localhost:${ENV_PORT} {
+        uri /api/auth/preview-guard?{query}
+        copy_headers Cookie X-Preview-Set-Cookie
+    }
+
+    # Map X-Preview-Set-Cookie from forward_auth to Set-Cookie response header
+    @has_preview_cookie header X-Preview-Set-Cookie *
+    header @has_preview_cookie +Set-Cookie "{http.request.header.X-Preview-Set-Cookie}"
 }
 EOF
-        mv "$TMP_FILE" "$CADDYFILE_PATH"
-    fi
+            mv "$TMP_FILE" "$CADDYFILE_PATH"
+        fi
+    done
 
-    log_success "Caddyfile updated (main + preview)"
+    log_success "Caddyfile updated (main + ${ENV_COUNT} preview domains)"
 
     # Release lock
     flock -u 200
