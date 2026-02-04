@@ -49,14 +49,10 @@ export async function POST(_req: NextRequest, context: RouteContext) {
 
     // Check if already running
     if (job.running_at) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Automation is already running",
-          startedAt: job.running_at,
-        },
-        { status: 409 },
-      )
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, {
+        status: 409,
+        details: { startedAt: job.running_at },
+      })
     }
 
     const hostname = (job.domains as any)?.hostname

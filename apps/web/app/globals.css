@@ -25,7 +25,7 @@
 
 /* Diatype Variable Font */
 @font-face {
-  font-display: block;
+  font-display: swap;
   font-family: "Diatype Variable";
   src: url("https://type.cargo.site/files/Cargo-DiatypePlusVariable.woff2") format("woff2-variations");
   font-style: normal;
@@ -33,7 +33,7 @@
 }
 
 @font-face {
-  font-display: block;
+  font-display: swap;
   font-family: "Diatype Variable";
   src: url("https://type.cargo.site/files/Cargo-DiatypePlusVariable-Italic.woff2") format("woff2-variations");
   font-style: italic;
@@ -41,7 +41,7 @@
 }
 
 @font-face {
-  font-display: block;
+  font-display: swap;
   font-family: "Diatype Semi-Mono Variable";
   src: url("https://type.cargo.site/files/Cargo-DiatypePlusVariable.woff2") format("woff2-variations");
   font-style: normal;
@@ -49,7 +49,7 @@
 }
 
 @font-face {
-  font-display: block;
+  font-display: swap;
   font-family: "Diatype Semi-Mono Variable";
   src: url("https://type.cargo.site/files/Cargo-DiatypePlusVariable-Italic.woff2") format("woff2-variations");
   font-style: italic;
@@ -57,7 +57,7 @@
 }
 
 @font-face {
-  font-display: block;
+  font-display: swap;
   font-family: "Diatype Mono Variable";
   src: url("https://type.cargo.site/files/Cargo-DiatypePlusVariable.woff2") format("woff2-variations");
   font-style: normal;
@@ -65,7 +65,7 @@
 }
 
 @font-face {
-  font-display: block;
+  font-display: swap;
   font-family: "Diatype Mono Variable";
   src: url("https://type.cargo.site/files/Cargo-DiatypePlusVariable-Italic.woff2") format("woff2-variations");
   font-style: italic;
@@ -83,7 +83,7 @@ body {
   font-family: "Diatype Variable", "Inter", Arial, sans-serif;
   font-weight: 400;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.625;
   letter-spacing: 0.02em;
   margin: 0;
   padding: 0;
