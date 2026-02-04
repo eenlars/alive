@@ -159,6 +159,14 @@ export const PATHS = {
 // Domain Constants
 // =============================================================================
 
+// Allow explicit URL overrides for environments that don't match the pattern
+const BRIDGE_PROD_URL = getEnv("BRIDGE_PROD_URL") || `https://app.${WILDCARD_DOMAIN}`
+const BRIDGE_STAGING_URL = getEnv("BRIDGE_STAGING_URL") || `https://staging.${WILDCARD_DOMAIN}`
+const BRIDGE_DEV_URL = getEnv("BRIDGE_DEV_URL") || `https://dev.${WILDCARD_DOMAIN}`
+
+// Extract hostnames from URLs
+const extractHost = (url: string) => url.replace(/^https?:\/\//, "")
+
 export const DOMAINS = {
   /** Wildcard domain for automatic subdomain deployment */
   WILDCARD: WILDCARD_DOMAIN,
@@ -170,22 +178,22 @@ export const DOMAINS = {
   MAIN_SUFFIX: `.${MAIN_DOMAIN}`,
 
   /** Production bridge URL */
-  BRIDGE_PROD: `https://app.${WILDCARD_DOMAIN}`,
+  BRIDGE_PROD: BRIDGE_PROD_URL,
 
   /** Production bridge hostname */
-  BRIDGE_PROD_HOST: `app.${WILDCARD_DOMAIN}`,
+  BRIDGE_PROD_HOST: extractHost(BRIDGE_PROD_URL),
 
   /** Development bridge URL */
-  BRIDGE_DEV: `https://dev.${WILDCARD_DOMAIN}`,
+  BRIDGE_DEV: BRIDGE_DEV_URL,
 
   /** Development bridge hostname */
-  BRIDGE_DEV_HOST: `dev.${WILDCARD_DOMAIN}`,
+  BRIDGE_DEV_HOST: extractHost(BRIDGE_DEV_URL),
 
   /** Staging bridge URL */
-  BRIDGE_STAGING: `https://staging.${WILDCARD_DOMAIN}`,
+  BRIDGE_STAGING: BRIDGE_STAGING_URL,
 
   /** Staging bridge hostname */
-  BRIDGE_STAGING_HOST: `staging.${WILDCARD_DOMAIN}`,
+  BRIDGE_STAGING_HOST: extractHost(BRIDGE_STAGING_URL),
 
   /** Staging domain suffix */
   STAGING_SUFFIX: `.staging.${MAIN_DOMAIN}`,
