@@ -74,3 +74,12 @@ Returns:
 - Worktrees are limited to the same repo as the base workspace.
 - Worktree paths are not exposed as absolute paths.
 - No new auth scopes are introduced.
+
+## Error Codes (Service)
+
+- `WORKTREE_NOT_GIT` when the base workspace is not a git repo.
+- `WORKTREE_INVALID_SLUG` for invalid or reserved slugs.
+- `WORKTREE_INVALID_BRANCH` for invalid branch names.
+- `WORKTREE_INVALID_FROM` for invalid base refs.
+- `WORKTREE_LOCKED` when a worktree lock is held.
+- `WORKTREE_DIRTY` when removing a dirty worktree without override.

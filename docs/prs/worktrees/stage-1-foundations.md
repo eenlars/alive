@@ -27,12 +27,14 @@
 
 ## Preconditions
 - `baseWorkspacePath` must exist and be a git repo.
-- Verify with `git -C <baseWorkspacePath> rev-parse --git-dir`.
+- Verify with `.git` existence plus `git -C <baseWorkspacePath> rev-parse --git-dir`.
+- Return a clear `WORKTREE_NOT_GIT` error when the base workspace is not a repo.
 - Ensure `worktreeRoot` exists and is owned by the workspace user.
 
 ## Concurrency and Safety
-- Use a per-site lock to serialize `git worktree` mutations.
-- Suggested lock file: `<siteRoot>/.git/bridge-worktree.lock`.
+- Use a per-repo lock to serialize `git worktree` mutations.
+- Lock file: `<baseWorkspacePath>/.git/bridge-worktree.lock`.
+- Return `WORKTREE_LOCKED` on contention.
 - Acquire with `fs.open(lock, "wx")` and keep the fd open until done.
 - Store `pid` and timestamp in the lock for debugging.
 - If the lock exists, return a 409 so the caller can retry.

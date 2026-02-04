@@ -24,3 +24,9 @@ For each new route:
 - Create a worktree under a temp `worktrees` folder.
 - Use `runAsWorkspaceUser` in tests only if required by the helper.
 - Clean up temp directories after each test run.
+
+## Service-Level Tests (Phase 1)
+- Invalid branch name returns `WORKTREE_INVALID_BRANCH`.
+- Invalid `from` ref returns `WORKTREE_INVALID_FROM`.
+- Non-git base workspace returns `WORKTREE_NOT_GIT`.
+- Lock contention returns `WORKTREE_LOCKED`.
