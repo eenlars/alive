@@ -161,10 +161,10 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
       {/* Scrollable Content */}
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
         <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-6 space-y-6">
+          <div className="px-4 py-4 space-y-4">
             {/* Title */}
-            <div className="space-y-2">
-              <label htmlFor="auto-title" className="text-sm font-medium text-black dark:text-white">
+            <div className="space-y-1.5">
+              <label htmlFor="auto-title" className="text-xs font-medium text-black dark:text-white">
                 Title
               </label>
               <input
@@ -174,13 +174,13 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                 onChange={e => setTitle(e.target.value)}
                 placeholder="Summary of AI news"
                 autoComplete="off"
-                className="w-full h-10 px-4 rounded-xl text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] transition-all"
+                className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] transition-all"
               />
             </div>
 
             {/* Prompt */}
-            <div className="space-y-2">
-              <label htmlFor="auto-prompt" className="text-sm font-medium text-black dark:text-white">
+            <div className="space-y-1.5">
+              <label htmlFor="auto-prompt" className="text-xs font-medium text-black dark:text-white">
                 Prompt
               </label>
               <textarea
@@ -188,14 +188,14 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
                 placeholder="Search for yesterday's most impactful AI news and send me a brief summary."
-                className="w-full h-32 px-4 py-3 rounded-xl text-sm leading-relaxed bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 border-0 resize-none focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] transition-all"
+                className="w-full h-24 px-3 py-2 rounded-lg text-sm leading-relaxed bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 border-0 resize-none focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] transition-all"
                 maxLength={5000}
               />
             </div>
 
             {/* Website */}
-            <div className="space-y-2">
-              <label htmlFor="auto-site" className="text-sm font-medium text-black dark:text-white">
+            <div className="space-y-1.5">
+              <label htmlFor="auto-site" className="text-xs font-medium text-black dark:text-white">
                 Website
               </label>
               <div className="relative">
@@ -212,7 +212,7 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                   onBlur={() => setTimeout(() => setSiteDropdownOpen(false), 150)}
                   placeholder="Select website..."
                   autoComplete="off"
-                  className="w-full h-10 px-4 rounded-xl text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] transition-all"
+                  className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] transition-all"
                 />
                 {siteDropdownOpen && filteredSites.length > 0 && (
                   <div className="absolute z-20 top-full left-0 right-0 mt-1.5 max-h-48 overflow-auto rounded-2xl bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08] shadow-xl ring-1 ring-black/[0.04] dark:ring-white/[0.04] animate-in fade-in slide-in-from-bottom-2 duration-150">
@@ -239,9 +239,9 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
             </div>
 
             {/* Schedule - Full Width */}
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-black dark:text-white block">Schedule</div>
-              <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.06] overflow-hidden bg-black/[0.01] dark:bg-white/[0.01]">
+            <div className="space-y-1.5">
+              <div className="text-xs font-medium text-black dark:text-white block">Schedule</div>
+              <div className="rounded-lg border border-black/[0.06] dark:border-white/[0.06] overflow-hidden bg-black/[0.01] dark:bg-white/[0.01]">
                 <CronScheduler
                   value={cronSchedule}
                   onChange={setCronSchedule}
@@ -256,13 +256,13 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
             </div>
 
             {/* Advanced Settings */}
-            <div className="rounded-xl border border-black/[0.06] dark:border-white/[0.06] overflow-hidden">
+            <div className="rounded-lg border border-black/[0.06] dark:border-white/[0.06] overflow-hidden">
               <button
                 type="button"
                 onClick={() => setAdvancedOpen(!advancedOpen)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+                className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
               >
-                <span className="text-sm font-medium text-black dark:text-white">Advanced settings</span>
+                <span className="text-xs font-medium text-black dark:text-white">Advanced settings</span>
                 <ChevronDown
                   size={18}
                   className={`text-black/40 dark:text-white/40 transition-transform duration-200 ${
@@ -272,17 +272,17 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
               </button>
 
               {advancedOpen && (
-                <div className="px-4 pb-4 pt-3 border-t border-black/[0.06] dark:border-white/[0.06] space-y-4">
+                <div className="px-3 pb-3 pt-2.5 border-t border-black/[0.06] dark:border-white/[0.06] space-y-3">
                   {/* Timezone */}
-                  <div className="space-y-2">
-                    <label htmlFor="auto-tz" className="text-sm font-medium text-black dark:text-white">
+                  <div className="space-y-1.5">
+                    <label htmlFor="auto-tz" className="text-xs font-medium text-black dark:text-white">
                       Timezone
                     </label>
                     <select
                       id="auto-tz"
                       value={timezone}
                       onChange={e => setTimezone(e.target.value)}
-                      className="w-full h-10 px-4 rounded-xl text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer appearance-none"
+                      className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer appearance-none"
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
                         backgroundRepeat: "no-repeat",
@@ -299,13 +299,13 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                   </div>
 
                   {/* Skills */}
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium text-black dark:text-white block">Skills</div>
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-medium text-black dark:text-white block">Skills</div>
                     <div className="relative">
                       <button
                         type="button"
                         onClick={() => setSkillsDropdownOpen(!skillsDropdownOpen)}
-                        className="w-full h-10 px-4 rounded-xl text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white flex items-center justify-between hover:bg-black/[0.07] dark:hover:bg-white/[0.09] transition-colors"
+                        className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white flex items-center justify-between hover:bg-black/[0.07] dark:hover:bg-white/[0.09] transition-colors"
                       >
                         <span>{skills.length > 0 ? `${skills.length} selected` : "Add skills"}</span>
                         <ChevronDown
@@ -395,18 +395,18 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
         </div>
 
         {/* Footer - Sticky */}
-        <div className="px-6 py-4 border-t border-black/[0.04] dark:border-white/[0.04] bg-white dark:bg-neutral-950 flex items-center justify-end gap-3 shrink-0">
+        <div className="px-4 py-3 border-t border-black/[0.04] dark:border-white/[0.04] bg-white dark:bg-neutral-950 flex items-center justify-end gap-2 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="h-10 px-4 rounded-xl text-sm font-medium text-black/70 dark:text-white/70 border border-black/[0.08] dark:border-white/[0.08] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+            className="h-9 px-4 rounded-lg text-xs font-medium text-black/70 dark:text-white/70 border border-black/[0.08] dark:border-white/[0.08] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving || !isValid}
-            className="h-10 px-6 rounded-xl text-sm font-medium bg-black dark:bg-white text-white dark:text-black hover:brightness-[0.85] active:brightness-75 disabled:opacity-30 disabled:hover:brightness-100 transition-all"
+            className="h-9 px-5 rounded-lg text-xs font-medium bg-black dark:bg-white text-white dark:text-black hover:brightness-[0.85] active:brightness-75 disabled:opacity-30 disabled:hover:brightness-100 transition-all"
           >
             {saving ? "Saving..." : isEditing ? "Update" : "Create"}
           </button>

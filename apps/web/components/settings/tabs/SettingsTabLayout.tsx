@@ -16,14 +16,18 @@ export function SettingsTabLayout({
   description,
   action,
   children,
+  className,
+  contentClassName,
 }: {
   title: string
   description?: React.ReactNode
   action?: ActionConfig
   children: React.ReactNode
+  className?: string
+  contentClassName?: string
 }) {
   return (
-    <div>
+    <div className={className}>
       {/* Header with title */}
       <div className="pt-4 sm:pt-5 pb-3 sm:pb-4 flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
@@ -43,7 +47,7 @@ export function SettingsTabLayout({
       </div>
 
       {/* Content */}
-      <div className="pb-6 sm:pb-6">{children}</div>
+      <div className={`pb-6 sm:pb-6 ${contentClassName || ""}`}>{children}</div>
     </div>
   )
 }

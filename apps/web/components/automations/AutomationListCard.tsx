@@ -1,6 +1,6 @@
 "use client"
 
-import { Clock, Calendar, Zap, Globe } from "lucide-react"
+import { Clock, Calendar, Zap, Globe, History } from "lucide-react"
 import type { AutomationJob } from "@/lib/hooks/useSettingsQueries"
 
 function formatSchedule(job: AutomationJob): string {
@@ -63,16 +63,25 @@ interface AutomationListCardProps {
   onEdit: (job: AutomationJob) => void
   onToggle: (id: string, active: boolean) => void
   onDelete: (id: string) => void
+  onViewRuns: (job: AutomationJob) => void
   isSelected: boolean
   onSelect: () => void
 }
 
-export function AutomationListCard({ job, onEdit, onToggle, onDelete, isSelected, onSelect }: AutomationListCardProps) {
+export function AutomationListCard({
+  job,
+  onEdit,
+  onToggle,
+  onDelete,
+  onViewRuns,
+  isSelected,
+  onSelect,
+}: AutomationListCardProps) {
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`w-full text-left p-4 rounded-lg border transition-all ${
+      className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer ${
         isSelected
           ? "bg-black/[0.04] dark:bg-white/[0.08] border-black/15 dark:border-white/15"
           : job.is_active
@@ -81,51 +90,51 @@ export function AutomationListCard({ job, onEdit, onToggle, onDelete, isSelected
       }`}
     >
       {/* Title + Action type */}
-      <div className="flex items-start justify-between gap-3 mb-2">
+      <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-black dark:text-white truncate text-sm">{job.name}</h3>
+          <h3 className="font-semibold text-black dark:text-white truncate text-xs">{job.name}</h3>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {job.is_active ? (
-            <Zap size={14} className="text-amber-600 dark:text-amber-400" />
+            <Zap size={12} className="text-amber-600 dark:text-amber-400" />
           ) : (
-            <Zap size={14} className="text-black/30 dark:text-white/30" />
+            <Zap size={12} className="text-black/30 dark:text-white/30" />
           )}
         </div>
       </div>
 
       {/* Website */}
       {job.hostname && (
-        <p className="text-xs text-black/50 dark:text-white/50 mb-2 truncate flex items-center gap-1">
-          <Globe size={11} />
+        <p className="text-[11px] text-black/50 dark:text-white/50 mb-1 truncate flex items-center gap-1">
+          <Globe size={10} />
           {job.hostname}
         </p>
       )}
 
       {/* Schedule info */}
-      <p className="text-xs text-black/60 dark:text-white/60 mb-3 flex items-center gap-1">
-        <Calendar size={11} />
+      <p className="text-[11px] text-black/60 dark:text-white/60 mb-1.5 flex items-center gap-1">
+        <Calendar size={10} />
         {formatSchedule(job)}
       </p>
 
       {/* Last run status */}
       {job.last_run_at && (
-        <div className="flex items-center gap-2 mb-3">
-          <Clock size={11} className="text-black/40 dark:text-white/40" />
-          <span className="text-xs text-black/50 dark:text-white/50">{formatRelativeTime(job.last_run_at)}</span>
+        <div className="flex items-center gap-1.5 mb-2">
+          <Clock size={10} className="text-black/40 dark:text-white/40" />
+          <span className="text-[11px] text-black/50 dark:text-white/50">{formatRelativeTime(job.last_run_at)}</span>
           {job.last_run_status && <StatusBadge status={job.last_run_status} />}
         </div>
       )}
 
       {/* Action buttons */}
-      <div className="flex items-center gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+      <div className="flex items-center gap-1.5 pt-1.5 border-t border-black/5 dark:border-white/5">
         <button
           type="button"
           onClick={e => {
             e.stopPropagation()
             onEdit(job)
           }}
-          className="px-3 py-1.5 rounded-md text-xs font-medium bg-black/5 dark:bg-white/10 text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
+          className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-black/5 dark:bg-white/10 text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
         >
           Edit
         </button>
@@ -134,9 +143,21 @@ export function AutomationListCard({ job, onEdit, onToggle, onDelete, isSelected
           type="button"
           onClick={e => {
             e.stopPropagation()
+            onViewRuns(job)
+          }}
+          className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-black/5 dark:bg-white/10 text-black/70 dark:text-white/70 hover:bg-black/10 dark:hover:bg-white/15 transition-colors inline-flex items-center gap-1"
+        >
+          <History size={10} />
+          Runs
+        </button>
+
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation()
             onToggle(job.id, !job.is_active)
           }}
-          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+          className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
             job.is_active
               ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40"
               : "bg-black/5 dark:bg-white/10 text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/15"
@@ -151,7 +172,7 @@ export function AutomationListCard({ job, onEdit, onToggle, onDelete, isSelected
             e.stopPropagation()
             onDelete(job.id)
           }}
-          className="ml-auto px-3 py-1.5 rounded-md text-xs font-medium bg-red-100/50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+          className="ml-auto px-2.5 py-1 rounded-md text-[11px] font-medium bg-red-100/50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
         >
           Delete
         </button>

@@ -33,9 +33,9 @@ export function CronExpressionInput({ value, onChange, showValidation = true }: 
   const preset = value ? matchPreset(value) : null
 
   return (
-    <div className="space-y-2.5">
-      <div className="space-y-1.5">
-        <label htmlFor="cron-input" className="text-[13px] font-medium text-black dark:text-white block">
+    <div className="space-y-2">
+      <div className="space-y-1">
+        <label htmlFor="cron-input" className="text-[11px] font-medium text-black dark:text-white block">
           Cron expression
         </label>
         <input
@@ -44,7 +44,7 @@ export function CronExpressionInput({ value, onChange, showValidation = true }: 
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder="0 9 * * 1-5"
-          className={`w-full h-9 px-4 rounded-xl text-sm font-mono bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 border transition-all focus:outline-none ${
+          className={`w-full h-8 px-2.5 rounded-lg text-xs font-mono bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 border transition-all focus:outline-none ${
             !showValidation
               ? "border-0 focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08]"
               : isValid
@@ -56,29 +56,31 @@ export function CronExpressionInput({ value, onChange, showValidation = true }: 
 
       {showValidation && validation && (
         <div
-          className={`px-3 py-2 rounded-lg text-sm flex items-start gap-2 ${
+          className={`px-2.5 py-1.5 rounded-lg text-xs flex items-start gap-1.5 ${
             isValid
               ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400"
               : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400"
           }`}
         >
-          <div className="mt-0.5 shrink-0">{isValid ? <Check size={16} /> : <AlertCircle size={16} />}</div>
+          <div className="mt-0.5 shrink-0">{isValid ? <Check size={14} /> : <AlertCircle size={14} />}</div>
           <div className="flex-1">
-            <p className="font-medium">{validation.message}</p>
-            {preset && <p className="text-xs mt-1 opacity-75">Matches: {preset.label}</p>}
+            <p className="font-medium leading-tight">{validation.message}</p>
+            {preset && <p className="text-[10px] mt-0.5 opacity-75">Matches: {preset.label}</p>}
           </div>
         </div>
       )}
 
-      <p className="text-[11px] text-black/40 dark:text-white/40 leading-relaxed">
+      <p className="text-[10px] text-black/40 dark:text-white/40 leading-relaxed">
         Format:{" "}
-        <code className="font-mono bg-black/[0.04] dark:bg-white/[0.06] px-1.5 py-0.5 rounded">
+        <code className="font-mono bg-black/[0.04] dark:bg-white/[0.06] px-1 py-0.5 rounded text-[9px]">
           minute hour day month weekday
         </code>
         <br />
         Example:{" "}
-        <code className="font-mono bg-black/[0.04] dark:bg-white/[0.06] px-1.5 py-0.5 rounded">0 9 * * 1-5</code> =
-        weekdays at 9:00 AM
+        <code className="font-mono bg-black/[0.04] dark:bg-white/[0.06] px-1 py-0.5 rounded text-[9px]">
+          0 9 * * 1-5
+        </code>{" "}
+        = weekdays 9:00 AM
       </p>
     </div>
   )

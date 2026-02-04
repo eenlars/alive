@@ -73,26 +73,26 @@ export function CronScheduler({
     <div className="space-y-0">
       {/* Toggle between one-time and recurring */}
       {showOneTime && (
-        <div className="px-6 pt-6 pb-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+        <div className="px-4 pt-4 pb-3 border-b border-black/[0.06] dark:border-white/[0.06]">
           <button
             type="button"
             onClick={() => handleOneTimeToggle(!isOneTime)}
-            className="w-full flex items-center gap-3 hover:opacity-80 transition-opacity"
+            className="w-full flex items-center gap-2.5 hover:opacity-80 transition-opacity"
           >
             <div
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${
                 isOneTime ? "bg-green-500 dark:bg-green-600" : "bg-black/[0.08] dark:bg-white/[0.12]"
               }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  isOneTime ? "translate-x-6" : "translate-x-1"
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                  isOneTime ? "translate-x-4" : "translate-x-0.5"
                 }`}
               />
             </div>
             <div className="flex-1 text-left">
-              <p className="text-sm font-medium text-black dark:text-white">One-time task</p>
-              <p className="text-xs text-black/50 dark:text-white/50 mt-0.5">
+              <p className="text-xs font-medium text-black dark:text-white">One-time task</p>
+              <p className="text-[11px] text-black/50 dark:text-white/50 mt-0.5">
                 {isOneTime ? "Runs once on a specific date and time" : "Runs on a recurring schedule"}
               </p>
             </div>
@@ -102,10 +102,10 @@ export function CronScheduler({
 
       {/* One-time mode */}
       {isOneTime && showOneTime && (
-        <div className="px-6 py-4 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label htmlFor="one-time-date" className="text-[13px] font-medium text-black dark:text-white block">
+        <div className="px-4 py-3 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label htmlFor="one-time-date" className="text-[11px] font-medium text-black dark:text-white block">
                 Date
               </label>
               <input
@@ -113,11 +113,11 @@ export function CronScheduler({
                 type="date"
                 value={oneTimeDate || ""}
                 onChange={e => onOneTimeDateChange?.(e.target.value)}
-                className="w-full h-9 px-4 rounded-xl text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer transition-all"
+                className="w-full h-8 px-2.5 rounded-lg text-xs bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer transition-all"
               />
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="one-time-time" className="text-[13px] font-medium text-black dark:text-white block">
+            <div className="space-y-1">
+              <label htmlFor="one-time-time" className="text-[11px] font-medium text-black dark:text-white block">
                 Time
               </label>
               <input
@@ -125,7 +125,7 @@ export function CronScheduler({
                 type="time"
                 value={oneTimeTime || ""}
                 onChange={e => onOneTimeTimeChange?.(e.target.value)}
-                className="w-full h-9 px-4 rounded-xl text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer transition-all"
+                className="w-full h-8 px-2.5 rounded-lg text-xs bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer transition-all"
               />
             </div>
           </div>
@@ -136,11 +136,11 @@ export function CronScheduler({
       {!isOneTime && (
         <>
           {/* Tabs */}
-          <div className="px-6 pt-6 pb-0 flex gap-0 border-b border-black/[0.06] dark:border-white/[0.06]">
+          <div className="px-4 pt-4 pb-0 flex gap-0 border-b border-black/[0.06] dark:border-white/[0.06]">
             <button
               type="button"
               onClick={() => setMode("preset")}
-              className={`px-4 py-3 text-sm font-medium relative transition-colors ${
+              className={`px-3 py-2 text-xs font-medium relative transition-colors ${
                 mode === "preset"
                   ? "text-black dark:text-white"
                   : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
@@ -148,13 +148,13 @@ export function CronScheduler({
             >
               Presets
               {mode === "preset" && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-black dark:bg-white rounded-t" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-t" />
               )}
             </button>
             <button
               type="button"
               onClick={() => setMode("custom")}
-              className={`px-4 py-3 text-sm font-medium relative transition-colors ${
+              className={`px-3 py-2 text-xs font-medium relative transition-colors ${
                 mode === "custom"
                   ? "text-black dark:text-white"
                   : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
@@ -162,13 +162,13 @@ export function CronScheduler({
             >
               Custom
               {mode === "custom" && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-black dark:bg-white rounded-t" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-t" />
               )}
             </button>
           </div>
 
           {/* Content area */}
-          <div className="px-6 py-4 space-y-4">
+          <div className="px-4 py-3 space-y-3">
             {mode === "preset" && (
               <CronPresetsPanel selectedValue={customCron} onSelect={handlePresetSelect} showDescription={true} />
             )}
