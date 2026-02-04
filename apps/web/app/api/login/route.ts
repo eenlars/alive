@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   // Test mode
   if (
-    process.env.STREAM_ENV === "local" &&
+    process.env.BRIDGE_ENV === "local" &&
     email === SECURITY.LOCAL_TEST.EMAIL &&
     password === SECURITY.LOCAL_TEST.PASSWORD
   ) {

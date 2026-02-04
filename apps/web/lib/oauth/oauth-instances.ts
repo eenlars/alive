@@ -19,7 +19,7 @@ import {
  * Get the current environment from environment variables
  */
 function getCurrentEnvironment(): string {
-  const env = process.env.STREAM_ENV || process.env.NODE_ENV || "production"
+  const env = process.env.BRIDGE_ENV || process.env.NODE_ENV || "production"
 
   // Normalize environment names
   switch (env) {

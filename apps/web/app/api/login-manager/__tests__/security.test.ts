@@ -5,11 +5,11 @@ import { ErrorCodes } from "@/lib/error-codes"
 // Mock env module
 vi.mock("@/lib/env", () => ({
   env: {
-    get ALIVE_PASSCODE() {
-      return process.env.ALIVE_PASSCODE
+    get BRIDGE_PASSCODE() {
+      return process.env.BRIDGE_PASSCODE
     },
-    get STREAM_ENV() {
-      return process.env.STREAM_ENV
+    get BRIDGE_ENV() {
+      return process.env.BRIDGE_ENV
     },
     get NODE_ENV() {
       return process.env.NODE_ENV
@@ -38,8 +38,8 @@ function createMockRequest(url: string, options?: RequestInit & { cookies?: Reco
 
 describe("Manager Login Security Tests", () => {
   beforeEach(() => {
-    vi.stubEnv("ALIVE_PASSCODE", "wachtwoord")
-    vi.stubEnv("STREAM_ENV", "")
+    vi.stubEnv("BRIDGE_PASSCODE", "wachtwoord")
+    vi.stubEnv("BRIDGE_ENV", "")
     vi.stubEnv("NODE_ENV", "production")
     vi.clearAllMocks()
 
@@ -233,11 +233,11 @@ describe("Manager Login Security Tests", () => {
 
   /**
    * 🔒 EMPTY STRING VS UNDEFINED
-   * What if ALIVE_PASSCODE is set to empty string?
+   * What if BRIDGE_PASSCODE is set to empty string?
    */
-  it('should handle ALIVE_PASSCODE="" differently from undefined', async () => {
-    // Test 1: ALIVE_PASSCODE = "" (empty string)
-    vi.stubEnv("ALIVE_PASSCODE", "")
+  it('should handle BRIDGE_PASSCODE="" differently from undefined', async () => {
+    // Test 1: BRIDGE_PASSCODE = "" (empty string)
+    vi.stubEnv("BRIDGE_PASSCODE", "")
 
     const res1 = await loginManagerPOST(
       createMockRequest("http://localhost/api/login-manager", {
@@ -249,7 +249,7 @@ describe("Manager Login Security Tests", () => {
     // Empty passcode should be rejected by Zod validation
     expect(res1.status).toBe(400)
 
-    // Test 2: ALIVE_PASSCODE = undefined
+    // Test 2: BRIDGE_PASSCODE = undefined
     vi.unstubAllEnvs()
 
     const res2 = await loginManagerPOST(
@@ -268,7 +268,7 @@ describe("Manager Login Security Tests", () => {
    * Can passcode contain emoji or special chars?
    */
   it("should handle unicode and special characters in passcode", async () => {
-    vi.stubEnv("ALIVE_PASSCODE", "🔐secure🔑")
+    vi.stubEnv("BRIDGE_PASSCODE", "🔐secure🔑")
 
     const res = await loginManagerPOST(
       createMockRequest("http://localhost/api/login-manager", {
@@ -350,10 +350,10 @@ describe("Manager Login Security Tests", () => {
 
   /**
    * 🔒 ENVIRONMENT VARIABLE INJECTION
-   * What if someone sets ALIVE_PASSCODE with newlines or special chars?
+   * What if someone sets BRIDGE_PASSCODE with newlines or special chars?
    */
   it("should handle newlines in environment variable", async () => {
-    vi.stubEnv("ALIVE_PASSCODE", "pass\nword")
+    vi.stubEnv("BRIDGE_PASSCODE", "pass\nword")
 
     const res = await loginManagerPOST(
       createMockRequest("http://localhost/api/login-manager", {

@@ -377,14 +377,14 @@ export const SECURITY = {
 // Stream Environment
 // =============================================================================
 
-export const STREAM_ENV = {
+export const BRIDGE_ENV = {
   LOCAL: "local",
   DEV: "dev",
   STAGING: "staging",
   PRODUCTION: "production",
 } as const
 
-export type StreamEnv = (typeof STREAM_ENV)[keyof typeof STREAM_ENV]
+export type StreamEnv = (typeof BRIDGE_ENV)[keyof typeof BRIDGE_ENV]
 
 // =============================================================================
 // Helper Functions

@@ -25,12 +25,12 @@ type CookieOptions = {
 
 /**
  * Check if running on a deployed server (dev/staging/production)
- * Local development uses STREAM_ENV=local
+ * Local development uses BRIDGE_ENV=local
  */
 function isDeployedServer(): boolean {
-  // STREAM_ENV=local means local development (localhost)
+  // BRIDGE_ENV=local means local development (localhost)
   // All other environments (dev, staging, production) are deployed servers
-  return process.env.STREAM_ENV !== "local"
+  return process.env.BRIDGE_ENV !== "local"
 }
 
 /**

@@ -26,7 +26,7 @@ export const { GET, POST } = nextRouteHandler({
     }
 
     // Test mode
-    if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+    if (env.BRIDGE_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
       return SECURITY.LOCAL_TEST.SESSION_VALUE
     }
 
