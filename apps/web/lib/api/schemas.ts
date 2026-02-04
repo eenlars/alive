@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { OptionalWorktreeSchema } from "@/types/guards/api"
+import { OptionalWorktreeSchema } from "@/types/guards/worktree-schemas"
 
 // ============================================================================
 // STANDARDIZED RESPONSE ENVELOPES
