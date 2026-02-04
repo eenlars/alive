@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     if (domains) {
       for (const domain of domains) {
         if (domain.org_id && domain.hostname) {
-          // SECURITY: Never include claude-bridge workspace unless user is superadmin
+          // SECURITY: Never include alive workspace unless user is superadmin
           if (domain.hostname === SUPERADMIN.WORKSPACE_NAME && !user.isSuperadmin) {
             continue
           }

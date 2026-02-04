@@ -3,7 +3,7 @@
 # Production Health Check with Alerting
 # =============================================================================
 # Checks if production is responding and alerts via ntfy if down.
-# Run via cron: */5 * * * * /root/webalive/claude-bridge/scripts/maintenance/health-check.sh
+# Run via cron: */5 * * * * /root/alive/scripts/maintenance/health-check.sh
 #
 # To set up ntfy alerts:
 # 1. Install ntfy: curl -sSL https://install.ntfy.sh | bash

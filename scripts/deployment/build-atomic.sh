@@ -170,10 +170,10 @@ find "$STANDALONE_PACKAGES/template" -type l -delete 2>/dev/null || true
 # =============================================================================
 log_step "Creating package symlinks..."
 STANDALONE_NODE_MODULES="$STANDALONE_DIR/node_modules"
-mkdir -p "$STANDALONE_NODE_MODULES/@alive-brug" "$STANDALONE_NODE_MODULES/@webalive"
+mkdir -p "$STANDALONE_NODE_MODULES/@webalive"
 
 for pkg in tools images template; do
-    ln -sf "../../../../packages/$pkg" "$STANDALONE_NODE_MODULES/@alive-brug/$pkg"
+    ln -sf "../../../../packages/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg"
 done
 ln -sf "../../../../packages/site-controller" "$STANDALONE_NODE_MODULES/@webalive/site-controller"
 

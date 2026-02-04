@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     const testDomains = domains?.filter(d => d.is_test_env).map(d => d.hostname) || []
     let workspaces = [...filterLocalDomains(realDomains), ...testDomains]
 
-    // SECURITY: claude-bridge workspace is only visible to superadmins
+    // SECURITY: alive workspace is only visible to superadmins
     // Non-superadmins should never see it in the list
     if (!user.isSuperadmin) {
       workspaces = workspaces.filter(w => w !== SUPERADMIN.WORKSPACE_NAME)

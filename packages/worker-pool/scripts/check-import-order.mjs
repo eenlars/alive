@@ -7,7 +7,7 @@
  *
  * Why this matters:
  * - Worker drops privileges after starting (setuid/setgid to workspace user)
- * - After privilege drop, worker can't read /root/webalive/claude-bridge/node_modules/
+ * - After privilege drop, worker can't read /root/alive/node_modules/
  * - Any import() or require() inside a function would fail with EACCES
  * - This caused production bug: "Worker disconnected unexpectedly"
  *
@@ -200,7 +200,7 @@ function main() {
   const requiredTopLevelImports = [
     "@anthropic-ai/claude-agent-sdk",
     "@webalive/shared",
-    "@alive-brug/tools",
+    "@webalive/tools",
   ]
 
   const topLevelImportSection = code.split(/^(async\s+)?function\s+/m)[0]

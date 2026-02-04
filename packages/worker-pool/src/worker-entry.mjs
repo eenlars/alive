@@ -27,10 +27,10 @@ import process from "node:process"
 const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 
 // IMPORTANT: Import these BEFORE dropping privileges!
-// After privilege drop, the worker can't read /root/webalive/claude-bridge/node_modules/
+// After privilege drop, the worker can't read /root/alive/node_modules/
 import { query } from "@anthropic-ai/claude-agent-sdk"
 import { isOAuthMcpTool, GLOBAL_MCP_PROVIDERS, DEFAULTS, PLAN_MODE_BLOCKED_TOOLS, allowTool, denyTool, isAbortError, isTransientNetworkError, isFatalError, formatUncaughtError } from "@webalive/shared"
-import { workspaceInternalMcp, toolsInternalMcp } from "@alive-brug/tools"
+import { workspaceInternalMcp, toolsInternalMcp } from "@webalive/tools"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts
@@ -425,7 +425,7 @@ async function handleQuery(ipc, requestId, payload) {
 
   // NOTE: query, isOAuthMcpTool, workspaceInternalMcp, toolsInternalMcp are imported
   // at the top level BEFORE privilege drop. After dropping privileges, the worker
-  // can't read /root/webalive/claude-bridge/node_modules/
+  // can't read /root/alive/node_modules/
 
   // Get configuration from payload - NO imports from apps/web
   const { agentConfig } = payload

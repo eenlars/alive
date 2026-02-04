@@ -52,7 +52,7 @@ echo "✓ No deprecated packages found"
 echo ""
 echo "[3/4] Checking for broken symlinks in node_modules..."
 BROKEN_LINKS=""
-for link in $(find node_modules/@alive-brug node_modules/@webalive node_modules/@alive-game -maxdepth 1 -type l 2>/dev/null); do
+for link in $(find node_modules/@webalive node_modules/@webalive node_modules/@alive-game -maxdepth 1 -type l 2>/dev/null); do
     if [ ! -e "$link" ]; then
         echo "  ⚠️  Broken symlink: $link"
         echo "  → Auto-removing..."

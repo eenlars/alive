@@ -82,6 +82,6 @@ const nextConfig = {
     "@webalive/database",
     "better-sqlite3",
   ],
-  transpilePackages: ["@alive-brug/guides", "@alive-brug/images", "@alive-brug/tools"],
+  transpilePackages: ["@webalive/guides", "@webalive/images", "@webalive/tools"],
 }
 export default nextConfig
