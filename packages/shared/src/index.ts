@@ -8,7 +8,7 @@
  * import { COOKIE_NAMES, ENV_VARS, PATHS, DOMAINS } from "@webalive/shared"
  *
  * const sessionCookieName = COOKIE_NAMES.SESSION // "auth_session"
- * const envVarName = ENV_VARS.BRIDGE_SESSION_COOKIE // "BRIDGE_SESSION_COOKIE"
+ * const envVarName = ENV_VARS.STREAM_SESSION_COOKIE // "STREAM_SESSION_COOKIE"
  * const sitesRoot = PATHS.SITES_ROOT // "/srv/webalive/sites"
  * ```
  */
@@ -20,9 +20,9 @@ export {
   ENV_VARS,
   TEST_CONFIG,
   WORKER_POOL,
-  BRIDGE_STREAM_TYPES,
-  BRIDGE_SYNTHETIC_MESSAGE_TYPES,
-  BRIDGE_INTERRUPT_SOURCES,
+  STREAM_TYPES,
+  STREAM_SYNTHETIC_MESSAGE_TYPES,
+  STREAM_INTERRUPT_SOURCES,
   REFERRAL,
   LIMITS,
   WORKSPACE_STORAGE,
@@ -31,7 +31,7 @@ export {
   STORE_STORAGE_KEYS,
   createWorkspaceStorageValue,
   createTestStorageState,
-  type BridgeStreamType,
+  type StreamType,
   type FeatureFlagDefinition,
   type FeatureFlagKey,
   type WorkspaceStorageRecentItem,
@@ -49,8 +49,8 @@ export {
   DEFAULTS,
   SECURITY,
   SUPERADMIN,
-  BRIDGE_ENV,
-  type BridgeEnv,
+  STREAM_ENV,
+  type StreamEnv,
   getServiceName,
   getSiteUser,
   getSiteHome,
@@ -113,29 +113,29 @@ export {
 } from "./path-security.js"
 export {
   // SDK tool constants
-  BRIDGE_ALLOWED_SDK_TOOLS,
-  BRIDGE_ADMIN_ONLY_SDK_TOOLS,
-  BRIDGE_ALWAYS_DISALLOWED_SDK_TOOLS,
-  BRIDGE_PERMISSION_MODE,
-  BRIDGE_SETTINGS_SOURCES,
+  STREAM_ALLOWED_SDK_TOOLS,
+  STREAM_ADMIN_ONLY_SDK_TOOLS,
+  STREAM_ALWAYS_DISALLOWED_SDK_TOOLS,
+  STREAM_PERMISSION_MODE,
+  STREAM_SETTINGS_SOURCES,
   PLAN_MODE_BLOCKED_TOOLS,
-  type BridgeAllowedSDKTool,
-  type BridgeDisallowedSDKTool,
-  type BridgeAdminOnlySDKTool,
-  type BridgeAlwaysDisallowedSDKTool,
+  type StreamAllowedSDKTool,
+  type StreamDisallowedSDKTool,
+  type StreamAdminOnlySDKTool,
+  type StreamAlwaysDisallowedSDKTool,
   type PlanModeBlockedTool,
   // Tool permission helpers
   allowTool,
   denyTool,
   filterToolsForPlanMode,
   // Helper functions
-  getBridgeAllowedTools,
-  getBridgeDisallowedTools,
-  getBridgeMcpServers,
-  createBridgeCanUseTool,
+  getStreamAllowedTools,
+  getStreamDisallowedTools,
+  getStreamMcpServers,
+  createStreamCanUseTool,
   getWorkspacePath,
-  type BridgeMcpServerConfig,
-} from "./bridge-tools.js"
+  type StreamMcpServerConfig,
+} from "./stream-tools.js"
 export {
   // Claude models - SINGLE SOURCE OF TRUTH
   CLAUDE_MODELS,

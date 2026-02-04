@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { resolveAndValidatePath } from "@webalive/shared"
 import { z } from "zod"
-import { type ToolResult, errorResult, successResult } from "../../lib/bridge-api-client.js"
+import { type ToolResult, errorResult, successResult } from "../../lib/api-client.js"
 import { validateWorkspacePath } from "../../lib/workspace-validator.js"
 import {
   generateUsageInstructions,

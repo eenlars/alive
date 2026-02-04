@@ -23,7 +23,7 @@ import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
 import { getAccessTokenReadOnly, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import {
-  BRIDGE_STREAM_TYPES,
+  STREAM_TYPES,
   getAllowedTools,
   getDisallowedTools,
   getOAuthMcpServers,
@@ -490,7 +490,7 @@ export async function POST(req: NextRequest) {
         permissionMode: effectivePermissionMode,
         settingSources: SETTINGS_SOURCES,
         oauthMcpServers: getOAuthMcpServers(oauthTokens) as Record<string, unknown>,
-        bridgeStreamTypes: BRIDGE_STREAM_TYPES,
+        streamTypes: STREAM_TYPES,
         isAdmin: user.isAdmin, // Pass to worker for permission checks
         isSuperadmin: isSuperadminWorkspace, // Superadmin has all tools, runs as root
       }
@@ -537,11 +537,11 @@ export async function POST(req: NextRequest) {
                   // but we still need to emit it for session storage
                   logger.log(`[SESSION DEBUG] Received session from worker: ${msg.sessionId}`)
                   const sessionLine = `${JSON.stringify({
-                    type: BRIDGE_STREAM_TYPES.SESSION,
+                    type: STREAM_TYPES.SESSION,
                     sessionId: msg.sessionId,
                   })}\n`
                   controller.enqueue(new TextEncoder().encode(sessionLine))
-                  logger.log("[SESSION DEBUG] Enqueued bridge_session line to childStream")
+                  logger.log("[SESSION DEBUG] Enqueued stream_session line to childStream")
                 }
               },
               signal: workerAbortController.signal,

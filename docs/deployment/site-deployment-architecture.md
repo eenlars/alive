@@ -16,7 +16,7 @@ The WebAlive infrastructure provides **secure, isolated, multi-tenant website de
 ### 2. **Template System**
 - **Location**: `packages/template/user/`
 - **Contents**: Base website with Hono server, HTML/CSS/JS assets
-- **Includes**: DNS verification file at `.well-known/bridge-verify.txt`
+- **Includes**: DNS verification file at `.well-known/alive-verify.txt`
 
 ### 3. **Process Management: systemd**
 - **Service Pattern**: `site@{domain-slug}.service`
@@ -80,7 +80,7 @@ Create directory structure:
 │   ├── styles.css          # Styling
 │   ├── public/             # Static assets
 │   │   └── .well-known/
-│   │       └── bridge-verify.txt  # DNS verification (YOUR_SERVER_IP)
+│   │       └── alive-verify.txt  # DNS verification (YOUR_SERVER_IP)
 │   ├── js/                 # JavaScript modules
 │   └── pages/              # Additional pages
 ├── package.json            # Dependencies
@@ -202,7 +202,7 @@ Update user metadata:
 
 ```
 DNS verification file deployed at:
-https://example.com/.well-known/bridge-verify.txt
+https://example.com/.well-known/alive-verify.txt
   ↓
 Contents: YOUR_SERVER_IP (server IP)
   ↓
@@ -226,7 +226,7 @@ POST-deployment checks:
 3. curl https://example.com
    → Expected: HTTP 200 (with valid HTTPS)
   ↓
-4. curl https://example.com/.well-known/bridge-verify.txt
+4. curl https://example.com/.well-known/alive-verify.txt
    → Expected: "YOUR_SERVER_IP"
   ↓
 All checks pass → Deployment SUCCESS ✓
@@ -327,7 +327,7 @@ See: **[CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md)**
 | **Caddy Config** | `/root/alive/Caddyfile` | WebAlive routing |
 | **Caddy System** | `/etc/caddy/Caddyfile` | System config + imports |
 | **Port Registry** | `/var/lib/alive/domain-passwords.json` | Port assignments |
-| **DNS Verification** | `{domain}/.well-known/bridge-verify.txt` | IP verification (YOUR_SERVER_IP) |
+| **DNS Verification** | `{domain}/.well-known/alive-verify.txt` | IP verification (YOUR_SERVER_IP) |
 
 ---
 

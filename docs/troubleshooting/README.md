@@ -168,7 +168,7 @@ Before asking for help:
 - [ ] Test path validation manually
 - [ ] Check file ownership and permissions
 - [ ] Review error messages in detail
-- [ ] Try in local dev mode (`BRIDGE_ENV=local`)
+- [ ] Try in local dev mode (`ALIVE_ENV=local`)
 
 ## Postmortems
 

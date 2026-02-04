@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       statusCode = error.statusCode
       switch (error.code) {
         case "DNS_VALIDATION_FAILED":
-          errorMessage = `${error.message}. Please ensure your domain points to ${DEFAULTS.SERVER_IP}. See DNS setup guide: ${DOMAINS.BRIDGE_PROD}/docs/dns-setup`
+          errorMessage = `${error.message}. Please ensure your domain points to ${DEFAULTS.SERVER_IP}. See DNS setup guide: ${DOMAINS.STREAM_PROD}/docs/dns-setup`
           break
         case "INVALID_DOMAIN":
         case "PATH_TRAVERSAL":
@@ -215,7 +215,7 @@ export async function GET() {
     },
     documentation: {
       manual_guide: `${PATHS.TEMPLATE_PATH}/DEPLOYMENT.md`,
-      web_interface: `${DOMAINS.BRIDGE_PROD}/deploy`,
+      web_interface: `${DOMAINS.STREAM_PROD}/deploy`,
     },
   })
 }

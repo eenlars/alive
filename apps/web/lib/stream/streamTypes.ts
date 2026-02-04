@@ -6,11 +6,11 @@
  * DO NOT duplicate these types elsewhere.
  *
  * The server emits NDJSON events via `/api/claude/stream`:
- * - bridge_start     → Stream initialized
- * - bridge_message   → Complete SDK message (user, assistant, tool_use, etc.)
- * - bridge_complete  → Successful end with result
- * - bridge_interrupt → User cancelled (via cancel endpoint)
- * - bridge_error     → Stream failed
+ * - stream_start     → Stream initialized
+ * - stream_message   → Complete SDK message (user, assistant, tool_use, etc.)
+ * - stream_complete  → Successful end with result
+ * - stream_interrupt → User cancelled (via cancel endpoint)
+ * - stream_error     → Stream failed
  */
 
 // =============================================================================
@@ -18,11 +18,11 @@
 // =============================================================================
 
 export type BridgeStreamType =
-  | "bridge_start"
-  | "bridge_message"
-  | "bridge_complete"
-  | "bridge_interrupt"
-  | "bridge_error"
+  | "stream_start"
+  | "stream_message"
+  | "stream_complete"
+  | "stream_interrupt"
+  | "stream_error"
 
 // =============================================================================
 // Base Event
@@ -42,7 +42,7 @@ export interface BridgeBaseEvent {
  * Sent when a new streaming request begins.
  */
 export interface BridgeStartEvent extends BridgeBaseEvent {
-  type: "bridge_start"
+  type: "stream_start"
 }
 
 /**
@@ -50,7 +50,7 @@ export interface BridgeStartEvent extends BridgeBaseEvent {
  * Sent for each SDK message (can be partial during streaming).
  */
 export interface BridgeMessageEvent extends BridgeBaseEvent {
-  type: "bridge_message"
+  type: "stream_message"
   /** Type of message being sent */
   messageType: "user" | "assistant" | "tool_use" | "tool_result" | "thinking" | "system"
   /** True if this is the final state of this message (no more updates) */
@@ -64,7 +64,7 @@ export interface BridgeMessageEvent extends BridgeBaseEvent {
  * Sent when the stream finishes successfully.
  */
 export interface BridgeCompleteEvent extends BridgeBaseEvent {
-  type: "bridge_complete"
+  type: "stream_complete"
   /** Final result from the Claude SDK */
   result: unknown
 }
@@ -74,7 +74,7 @@ export interface BridgeCompleteEvent extends BridgeBaseEvent {
  * Sent when user cancels or system interrupts the stream.
  */
 export interface BridgeInterruptEvent extends BridgeBaseEvent {
-  type: "bridge_interrupt"
+  type: "stream_interrupt"
   /** Source of the interruption */
   source: "user" | "system"
   /** ID of the last assistant message (if any) */
@@ -86,7 +86,7 @@ export interface BridgeInterruptEvent extends BridgeBaseEvent {
  * Sent when the stream fails.
  */
 export interface BridgeErrorEvent extends BridgeBaseEvent {
-  type: "bridge_error"
+  type: "stream_error"
   /** Error code for programmatic handling */
   code: string
   /** Human-readable error message */
@@ -117,11 +117,11 @@ export function isBridgeEvent(e: unknown): e is BridgeEvent {
   if (!("type" in e) || typeof (e as { type: unknown }).type !== "string") return false
 
   const validTypes: BridgeStreamType[] = [
-    "bridge_start",
-    "bridge_message",
-    "bridge_complete",
-    "bridge_interrupt",
-    "bridge_error",
+    "stream_start",
+    "stream_message",
+    "stream_complete",
+    "stream_interrupt",
+    "stream_error",
   ]
 
   return validTypes.includes((e as { type: string }).type as BridgeStreamType)
@@ -131,35 +131,35 @@ export function isBridgeEvent(e: unknown): e is BridgeEvent {
  * Type guard for BridgeMessageEvent.
  */
 export function isBridgeMessageEvent(e: BridgeEvent): e is BridgeMessageEvent {
-  return e.type === "bridge_message"
+  return e.type === "stream_message"
 }
 
 /**
  * Type guard for BridgeStartEvent.
  */
 export function isBridgeStartEvent(e: BridgeEvent): e is BridgeStartEvent {
-  return e.type === "bridge_start"
+  return e.type === "stream_start"
 }
 
 /**
  * Type guard for BridgeCompleteEvent.
  */
 export function isBridgeCompleteEvent(e: BridgeEvent): e is BridgeCompleteEvent {
-  return e.type === "bridge_complete"
+  return e.type === "stream_complete"
 }
 
 /**
  * Type guard for BridgeInterruptEvent.
  */
 export function isBridgeInterruptEvent(e: BridgeEvent): e is BridgeInterruptEvent {
-  return e.type === "bridge_interrupt"
+  return e.type === "stream_interrupt"
 }
 
 /**
  * Type guard for BridgeErrorEvent.
  */
 export function isBridgeErrorEvent(e: BridgeEvent): e is BridgeErrorEvent {
-  return e.type === "bridge_error"
+  return e.type === "stream_error"
 }
 
 // =============================================================================

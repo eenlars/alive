@@ -18,7 +18,7 @@ import { constants } from "node:fs"
 interface ServerConfig {
   serverId?: string
   paths?: {
-    bridgeRoot?: string
+    aliveRoot?: string
   }
   generated?: {
     dir?: string
@@ -138,7 +138,7 @@ ${envFileLines}
 
 Environment="NODE_ENV=${cfg.env}"
 Environment="PORT=${cfg.port}"
-${cfg.env === "production" ? `Environment="BRIDGE_API_PORT=${cfg.port}"` : ""}
+${cfg.env === "production" ? `Environment="ALIVE_API_PORT=${cfg.port}"` : ""}
 
 MemoryMax=${cfg.memory.max}
 MemoryHigh=${cfg.memory.high}
@@ -173,16 +173,16 @@ async function main() {
   const raw = await readFile(CONFIG_PATH, "utf8")
   const config: ServerConfig = JSON.parse(raw)
 
-  const bridgeRoot = config.paths?.bridgeRoot
-  if (!bridgeRoot) {
-    console.error(`${COLORS.red}✗ paths.bridgeRoot not set in ${CONFIG_PATH}${COLORS.reset}`)
+  const aliveRoot = config.paths?.aliveRoot
+  if (!aliveRoot) {
+    console.error(`${COLORS.red}✗ paths.aliveRoot not set in ${CONFIG_PATH}${COLORS.reset}`)
     process.exit(1)
   }
 
   const generatedDir = config.generated?.dir || GENERATED_DIR
   await mkdir(generatedDir, { recursive: true })
 
-  console.log(`  bridgeRoot: ${bridgeRoot}`)
+  console.log(`  aliveRoot: ${aliveRoot}`)
   console.log(`  bunPath:    ${bunPath}`)
   console.log(`  output:     ${generatedDir}\n`)
 
@@ -191,11 +191,11 @@ async function main() {
     {
       name: "alive-dev",
       description: "Claude Bridge Development",
-      workingDir: `${bridgeRoot}/apps/web`,
+      workingDir: `${aliveRoot}/apps/web`,
       execStart: `${bunPath} run dev`,
       port: 8997,
       env: "development",
-      envFiles: [`${bridgeRoot}/.env.local`, `${bridgeRoot}/apps/web/.env.local`],
+      envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.local`],
       memory: { max: "4G", high: "3G" },
       cpu: "400%",
       syslogId: "alive-dev",
@@ -203,11 +203,11 @@ async function main() {
     {
       name: "alive-staging",
       description: "Claude Bridge Staging",
-      workingDir: `${bridgeRoot}/.builds/staging/current/standalone`,
-      execStart: `${bunPath} ${bridgeRoot}/.builds/staging/current/standalone/apps/web/server.js`,
+      workingDir: `${aliveRoot}/.builds/staging/current/standalone`,
+      execStart: `${bunPath} ${aliveRoot}/.builds/staging/current/standalone/apps/web/server.js`,
       port: 8998,
       env: "production",
-      envFiles: [`${bridgeRoot}/.env.local`, `${bridgeRoot}/apps/web/.env.staging`],
+      envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.staging`],
       memory: { max: "2G", high: "1.5G" },
       cpu: "200%",
       syslogId: "alive-staging",
@@ -215,11 +215,11 @@ async function main() {
     {
       name: "alive-production",
       description: "Claude Bridge Production",
-      workingDir: `${bridgeRoot}/.builds/production/current/standalone`,
-      execStart: `${bunPath} ${bridgeRoot}/.builds/production/current/standalone/apps/web/server.js`,
+      workingDir: `${aliveRoot}/.builds/production/current/standalone`,
+      execStart: `${bunPath} ${aliveRoot}/.builds/production/current/standalone/apps/web/server.js`,
       port: 9000,
       env: "production",
-      envFiles: [`${bridgeRoot}/.env.local`, `${bridgeRoot}/apps/web/.env.production`],
+      envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.production`],
       memory: { max: "2G", high: "1.5G" },
       cpu: "200%",
       syslogId: "alive-production",
@@ -227,11 +227,11 @@ async function main() {
     {
       name: "alive-broker",
       description: "Claude Bridge Broker",
-      workingDir: `${bridgeRoot}/apps/broker`,
+      workingDir: `${aliveRoot}/apps/broker`,
       execStart: `${bunPath} run start`,
       port: 3001,
       env: "production",
-      envFiles: [`${bridgeRoot}/.env.local`, `${bridgeRoot}/apps/broker/.env.local`],
+      envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/broker/.env.local`],
       memory: { max: "512M", high: "384M" },
       cpu: "100%",
       syslogId: "alive-broker",

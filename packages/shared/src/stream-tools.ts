@@ -1,16 +1,16 @@
 /**
- * Bridge Tools Configuration
+ * Stream Tools Configuration
  *
- * SOURCE OF TRUTH for SDK tool permissions and Bridge agent configuration.
+ * SOURCE OF TRUTH for SDK tool permissions and Stream agent configuration.
  *
  * This file defines:
- * - Which SDK tools are allowed/disallowed in Bridge mode
+ * - Which SDK tools are allowed/disallowed in Stream mode
  * - Helper functions for building tool lists and MCP servers
  *
  * Used by:
  * - apps/web/lib/claude/agent-constants.mjs (runtime)
  * - apps/web/lib/claude/sdk-tools-sync.ts (type validation)
- * - packages/tools/src/lib/ask-ai-full.ts (askAIFull Bridge mode)
+ * - packages/tools/src/lib/ask-ai-full.ts (askAIFull Stream mode)
  */
 
 import { PATHS } from "./config.js"
@@ -21,7 +21,7 @@ import { OAUTH_MCP_PROVIDERS, GLOBAL_MCP_PROVIDERS, isOAuthMcpTool } from "./mcp
 // =============================================================================
 
 /**
- * SDK built-in tools we ALLOW in the Bridge.
+ * SDK built-in tools we ALLOW in the Stream.
  *
  * Categories:
  * - File operations: Read, Write, Edit, Glob, Grep (workspace-scoped)
@@ -30,7 +30,7 @@ import { OAUTH_MCP_PROVIDERS, GLOBAL_MCP_PROVIDERS, isOAuthMcpTool } from "./mcp
  * - Other safe: NotebookEdit, WebFetch, AskUserQuestion
  */
 // Use regular arrays (not as const) for compatibility with SDK types that expect string[]
-export const BRIDGE_ALLOWED_SDK_TOOLS: string[] = [
+export const STREAM_ALLOWED_SDK_TOOLS: string[] = [
   // File operations (workspace-scoped)
   "Read",
   "Write",
@@ -56,7 +56,7 @@ export const BRIDGE_ALLOWED_SDK_TOOLS: string[] = [
   "Skill",
 ]
 
-export type BridgeAllowedSDKTool =
+export type StreamAllowedSDKTool =
   | "Read"
   | "Write"
   | "Edit"
@@ -77,23 +77,23 @@ export type BridgeAllowedSDKTool =
 /**
  * Admin-only SDK tools.
  * KillShell is admin-only because it can terminate long-running processes.
- * Bash/BashOutput are in BRIDGE_ALLOWED_SDK_TOOLS (available to all users).
+ * Bash/BashOutput are in STREAM_ALLOWED_SDK_TOOLS (available to all users).
  */
-export const BRIDGE_ADMIN_ONLY_SDK_TOOLS = ["KillShell"] as const
-export type BridgeAdminOnlySDKTool = (typeof BRIDGE_ADMIN_ONLY_SDK_TOOLS)[number]
+export const STREAM_ADMIN_ONLY_SDK_TOOLS = ["KillShell"] as const
+export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number]
 
 /**
- * SDK tools we ALWAYS DISALLOW in the Bridge (even for admins).
+ * SDK tools we ALWAYS DISALLOW in the Stream (even for admins).
  *
  * Why disallowed:
- * - Task: Subagent spawning - not supported in Bridge architecture
+ * - Task: Subagent spawning - not supported in Stream architecture
  * - WebSearch: External web access - not needed, cost concerns
  * - ExitPlanMode: Requires user approval - Claude cannot approve its own plan
  *
  * Note: Superadmins get ALL tools including these.
  */
-export const BRIDGE_ALWAYS_DISALLOWED_SDK_TOOLS = ["Task", "WebSearch", "ExitPlanMode"] as const
-export type BridgeAlwaysDisallowedSDKTool = (typeof BRIDGE_ALWAYS_DISALLOWED_SDK_TOOLS)[number]
+export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = ["Task", "WebSearch", "ExitPlanMode"] as const
+export type StreamAlwaysDisallowedSDKTool = (typeof STREAM_ALWAYS_DISALLOWED_SDK_TOOLS)[number]
 
 /**
  * Tools blocked in plan mode (read-only exploration).
@@ -130,8 +130,8 @@ export type PlanModeBlockedTool = (typeof PLAN_MODE_BLOCKED_TOOLS)[number]
  * These are experimental/advanced tools not ready for general use.
  * Currently empty - ask_clarification moved to general availability.
  */
-export const BRIDGE_SUPERADMIN_ONLY_MCP_TOOLS: readonly string[] = []
-export type BridgeSuperadminOnlyMcpTool = string
+export const STREAM_SUPERADMIN_ONLY_MCP_TOOLS: readonly string[] = []
+export type StreamSuperadminOnlyMcpTool = string
 
 /**
  * Get disallowed SDK tools based on admin/superadmin status.
@@ -140,28 +140,28 @@ export type BridgeSuperadminOnlyMcpTool = string
  * @param isSuperadmin - Whether the user is a superadmin (gets ALL tools)
  * @returns Array of disallowed tool names
  */
-export function getBridgeDisallowedTools(isAdmin: boolean, isSuperadmin = false): string[] {
+export function getStreamDisallowedTools(isAdmin: boolean, isSuperadmin = false): string[] {
   // Superadmins have nothing blocked
   if (isSuperadmin) {
     return []
   }
   if (isAdmin) {
     // Admins only have Task and WebSearch blocked
-    return [...BRIDGE_ALWAYS_DISALLOWED_SDK_TOOLS]
+    return [...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS]
   }
   // Non-admins have Bash tools + always-disallowed blocked
-  return [...BRIDGE_ADMIN_ONLY_SDK_TOOLS, ...BRIDGE_ALWAYS_DISALLOWED_SDK_TOOLS]
+  return [...STREAM_ADMIN_ONLY_SDK_TOOLS, ...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS]
 }
 
-export type BridgeDisallowedSDKTool = BridgeAdminOnlySDKTool | BridgeAlwaysDisallowedSDKTool
+export type StreamDisallowedSDKTool = StreamAdminOnlySDKTool | StreamAlwaysDisallowedSDKTool
 
 /**
- * Default permission mode for Bridge
+ * Default permission mode for Stream
  */
-export const BRIDGE_PERMISSION_MODE = "default" as const
+export const STREAM_PERMISSION_MODE = "default" as const
 
 /**
- * Default settings sources for Bridge
+ * Default settings sources for Stream
  *
  * Hierarchy (highest to lowest precedence):
  * - project: {cwd}/.claude/ (workspace-specific)
@@ -174,7 +174,7 @@ export const BRIDGE_PERMISSION_MODE = "default" as const
  *
  * Users can add workspace-specific skills in {workspace}/.claude/skills/ (project scope)
  */
-export const BRIDGE_SETTINGS_SOURCES = ["project", "user"] as const
+export const STREAM_SETTINGS_SOURCES = ["project", "user"] as const
 
 // =============================================================================
 // TOOL PERMISSION HELPERS
@@ -211,14 +211,14 @@ export function filterToolsForPlanMode(allowedTools: string[], isPlanMode: boole
 // =============================================================================
 
 /**
- * Get all allowed tools for Bridge mode (SDK + MCP tools).
+ * Get all allowed tools for Stream mode (SDK + MCP tools).
  *
  * @param getEnabledMcpToolNames - Function to get enabled MCP tool names from @webalive/tools
  * @param isAdmin - Whether the user is an admin (enables Bash tools)
  * @param isSuperadmin - Whether the user is a superadmin (gets ALL tools)
  * @returns Array of allowed tool names
  */
-export function getBridgeAllowedTools(
+export function getStreamAllowedTools(
   getEnabledMcpToolNames: () => string[],
   isAdmin = false,
   isSuperadmin = false,
@@ -229,40 +229,40 @@ export function getBridgeAllowedTools(
   // Superadmins get ALL tools (including Task, WebSearch, superadmin-only MCP tools)
   if (isSuperadmin) {
     return [
-      ...BRIDGE_ALLOWED_SDK_TOOLS,
-      ...BRIDGE_ADMIN_ONLY_SDK_TOOLS,
-      ...BRIDGE_ALWAYS_DISALLOWED_SDK_TOOLS, // Task, WebSearch enabled for superadmin
+      ...STREAM_ALLOWED_SDK_TOOLS,
+      ...STREAM_ADMIN_ONLY_SDK_TOOLS,
+      ...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS, // Task, WebSearch enabled for superadmin
       ...mcpTools,
       ...globalMcpTools,
-      ...BRIDGE_SUPERADMIN_ONLY_MCP_TOOLS, // Superadmin-only MCP tools
+      ...STREAM_SUPERADMIN_ONLY_MCP_TOOLS, // Superadmin-only MCP tools
     ]
   }
 
-  const adminTools = isAdmin ? [...BRIDGE_ADMIN_ONLY_SDK_TOOLS] : []
-  return [...BRIDGE_ALLOWED_SDK_TOOLS, ...adminTools, ...mcpTools, ...globalMcpTools]
+  const adminTools = isAdmin ? [...STREAM_ADMIN_ONLY_SDK_TOOLS] : []
+  return [...STREAM_ALLOWED_SDK_TOOLS, ...adminTools, ...mcpTools, ...globalMcpTools]
 }
 
 /**
  * MCP server configuration type (simplified for serialization)
  */
-export interface BridgeMcpServerConfig {
+export interface StreamMcpServerConfig {
   type: "http" | "sdk"
   url?: string
   headers?: Record<string, string>
 }
 
 /**
- * Get MCP servers configuration for Bridge mode.
+ * Get MCP servers configuration for Stream mode.
  *
  * @param internalMcpServers - Internal MCP servers from @webalive/tools
  * @param oauthTokens - OAuth tokens keyed by provider
  * @returns MCP servers configuration
  */
-export function getBridgeMcpServers<T>(
+export function getStreamMcpServers<T>(
   internalMcpServers: { "alive-workspace": T; "alive-tools": T },
   oauthTokens: Record<string, string> = {},
-): Record<string, T | BridgeMcpServerConfig> {
-  const servers: Record<string, T | BridgeMcpServerConfig> = {
+): Record<string, T | StreamMcpServerConfig> {
+  const servers: Record<string, T | StreamMcpServerConfig> = {
     "alive-workspace": internalMcpServers["alive-workspace"],
     "alive-tools": internalMcpServers["alive-tools"],
   }
@@ -293,14 +293,14 @@ export function getBridgeMcpServers<T>(
 }
 
 /**
- * Create canUseTool handler for Bridge mode.
+ * Create canUseTool handler for Stream mode.
  *
  * @param baseAllowedTools - Base allowed tools array
  * @param connectedProviders - Array of connected OAuth provider keys
  * @param isAdmin - Whether the user is an admin (enables Bash tools)
  * @returns Permission handler function
  */
-export function createBridgeCanUseTool(
+export function createStreamCanUseTool(
   baseAllowedTools: string[],
   connectedProviders: string[],
   isAdmin = false,
@@ -314,7 +314,7 @@ export function createBridgeCanUseTool(
   updatedPermissions?: unknown[]
 }> {
   // Get disallowed tools based on admin status
-  const disallowedTools = getBridgeDisallowedTools(isAdmin)
+  const disallowedTools = getStreamDisallowedTools(isAdmin)
 
   return async (toolName, input) => {
     // Explicit deny list takes precedence (respects admin status)

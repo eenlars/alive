@@ -90,7 +90,7 @@ function getDomainPasswordsPath(): string {
   }
 
   // Fallback paths for development/testing
-  const devPaths = [join(process.cwd(), "domain-passwords.json"), join(PATHS.BRIDGE_ROOT, "domain-passwords.json")]
+  const devPaths = [join(process.cwd(), "domain-passwords.json"), join(PATHS.STREAM_ROOT, "domain-passwords.json")]
 
   for (const path of devPaths) {
     if (existsSync(path)) {

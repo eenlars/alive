@@ -53,7 +53,7 @@ describe("Workspace Resolution", () => {
   describe("Integration with existing workspace", () => {
     it.skipIf(!hasWorkspaces)("resolves demo-goalive-nl workspace correctly (legacy hyphenated format)", () => {
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: { workspace: "demo.goalive.nl" }, // User sends with dots
         requestId: "test-int-001",
       })
@@ -67,7 +67,7 @@ describe("Workspace Resolution", () => {
 
     it.skipIf(!hasWorkspaces)("path always ends with /user", () => {
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: { workspace: "demo.goalive.nl" },
         requestId: "test-int-002",
       })
@@ -80,7 +80,7 @@ describe("Workspace Resolution", () => {
 
     it.skipIf(!hasWorkspaces)("path always contains /webalive/sites/", () => {
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: { workspace: "demo.goalive.nl" },
         requestId: "test-int-003",
       })
@@ -106,7 +106,7 @@ describe("Workspace Resolution", () => {
     it.skipIf(!hasWorkspaces)("finds workspace with dots in directory name (new convention)", () => {
       // Test case: New sites like evermore.alive.best use dots in filesystem
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: { workspace: "evermore.alive.best" },
         requestId: "test-naming-001",
       })
@@ -121,7 +121,7 @@ describe("Workspace Resolution", () => {
     it.skipIf(!hasWorkspaces)("falls back to hyphens when dots directory doesn't exist (legacy)", () => {
       // Test case: Legacy sites like demo.goalive.nl use hyphens in filesystem
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: { workspace: "demo.goalive.nl" },
         requestId: "test-naming-002",
       })
@@ -136,7 +136,7 @@ describe("Workspace Resolution", () => {
     it("provides helpful error message with both attempted paths", async () => {
       // Test case: Non-existent workspace should show what paths were tried
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: { workspace: "nonexistent.site.com" },
         requestId: "test-naming-003",
       })
@@ -156,7 +156,7 @@ describe("Workspace Resolution", () => {
       // Edge case: If somehow both naming conventions exist, prefer new (dots)
       // This test documents the preference order
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: { workspace: "evermore.alive.best" },
         requestId: "test-naming-004",
       })
@@ -173,7 +173,7 @@ describe("Workspace Resolution", () => {
   describe("Error Handling", () => {
     it("returns error when workspace parameter is missing", () => {
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: {},
         requestId: "test-err-001",
       })
@@ -186,7 +186,7 @@ describe("Workspace Resolution", () => {
 
     it("returns error when workspace directory doesn't exist", () => {
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: { workspace: "nonexistent.example.com" },
         requestId: "test-err-002",
       })
@@ -199,7 +199,7 @@ describe("Workspace Resolution", () => {
 
     it("prevents path traversal attacks", () => {
       const result = getWorkspace({
-        host: DOMAINS.BRIDGE_DEV_HOST,
+        host: DOMAINS.STREAM_DEV_HOST,
         body: { workspace: "../../../etc/passwd" },
         requestId: "test-err-003",
       })
@@ -214,8 +214,8 @@ describe("Workspace Resolution", () => {
   })
 
   describe("Local Development Mode", () => {
-    it("allows 'test' workspace in BRIDGE_ENV=local", () => {
-      vi.stubEnv("BRIDGE_ENV", "local")
+    it("allows 'test' workspace in STREAM_ENV=local", () => {
+      vi.stubEnv("STREAM_ENV", "local")
 
       const result = getWorkspace({
         host: "localhost",

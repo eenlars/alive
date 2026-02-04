@@ -37,13 +37,13 @@ import {
 } from "@anthropic-ai/claude-agent-sdk"
 import {
   DEFAULTS,
-  getBridgeAllowedTools,
-  getBridgeDisallowedTools,
-  getBridgeMcpServers,
-  createBridgeCanUseTool,
+  getStreamAllowedTools,
+  getStreamDisallowedTools,
+  getStreamMcpServers,
+  createStreamCanUseTool,
   getWorkspacePath,
-  BRIDGE_PERMISSION_MODE,
-  BRIDGE_SETTINGS_SOURCES,
+  STREAM_PERMISSION_MODE,
+  STREAM_SETTINGS_SOURCES,
 } from "@webalive/shared"
 import { toolsInternalMcp, workspaceInternalMcp } from "../mcp-server.js"
 import { getEnabledMcpToolNames } from "../tools/meta/search-tools.js"
@@ -99,7 +99,7 @@ export interface AskAIFullOptions {
   /** System prompt */
   systemPrompt?: string
 
-  /** Permission mode (full: "bypassPermissions", bridge: "default") */
+  /** Permission mode (full: "bypassPermissions", default: "default") */
   permissionMode?: PermissionMode
 
   /** Settings sources (defaults to ["project"]) */
@@ -128,7 +128,7 @@ export interface AskAIFullResult {
   sessionId?: string
   resultMessage: SDKResultMessage | null
   messageCount: number
-  mode: "full" | "bridge"
+  mode: "full" | "default"
   workspacePath?: string
 }
 
@@ -155,7 +155,7 @@ export async function askAIFull(options: AskAIFullOptions): Promise<AskAIFullRes
   } = options
 
   const isBridgeMode = !!workspace
-  const mode = isBridgeMode ? "bridge" : "full"
+  const mode = isBridgeMode ? "default" : "full"
   const workspacePath = workspace ? getWorkspacePath(workspace) : undefined
   const cwd = isBridgeMode ? workspacePath! : (options.cwd ?? process.cwd())
 
@@ -168,23 +168,23 @@ export async function askAIFull(options: AskAIFullOptions): Promise<AskAIFullRes
   let settingSources = options.settingSources ?? ["project"]
 
   if (isBridgeMode) {
-    permissionMode = permissionMode ?? BRIDGE_PERMISSION_MODE
+    permissionMode = permissionMode ?? STREAM_PERMISSION_MODE
     // Cast to SettingsSource[] - "managed" is valid for Claude Code but not in SDK types
-    settingSources = [...BRIDGE_SETTINGS_SOURCES] as SettingsSource[]
+    settingSources = [...STREAM_SETTINGS_SOURCES] as SettingsSource[]
 
     // Note: ask-ai-full is used by MCP tools, not by admin users
     // Always use non-admin tools (isAdmin=false)
-    const baseAllowedTools = getBridgeAllowedTools(getEnabledMcpToolNames, false)
+    const baseAllowedTools = getStreamAllowedTools(getEnabledMcpToolNames, false)
     allowedTools = baseAllowedTools
-    disallowedTools = getBridgeDisallowedTools(false)
+    disallowedTools = getStreamDisallowedTools(false)
 
-    mcpServers = getBridgeMcpServers(
+    mcpServers = getStreamMcpServers(
       { "alive-workspace": workspaceInternalMcp, "alive-tools": toolsInternalMcp },
       oauthTokens,
     )
 
     const connectedProviders = Object.keys(oauthTokens).filter(k => !!oauthTokens[k])
-    canUseTool = createBridgeCanUseTool(baseAllowedTools, connectedProviders, false) as CanUseTool
+    canUseTool = createStreamCanUseTool(baseAllowedTools, connectedProviders, false) as CanUseTool
   } else {
     permissionMode = permissionMode ?? "bypassPermissions"
   }

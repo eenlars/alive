@@ -10,7 +10,7 @@
  */
 
 // Protocol version for compatibility checks
-export const BRIDGE_PROTOCOL_VERSION = "1.0.0"
+export const STREAM_PROTOCOL_VERSION = "1.0.0"
 
 // Valid stream event types
 export const STREAM_EVENT_TYPES = [

@@ -1,7 +1,7 @@
 /**
- * @webalive/bridge-types
+ * @webalive/stream-types
  *
- * Shared types for Claude Bridge streaming protocol.
+ * Shared types for Alive streaming protocol.
  *
  * This package defines the contract between:
  * - Browser client (consumer)
@@ -14,8 +14,8 @@
  *   StreamEvent,
  *   isStreamEvent,
  *   StreamTokenPayload,
- *   BRIDGE_PROTOCOL_VERSION
- * } from "@webalive/bridge-types"
+ *   STREAM_PROTOCOL_VERSION
+ * } from "@webalive/stream-types"
  * ```
  */
 
@@ -23,4 +23,4 @@ export * from "./events"
 export * from "./tokens"
 
 // Re-export protocol version at top level for easy access
-export { BRIDGE_PROTOCOL_VERSION } from "./events"
+export { STREAM_PROTOCOL_VERSION } from "./events"

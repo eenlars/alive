@@ -19,7 +19,7 @@ import { getOrgCredits } from "@/lib/credits/supabase-credits"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { resolveWorkspace as resolveWorkspacePath } from "@/features/workspace/lib/workspace-secure"
 import {
-  BRIDGE_STREAM_TYPES,
+  STREAM_TYPES,
   getAllowedTools,
   getDisallowedTools,
   PERMISSION_MODE,
@@ -248,7 +248,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
         permissionMode: PERMISSION_MODE,
         settingSources: SETTINGS_SOURCES,
         oauthMcpServers: {} as Record<string, unknown>,
-        bridgeStreamTypes: BRIDGE_STREAM_TYPES,
+        streamTypes: STREAM_TYPES,
         isAdmin: false,
         isSuperadmin: false,
       }

@@ -60,7 +60,7 @@ HOSTED_ENV=server
 
 ```bash
 # .env.local - Local dev overrides
-BRIDGE_ENV=local
+ALIVE_ENV=local
 JWT_SECRET=local-dev-secret  # Override for local testing only
 ```
 

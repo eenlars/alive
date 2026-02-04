@@ -15,8 +15,8 @@
  * DO NOT add real/public domains to this list!
  */
 export const ALLOWED_TEST_EMAIL_DOMAINS = [
-  "@bridge-vitest.internal", // For vitest integration tests
-  "@bridge-playwright.internal", // For playwright E2E tests
+  "@alive-vitest.internal", // For vitest integration tests
+  "@alive-playwright.internal", // For playwright E2E tests
   "@alive-test.local", // For other test scenarios
 ] as const
 
@@ -56,10 +56,10 @@ export function validateTestEmail(email: string): void {
  * Generate a unique test email
  *
  * @param prefix - Optional prefix (default: "test")
- * @param domain - Optional domain (default: "@bridge-vitest.internal")
- * @returns A unique test email like "test-1234567890-abc@bridge-vitest.internal"
+ * @param domain - Optional domain (default: "@alive-vitest.internal")
+ * @returns A unique test email like "test-1234567890-abc@alive-vitest.internal"
  */
-export function generateTestEmail(prefix: string = "test", domain: string = "@bridge-vitest.internal"): string {
+export function generateTestEmail(prefix: string = "test", domain: string = "@alive-vitest.internal"): string {
   if (!ALLOWED_TEST_EMAIL_DOMAINS.includes(domain as any)) {
     throw new Error(`Domain ${domain} is not an allowed test domain`)
   }

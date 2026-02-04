@@ -7,7 +7,7 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["ANTHROPIC_API_KEY", "ANTH_API_SECRET", "BRIDGE_ENV", "LOCAL_TEMPLATE_PATH", "PLAYWRIGHT_TEST"]
+      "env": ["ANTHROPIC_API_KEY", "ANTH_API_SECRET", "ALIVE_ENV", "LOCAL_TEMPLATE_PATH", "PLAYWRIGHT_TEST"]
     },
     "build": {
       "dependsOn": ["^build"],
@@ -23,8 +23,8 @@
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",
         "CLAUDE_MODEL",
         "WORKSPACE_BASE",
-        "BRIDGE_PASSCODE",
-        "BRIDGE_ENV",
+        "ALIVE_PASSCODE",
+        "ALIVE_ENV",
         "GROQ_API_SECRET",
         "GITHUB_WEBHOOK_SECRET",
         "DEPLOY_BRANCH",

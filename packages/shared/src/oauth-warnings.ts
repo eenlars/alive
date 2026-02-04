@@ -52,7 +52,7 @@ export interface OAuthWarning {
 
 /**
  * Warning content for stream messages
- * Sent via bridge_warning synthetic message type
+ * Sent via stream_warning synthetic message type
  */
 export interface OAuthWarningContent {
   /** Warning category for routing */

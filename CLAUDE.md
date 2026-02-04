@@ -163,7 +163,7 @@ Claude Bridge is a **multi-tenant development platform** that enables Claude AI 
 | `@webalive/worker-pool` | Unix socket IPC for warm Claude SDK workers |
 | `@webalive/images` | Native image processing via @napi-rs/image |
 | `@alive-game/alive-tagger` | Vite plugin: injects source locations so Claude knows file:line from UI clicks |
-| `@webalive/bridge-types` | TypeScript types for SSE streaming protocol |
+| `@webalive/stream-types` | TypeScript types for SSE streaming protocol |
 
 ### Request Flow (Claude Chat)
 
@@ -553,15 +553,15 @@ bun run setup
 
 # 3. Add .env.local (as shown by setup script)
 # ANTHROPIC_API_KEY=your_key
-# BRIDGE_ENV=local
+# ALIVE_ENV=local
 # LOCAL_TEMPLATE_PATH=/path/to/.alive/template
 
 # 4. Start dev server
 bun run dev
 ```
 
-**Test Credentials** (when `BRIDGE_ENV=local`):
-- Email: `test@bridge.local`
+**Test Credentials** (when `ALIVE_ENV=local`):
+- Email: `test@alive.local`
 - Password: `test`
 
 ### Before Committing
@@ -747,7 +747,7 @@ systemctl restart site@four-goalive-nl.service
 
 ## Git Workflow
 
-**Custom SSH Key**: Uses `alive_brug_deploy` for GitHub
+**Custom SSH Key**: Uses `alive_deploy` for GitHub
 
 ```bash
 # Push changes

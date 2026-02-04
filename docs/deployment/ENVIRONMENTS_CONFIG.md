@@ -102,7 +102,7 @@ pm2 logs "$(jq -r '.environments.dev.processName' "$ENV_CONFIG")" --lines 1000
 ### Node.js (CommonJS)
 
 ```javascript
-const config = require('./bridge.config.js')
+const config = require('./alive.config.js')
 console.log(config.ports.dev)     // 8998
 console.log(config.appName.prod)  // alive
 ```
@@ -158,4 +158,4 @@ scripts/*.sh:
 4. **Documented** - All properties in one place
 5. **Queryable** - Helper functions to find envs by port, name, domain
 6. **Bash-friendly** - Scripts read directly with `jq` (standard JSON tool)
-7. **Backward compatible** - Legacy code still works with bridge.config.js
+7. **Backward compatible** - Legacy code still works with alive.config.js

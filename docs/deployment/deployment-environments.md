@@ -81,14 +81,14 @@ Reload: `systemctl reload caddy`
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-xxx
-BRIDGE_PASSCODE=your_secure_passcode
+ALIVE_PASSCODE=your_secure_passcode
 CLAUDE_MODEL=claude-haiku-4-5        # Optional
 WORKSPACE_BASE=/srv/webalive/sites            # Optional
 ```
 
 **Local dev only:**
 ```bash
-BRIDGE_ENV=local
+ALIVE_ENV=local
 LOCAL_TEMPLATE_PATH=.alive/template
 ```
 

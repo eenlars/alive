@@ -269,7 +269,7 @@ function getBridgeMcpServers(oauthTokens = {}) {
 
 **AFTER (JUSTICE):**
 ```typescript
-// packages/shared/src/bridge-tools.ts - THE ONLY IMPLEMENTATION
+// packages/shared/src/stream-tools.ts - THE ONLY IMPLEMENTATION
 export function getBridgeMcpServers(internalServers, oauthTokens = {}) {
   const servers = { ...internalServers }
   for (const [key, config] of Object.entries(OAUTH_MCP_PROVIDERS)) {
@@ -364,7 +364,7 @@ const fileTools = ["Read", "Write", "Edit", "Glob", "Grep"]
 
 **AFTER (JUSTICE):**
 ```typescript
-// packages/shared/src/bridge-tools.ts - THE ONLY DEFINITION
+// packages/shared/src/stream-tools.ts - THE ONLY DEFINITION
 export const BRIDGE_ALLOWED_SDK_TOOLS: string[] = [
   "Read", "Write", "Edit", "Glob", "Grep"
 ]
@@ -549,7 +549,7 @@ Put code in the RIGHT place:
 @webalive/shared                    ← INFRASTRUCTURE (lowest level)
 ├── config.ts                       ← PATHS, DOMAINS, PORTS, DEFAULTS
 ├── constants.ts                    ← COOKIE_NAMES, TEST_CONFIG, SESSION
-├── bridge-tools.ts                 ← SDK tool lists, Bridge helpers
+├── stream-tools.ts                 ← SDK tool lists, Bridge helpers
 ├── mcp-providers.ts                ← OAuth/Global MCP registries
 └── types.ts                        ← Shared types used EVERYWHERE
 
@@ -596,7 +596,7 @@ Phase 1: THE HUNT
 ```
 ⚠️  DUPLICATION DETECTED
 
-Location 1: packages/shared/src/bridge-tools.ts:53
+Location 1: packages/shared/src/stream-tools.ts:53
 Location 2: apps/web/lib/claude/types.ts:12
 Location 3: packages/tools/src/types.ts:89
 
@@ -614,7 +614,7 @@ ACTION: Update importers, delete duplicates.
 🔪 EXECUTING CONSOLIDATION
 
 Step 1: Extracting to single source of truth
-  → packages/shared/src/bridge-tools.ts
+  → packages/shared/src/stream-tools.ts
 
 Step 2: Updating importers
   ✓ apps/web/lib/claude/agent-constants.mjs
@@ -632,16 +632,16 @@ Step 3: Deleting duplicates
 ✅ DRY VERIFICATION COMPLETE
 
 Types (each defined exactly once):
-  BridgeAllowedSDKTool    → packages/shared/src/bridge-tools.ts:53 ✓
-  BridgeDisallowedSDKTool → packages/shared/src/bridge-tools.ts:84 ✓
+  BridgeAllowedSDKTool    → packages/shared/src/stream-tools.ts:53 ✓
+  BridgeDisallowedSDKTool → packages/shared/src/stream-tools.ts:84 ✓
 
 Functions (each defined exactly once):
-  getBridgeMcpServers     → packages/shared/src/bridge-tools.ts:120 ✓
-  createBridgeCanUseTool  → packages/shared/src/bridge-tools.ts:161 ✓
+  getBridgeMcpServers     → packages/shared/src/stream-tools.ts:120 ✓
+  createBridgeCanUseTool  → packages/shared/src/stream-tools.ts:161 ✓
 
 Constants (each assigned exactly once):
-  BRIDGE_ALLOWED_SDK_TOOLS   → packages/shared/src/bridge-tools.ts:33 ✓
-  BRIDGE_DISALLOWED_SDK_TOOLS → packages/shared/src/bridge-tools.ts:76 ✓
+  BRIDGE_ALLOWED_SDK_TOOLS   → packages/shared/src/stream-tools.ts:33 ✓
+  BRIDGE_DISALLOWED_SDK_TOOLS → packages/shared/src/stream-tools.ts:76 ✓
 
 Sync comments remaining: 0 ✓
 Type check: PASSED ✓

@@ -27,13 +27,13 @@ export interface TestUser {
  * ⚠️ CRITICAL SECURITY: Email MUST use INTERNAL test domains ONLY ⚠️
  *
  * Allowed domains (NEVER use these for real users):
- * - @bridge-vitest.internal (for vitest tests)
- * - @bridge-playwright.internal (for E2E tests)
+ * - @alive-vitest.internal (for vitest tests)
+ * - @alive-playwright.internal (for E2E tests)
  * - @alive-test.local (for other tests)
  *
  * DO NOT use @test.com, @example.com, etc. - real users might use these!
  *
- * @param email - Test user email (default: auto-generated with @bridge-vitest.internal)
+ * @param email - Test user email (default: auto-generated with @alive-vitest.internal)
  * @param credits - Initial credits for org (default: TEST_CONFIG.DEFAULT_CREDITS)
  * @param password - Plain text password to hash and store (default: TEST_CONFIG.TEST_PASSWORD)
  * @returns Test user with userId and orgId

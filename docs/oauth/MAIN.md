@@ -92,7 +92,7 @@ You already have:
   * A per‑run `runId` (e.g., `E2E_2025-11-21T10:30:00Z`).
   * One tenant (org + domain + user) per Playwright worker:
 
-    * `e2e-w0@bridge.local`, `e2e-w1@bridge.local`, ...
+    * `e2e-w0@alive.local`, `e2e-w1@alive.local`, ...
   * `test_run_id` on core tables (`iam.users`, `iam.orgs`, `app.domains`).
   * Cleanup that deletes all rows with this `test_run_id`, relying on FKs and cascade.
 
@@ -543,7 +543,7 @@ This is not required for correctness (test cleanup already happens via user dele
 You already have:
 
 * `runId = "E2E_..."` per test run.
-* A unique user & tenant per worker (`e2e-w0@bridge.local`, `e2e-w1@bridge.local`, ...).
+* A unique user & tenant per worker (`e2e-w0@alive.local`, `e2e-w1@alive.local`, ...).
 * `test_run_id` on IAM and domains, with FK cascades cleaning everything at teardown.
 
 Now we layer **instance IDs** on top.

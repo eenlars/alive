@@ -57,7 +57,7 @@ Tests now inject explicit localStorage state for all stores via `createTestStora
 
 ```typescript
 const storageEntries = createTestStorageState({
-  workspace: "e2e-w0.bridge.local",
+  workspace: "e2e-w0.alive.local",
   orgId: "org-123",
   featureFlags: {},
   debug: { isDebugView: false, showSSETerminal: false, showSandbox: false },

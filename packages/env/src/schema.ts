@@ -43,8 +43,8 @@ export const serverSchema = {
 
   // Bridge configuration
   WORKSPACE_BASE: z.string().default("/srv/webalive/sites"),
-  BRIDGE_PASSCODE: z.string().optional(),
-  BRIDGE_ENV: z.enum(["local", "dev", "staging", "production"]).optional(),
+  ALIVE_PASSCODE: z.string().optional(),
+  STREAM_ENV: z.enum(["local", "dev", "staging", "production"]).optional(),
   LOCAL_TEMPLATE_PATH: z.string().optional(),
   SHELL_PASSWORD: z.string().optional(),
   HOSTED_ENV: z.string().optional(),
@@ -91,7 +91,7 @@ export const serverSchema = {
   SUPERADMIN_EMAILS: z.string().optional(),
 
   // Redis configuration
-  // REQUIRED in production/staging, optional in local dev (BRIDGE_ENV=local)
+  // REQUIRED in production/staging, optional in local dev (STREAM_ENV=local)
   // Validated at runtime by getRedisUrl() helper
   REDIS_URL: z
     .string()
@@ -131,8 +131,8 @@ export const runtimeEnv = {
   SUPABASE_ACCESS_TOKEN: process.env.SUPABASE_ACCESS_TOKEN,
   SUPABASE_PROJECT_ID: process.env.SUPABASE_PROJECT_ID,
   WORKSPACE_BASE: process.env.WORKSPACE_BASE,
-  BRIDGE_PASSCODE: process.env.BRIDGE_PASSCODE,
-  BRIDGE_ENV: process.env.BRIDGE_ENV,
+  ALIVE_PASSCODE: process.env.ALIVE_PASSCODE,
+  STREAM_ENV: process.env.STREAM_ENV,
   LOCAL_TEMPLATE_PATH: process.env.LOCAL_TEMPLATE_PATH,
   SHELL_PASSWORD: process.env.SHELL_PASSWORD,
   HOSTED_ENV: process.env.HOSTED_ENV,

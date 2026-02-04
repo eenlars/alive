@@ -17,20 +17,20 @@ import type { ErrorCode } from "@/lib/error-codes"
  * Defined here (not imported) to avoid bundling Node.js dependencies in browser.
  */
 export const BridgeStreamType = {
-  START: "bridge_start",
-  SESSION: "bridge_session",
-  MESSAGE: "bridge_message",
-  COMPLETE: "bridge_complete",
-  ERROR: "bridge_error",
-  PING: "bridge_ping",
-  DONE: "bridge_done",
-  INTERRUPT: "bridge_interrupt",
+  START: "stream_start",
+  SESSION: "stream_session",
+  MESSAGE: "stream_message",
+  COMPLETE: "stream_complete",
+  ERROR: "stream_error",
+  PING: "stream_ping",
+  DONE: "stream_done",
+  INTERRUPT: "stream_interrupt",
 } as const
 
 export type BridgeStreamType = (typeof BridgeStreamType)[keyof typeof BridgeStreamType]
 
 export const BridgeSyntheticMessageType = {
-  WARNING: "bridge_warning",
+  WARNING: "stream_warning",
 } as const
 
 export type BridgeSyntheticMessageType = (typeof BridgeSyntheticMessageType)[keyof typeof BridgeSyntheticMessageType]
@@ -52,8 +52,8 @@ export function isWarningMessage(event: unknown): event is BridgeMessageEvent & 
 export type BridgeMessageType = SDKMessage["type"] | BridgeSyntheticMessageType
 
 export const BridgeInterruptSource = {
-  HTTP_ABORT: "bridge_http_abort",
-  CLIENT_CANCEL: "bridge_client_cancel",
+  HTTP_ABORT: "stream_http_abort",
+  CLIENT_CANCEL: "stream_client_cancel",
 } as const
 
 export type BridgeInterruptSource = (typeof BridgeInterruptSource)[keyof typeof BridgeInterruptSource]

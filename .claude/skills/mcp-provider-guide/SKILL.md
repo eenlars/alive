@@ -133,7 +133,7 @@ SDK connects to HTTP MCPs       ─── JSON-RPC over HTTP
 | File | Purpose |
 |------|---------|
 | `packages/shared/src/mcp-providers.ts` | Provider registry (URLs, tools, names) |
-| `packages/shared/src/bridge-tools.ts` | `getBridgeMcpServers()` builds server config |
+| `packages/shared/src/stream-tools.ts` | `getBridgeMcpServers()` builds server config |
 | `packages/tools/src/tools/meta/tool-registry.ts` | Discovery via `search_tools` |
 | `apps/web/scripts/run-agent.mjs` | Legacy runner (calls getMcpServers) |
 | `packages/worker-pool/src/worker-entry.mjs` | Persistent worker |

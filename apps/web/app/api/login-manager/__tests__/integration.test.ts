@@ -8,15 +8,15 @@ import { describe, expect, it } from "vitest"
  */
 describe("Manager Login Integration", () => {
   /**
-   * CRITICAL: Verify BRIDGE_PASSCODE environment variable is set
+   * CRITICAL: Verify ALIVE_PASSCODE environment variable is set
    *
    * This test caught a production bug where the process manager wasn't loading .env
    * Unit tests passed because they mocked env, but real login failed.
    */
-  it("should have BRIDGE_PASSCODE environment variable configured", () => {
-    const passcode = process.env.BRIDGE_PASSCODE
+  it("should have ALIVE_PASSCODE environment variable configured", () => {
+    const passcode = process.env.ALIVE_PASSCODE
 
-    // In production/development, BRIDGE_PASSCODE must be set
+    // In production/development, ALIVE_PASSCODE must be set
     // (In test environment, it might not be set, which is OK)
     if (process.env.NODE_ENV !== "test") {
       expect(passcode).toBeDefined()
@@ -26,22 +26,22 @@ describe("Manager Login Integration", () => {
     }
 
     // This test will fail if:
-    // - .env file doesn't have BRIDGE_PASSCODE
+    // - .env file doesn't have ALIVE_PASSCODE
     // - Process manager didn't load .env
     // - Environment variables weren't passed correctly
 
     // To fix:
-    // 1. Add BRIDGE_PASSCODE=your_password to .env
+    // 1. Add ALIVE_PASSCODE=your_password to .env
     // 2. Restart the systemd service: systemctl restart alive-dev
     // 3. If using bun dev: restart the dev server
   })
 
   /**
-   * Verify lib/env.ts can access BRIDGE_PASSCODE
+   * Verify lib/env.ts can access ALIVE_PASSCODE
    *
    * This ensures our environment validation layer works correctly
    */
-  it("should expose BRIDGE_PASSCODE through env module", async () => {
+  it("should expose ALIVE_PASSCODE through env module", async () => {
     // Skip in test environment since env.ts requires ANTHROPIC_API_KEY
     // In production/development, verify env module works
     if (process.env.NODE_ENV === "test") {
@@ -51,8 +51,8 @@ describe("Manager Login Integration", () => {
 
     const { env } = await import("@/lib/env")
 
-    expect(env.BRIDGE_PASSCODE).toBeDefined()
-    expect(env.BRIDGE_PASSCODE).toBe(process.env.BRIDGE_PASSCODE)
+    expect(env.ALIVE_PASSCODE).toBeDefined()
+    expect(env.ALIVE_PASSCODE).toBe(process.env.ALIVE_PASSCODE)
   })
 
   /**

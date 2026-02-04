@@ -43,18 +43,18 @@ describe("@webalive/shared exports", () => {
     expect(shared.resolveAndValidatePath).toBeInstanceOf(Function)
   })
 
-  it("exports bridge tool configuration", async () => {
+  it("exports stream tool configuration", async () => {
     const shared = await import("@webalive/shared")
 
-    // Tools allowed in bridge - security boundary
-    expect(shared.BRIDGE_ALLOWED_SDK_TOOLS).toBeDefined()
-    expect(Array.isArray(shared.BRIDGE_ALLOWED_SDK_TOOLS)).toBe(true)
-    expect(shared.BRIDGE_ALLOWED_SDK_TOOLS.length).toBeGreaterThan(0)
+    // Tools allowed in stream - security boundary
+    expect(shared.STREAM_ALLOWED_SDK_TOOLS).toBeDefined()
+    expect(Array.isArray(shared.STREAM_ALLOWED_SDK_TOOLS)).toBe(true)
+    expect(shared.STREAM_ALLOWED_SDK_TOOLS.length).toBeGreaterThan(0)
 
     // Must include basic file operations
-    expect(shared.BRIDGE_ALLOWED_SDK_TOOLS).toContain("Read")
-    expect(shared.BRIDGE_ALLOWED_SDK_TOOLS).toContain("Write")
-    expect(shared.BRIDGE_ALLOWED_SDK_TOOLS).toContain("Edit")
+    expect(shared.STREAM_ALLOWED_SDK_TOOLS).toContain("Read")
+    expect(shared.STREAM_ALLOWED_SDK_TOOLS).toContain("Write")
+    expect(shared.STREAM_ALLOWED_SDK_TOOLS).toContain("Edit")
   })
 })
 

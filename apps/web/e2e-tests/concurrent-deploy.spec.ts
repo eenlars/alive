@@ -4,11 +4,11 @@ import { PATHS } from "@webalive/shared"
 import { expect, test } from "./fixtures"
 
 // Test domains - using short names to avoid Linux username length limits (32 chars)
-// IMPORTANT: Emails MUST use INTERNAL test domains (@bridge-playwright.internal)
+// IMPORTANT: Emails MUST use INTERNAL test domains (@alive-playwright.internal)
 const TEST_SITES = [
-  { slug: "tc1", domain: "tc1.alive.best", email: "tc1@bridge-playwright.internal" },
-  { slug: "tc2", domain: "tc2.alive.best", email: "tc2@bridge-playwright.internal" },
-  { slug: "tc3", domain: "tc3.alive.best", email: "tc3@bridge-playwright.internal" },
+  { slug: "tc1", domain: "tc1.alive.best", email: "tc1@alive-playwright.internal" },
+  { slug: "tc2", domain: "tc2.alive.best", email: "tc2@alive-playwright.internal" },
+  { slug: "tc3", domain: "tc3.alive.best", email: "tc3@alive-playwright.internal" },
 ]
 
 const TEST_PASSWORD = "testpass123"

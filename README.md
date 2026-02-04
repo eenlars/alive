@@ -36,7 +36,7 @@ bun run setup
 Create `apps/web/.env.local`:
 ```bash
 ANTHROPIC_API_KEY=your_key
-BRIDGE_ENV=local
+ALIVE_ENV=local
 ```
 
 ### 4. Start the server
@@ -48,7 +48,7 @@ bun run dev
 ### 5. Open the app
 
 Visit `http://localhost:3000` and log in:
-- **Email**: `test@bridge.local`
+- **Email**: `test@alive.local`
 - **Password**: `test`
 
 ---

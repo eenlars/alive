@@ -34,7 +34,7 @@ All paths are read from `/var/lib/alive/server-config.json`:
 {
   "serverId": "srv-example",
   "paths": {
-    "bridgeRoot": "/root/alive",
+    "aliveRoot": "/root/alive",
     "sitesRoot": "/srv/webalive/sites"
   }
 }

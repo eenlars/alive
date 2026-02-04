@@ -11,7 +11,7 @@ When running Claude Bridge locally, you'll use a **test workspace** that stays o
 ### Local Development Mode
 
 ```
-BRIDGE_ENV=local
+ALIVE_ENV=local
 ├── Test User: workspace="test", passcode="test"
 ├── Workspace: .alive/template (local-only, gitignored)
 └── Template Source: packages/template/user
@@ -51,7 +51,7 @@ This will:
 Create or update `apps/web/.env.local`:
 
 ```bash
-BRIDGE_ENV=local
+ALIVE_ENV=local
 LOCAL_TEMPLATE_PATH=/absolute/path/to/alive/.alive/template
 ```
 
@@ -84,7 +84,7 @@ Navigate to `http://localhost:8999` and log in:
 
 ### Test User (Local Only)
 
-When `BRIDGE_ENV=local`, the login endpoint (`apps/web/app/api/login/route.ts`) accepts:
+When `ALIVE_ENV=local`, the login endpoint (`apps/web/app/api/login/route.ts`) accepts:
 
 ```typescript
 workspace: "test"
@@ -97,13 +97,13 @@ This bypasses domain password validation and sets a session cookie with value `t
 
 The workspace resolver (`apps/web/app/features/claude/workspaceRetriever.ts`) checks:
 
-1. **If `BRIDGE_ENV=local`**: Use `LOCAL_TEMPLATE_PATH` environment variable
+1. **If `ALIVE_ENV=local`**: Use `LOCAL_TEMPLATE_PATH` environment variable
 2. **If `terminal.*` hostname**: Use custom workspace from request body
 3. **Otherwise**: Use domain-based workspace (production mode)
 
 ### Security
 
-- **Test user only works when `BRIDGE_ENV=local`** – production deploys won't have this flag
+- **Test user only works when `ALIVE_ENV=local`** – production deploys won't have this flag
 - **`.alive/` is gitignored** – your local workspace never gets committed
 - **`LOCAL_TEMPLATE_PATH` must be absolute** – no monorepo path resolution issues
 
@@ -136,7 +136,7 @@ If you want to change what new local workspaces start with:
 
 ### Error: "LOCAL_TEMPLATE_PATH environment variable required"
 
-**Cause**: `BRIDGE_ENV=local` is set but `LOCAL_TEMPLATE_PATH` is missing.
+**Cause**: `ALIVE_ENV=local` is set but `LOCAL_TEMPLATE_PATH` is missing.
 
 **Fix**: Run `bun run setup` and add the displayed `LOCAL_TEMPLATE_PATH` to `apps/web/.env.local`.
 
@@ -161,7 +161,7 @@ If you want to change what new local workspaces start with:
 ### Changes not appearing
 
 Make sure:
-1. `BRIDGE_ENV=local` is set in `.env.local`
+1. `ALIVE_ENV=local` is set in `.env.local`
 2. `LOCAL_TEMPLATE_PATH` points to the correct absolute path
 3. You're logged in with workspace `test` and passcode `test`
 4. You've restarted the dev server after changing `.env.local`
@@ -183,16 +183,16 @@ Ensure you have read/write access to the monorepo directory.
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `BRIDGE_ENV` | Yes | Enable local development mode | `local` |
+| `ALIVE_ENV` | Yes | Enable local development mode | `local` |
 | `LOCAL_TEMPLATE_PATH` | Yes | Absolute path to local workspace | `/Users/you/alive/.alive/template` |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key | `sk-ant-...` |
-| `BRIDGE_PASSCODE` | No | Bridge passcode (any works if unset) | `your-password` |
+| `ALIVE_PASSCODE` | No | Bridge passcode (any works if unset) | `your-password` |
 
 ## Production vs Development
 
 | Aspect | Production | Local Development |
 |--------|-----------|-------------------|
-| Environment | `BRIDGE_ENV` not set | `BRIDGE_ENV=local` |
+| Environment | `ALIVE_ENV` not set | `ALIVE_ENV=local` |
 | Login | Domain passwords | `test`/`test` |
 | Workspace | `/srv/webalive/sites/{domain}/user` | `.alive/template` |
 | Git tracking | Workspaces not in repo | `.alive/` gitignored |
@@ -305,7 +305,7 @@ This document outlines all edge cases handled by the local development setup.
 ### 15. **.env.local Misconfigured**
 **Scenario**: `.env.local` exists but missing or wrong vars.
 
-**Detection**: Grep for exact `BRIDGE_ENV=local` and correct `LOCAL_TEMPLATE_PATH`.
+**Detection**: Grep for exact `ALIVE_ENV=local` and correct `LOCAL_TEMPLATE_PATH`.
 
 **Behavior**: Show update instructions with correct values.
 
@@ -318,7 +318,7 @@ This document outlines all edge cases handled by the local development setup.
 
 ## Runtime (workspaceRetriever.ts) Edge Cases
 
-### 1. **BRIDGE_ENV=local but No LOCAL_TEMPLATE_PATH**
+### 1. **ALIVE_ENV=local but No LOCAL_TEMPLATE_PATH**
 **Scenario**: Environment flag set but path not provided.
 
 **Detection**: Check `!templateWorkspace` after reading env var.
@@ -360,10 +360,10 @@ This document outlines all edge cases handled by the local development setup.
 
 **Response**: 400 error with clear param requirements.
 
-### 7. **Production Mode (No BRIDGE_ENV)**
+### 7. **Production Mode (No ALIVE_ENV)**
 **Scenario**: Normal production operation.
 
-**Detection**: `process.env.BRIDGE_ENV !== "local"`.
+**Detection**: `process.env.ALIVE_ENV !== "local"`.
 
 **Behavior**: Use normal workspace resolution (domain-based).
 
@@ -404,7 +404,7 @@ This document outlines all edge cases handled by the local development setup.
 
 ### Arbitrary File Access
 **Prevention**:
-- Local mode only works when `BRIDGE_ENV=local` (won't be set in production)
+- Local mode only works when `ALIVE_ENV=local` (won't be set in production)
 - Test credentials only work in local mode
 - `.alive/` is gitignored (never deployed)
 
@@ -429,5 +429,5 @@ This document outlines all edge cases handled by the local development setup.
 - [ ] Test runtime with non-existent path
 - [ ] Test runtime with file instead of directory
 - [ ] Verify .alive/ is gitignored
-- [ ] Verify test credentials only work when BRIDGE_ENV=local
+- [ ] Verify test credentials only work when ALIVE_ENV=local
 

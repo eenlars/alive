@@ -4,7 +4,7 @@ import type { BridgeStreamType } from "./streaming/ndjson"
 
 /**
  * Client Request Types
- * Events sent from client to bridge
+ * Events sent from client to server
  */
 export const ClientRequest = {
   MESSAGE: "client_request_message",
@@ -31,7 +31,7 @@ export type ClientErrorType = (typeof ClientError)[keyof typeof ClientError]
 
 /**
  * Dev Event Names - All possible event names in dev terminal
- * Combines client requests, client errors, and bridge responses
+ * Combines client requests, client errors, and server responses
  */
 export type DevEventName =
   | ClientRequestType

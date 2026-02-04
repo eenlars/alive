@@ -48,8 +48,8 @@ bun run test:e2e:genuine:headed
    JWT_SECRET=...
    ```
 
-2. **Test Account**: The tests use `BRIDGE_ENV=local` which enables test credentials:
-   - Email: `test@bridge.local`
+2. **Test Account**: The tests use `ALIVE_ENV=local` which enables test credentials:
+   - Email: `test@alive.local`
    - Password: `test`
 
 ## What These Tests Verify

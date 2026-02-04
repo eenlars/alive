@@ -37,7 +37,7 @@ Scripts for deploying and managing individual customer websites.
 **Key Scripts:**
 - `deploy-site-systemd.sh` - Deploy a new site with systemd isolation
 - `delete-site.sh` - Delete a site (stops service, removes files, updates Caddy)
-- `add-verification-files.sh` - Add bridge verification files to sites
+- `add-verification-files.sh` - Add alive verification files to sites
 - `fix-file-ownership.sh` - Fix file permissions for site access
 
 **Usage:**

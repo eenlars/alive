@@ -71,10 +71,10 @@ function getTerminalWorkspace(body: any, requestId: string): WorkspaceResult {
     }
   }
 
-  // Allow "test" or "test.bridge.local" workspace in local development mode (for E2E tests)
+  // Allow "test" or "test.alive.local" workspace in local development mode (for E2E tests)
   // Test workspace is created by e2e-tests/genuine-setup.ts
   const testWorkspace = `test.${TEST_CONFIG.EMAIL_DOMAIN}`
-  if (process.env.BRIDGE_ENV === "local" && (customWorkspace === "test" || customWorkspace === testWorkspace)) {
+  if (process.env.STREAM_ENV === "local" && (customWorkspace === "test" || customWorkspace === testWorkspace)) {
     console.log(`[Workspace ${requestId}] Using test workspace in local mode`)
     return {
       success: true,

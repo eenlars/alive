@@ -14,7 +14,7 @@ import { createIamClient } from "@/lib/supabase/iam"
 
 export async function GET(req: Request) {
   // Environment guard - accessible in test/local environments OR with valid test secret
-  const isTestEnv = process.env.NODE_ENV === "test" || process.env.BRIDGE_ENV === "local"
+  const isTestEnv = process.env.NODE_ENV === "test" || process.env.STREAM_ENV === "local"
 
   // Check for test secret header (for staging/production E2E tests)
   const testSecret = req.headers.get("x-test-secret")
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
     }
 
     // 4. Check if domain exists (extract workspace from email pattern)
-    // Email format is e2e_w{N}@bridge.local (TEST_CONFIG.WORKER_EMAIL_PREFIX = "e2e_w")
+    // Email format is e2e_w{N}@alive.local (TEST_CONFIG.WORKER_EMAIL_PREFIX = "e2e_w")
     const workerIndex = email.match(/e2e_w(\d+)@/)?.[1]
     if (workerIndex !== undefined) {
       const workspace = `${TEST_CONFIG.WORKSPACE_PREFIX}${workerIndex}.${TEST_CONFIG.EMAIL_DOMAIN}`

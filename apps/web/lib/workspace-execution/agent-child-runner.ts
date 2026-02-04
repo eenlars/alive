@@ -85,7 +85,7 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
       TARGET_CWD: workspaceRoot,
       ANTHROPIC_API_KEY: apiKey,
       // Pass session cookie for authenticated API calls
-      ...(payload.sessionCookie && { BRIDGE_SESSION_COOKIE: payload.sessionCookie }),
+      ...(payload.sessionCookie && { ALIVE_SESSION_COOKIE: payload.sessionCookie }),
     },
     stdio: ["pipe", "pipe", "pipe"],
   })

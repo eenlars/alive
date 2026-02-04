@@ -63,14 +63,14 @@ fullyParallel: false,
 - `test/test` credentials don't work
 
 **Causes:**
-- No `BRIDGE_ENV=local` set
+- No `ALIVE_ENV=local` set
 - Missing `LOCAL_TEMPLATE_PATH`
 
 **Fixes:**
 ```bash
 # Create .env.local
 cat > apps/web/.env.local <<EOF
-BRIDGE_ENV=local
+ALIVE_ENV=local
 LOCAL_TEMPLATE_PATH=/path/to/template
 EOF
 ```
@@ -513,7 +513,7 @@ Workspace test not found
 ```yaml
 # In .github/workflows/e2e.yml
 env:
-  BRIDGE_ENV: test
+  ALIVE_ENV: test
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   # Make sure secret exists in GitHub repo settings
 ```
@@ -820,7 +820,7 @@ done
 3. **Run in headed mode**: `bun run test:e2e:headed`
 4. **Run in debug mode**: `bun run test:e2e:debug`
 5. **Check server logs**: Look for errors in Next.js output
-6. **Verify environment**: `echo $BRIDGE_ENV`
+6. **Verify environment**: `echo $ALIVE_ENV`
 
 ### Common Quick Fixes
 

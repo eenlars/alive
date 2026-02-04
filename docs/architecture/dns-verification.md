@@ -10,7 +10,7 @@ The DNS verification system validates that domains correctly serve content from 
 
 Each site includes a verification file at:
 ```
-/.well-known/bridge-verify.txt
+/.well-known/alive-verify.txt
 ```
 
 This file contains the server's origin IP address:
@@ -64,7 +64,7 @@ The verification file confirms that:
 
 ### Template Setup
 
-**File location**: `packages/template/user/public/.well-known/bridge-verify.txt`
+**File location**: `packages/template/user/public/.well-known/alive-verify.txt`
 
 This file is automatically included in all new sites deployed from the template.
 
@@ -101,7 +101,7 @@ async function checkDnsResolution(
 
 **Logic**:
 1. Resolve DNS A record
-2. Try HTTPS: `https://domain/.well-known/bridge-verify.txt`
+2. Try HTTPS: `https://domain/.well-known/alive-verify.txt`
 3. If HTTPS fails, try HTTP
 4. Compare file content with `serverIp`
 5. If match: `pointsToServer = true`, detect proxy if IPs differ
@@ -158,8 +158,8 @@ This would provide:
 
 **Solutions**:
 1. Ensure `public/.well-known/` directory exists in site
-2. Check verification file content: `cat /srv/webalive/sites/domain/user/public/.well-known/bridge-verify.txt`
-3. Test file accessibility: `curl https://domain/.well-known/bridge-verify.txt`
+2. Check verification file content: `cat /srv/webalive/sites/domain/user/public/.well-known/alive-verify.txt`
+3. Test file accessibility: `curl https://domain/.well-known/alive-verify.txt`
 4. Verify file ownership matches site user: `ls -la /srv/webalive/sites/domain/user/public/.well-known/`
 
 ### File Not Accessible
@@ -178,14 +178,14 @@ This would provide:
 
 **Solutions**:
 1. Check server config: `cat /var/lib/alive/server-config.json`
-2. Update verification file: `echo "YOUR_SERVER_IP" > /srv/webalive/sites/domain/user/public/.well-known/bridge-verify.txt`
-3. Fix ownership: `chown site-domain-slug:site-domain-slug /srv/webalive/sites/domain/user/public/.well-known/bridge-verify.txt`
+2. Update verification file: `echo "YOUR_SERVER_IP" > /srv/webalive/sites/domain/user/public/.well-known/alive-verify.txt`
+3. Fix ownership: `chown site-domain-slug:site-domain-slug /srv/webalive/sites/domain/user/public/.well-known/alive-verify.txt`
 
 ## Related Files
 
 - `apps/web/app/api/manager/status/route.ts` - DNS check implementation
 - `apps/web/app/manager/page.tsx` - Manager UI display
 - `apps/web/types/domain.ts` - Type definitions
-- `packages/template/user/public/.well-known/bridge-verify.txt` - Template file
+- `packages/template/user/public/.well-known/alive-verify.txt` - Template file
 - `scripts/add-verification-files.sh` - Migration script
 - `/var/lib/alive/server-config.json` - Server IP configuration

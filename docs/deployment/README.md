@@ -37,7 +37,7 @@ make logs-dev                # View dev logs
 
 # Status
 make status                  # Show all environments
-systemctl list-units 'alive*'  # List bridge services
+systemctl list-units 'alive*'  # List alive services
 
 # Rollback
 make rollback                # Interactive rollback to previous build

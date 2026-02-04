@@ -1,5 +1,5 @@
 /**
- * Claude Bridge Environments Configuration
+ * Claude Stream Environments Configuration
  *
  * ⚠️  SINGLE SOURCE OF TRUTH for environment configuration
  *

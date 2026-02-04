@@ -31,7 +31,7 @@ import {
   type AgentRequest,
   type AgentConfig,
   type CompleteResult,
-  BRIDGE_STREAM_TYPES,
+  STREAM_TYPES,
   WORKER_MESSAGE_TYPES,
   PARENT_MESSAGE_TYPES,
   // Type guards
@@ -54,7 +54,7 @@ function createTestAgentConfig(): AgentConfig {
     permissionMode: "default",
     settingSources: [],
     oauthMcpServers: {},
-    bridgeStreamTypes: BRIDGE_STREAM_TYPES,
+    streamTypes: STREAM_TYPES,
   }
 }
 
@@ -135,7 +135,7 @@ function handleMessage(msg) {
             type: "${WORKER_MESSAGE_TYPES.COMPLETE}",
             requestId: currentRequestId,
             result: {
-              type: "${BRIDGE_STREAM_TYPES.COMPLETE}",
+              type: "${STREAM_TYPES.COMPLETE}",
               totalMessages: messageCount,
               result: null,
               cancelled: true
@@ -159,7 +159,7 @@ function handleMessage(msg) {
             type: "${WORKER_MESSAGE_TYPES.COMPLETE}",
             requestId: currentRequestId,
             result: {
-              type: "${BRIDGE_STREAM_TYPES.COMPLETE}",
+              type: "${STREAM_TYPES.COMPLETE}",
               totalMessages: messageCount,
               result: { success: true },
               cancelled: false
@@ -321,7 +321,7 @@ socket.on("data", (chunk) => {
           type: "${WORKER_MESSAGE_TYPES.COMPLETE}",
           requestId: msg.requestId,
           result: {
-            type: "${BRIDGE_STREAM_TYPES.COMPLETE}",
+            type: "${STREAM_TYPES.COMPLETE}",
             totalMessages: 0,
             result: null,
             cancelled: true
@@ -434,7 +434,7 @@ socket.on("data", (chunk) => {
           type: "${WORKER_MESSAGE_TYPES.COMPLETE}",
           requestId: msg.requestId,
           result: {
-            type: "${BRIDGE_STREAM_TYPES.COMPLETE}",
+            type: "${STREAM_TYPES.COMPLETE}",
             totalMessages: 0,
             result: { reportedRequestId: msg.requestId },
             cancelled: true
@@ -723,14 +723,14 @@ function send(msg) { socket.write(JSON.stringify(msg) + "\\n") }
       const result = completeMsg!.result as CompleteResult
 
       // Verify type matches expected constant
-      expect(result.type).toBe(BRIDGE_STREAM_TYPES.COMPLETE)
+      expect(result.type).toBe(STREAM_TYPES.COMPLETE)
     })
   })
 
   describe("Type Guards", () => {
     it("isCompleteResult should correctly identify valid CompleteResult", () => {
       const valid: CompleteResult = {
-        type: BRIDGE_STREAM_TYPES.COMPLETE,
+        type: STREAM_TYPES.COMPLETE,
         totalMessages: 5,
         result: { success: true },
         cancelled: false,

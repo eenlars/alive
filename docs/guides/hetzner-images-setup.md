@@ -37,7 +37,7 @@ Tenant IDs are derived from workspace paths:
 
 - **Workspace**: `/srv/webalive/sites/larsvandeneeden.com/user/src`
 - **Tenant ID**: `larsvandeneeden.com` (extracted from path)
-- **Terminal mode**: Uses workspace-specific tenant IDs, not `terminal-bridge-main`
+- **Terminal mode**: Uses workspace-specific tenant IDs, not `terminal-alive-main`
 
 ## URL Structure
 

@@ -1,7 +1,7 @@
 import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { z } from "zod"
 import { DEFAULTS, getTemplateListForDocs, getTemplateIdsInline } from "@webalive/shared"
-import { callBridgeApi, errorResult, type ToolResult } from "../../lib/bridge-api-client.js"
+import { callBridgeApi, errorResult, type ToolResult } from "../../lib/api-client.js"
 
 // Reserved slugs that cannot be used (mirrors server-side validation)
 const RESERVED_SLUGS = [
@@ -92,7 +92,7 @@ export type CreateWebsiteParams = {
  * - Caddy reverse proxy configuration
  * - SSL certificate provisioning
  *
- * The deployment uses the authenticated user's session from BRIDGE_SESSION_COOKIE.
+ * The deployment uses the authenticated user's session from ALIVE_SESSION_COOKIE.
  */
 export async function createWebsite(params: CreateWebsiteParams): Promise<ToolResult> {
   const { slug, siteIdeas, templateId } = params
