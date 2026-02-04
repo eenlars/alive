@@ -33,6 +33,9 @@ dist/
 dist.*/
 next-env.d.ts
 
+# Generated build info (regenerated on each build/dev start)
+apps/web/lib/build-info.json
+
 # Turborepo
 .turbo/
 
