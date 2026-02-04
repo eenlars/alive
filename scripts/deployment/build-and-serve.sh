@@ -82,22 +82,8 @@ rollback() {
     log_warn "Rolling back: $reason"
     ln -sfn "$PREVIOUS_BUILD" "$BUILDS_DIR/current"
 
-    # Reset any failed state before restarting
-    systemctl reset-failed "$SERVICE" 2>/dev/null || true
-    systemctl restart "$SERVICE" 2>/dev/null || true
-
-    # Wait for service to come up
-    local wait_time=10
-    local service_up=false
-    for i in $(seq 1 $wait_time); do
-        sleep 1
-        if systemctl is-active --quiet "$SERVICE"; then
-            service_up=true
-            break
-        fi
-    done
-
-    if [ "$service_up" = false ]; then
+    # Use robust restart that handles stuck services
+    if ! service_force_restart "$SERVICE" 15; then
         log_error "Rollback failed - service won't start"
         log_error "Check: journalctl -u $SERVICE -n 50"
         return 1
@@ -241,23 +227,10 @@ phase_end ok "Skills synced"
 phase_start "Deploying"
 
 log_step "Restarting $SERVICE..."
-# Use nohup to survive if we're restarting our own parent service
-# (e.g., staging chat deploys staging - the restart kills the Claude session)
-nohup systemctl restart "$SERVICE" >/dev/null 2>&1 &
-RESTART_PID=$!
-
-# Wait for service to become active (with retries)
-SERVICE_WAIT=10
-SERVICE_ACTIVE=false
-for i in $(seq 1 $SERVICE_WAIT); do
-    sleep 1
-    if systemctl is-active --quiet "$SERVICE"; then
-        SERVICE_ACTIVE=true
-        break
-    fi
-done
-
-if [ "$SERVICE_ACTIVE" = false ]; then
+# Use service_force_restart which handles stuck services (deactivating, stop-sigkill, etc.)
+# This is more robust than plain `systemctl restart` which can hang on stuck services
+SERVICE_WAIT=20
+if ! service_force_restart "$SERVICE" "$SERVICE_WAIT"; then
     phase_end error "Failed to restart (service not active after ${SERVICE_WAIT}s)"
     log_error "Service status:"
     systemctl status "$SERVICE" --no-pager 2>&1 | head -20 || true

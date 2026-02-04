@@ -83,6 +83,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.10.0",
     "better-sqlite3": "^12.6.2",
+    "croner": "^10.0.1",
     "groq-sdk": "^0.34.0",
     "jsonwebtoken": "^9.0.2",
     "msgpackr": "^1.11.5",

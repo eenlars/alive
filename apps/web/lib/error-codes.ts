@@ -108,6 +108,11 @@ export const ErrorCodes = {
   REFERRAL_CREDIT_FAILED: "REFERRAL_CREDIT_FAILED",
   USER_NOT_FOUND: "USER_NOT_FOUND",
 
+  // Automation errors (12xxx)
+  AUTOMATION_JOB_NOT_FOUND: "AUTOMATION_JOB_NOT_FOUND",
+  AUTOMATION_JOB_DISABLED: "AUTOMATION_JOB_DISABLED",
+  AUTOMATION_ALREADY_RUNNING: "AUTOMATION_ALREADY_RUNNING",
+
   // General errors
   INTERNAL_ERROR: "INTERNAL_ERROR",
   REQUEST_PROCESSING_FAILED: "REQUEST_PROCESSING_FAILED",
@@ -431,6 +436,15 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
 
     case ErrorCodes.USER_NOT_FOUND:
       return details?.userId ? `User '${details.userId}' was not found.` : "User not found."
+
+    case ErrorCodes.AUTOMATION_JOB_NOT_FOUND:
+      return details?.jobId ? `Automation job '${details.jobId}' was not found.` : "Automation job not found."
+
+    case ErrorCodes.AUTOMATION_JOB_DISABLED:
+      return "This automation job is disabled and cannot be triggered."
+
+    case ErrorCodes.AUTOMATION_ALREADY_RUNNING:
+      return "This automation is already running. Please wait for it to complete."
 
     case ErrorCodes.INTERNAL_ERROR:
       return "Something went wrong on my end. This is usually temporary - please try again in a moment."

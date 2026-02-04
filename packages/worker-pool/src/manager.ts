@@ -7,7 +7,7 @@
 
 import { spawn, type ChildProcess } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { chmod, mkdir } from "node:fs/promises"
+import { chmod, mkdir, stat } from "node:fs/promises"
 import type {
   WorkerPoolConfig,
   WorkerHandle,
@@ -40,6 +40,8 @@ interface PendingQuery {
 interface WorkerHandleInternal extends WorkerHandle {
   ipc: IpcServer | null
   pendingQueries: Map<string, PendingQuery>
+  credentialsVersion: string | null
+  needsRestartForCredentials: boolean
 }
 
 /** Queued request waiting for worker to become available */
@@ -110,6 +112,8 @@ export class WorkerPoolManager extends EventEmitter {
   private config: WorkerPoolConfig
   private evictionTimer: ReturnType<typeof setInterval> | null = null
   private isShuttingDown = false
+  private credentialsVersion: string | null = null
+  private lastCredentialsCheckMs = 0
 
   constructor(config?: Partial<WorkerPoolConfig>) {
     super()
@@ -126,7 +130,10 @@ export class WorkerPoolManager extends EventEmitter {
    * Returns an available worker or spawns a new one if capacity allows.
    * Returns null if all workers are busy and pool is at capacity (caller should queue).
    */
-  private async getOrCreateWorker(credentials: WorkspaceCredentials): Promise<WorkerHandleInternal | null> {
+  private async getOrCreateWorker(
+    credentials: WorkspaceCredentials,
+    useOAuth: boolean,
+  ): Promise<WorkerHandleInternal | null> {
     // Validate credentials before any operations
     validateCredentials(credentials)
 
@@ -135,6 +142,25 @@ export class WorkerPoolManager extends EventEmitter {
     // First, try to find an available (ready) worker for this workspace
     for (const [key, worker] of this.workers) {
       if (key.startsWith(`${workspaceKey}:`) && worker.state === "ready") {
+        if (useOAuth) {
+          // Skip workers that need restart due to credential changes
+          if (worker.needsRestartForCredentials) {
+            this.gracefulShutdown(worker, "credentials_changed").catch(err => {
+              console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
+            })
+            continue
+          }
+
+          // If we know the current credentials version and this worker is stale, restart it
+          if (this.credentialsVersion && worker.credentialsVersion !== this.credentialsVersion) {
+            worker.needsRestartForCredentials = true
+            this.gracefulShutdown(worker, "credentials_changed").catch(err => {
+              console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
+            })
+            continue
+          }
+        }
+
         worker.lastActivity = new Date()
         return worker
       }
@@ -177,6 +203,13 @@ export class WorkerPoolManager extends EventEmitter {
 
     timing("query_start")
 
+    // OAuth credentials are shared across workers. If they changed, restart stale workers
+    // before selecting a worker for this request.
+    const useOAuth = !payload.apiKey
+    if (useOAuth) {
+      await this.ensureOAuthCredentialsFresh(requestId)
+    }
+
     // CRITICAL: Check if already aborted BEFORE any async work
     // This catches the case where abort() was called before query() even started
     if (signal?.aborted) {
@@ -184,7 +217,7 @@ export class WorkerPoolManager extends EventEmitter {
       return { success: true, cancelled: true }
     }
 
-    const worker = await this.getOrCreateWorker(credentials)
+    const worker = await this.getOrCreateWorker(credentials, useOAuth)
     timing("got_or_created_worker")
 
     // If no worker available (pool at capacity, all busy), queue the request
@@ -261,8 +294,15 @@ export class WorkerPoolManager extends EventEmitter {
             worker.queriesProcessed++
             worker.activeRequestId = null
             worker.lastActivity = new Date()
-            worker.state = "ready"
-            this.emit("worker:idle", { workspaceKey: worker.workspaceKey })
+            if (worker.needsRestartForCredentials) {
+              worker.needsRestartForCredentials = false
+              this.gracefulShutdown(worker, "credentials_changed").catch(err => {
+                console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
+              })
+            } else {
+              worker.state = "ready"
+              this.emit("worker:idle", { workspaceKey: worker.workspaceKey })
+            }
           }
         }, this.config.cancelTimeoutMs)
       }
@@ -277,8 +317,15 @@ export class WorkerPoolManager extends EventEmitter {
         worker.lastActivity = new Date()
 
         if (worker.state === "busy") {
-          worker.state = "ready"
-          this.emit("worker:idle", { workspaceKey: worker.workspaceKey })
+          if (worker.needsRestartForCredentials) {
+            worker.needsRestartForCredentials = false
+            this.gracefulShutdown(worker, "credentials_changed").catch(err => {
+              console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
+            })
+          } else {
+            worker.state = "ready"
+            this.emit("worker:idle", { workspaceKey: worker.workspaceKey })
+          }
         }
       }
 
@@ -463,6 +510,118 @@ export class WorkerPoolManager extends EventEmitter {
   // Private Methods
   // ==========================================================================
 
+  private getClaudeConfigDir(): string {
+    const configured = process.env.CLAUDE_CONFIG_DIR
+    if (configured && configured.startsWith("/")) {
+      return configured
+    }
+    const home = process.env.HOME || "/root"
+    return path.join(home, ".claude")
+  }
+
+  private getCredentialsPath(): string {
+    return path.join(this.getClaudeConfigDir(), ".credentials.json")
+  }
+
+  private async ensureDirTraversal(dirPath: string): Promise<boolean> {
+    if (dirPath === "/") return false
+    try {
+      const stats = await stat(dirPath)
+      if (!stats.isDirectory()) return false
+      const mode = stats.mode & 0o777
+      const desired = mode | 0o011 // ensure group/other execute for traversal
+      if (desired !== mode) {
+        await chmod(dirPath, desired)
+        return true
+      }
+      return false
+    } catch {
+      // Best-effort only - absence just means we can't auto-fix
+      return false
+    }
+  }
+
+  private async getCredentialsVersion(): Promise<{ version: string; permissionsAdjusted: boolean } | null> {
+    const credentialsPath = this.getCredentialsPath()
+    try {
+      const stats = await stat(credentialsPath)
+      let permissionsAdjusted = false
+
+      // Ensure traversal to credentials dir (e.g., /root/.claude)
+      const credentialsDir = path.dirname(credentialsPath)
+      const parentDir = path.dirname(credentialsDir)
+      if (await this.ensureDirTraversal(credentialsDir)) permissionsAdjusted = true
+      if (await this.ensureDirTraversal(parentDir)) permissionsAdjusted = true
+
+      // Ensure file is readable by non-root workers
+      const mode = stats.mode & 0o777
+      const desired = mode | 0o044 // add group/other read
+      if (desired !== mode) {
+        await chmod(credentialsPath, desired)
+        permissionsAdjusted = true
+      }
+
+      return { version: `${stats.mtimeMs}:${stats.size}`, permissionsAdjusted }
+    } catch {
+      return null
+    }
+  }
+
+  private async ensureOAuthCredentialsFresh(requestId: string): Promise<void> {
+    const now = Date.now()
+    if (now - this.lastCredentialsCheckMs < 1000) return
+    this.lastCredentialsCheckMs = now
+
+    const result = await this.getCredentialsVersion()
+    if (!result) return
+
+    const { version, permissionsAdjusted } = result
+
+    if (!this.credentialsVersion) {
+      this.credentialsVersion = version
+      if (permissionsAdjusted) {
+        await this.restartWorkersForCredentialsChange(version, requestId, true)
+      } else {
+        // Seed existing workers with current version so we don't restart unnecessarily
+        for (const worker of this.workers.values()) {
+          if (!worker.credentialsVersion) {
+            worker.credentialsVersion = version
+          }
+        }
+      }
+      return
+    }
+
+    if (this.credentialsVersion === version && !permissionsAdjusted) return
+
+    this.credentialsVersion = version
+    await this.restartWorkersForCredentialsChange(version, requestId, permissionsAdjusted)
+  }
+
+  private async restartWorkersForCredentialsChange(version: string, requestId: string, force: boolean): Promise<void> {
+    console.error(`[pool ${requestId}] OAuth credentials changed - restarting idle workers`)
+
+    const shutdowns: Promise<void>[] = []
+    for (const worker of this.workers.values()) {
+      if (!force && worker.credentialsVersion === version && !worker.needsRestartForCredentials) continue
+
+      if (worker.state === "ready") {
+        worker.needsRestartForCredentials = false
+        shutdowns.push(
+          this.gracefulShutdown(worker, "credentials_changed").catch(err => {
+            console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
+          }),
+        )
+      } else if (worker.state === "busy") {
+        worker.needsRestartForCredentials = true
+      }
+    }
+
+    if (shutdowns.length > 0) {
+      await Promise.all(shutdowns)
+    }
+  }
+
   private async spawnWorker(credentials: WorkspaceCredentials, instanceId: number = 0): Promise<WorkerHandleInternal> {
     const { workspaceKey, uid, gid, cwd } = credentials
     // Use instance-specific key for multiple workers per workspace
@@ -524,6 +683,8 @@ export class WorkerPoolManager extends EventEmitter {
       socketPath,
       ipc,
       pendingQueries: new Map(),
+      credentialsVersion: this.credentialsVersion,
+      needsRestartForCredentials: false,
     }
 
     // Handle process events
