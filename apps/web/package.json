@@ -73,6 +73,7 @@
     "lucide-react": "^0.546.0",
     "next": "^16.0.0",
     "nuqs": "^2.2.3",
+    "posthog-js": "^1.339.1",
     "proper-lockfile": "^4.1.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

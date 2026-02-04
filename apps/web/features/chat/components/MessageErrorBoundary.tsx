@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { captureException } from "@/components/providers/PostHogProvider"
 
 interface Props {
   children: React.ReactNode
@@ -29,7 +30,11 @@ export class MessageErrorBoundary extends React.Component<Props, State> {
       errorInfo,
       componentStack: errorInfo.componentStack,
     })
-    // TODO: Send to error tracking service (Sentry)
+    captureException(error, {
+      error_source: "message_error_boundary",
+      messageId: this.props.messageId,
+      componentStack: errorInfo.componentStack,
+    })
   }
 
   render() {

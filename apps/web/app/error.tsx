@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import { AlertCircle, Home, RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
+import { captureException } from "@/components/providers/PostHogProvider"
 
 // biome-ignore lint/suspicious/noShadowRestrictedNames: Next.js error boundary requires Error type
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -11,7 +12,10 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
 
   useEffect(() => {
     console.error("Root error boundary caught:", error)
-    // TODO: Send to error tracking service (Sentry)
+    captureException(error, {
+      error_source: "root_error_boundary",
+      digest: error.digest,
+    })
   }, [error])
 
   return (
