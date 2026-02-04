@@ -99,10 +99,15 @@ export function WorktreeSwitcher({ workspace, currentWorktree, onChange }: Workt
     if (!workspace) return
     setCreateError(null)
 
-    const validation = validateWorktreeSlug(slug)
-    if (!validation.valid) {
-      setCreateError(validation.reason)
-      return
+    const trimmedSlug = slug.trim()
+    let normalizedSlug: string | undefined
+    if (trimmedSlug.length > 0) {
+      const validation = validateWorktreeSlug(trimmedSlug)
+      if (!validation.valid) {
+        setCreateError(validation.reason)
+        return
+      }
+      normalizedSlug = validation.slug
     }
 
     const trimmedBranch = branch.trim()
@@ -112,7 +117,7 @@ export function WorktreeSwitcher({ workspace, currentWorktree, onChange }: Workt
     try {
       const payload = validateRequest("worktrees/create", {
         workspace,
-        slug: validation.slug,
+        slug: normalizedSlug,
         branch: trimmedBranch.length > 0 ? trimmedBranch : undefined,
         from: trimmedFrom.length > 0 ? trimmedFrom : undefined,
       })
@@ -233,7 +238,7 @@ export function WorktreeSwitcher({ workspace, currentWorktree, onChange }: Workt
             <div className="space-y-2">
               <input
                 type="text"
-                placeholder="slug (e.g. feature-branch)"
+                placeholder="slug (optional, e.g. feature-branch)"
                 value={slug}
                 onChange={e => setSlug(e.target.value)}
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-transparent px-3 py-2 text-sm"
