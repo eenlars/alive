@@ -16,19 +16,19 @@ import { useEffect, type ReactNode } from "react"
  * If not configured, renders children without PostHog integration.
  */
 
-const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
-const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com"
+const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY
+const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com"
 
 // Track initialization state
 let isInitialized = false
 
 function initPostHog() {
-  if (isInitialized || typeof window === "undefined" || !POSTHOG_KEY) {
+  if (isInitialized || typeof window === "undefined" || !posthogKey) {
     return
   }
 
-  posthog.init(POSTHOG_KEY, {
-    api_host: POSTHOG_HOST,
+  posthog.init(posthogKey, {
+    api_host: posthogHost,
     // Enable exception autocapture for error tracking
     autocapture: true,
     capture_pageview: true,
@@ -75,7 +75,7 @@ export function usePostHogErrorCapture() {
 
   return {
     captureException: (error: Error | unknown, properties?: Record<string, unknown>) => {
-      if (!POSTHOG_KEY) {
+      if (!posthogKey) {
         console.error("[PostHog] Error capture disabled - no API key:", error)
         return
       }
@@ -96,7 +96,7 @@ export function usePostHogErrorCapture() {
  * Use this in error boundaries or non-React code
  */
 export function captureException(error: Error | unknown, properties?: Record<string, unknown>) {
-  if (!POSTHOG_KEY || typeof window === "undefined") {
+  if (!posthogKey || typeof window === "undefined") {
     console.error("[PostHog] Error capture disabled:", error)
     return
   }
@@ -115,7 +115,7 @@ export function captureException(error: Error | unknown, properties?: Record<str
  */
 function PostHogErrorHandler() {
   useEffect(() => {
-    if (!POSTHOG_KEY) return
+    if (!posthogKey) return
 
     // Capture unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -155,7 +155,7 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // If no PostHog key, just render children without the provider
-  if (!POSTHOG_KEY) {
+  if (!posthogKey) {
     return <>{children}</>
   }
 

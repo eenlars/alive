@@ -39,11 +39,24 @@ export async function logError(category: string, message: string, details?: Erro
       url: typeof window !== "undefined" ? window.location.href : undefined,
     }
 
-    // Add all details except the error object
+    // Add all details except the error object, redacting sensitive keys
     if (details) {
+      const sensitiveKeys = new Set([
+        "password",
+        "token",
+        "authorization",
+        "code",
+        "refresh_token",
+        "access_token",
+        "cookie",
+        "auth_code",
+        "secret",
+        "api_key",
+        "apiKey",
+      ])
       for (const [key, value] of Object.entries(details)) {
         if (key !== "error") {
-          properties[key] = value
+          properties[key] = sensitiveKeys.has(key.toLowerCase()) ? "[redacted]" : value
         }
       }
     }
