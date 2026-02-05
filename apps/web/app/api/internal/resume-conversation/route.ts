@@ -7,14 +7,16 @@
  * This effectively acts as an "automated Enter press" — it sends a message
  * to an existing session, causing Claude to continue the conversation.
  *
- * Authentication: X-Internal-Auth header with INTERNAL_TOOLS_SECRET
+ * AUTH EXCEPTION: This endpoint uses X-Internal-Auth (shared secret) instead of
+ * session cookies because it's called by the pg-boss worker process, not a browser.
+ * It is NOT reachable externally — only via localhost from the same server process.
  */
 
 import { NextResponse } from "next/server"
 import { sessionStore, tabKey } from "@/features/auth/lib/sessionStore"
 
 export async function POST(req: Request) {
-  // Authenticate internal call
+  // Authenticate internal call (shared secret, not session cookies — see docstring)
   const internalSecret = process.env.INTERNAL_TOOLS_SECRET
   const providedSecret = req.headers.get("x-internal-auth")
 
@@ -24,11 +26,14 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { sessionKey, userId, workspace, tabId, tabGroupId, message, reason } = body
+    const { userId, workspace, tabId, tabGroupId, message, reason } = body
 
-    if (!sessionKey || !userId || !workspace || !tabId || !tabGroupId || !message) {
+    if (!userId || !workspace || !tabId || !tabGroupId || !message) {
       return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 })
     }
+
+    // Compute canonical session key from components (don't trust raw sessionKey from body)
+    const sessionKey = tabKey({ userId, workspace, tabGroupId, tabId })
 
     // Verify the session still exists
     const sdkSessionId = await sessionStore.get(sessionKey)

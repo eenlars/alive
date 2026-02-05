@@ -4,7 +4,9 @@
  * Called by the pg-boss run-automation worker to execute an automation job.
  * Delegates to the existing executor.ts which handles OAuth, credits, worker pool, etc.
  *
- * Authentication: X-Internal-Auth header with INTERNAL_TOOLS_SECRET
+ * AUTH EXCEPTION: This endpoint uses X-Internal-Auth (shared secret) instead of
+ * session cookies because it's called by the pg-boss worker process, not a browser.
+ * It is NOT reachable externally — only via localhost from the same server process.
  */
 
 import { NextResponse } from "next/server"
