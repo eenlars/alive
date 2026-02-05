@@ -144,16 +144,14 @@ export async function expectWorkspaceReady(page: Page) {
 
 /**
  * Wait for chat to be fully ready for sending messages.
- * Uses the explicit data-chat-ready marker rather than the send button state.
+ * - Hydration complete (app ready)
+ * - Workspace ready DOM marker present
+ * - Chat ready attribute set (dexie session + tab initialized)
  */
 export async function waitForChatReady(page: Page) {
   await waitForAppReady(page)
-  await expect(page.locator(TEST_SELECTORS.chatReady)).toBeAttached({
-    timeout: TEST_TIMEOUTS.max,
-  })
-  await expect(page.locator(TEST_SELECTORS.messageInput)).toBeVisible({
-    timeout: TEST_TIMEOUTS.fast,
-  })
+  await expect(page.locator(TEST_SELECTORS.workspaceReady)).toBeAttached({ timeout: TEST_TIMEOUTS.medium })
+  await expect(page.locator(TEST_SELECTORS.chatReady)).toBeAttached({ timeout: TEST_TIMEOUTS.max })
 }
 
 /**

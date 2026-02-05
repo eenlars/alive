@@ -63,14 +63,17 @@ export function useOrganizationsQuery() {
 
       // Also validate workspace availability on this server
       // This clears currentWorkspace if the site doesn't exist on the filesystem
-      getty("auth/all-workspaces")
-        .then(response => {
-          const allWorkspaces = Object.values(response.workspaces).flat()
-          validateWorkspaceAvailability(allWorkspaces)
-        })
-        .catch(err => {
-          console.warn("[useOrganizationsQuery] Failed to validate workspace availability:", err)
-        })
+      // Skip in Playwright E2E runs because test workspaces are virtual (DB-only) and not on disk.
+      if (!(typeof window !== "undefined" && window.PLAYWRIGHT_TEST === true)) {
+        getty("auth/all-workspaces")
+          .then(response => {
+            const allWorkspaces = Object.values(response.workspaces).flat()
+            validateWorkspaceAvailability(allWorkspaces)
+          })
+          .catch(err => {
+            console.warn("[useOrganizationsQuery] Failed to validate workspace availability:", err)
+          })
+      }
     }
   }, [query.data, validateAndCleanup, validateWorkspaceAvailability])
 
