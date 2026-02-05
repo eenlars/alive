@@ -7,7 +7,7 @@ set -o pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Load server IP from config or environment
-CONFIG_FILE="/var/lib/alive/server-config.json"
+CONFIG_FILE="/var/lib/claude-bridge/server-config.json"
 if [ -n "$SERVER_IP" ]; then
     : # Use environment variable
 elif [ -f "$CONFIG_FILE" ]; then

@@ -37,7 +37,7 @@ fi
 
 # Get bridge root from env or use default
 BRIDGE_ROOT="${BRIDGE_ROOT:-/root/alive}"
-SERVER_CONFIG="/var/lib/alive/server-config.json"
+SERVER_CONFIG="/var/lib/claude-bridge/server-config.json"
 
 if [[ -f "$SERVER_CONFIG" ]]; then
     # =========================================================================

@@ -248,7 +248,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
         permissionMode: PERMISSION_MODE,
         settingSources: SETTINGS_SOURCES,
         oauthMcpServers: {} as Record<string, unknown>,
-        streamTypes: STREAM_TYPES,
+        bridgeStreamTypes: STREAM_TYPES,
         isAdmin: false,
         isSuperadmin: false,
       }

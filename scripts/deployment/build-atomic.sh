@@ -152,30 +152,56 @@ log_step "Copying workspace packages..."
 STANDALONE_PACKAGES="$TEMP_BUILD_DIR/standalone/packages"
 mkdir -p "$STANDALONE_PACKAGES"
 
-for pkg in tools images site-controller; do
+for pkg in tools images site-controller shared worker-pool; do
     [ ! -d "packages/$pkg" ] && { log_error "Package not found: $pkg"; exit 1; }
     rm -rf "$STANDALONE_PACKAGES/$pkg" 2>/dev/null || true
-    cp -r "packages/$pkg" "$STANDALONE_PACKAGES/$pkg"
-    find "$STANDALONE_PACKAGES/$pkg" -type l -delete 2>/dev/null || true
+    # Use cp -rL to follow symlinks (bun creates symlinks to .bun/ cache)
+    # This ensures dependencies like zod get copied as real files
+    cp -rL "packages/$pkg" "$STANDALONE_PACKAGES/$pkg" 2>/dev/null || cp -r "packages/$pkg" "$STANDALONE_PACKAGES/$pkg"
 done
 
 # Copy template
 [ ! -d "templates/site-template" ] && { log_error "Template not found"; exit 1; }
 rm -rf "$STANDALONE_PACKAGES/template" 2>/dev/null || true
-cp -r "templates/site-template" "$STANDALONE_PACKAGES/template"
-find "$STANDALONE_PACKAGES/template" -type l -delete 2>/dev/null || true
+cp -rL "templates/site-template" "$STANDALONE_PACKAGES/template" 2>/dev/null || cp -r "templates/site-template" "$STANDALONE_PACKAGES/template"
 
 # =============================================================================
-# Phase 9: Create Package Symlinks
+# Phase 9: Copy Packages to node_modules (NO SYMLINKS)
 # =============================================================================
-log_step "Creating package symlinks..."
+log_step "Copying packages to node_modules..."
 STANDALONE_NODE_MODULES="$STANDALONE_DIR/node_modules"
 mkdir -p "$STANDALONE_NODE_MODULES/@webalive"
 
-for pkg in tools images template; do
-    ln -sf "../../../../packages/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg"
+# Copy workspace packages to node_modules/@webalive (actual copies, not symlinks)
+for pkg in tools images template site-controller shared worker-pool; do
+    if [ -d "$STANDALONE_PACKAGES/$pkg" ]; then
+        cp -rL "$STANDALONE_PACKAGES/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg" 2>/dev/null || \
+        cp -r "$STANDALONE_PACKAGES/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg"
+    elif [ -d "packages/$pkg" ]; then
+        cp -rL "packages/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg" 2>/dev/null || \
+        cp -r "packages/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg"
+    fi
 done
-ln -sf "../../../../packages/site-controller" "$STANDALONE_NODE_MODULES/@webalive/site-controller"
+
+# Copy worker-entry.mjs (it's in src/ not dist/)
+if [ -f "packages/worker-pool/src/worker-entry.mjs" ]; then
+    cp "packages/worker-pool/src/worker-entry.mjs" "$STANDALONE_NODE_MODULES/@webalive/worker-pool/dist/"
+fi
+
+# Worker-entry.mjs imports @webalive/tools - add it to worker-pool's node_modules
+# Also need to add it to packages/worker-pool for the actual worker process
+WORKER_POOL_PKG="$STANDALONE_PACKAGES/worker-pool"
+if [ -d "$WORKER_POOL_PKG" ]; then
+    mkdir -p "$WORKER_POOL_PKG/node_modules/@webalive"
+    cp -rL "$STANDALONE_PACKAGES/tools" "$WORKER_POOL_PKG/node_modules/@webalive/tools" 2>/dev/null || \
+    cp -r "$STANDALONE_PACKAGES/tools" "$WORKER_POOL_PKG/node_modules/@webalive/tools"
+fi
+
+# Copy zod dependency from the .bun cache (it's in the root standalone node_modules)
+BUN_ZOD="$TEMP_BUILD_DIR/standalone/node_modules/.bun/node_modules/zod"
+if [ -d "$BUN_ZOD" ]; then
+    cp -rL "$BUN_ZOD" "$STANDALONE_NODE_MODULES/zod" 2>/dev/null || true
+fi
 
 # =============================================================================
 # Phase 10: Atomic Swap

@@ -11,7 +11,7 @@ source "$(dirname "$0")/lib/common.sh"
 # This ensures the Caddyfile always matches the database state.
 #
 # Prerequisites:
-# - /var/lib/alive/server-config.json exists with serverId
+# - /var/lib/claude-bridge/server-config.json exists with serverId
 # - Database has server_id column on domains table
 # - SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set
 
@@ -24,7 +24,7 @@ log_info "Configuring Caddy for: $SITE_DOMAIN"
 BRIDGE_ROOT="${BRIDGE_ROOT:-/root/alive}"
 
 # Check if server-config.json exists (new generator mode)
-SERVER_CONFIG="/var/lib/alive/server-config.json"
+SERVER_CONFIG="/var/lib/claude-bridge/server-config.json"
 if [[ -f "$SERVER_CONFIG" ]]; then
     log_info "Using generator mode (server-config.json found)"
 

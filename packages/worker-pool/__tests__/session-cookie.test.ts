@@ -39,7 +39,7 @@ const REQUIRED_AGENT_CONFIG_FIELDS: AgentConfigFields[] = [
   "permissionMode",
   "settingSources",
   "oauthMcpServers",
-  "streamTypes",
+  "bridgeStreamTypes",
 ]
 
 describe("Session Cookie: Static Analysis of Production Code", () => {
