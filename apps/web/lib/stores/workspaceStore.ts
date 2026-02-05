@@ -35,6 +35,7 @@ interface WorkspaceActions {
     autoSelectOrg: (organizations: Organization[]) => void
     autoSelectWorkspace: () => boolean // Returns true if a workspace was auto-selected
     validateAndCleanup: (organizations: Organization[]) => void
+    validateWorkspaceAvailability: (availableWorkspaces: string[]) => void
     setSelectedWorkspace: (workspace: string | null, orgId?: string) => void
     addRecentWorkspace: (domain: string, orgId: string) => void
     clearRecentWorkspaces: () => void
@@ -178,6 +179,37 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
 
           // After cleanup, trigger auto-selection if needed
           actions.autoSelectOrg(organizations)
+        },
+
+        /**
+         * Validate current workspace against available workspaces on this server.
+         * Clears currentWorkspace if it's not available (e.g., site doesn't exist on filesystem).
+         * Also cleans up recentWorkspaces to only include available ones.
+         */
+        validateWorkspaceAvailability: (availableWorkspaces: string[]) => {
+          set(state => {
+            const availableSet = new Set(availableWorkspaces)
+            const updates: Partial<WorkspaceState> = {}
+
+            // Clear current workspace if not available on this server
+            if (state.currentWorkspace && !availableSet.has(state.currentWorkspace)) {
+              console.log("[WorkspaceStore] Clearing unavailable workspace:", state.currentWorkspace)
+              updates.currentWorkspace = null
+            }
+
+            // Filter recent workspaces to only include available ones
+            const filteredRecent = state.recentWorkspaces.filter(w => availableSet.has(w.domain))
+            if (filteredRecent.length !== state.recentWorkspaces.length) {
+              console.log(
+                "[WorkspaceStore] Cleaned up unavailable recent workspaces:",
+                state.recentWorkspaces.length - filteredRecent.length,
+                "removed",
+              )
+              updates.recentWorkspaces = filteredRecent
+            }
+
+            return Object.keys(updates).length > 0 ? updates : state
+          })
         },
 
         setSelectedWorkspace: (workspace: string | null, orgId?: string) => {
