@@ -11,7 +11,18 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { DOMAINS } from "@webalive/shared"
 import { describe, expect, it } from "vitest"
+import { resolveAndValidatePath } from "@/lib/utils/path-security"
 import { getWorkspace } from "../workspaceRetriever"
+
+/**
+ * Helper to check if a test site exists and optionally skip the test
+ */
+function skipIfMissing(path: string, extraMessage?: string): boolean {
+  if (existsSync(path)) return false
+  console.warn(`⚠️  Test site missing: ${path}`)
+  if (extraMessage) console.warn(extraMessage)
+  return true
+}
 
 describe("Workspace Naming Bug - Regression Test", () => {
   /**
@@ -25,11 +36,11 @@ describe("Workspace Naming Bug - Regression Test", () => {
     const dotsPath = "/srv/webalive/sites/evermore.alive.best/user"
     const hyphensPath = "/srv/webalive/sites/evermore-alive-best/user"
 
-    if (!existsSync(dotsPath)) {
-      console.warn(`⚠️  Test site missing: ${dotsPath}`)
-      console.warn("This test requires evermore.alive.best to exist")
-      return // Skip if test site doesn't exist
-    }
+    if (skipIfMissing(dotsPath, "This test requires evermore.alive.best to exist")) return
+
+    // Validate path is within workspace
+    const validation = resolveAndValidatePath("evermore.alive.best/user", "/srv/webalive/sites")
+    expect(validation.valid).toBe(true)
 
     const result = await getWorkspace({
       host: DOMAINS.STREAM_DEV_HOST,
@@ -50,10 +61,11 @@ describe("Workspace Naming Bug - Regression Test", () => {
   it("CRITICAL: still supports legacy sites with HYPHENS", async () => {
     const hyphensPath = "/srv/webalive/sites/demo-goalive-nl/user"
 
-    if (!existsSync(hyphensPath)) {
-      console.warn(`⚠️  Test site missing: ${hyphensPath}`)
-      return
-    }
+    if (skipIfMissing(hyphensPath)) return
+
+    // Validate path is within workspace
+    const validation = resolveAndValidatePath("demo-goalive-nl/user", "/srv/webalive/sites")
+    expect(validation.valid).toBe(true)
 
     const result = await getWorkspace({
       host: DOMAINS.STREAM_DEV_HOST,

@@ -15,9 +15,10 @@
 # Validation runs during build to catch missing packages.
 # =============================================================================
 
+# shellcheck disable=SC2034
 # Packages to copy to standalone build
 # Format: space-separated list of package names (from packages/ directory)
-STANDALONE_PACKAGES=(
+readonly -a STANDALONE_PACKAGES=(
     tools
     images
     shared
@@ -26,8 +27,9 @@ STANDALONE_PACKAGES=(
     database
 )
 
+# shellcheck disable=SC2034
 # Packages that have external dependencies needed in subprocess
 # These get their node_modules copied too (via cp -rL)
-SUBPROCESS_PACKAGES=(
+readonly -a SUBPROCESS_PACKAGES=(
     worker-pool
 )

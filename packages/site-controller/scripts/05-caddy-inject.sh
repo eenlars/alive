@@ -22,9 +22,17 @@ log_info "Configuring Caddy for: $SITE_DOMAIN"
 
 # Get bridge root from server config or use default
 BRIDGE_ROOT="${BRIDGE_ROOT:-/root/alive}"
+if [[ ! -d "$BRIDGE_ROOT" ]]; then
+    log_error "BRIDGE_ROOT not found: $BRIDGE_ROOT"
+    exit 15
+fi
 
 # Check if server-config.json exists (new generator mode)
-SERVER_CONFIG="/var/lib/claude-bridge/server-config.json"
+SERVER_CONFIG="${SERVER_CONFIG:-/var/lib/claude-bridge/server-config.json}"
+if [[ -f "$SERVER_CONFIG" && ! -r "$SERVER_CONFIG" ]]; then
+    log_error "SERVER_CONFIG not readable: $SERVER_CONFIG"
+    exit 15
+fi
 if [[ -f "$SERVER_CONFIG" ]]; then
     log_info "Using generator mode (server-config.json found)"
 

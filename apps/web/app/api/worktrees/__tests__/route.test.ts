@@ -172,8 +172,7 @@ describe("/api/worktrees", () => {
   })
 
   it("POST returns 400 on invalid slug", async () => {
-    vi.mocked(createWorktree).mockRejectedValue(new WorktreeError("WORKTREE_INVALID_SLUG", "bad slug"))
-
+    // Invalid slugs are now caught by Zod schema validation before reaching createWorktree
     const req = createRequest("http://localhost/api/worktrees", "POST", {
       workspace: "example.com",
       slug: "bad/slug",
@@ -183,7 +182,9 @@ describe("/api/worktrees", () => {
     const data = await res.json()
 
     expect(res.status).toBe(400)
-    expect(data.error).toBe(ErrorCodes.WORKTREE_INVALID_SLUG)
+    // Schema validation returns VALIDATION_ERROR with details about the invalid slug
+    expect(data.error.code).toBe(ErrorCodes.VALIDATION_ERROR)
+    expect(data.error.issues[0].path).toContain("slug")
   })
 
   it("POST returns 400 on invalid branch name", async () => {
