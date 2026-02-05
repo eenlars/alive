@@ -86,8 +86,8 @@ else
         ENVIRONMENTS=$(jq -c '[.environments | to_entries[] | {key: .value.key, port: .value.port, previewBase: .value.previewBase, domain: .value.domain}]' "$ENV_CONFIG_PATH")
 
         # Build frame ancestors: prefer server-config.json, fallback to environments.json domains
-        if [[ -f "$SERVER_CONFIG_PATH" ]]; then
-            FRAME_ANCESTORS=$(jq -r '.domains.frameAncestors | join(" ")' "$SERVER_CONFIG_PATH")
+        if [[ -f "$SERVER_CONFIG" ]]; then
+            FRAME_ANCESTORS=$(jq -r '.domains.frameAncestors | join(" ")' "$SERVER_CONFIG")
         else
             FRAME_ANCESTORS=$(jq -r '[.environments[].domain] | map("https://" + .) | join(" ")' "$ENV_CONFIG_PATH")
         fi
@@ -106,8 +106,8 @@ else
 EOF
 )
         # Read from server config or use env var
-        if [[ -f "$SERVER_CONFIG_PATH" ]]; then
-            FRAME_ANCESTORS=$(jq -r '.domains.frameAncestors | join(" ")' "$SERVER_CONFIG_PATH")
+        if [[ -f "$SERVER_CONFIG" ]]; then
+            FRAME_ANCESTORS=$(jq -r '.domains.frameAncestors | join(" ")' "$SERVER_CONFIG")
         else
             FRAME_ANCESTORS="${FRAME_ANCESTORS:-}"
         fi

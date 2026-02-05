@@ -2,11 +2,19 @@
 
 import { FlowgladProvider } from "@flowglad/nextjs"
 import { COOKIE_NAMES } from "@webalive/shared"
-import type { ReactNode } from "react"
+import type { ComponentType, ReactNode } from "react"
 
 interface FlowgladProviderWrapperProps {
   children: ReactNode
 }
+
+// FlowgladProvider has a union prop type (loaded | devMode) that prevents
+// TypeScript from accepting non-common props in JSX. Narrow to the loaded variant.
+const LoadedFlowgladProvider = FlowgladProvider as ComponentType<{
+  children: ReactNode
+  loadBilling: boolean
+  serverRoute?: string
+}>
 
 /** Check if a cookie exists (client-side) */
 function hasCookie(name: string): boolean {
@@ -30,8 +38,8 @@ export function FlowgladProviderWrapper({ children }: FlowgladProviderWrapperPro
   }
 
   return (
-    <FlowgladProvider loadBilling={true} serverRoute="/api/flowglad">
+    <LoadedFlowgladProvider loadBilling={true} serverRoute="/api/flowglad">
       {children}
-    </FlowgladProvider>
+    </LoadedFlowgladProvider>
   )
 }

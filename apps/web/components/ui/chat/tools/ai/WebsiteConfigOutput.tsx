@@ -105,7 +105,7 @@ export function WebsiteConfigOutput({ data, onSubmitAnswer }: WebsiteConfigOutpu
             <div className="text-xs">
               <span className="text-black/40 dark:text-white/40">Domain: </span>
               <span className="text-black/70 dark:text-white/70">
-                {submittedResult.slug}.${DOMAINS.WILDCARD}
+                {submittedResult.slug}.{DOMAINS.WILDCARD}
               </span>
             </div>
             <div className="text-xs">

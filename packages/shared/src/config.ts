@@ -471,14 +471,14 @@ export function validateConfig(): ConfigValidationResult {
   // WILDCARD_DOMAIN is required for site deployments
   if (!WILDCARD_DOMAIN) {
     errors.push(
-      "WILDCARD_DOMAIN is not configured. Set via WILDCARD_DOMAIN env var or domains.wildcard in /var/lib/alive/server-config.json",
+      "WILDCARD_DOMAIN is not configured. Set via WILDCARD_DOMAIN env var or domains.wildcard in /var/lib/claude-stream/server-config.json",
     )
   }
 
   // SERVER_ID is recommended for multi-server deployments
   if (!serverConfig.serverId) {
     warnings.push(
-      "SERVER_ID is not configured. Set serverId in /var/lib/alive/server-config.json for multi-server deployments",
+      "SERVER_ID is not configured. Set serverId in /var/lib/claude-stream/server-config.json for multi-server deployments",
     )
   }
 

@@ -56,7 +56,7 @@ export const createWebsiteParamsSchema = {
       message: "This slug is reserved. Please choose a different name.",
     })
     .describe(
-      "`The subdomain name for the website (e.g., 'my-bakery' creates my-bakery.${DEFAULTS.WILDCARD_DOMAIN}). Must be 3-20 characters, lowercase letters, numbers, and hyphens only.`",
+      `The subdomain name for the website (e.g., 'my-bakery' creates my-bakery.${DEFAULTS.WILDCARD_DOMAIN}). Must be 3-20 characters, lowercase letters, numbers, and hyphens only.`,
     ),
   siteIdeas: z
     .string()
