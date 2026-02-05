@@ -113,8 +113,13 @@ for pkg in packages/*/; do rm -f "$pkg/$(basename "$pkg")" 2>/dev/null || true; 
 log_step "Building web app..."
 BUILD_START=$(date +%s)
 
-if ! bun run build --filter=web --force >/dev/null 2>&1; then
-    log_error "Build failed"
+BUILD_OUTPUT_LOG="/tmp/claude-bridge-nextjs-build-${ENV}.log"
+if ! bun run build --filter=web --force 2>&1 | tee "$BUILD_OUTPUT_LOG"; then
+    log_error "Build failed. Errors:"
+    echo ""
+    grep -E "error TS|Error:|error:|Type error|Module not found|Cannot find" "$BUILD_OUTPUT_LOG" | head -30
+    echo ""
+    log_error "Full build output: $BUILD_OUTPUT_LOG"
     exit 1
 fi
 

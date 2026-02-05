@@ -18,6 +18,8 @@
  * - SECURITY: Security-related constants
  */
 
+import { existsSync, readFileSync } from "node:fs"
+
 // =============================================================================
 // Server Config Loading (server-side only)
 // =============================================================================
@@ -61,10 +63,7 @@ function loadServerConfig(): ServerConfigFile {
     return {}
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const fs = require("node:fs")
-
-  if (!fs.existsSync(CONFIG_PATH)) {
+  if (!existsSync(CONFIG_PATH)) {
     // In CI/test without config file, return empty (tests will skip config-dependent assertions)
     if (process.env.CI === "true" || process.env.VITEST === "true") {
       return {}
@@ -73,7 +72,7 @@ function loadServerConfig(): ServerConfigFile {
   }
 
   try {
-    const raw = fs.readFileSync(CONFIG_PATH, "utf8")
+    const raw = readFileSync(CONFIG_PATH, "utf8")
     return JSON.parse(raw) as ServerConfigFile
   } catch (err) {
     throw new Error(`FATAL: Failed to parse ${CONFIG_PATH}: ${err instanceof Error ? err.message : err}`)
