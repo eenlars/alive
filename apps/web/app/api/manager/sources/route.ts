@@ -1,7 +1,8 @@
 import { DEFAULTS } from "@webalive/shared"
 import type { NextRequest } from "next/server"
 import { requireManagerAuth } from "@/features/manager/lib/api-helpers"
-import { createCorsSuccessResponse } from "@/lib/api/responses"
+import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
+import { ErrorCodes } from "@/lib/error-codes"
 import {
   fetchCaddySources,
   fetchDnsSources,
@@ -44,7 +45,9 @@ export async function GET(req: NextRequest) {
   // DNS checks run after we have all domains (requires SERVER_IP to be configured)
   const serverIp = DEFAULTS.SERVER_IP
   if (!serverIp) {
-    return Response.json({ error: "SERVER_IP not configured" }, { status: 500 })
+    return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
+      details: { reason: "SERVER_IP not configured" },
+    })
   }
   await fetchSourceSafely("dns", () => fetchDnsSources(results, serverIp))
 
