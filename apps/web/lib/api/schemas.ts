@@ -644,7 +644,9 @@ export type Res<E extends Endpoint> = GenericRes<typeof apiSchemas, E>
  * @throws {ZodError} If validation fails (invalid email, password too short, etc.)
  */
 export function validateRequest<E extends Endpoint>(endpoint: E, data: unknown): Req<E> {
-  const schema = apiSchemas[endpoint].req
-  return schema.parse(data) as Req<E>
+  const schema = apiSchemas[endpoint]
+  if (!("req" in schema) || !schema.req) {
+    throw new Error(`Endpoint "${endpoint}" has no request schema`)
+  }
+  return schema.req.parse(data) as Req<E>
 }
-

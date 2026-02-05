@@ -22,7 +22,12 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
       try {
         schemas[endpoint].req.parse(body)
       } catch (e) {
-        throw new ApiError("Request validation failed", undefined, "REQUEST_VALIDATION_ERROR", e instanceof ZodError ? e.issues : e)
+        throw new ApiError(
+          "Request validation failed",
+          undefined,
+          "REQUEST_VALIDATION_ERROR",
+          e instanceof ZodError ? e.issues : e,
+        )
       }
     }
 
@@ -74,12 +79,18 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
   return {
     getty: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">) =>
       api(endpoint, "GET", undefined, init),
-    postty: <E extends MutationEndpoint<T>>(endpoint: E, body: Req<T, E>, init?: Omit<RequestInit, "body" | "method">) =>
-      api(endpoint, "POST", body, init),
+    postty: <E extends MutationEndpoint<T>>(
+      endpoint: E,
+      body: Req<T, E>,
+      init?: Omit<RequestInit, "body" | "method">,
+    ) => api(endpoint, "POST", body, init),
     putty: <E extends MutationEndpoint<T>>(endpoint: E, body: Req<T, E>, init?: Omit<RequestInit, "body" | "method">) =>
       api(endpoint, "PUT", body, init),
-    patchy: <E extends MutationEndpoint<T>>(endpoint: E, body: Req<T, E>, init?: Omit<RequestInit, "body" | "method">) =>
-      api(endpoint, "PATCH", body, init),
+    patchy: <E extends MutationEndpoint<T>>(
+      endpoint: E,
+      body: Req<T, E>,
+      init?: Omit<RequestInit, "body" | "method">,
+    ) => api(endpoint, "PATCH", body, init),
     deletty: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">) =>
       api(endpoint, "DELETE", undefined, init),
   }
