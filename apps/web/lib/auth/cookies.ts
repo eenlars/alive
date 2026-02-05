@@ -8,6 +8,7 @@
  * allowing the app to work on any domain without hardcoding.
  */
 
+import { env } from "@webalive/env/server"
 import { COOKIE_NAMES, SESSION_MAX_AGE } from "@webalive/shared"
 
 // Re-export for backward compatibility
@@ -30,7 +31,7 @@ type CookieOptions = {
 function isDeployedServer(): boolean {
   // STREAM_ENV=local means local development (localhost)
   // All other environments (dev, staging, production) are deployed servers
-  return process.env.STREAM_ENV !== "local"
+  return env.STREAM_ENV !== "local"
 }
 
 /**

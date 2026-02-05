@@ -1,7 +1,26 @@
 import { COOKIE_NAMES, DOMAINS } from "@webalive/shared"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { POST as loginPOST } from "../../login/route"
-import { POST as logoutPOST } from "../route"
+
+// Mock env modules before importing route
+// Both @/lib/env (internal) and @webalive/env/server (package) need to be mocked
+// to allow dynamic env access during tests via vi.stubEnv()
+const envMock = {
+  env: {
+    get STREAM_ENV() {
+      return process.env.STREAM_ENV
+    },
+    get NODE_ENV() {
+      return process.env.NODE_ENV
+    },
+  },
+}
+
+vi.mock("@/lib/env", () => envMock)
+vi.mock("@webalive/env/server", () => envMock)
+
+// Import route handlers after mocking
+const { POST: loginPOST } = await import("../../login/route")
+const { POST: logoutPOST } = await import("../route")
 
 /**
  * COOKIE CONFIGURATION CONSISTENCY TESTS

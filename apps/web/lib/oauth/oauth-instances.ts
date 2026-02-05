@@ -7,6 +7,7 @@
  * SINGLE SOURCE OF TRUTH: packages/shared/src/mcp-providers.ts
  */
 
+import { env } from "@webalive/env/server"
 import { buildInstanceId, createOAuthManager, type OAuthManagerConfig } from "@webalive/oauth-core"
 import {
   type AllOAuthProviderKey,
@@ -19,10 +20,10 @@ import {
  * Get the current environment from environment variables
  */
 function getCurrentEnvironment(): string {
-  const env = process.env.STREAM_ENV || process.env.NODE_ENV || "production"
+  const envValue = env.STREAM_ENV || env.NODE_ENV || "production"
 
   // Normalize environment names
-  switch (env) {
+  switch (envValue) {
     case "development":
       return "dev"
     case "test":
@@ -30,12 +31,11 @@ function getCurrentEnvironment(): string {
     case "staging":
       return "staging"
     case "production":
-    case "prod":
       return "prod"
     case "local":
       return "local"
     default:
-      console.warn(`Unknown environment: ${env}, defaulting to dev`)
+      console.warn(`Unknown environment: ${envValue}, defaulting to dev`)
       return "dev"
   }
 }

@@ -1,11 +1,26 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 
 const REPO_ROOT = "/root/webalive/claude-bridge"
+const ALLOWED_SRC_DIRS = ["/var/lib/claude-bridge", "/var/lib/claude-stream"]
 const SRC = process.env.CADDY_SITES_SRC || "/var/lib/claude-bridge/generated/Caddyfile.sites"
 const DEST = process.env.CADDY_SITES_DEST || resolve(REPO_ROOT, "ops/caddy/generated/Caddyfile.sites")
 const ENV_PATH = resolve(REPO_ROOT, "packages/shared/environments.json")
+
+// Validate paths to prevent path traversal
+function validatePath(path: string, allowedPrefixes: string[], label: string): void {
+  const resolved = resolve(path)
+  const isAllowed = allowedPrefixes.some(prefix => resolved.startsWith(prefix))
+  if (!isAllowed) {
+    console.error(`Error: ${label} path "${resolved}" is not within allowed directories: ${allowedPrefixes.join(", ")}`)
+    process.exit(1)
+  }
+}
+
+validatePath(SRC, ALLOWED_SRC_DIRS, "Source")
+validatePath(DEST, [REPO_ROOT], "Destination")
+validatePath(ENV_PATH, [REPO_ROOT], "Environment config")
 
 function sanitizeLabel(domain: string): string {
   return domain.replace(/\./g, "-")

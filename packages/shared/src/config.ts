@@ -165,8 +165,19 @@ const STREAM_PROD_URL = getEnv("STREAM_PROD_URL") || `https://app.${WILDCARD_DOM
 const STREAM_STAGING_URL = getEnv("STREAM_STAGING_URL") || `https://staging.${WILDCARD_DOMAIN}`
 const STREAM_DEV_URL = getEnv("STREAM_DEV_URL") || `https://dev.${WILDCARD_DOMAIN}`
 
-// Extract hostnames from URLs
-const extractHost = (url: string) => url.replace(/^https?:\/\//, "")
+// Extract hostnames from URLs using URL API for proper normalization
+const extractHost = (url: string): string => {
+  try {
+    return new URL(url).host
+  } catch {
+    // Fallback for URLs without scheme
+    try {
+      return new URL(`https://${url}`).host
+    } catch {
+      return url
+    }
+  }
+}
 
 export const DOMAINS = {
   /** Wildcard domain for automatic subdomain deployment */

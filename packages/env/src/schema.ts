@@ -103,6 +103,10 @@ export const serverSchema = {
 
   // Node environment
   NODE_ENV: z.enum(["development", "test", "production"]).default("production"),
+
+  // E2E Testing (optional - only needed for E2E tests)
+  E2E_TEST_SECRET: z.string().optional(),
+  E2E_RUN_ID: z.string().optional(),
 } as const
 
 /**
@@ -165,6 +169,8 @@ export const runtimeEnv = {
   SUPERADMIN_EMAILS: process.env.SUPERADMIN_EMAILS,
   REDIS_URL: process.env.REDIS_URL,
   NODE_ENV: process.env.NODE_ENV,
+  E2E_TEST_SECRET: process.env.E2E_TEST_SECRET,
+  E2E_RUN_ID: process.env.E2E_RUN_ID,
 
   // Client
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,

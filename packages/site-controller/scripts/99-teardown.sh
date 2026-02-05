@@ -35,7 +35,7 @@ fi
 # Remove from Caddy configuration
 # =============================================================================
 
-# Get bridge root from env or use default
+# Get stream root from env or use default
 STREAM_ROOT="${STREAM_ROOT:-/root/alive}"
 SERVER_CONFIG="/var/lib/claude-bridge/server-config.json"
 

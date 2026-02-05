@@ -1,3 +1,4 @@
+import { env } from "@webalive/env/server"
 import { SECURITY } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
@@ -41,11 +42,7 @@ export async function POST(req: NextRequest) {
   const { email, password } = result.data
 
   // Test mode
-  if (
-    process.env.STREAM_ENV === "local" &&
-    email === SECURITY.LOCAL_TEST.EMAIL &&
-    password === SECURITY.LOCAL_TEST.PASSWORD
-  ) {
+  if (env.STREAM_ENV === "local" && email === SECURITY.LOCAL_TEST.EMAIL && password === SECURITY.LOCAL_TEST.PASSWORD) {
     const res = createCorsSuccessResponse(origin, {})
     res.cookies.set(COOKIE_NAMES.SESSION, SECURITY.LOCAL_TEST.SESSION_VALUE, getSessionCookieOptions(host))
     return res

@@ -167,7 +167,7 @@ Claude Bridge is a **multi-tenant development platform** that enables Claude AI 
 
 ### Request Flow (Claude Chat)
 
-```
+```text
 Browser → /api/claude/stream → Claude Agent SDK → tool callbacks
                                                        ↓
                                               @alive-brug/tools

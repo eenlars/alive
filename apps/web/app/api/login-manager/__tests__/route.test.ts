@@ -2,8 +2,10 @@ import { COOKIE_NAMES, DOMAINS } from "@webalive/shared"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ErrorCodes } from "@/lib/error-codes"
 
-// Mock env module before importing route
-vi.mock("@/lib/env", () => ({
+// Mock env modules before importing route
+// Both @/lib/env (internal) and @webalive/env/server (package) need to be mocked
+// to allow dynamic env access during tests via vi.stubEnv()
+const envMock = {
   env: {
     get ALIVE_PASSCODE() {
       return process.env.ALIVE_PASSCODE
@@ -14,8 +16,18 @@ vi.mock("@/lib/env", () => ({
     get NODE_ENV() {
       return process.env.NODE_ENV
     },
+    // JWT requires a secret in production mode
+    get JWT_SECRET() {
+      return process.env.JWT_SECRET || "test-secret-for-unit-tests"
+    },
+    get JWT_ALGORITHM() {
+      return process.env.JWT_ALGORITHM
+    },
   },
-}))
+}
+
+vi.mock("@/lib/env", () => envMock)
+vi.mock("@webalive/env/server", () => envMock)
 
 // Import route handlers after mocking
 const { POST: loginManagerPOST, OPTIONS: loginManagerOPTIONS } = await import("../route")

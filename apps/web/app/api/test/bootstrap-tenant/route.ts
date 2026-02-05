@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from "node:crypto"
+import { env } from "@webalive/env/server"
 import { TEST_CONFIG } from "@webalive/shared"
 import { hash } from "bcrypt"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -23,11 +24,11 @@ interface BootstrapRequest {
 
 export async function POST(req: Request) {
   // Environment guard - accessible in test/local environments OR with valid test secret
-  const isTestEnv = process.env.NODE_ENV === "test" || process.env.STREAM_ENV === "local"
+  const isTestEnv = env.NODE_ENV === "test" || env.STREAM_ENV === "local"
 
   // Check for test secret header (for staging/production E2E tests)
   const testSecret = req.headers.get("x-test-secret")
-  const expectedSecret = process.env.E2E_TEST_SECRET
+  const expectedSecret = env.E2E_TEST_SECRET
   const hasValidSecret = expectedSecret && testSecret === expectedSecret
 
   if (!isTestEnv && !hasValidSecret) {

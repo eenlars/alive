@@ -10,6 +10,8 @@
  * - Query: GET /api/logs/error?category=oauth&limit=50
  */
 
+import { env } from "@webalive/env/server"
+
 export interface ErrorLogEntry {
   id: string
   timestamp: string
@@ -173,7 +175,7 @@ function getBuildInfo(): BuildInfo {
   buildInfo = {
     branch,
     buildTime,
-    env: process.env.STREAM_ENV ?? process.env.NODE_ENV ?? "unknown",
+    env: env.STREAM_ENV ?? env.NODE_ENV ?? "unknown",
   }
 
   return buildInfo
