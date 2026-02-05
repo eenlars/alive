@@ -8,7 +8,8 @@
 import { Cron } from "croner"
 import { createClient } from "@supabase/supabase-js"
 import { statSync } from "node:fs"
-import { getWorkspacePath } from "@webalive/shared"
+import { resolve } from "node:path"
+import { getWorkspacePath, isPathWithinWorkspace, PATHS } from "@webalive/shared"
 import { getSupabaseCredentials } from "@/lib/env/server"
 
 /**
@@ -240,6 +241,14 @@ export async function validateWorkspace(hostname: string | undefined): Promise<{
 
   // Use the same workspace path as the normal chat flow: /srv/webalive/sites/<domain>/user
   const cwd = getWorkspacePath(hostname)
+  const resolvedPath = resolve(cwd)
+  const resolvedSitesRoot = resolve(PATHS.SITES_ROOT)
+
+  // Prevent path traversal (e.g. hostname = "../../etc")
+  if (!isPathWithinWorkspace(resolvedPath, resolvedSitesRoot)) {
+    return { valid: false, error: "Invalid workspace path" }
+  }
+
   const stat = statSync(cwd, { throwIfNoEntry: false })
 
   if (!stat) {

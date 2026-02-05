@@ -29,7 +29,16 @@ export async function POST(req: Request) {
   try {
     const user = await requireSessionUser()
 
-    const body = await req.json()
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch (error) {
+      return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400, {
+        requestId,
+        details: [{ message: "Malformed JSON body", error: error instanceof Error ? error.message : String(error) }],
+      })
+    }
+
     const parseResult = ScheduleResumptionSchema.safeParse(body)
     if (!parseResult.success) {
       return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400, {
@@ -85,6 +94,18 @@ export async function POST(req: Request) {
       },
       delayMinutes * 60, // Convert to seconds for pg-boss
     )
+
+    if (!jobId) {
+      console.error(`[ScheduleResumption ${requestId}] Failed to enqueue job for ${workspace}`)
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "ENQUEUE_FAILED",
+          message: "Failed to schedule resumption. The job queue may be unavailable.",
+        },
+        { status: 500 },
+      )
+    }
 
     console.log(`[ScheduleResumption ${requestId}] Scheduled for ${workspace} in ${delayMinutes}min (jobId: ${jobId})`)
 

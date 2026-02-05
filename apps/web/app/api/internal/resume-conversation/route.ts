@@ -28,7 +28,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { userId, workspace, tabId, tabGroupId, message, reason } = body
+    const { userId, workspace, tabId, tabGroupId, message, reason } = body as Record<string, string>
 
     if (!userId || !workspace || !tabId || !tabGroupId || !message) {
       return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
@@ -105,6 +105,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400)
+    }
     console.error("[Internal/ResumeConversation] Error:", error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }

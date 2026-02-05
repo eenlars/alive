@@ -75,24 +75,35 @@ export async function startJobQueue(onEvent?: JobQueueEventHandler): Promise<voi
 
   console.log("[JobQueue] Starting pg-boss...")
   await instance.start()
-  started = true
   console.log("[JobQueue] pg-boss started")
 
-  // Create all queues with their configs (order matters: dead letter queues first)
-  for (const [queueName, config] of QUEUE_CONFIGS) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await instance.createQueue(queueName, config as any)
-    console.log(`[JobQueue] Queue created: ${queueName}`)
+  try {
+    // Create all queues with their configs (order matters: dead letter queues first)
+    for (const [queueName, config] of QUEUE_CONFIGS) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await instance.createQueue(queueName, config as any)
+      console.log(`[JobQueue] Queue created: ${queueName}`)
+    }
+
+    // Register workers (lazy import to avoid circular deps)
+    const { registerAutomationWorker } = await import("./workers/run-automation.js")
+    await registerAutomationWorker(instance, onEvent)
+
+    const { registerResumeWorker } = await import("./workers/resume-conversation.js")
+    await registerResumeWorker(instance, onEvent)
+
+    started = true
+    console.log("[JobQueue] All workers registered")
+  } catch (error) {
+    console.error("[JobQueue] Failed during queue/worker setup, stopping pg-boss:", error)
+    try {
+      await instance.stop()
+    } catch {
+      // Ignore stop errors during cleanup
+    }
+    boss = null
+    throw error
   }
-
-  // Register workers (lazy import to avoid circular deps)
-  const { registerAutomationWorker } = await import("./workers/run-automation.js")
-  await registerAutomationWorker(instance, onEvent)
-
-  const { registerResumeWorker } = await import("./workers/resume-conversation.js")
-  await registerResumeWorker(instance, onEvent)
-
-  console.log("[JobQueue] All workers registered")
 }
 
 /**
@@ -189,7 +200,7 @@ export async function unscheduleAutomation(name: string): Promise<void> {
     const db = (instance as any).db
     if (db) {
       await db.executeSql(
-        `UPDATE pgboss.job SET state = 'cancelled' WHERE name = $1 AND singleton_key = $2 AND state < 'active'`,
+        `UPDATE pgboss.job SET state = 'cancelled' WHERE name = $1 AND singleton_key = $2 AND state IN ('created', 'retry')`,
         [QUEUES.RUN_AUTOMATION, name],
       )
     }

@@ -539,8 +539,8 @@ async function handleQuery(ipc, requestId, payload) {
     process.env.ALIVE_SESSION_COOKIE = payload.sessionCookie || ""
 
     // Pass tab context to tools (used by schedule_resumption MCP tool)
-    process.env.ALIVE_TAB_ID = payload.tabId || ""
-    process.env.ALIVE_TAB_GROUP_ID = payload.tabGroupId || ""
+    process.env.ALIVE_TAB_ID = typeof payload.tabId === "string" ? payload.tabId : ""
+    process.env.ALIVE_TAB_GROUP_ID = typeof payload.tabGroupId === "string" ? payload.tabGroupId : ""
 
     // API key handling:
     // - For user-provided API keys: pass via payload.apiKey
