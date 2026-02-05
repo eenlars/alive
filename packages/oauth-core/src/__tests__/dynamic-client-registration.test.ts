@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test"
+import { describe, it, expect } from "vitest"
 import { selectBestAuthMethod, type AuthorizationServerMetadata } from "../dynamic-client-registration"
 
 describe("Dynamic Client Registration", () => {

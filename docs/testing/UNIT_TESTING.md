@@ -55,7 +55,10 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     globals: true,
-    environment: "happy-dom",      // Simulates browser DOM
+    // Default to Node for correct Node built-ins and fewer DOM-specific globals.
+    // Tests that need a DOM should opt-in per-file via:
+    //   // @vitest-environment happy-dom
+    environment: "node",
     setupFiles: ["./tests/setup.ts"],
     include: ["**/*.test.{ts,tsx}"],
     exclude: [
@@ -63,14 +66,17 @@ export default defineConfig({
       "**/tests/e2e/**",           // E2E tests use Playwright
       "**/.next/**",
     ],
+    // Prefer forks when native modules are in the dependency graph.
+    pool: "forks",
   },
 })
 ```
 
 **Key settings:**
-- `environment: "happy-dom"` - Fast DOM simulation for React testing
+- `environment: "node"` - Default runtime environment (DOM tests opt-in per file)
 - `setupFiles` - Global mocks (Anthropic SDK auto-mocked here)
 - `globals: true` - No need to import `describe`, `it`, `expect`
+- `pool: "forks"` - More robust when native modules are present
 
 ### Setup File
 
