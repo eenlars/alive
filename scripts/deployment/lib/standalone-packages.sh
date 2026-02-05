@@ -25,6 +25,8 @@ readonly -a STANDALONE_PACKAGES=(
     worker-pool
     site-controller
     database
+    automation
+    job-queue
 )
 
 # shellcheck disable=SC2034
@@ -32,4 +34,5 @@ readonly -a STANDALONE_PACKAGES=(
 # These get their node_modules copied too (via cp -rL)
 readonly -a SUBPROCESS_PACKAGES=(
     worker-pool
+    job-queue
 )

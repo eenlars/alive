@@ -47,7 +47,8 @@
         "IMAGES_SIGNATURE_SECRET",
         "IMAGES_STORAGE_PATH",
         "FLOWGLAD_SECRET_KEY",
-        "DATABASE_URL"
+        "DATABASE_URL",
+        "DATABASE_PASSWORD"
       ]
     },
     "start": {
