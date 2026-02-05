@@ -89,6 +89,11 @@ export const baseTestConfig = {
   ],
   // Use forks instead of threads - native modules (@napi-rs/image) hang with threads
   pool: "forks" as const,
+  // Match Vitest 4+ pool semantics for "single fork" stability:
+  // - keep a single worker to reduce process churn
+  // - reuse the worker across files (isolate: false) to avoid repeated native init
+  maxWorkers: 1,
+  isolate: false,
   // Timeouts
   testTimeout: 10000,
   hookTimeout: 10000,
