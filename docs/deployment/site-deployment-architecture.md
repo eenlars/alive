@@ -24,8 +24,9 @@ The WebAlive infrastructure provides **secure, isolated, multi-tenant website de
 - **Features**: User isolation, resource limits, security hardening
 
 ### 4. **Reverse Proxy: Caddy**
-- **Config Location**: `/root/webalive/claude-bridge/Caddyfile`
-- **System Config**: `/etc/caddy/Caddyfile` (imports WebAlive config)
+- **Generated Sites**: `/var/lib/claude-bridge/generated/Caddyfile.sites`
+- **Shim Import**: `/root/webalive/claude-bridge/ops/caddy/Caddyfile` (imports generated routing)
+- **System Config**: `/etc/caddy/Caddyfile` (imports shim + prod/staging)
 - **Features**: Automatic HTTPS, zero-downtime reloads
 
 ### 5. **User Management: Supabase**
@@ -155,12 +156,11 @@ Activate service:
 ### **Phase 6: Caddy Reverse Proxy Configuration**
 
 ```
-Edit: /root/webalive/claude-bridge/Caddyfile
+Generate routing:
+bun run --cwd packages/site-controller routing:generate
   ↓
-Add domain block:
-example.com {
-    reverse_proxy localhost:3338
-}
+Sync filtered sites file:
+bun /root/webalive/claude-bridge/scripts/sync-generated-caddy.ts
   ↓
 Reload Caddy (zero-downtime):
 systemctl reload caddy
@@ -173,9 +173,10 @@ Caddy handles:
 ```
 
 **Two-Tier Caddy Setup:**
-- **Main Config**: `/etc/caddy/Caddyfile` (system-wide, imports WebAlive config)
-- **Sites Config**: `/root/webalive/claude-bridge/Caddyfile` (WebAlive routing only)
-- **Sync**: Automatic via `import` directive, no manual copying needed
+- **Main Config**: `/etc/caddy/Caddyfile` (system-wide, imports shim + prod/staging)
+- **Shim**: `/root/webalive/claude-bridge/ops/caddy/Caddyfile` (imports generated routing)
+- **Generated Sites**: `/var/lib/claude-bridge/generated/Caddyfile.sites`
+- **Sync**: Filtered copy at `/root/webalive/claude-bridge/ops/caddy/generated/Caddyfile.sites`
 
 ### **Phase 7: User Account Creation (Supabase)**
 
@@ -324,7 +325,8 @@ See: **[CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md)**
 | **Workspace** | `/srv/webalive/sites/{domain}/` | Site files (new secure location) |
 | **Legacy Workspace** | `/root/webalive/sites/{domain}/` | Old PM2 sites (migrate to systemd) |
 | **Systemd Unit** | `/etc/systemd/system/site@.service` | Service template |
-| **Caddy Config** | `/root/webalive/claude-bridge/Caddyfile` | WebAlive routing |
+| **Caddy Routing** | `/var/lib/claude-bridge/generated/Caddyfile.sites` | Generated site routing |
+| **Caddy Shim** | `/root/webalive/claude-bridge/ops/caddy/Caddyfile` | Imports generated routing |
 | **Caddy System** | `/etc/caddy/Caddyfile` | System config + imports |
 | **Port Registry** | `/var/lib/claude-bridge/domain-passwords.json` | Port assignments |
 | **DNS Verification** | `{domain}/.well-known/bridge-verify.txt` | IP verification (YOUR_SERVER_IP) |
@@ -409,7 +411,8 @@ sudo systemctl enable site@example-com.service
 sudo systemctl start site@example-com.service
 
 # 6. Update Caddy
-# Edit /root/webalive/claude-bridge/Caddyfile (add domain block)
+bun run --cwd packages/site-controller routing:generate
+bun /root/webalive/claude-bridge/scripts/sync-generated-caddy.ts
 sudo systemctl reload caddy
 
 # 7. Verify

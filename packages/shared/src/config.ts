@@ -333,7 +333,7 @@ export const SUPERADMIN = {
   EMAILS: SUPERADMIN_EMAIL_LIST,
 
   /** Special workspace name for Bridge editing */
-  WORKSPACE_NAME: "claude-bridge",
+  WORKSPACE_NAME: "alive",
 
   /** Path to Bridge repository */
   WORKSPACE_PATH: BRIDGE_ROOT,

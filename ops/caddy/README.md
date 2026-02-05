@@ -14,7 +14,8 @@ nginx (443) → SNI routing → caddy-shell (8443) or caddy-main (8444)
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `Caddyfile` | This folder | WebAlive site routing (imported by main Caddyfile) |
+| `Caddyfile` | This folder | Snippets + import of generated routing (imported by main Caddyfile) |
+| `generated/Caddyfile.sites` | This folder | Filtered copy of generated routing (synced from `/var/lib/claude-bridge/generated/Caddyfile.sites`) |
 | `Caddyfile.main` | `/etc/caddy/Caddyfile` | Main Caddy config (ports 8081/8444) |
 | `Caddyfile.shell` | `/etc/caddy/Caddyfile.shell` | Shell-only Caddy config (port 8443) |
 | `Caddyfile.bak` | Backup | Previous version backup |
@@ -25,7 +26,9 @@ nginx (443) → SNI routing → caddy-shell (8443) or caddy-main (8444)
 /etc/caddy/Caddyfile (Caddyfile.main)
 ├── import /etc/caddy/Caddyfile.prod
 ├── import /etc/caddy/Caddyfile.staging
-└── import /root/webalive/claude-bridge/ops/caddy/Caddyfile  ← This folder's main file
+└── import /root/webalive/claude-bridge/ops/caddy/Caddyfile
+    └── import /root/webalive/claude-bridge/ops/caddy/generated/Caddyfile.sites
+        └── synced from /var/lib/claude-bridge/generated/Caddyfile.sites
 
 /etc/caddy/Caddyfile.shell (Caddyfile.shell)
 └── go.goalive.nl
@@ -35,7 +38,7 @@ nginx (443) → SNI routing → caddy-shell (8443) or caddy-main (8444)
 
 ```bash
 # Main Caddy config (run from project root)
-sudo cp ops/caddy/Caddyfile.main /etc/caddy/Caddyfile
+sudo cp ops/caddy/etc/Caddyfile.example /etc/caddy/Caddyfile
 sudo cp ops/caddy/Caddyfile.shell /etc/caddy/Caddyfile.shell
 sudo chown caddy:caddy /etc/caddy/Caddyfile.shell
 
@@ -50,10 +53,16 @@ sudo systemctl reload caddy-shell
 
 ## Adding Sites
 
-New sites are added to `Caddyfile` (this folder) by the site-controller package.
-After adding, reload main Caddy:
+New sites are added via the routing generator and sync script:
 
 ```bash
+# Generate routing from DB
+bun run --cwd packages/site-controller routing:generate
+
+# Sync filtered file used by main import
+bun /root/webalive/claude-bridge/scripts/sync-generated-caddy.ts
+
+# Reload
 caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
 ```
 

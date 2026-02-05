@@ -37,6 +37,12 @@ if [[ -f "$SERVER_CONFIG" ]]; then
         exit 16
     fi
 
+    # Sync filtered Caddyfile for main import (excludes reserved env domains)
+    if ! bun "$BRIDGE_ROOT/scripts/sync-generated-caddy.ts"; then
+        log_error "Failed to sync filtered Caddy configuration"
+        exit 16
+    fi
+
     # Validate the generated config
     log_info "Validating Caddy configuration..."
     if ! caddy validate --config /etc/caddy/Caddyfile 2>/dev/null; then

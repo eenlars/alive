@@ -188,6 +188,7 @@ domain-passwords.json.lock
 # Live Caddy configurations (contain customer domains)
 # Keep example files, ignore production configs
 ops/caddy/Caddyfile
+ops/caddy/generated/
 ops/caddy/Caddyfile.main
 ops/caddy/Caddyfile.restore_backup
 ops/caddy/Caddyfile.shell

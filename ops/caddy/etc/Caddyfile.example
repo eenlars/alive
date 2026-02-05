@@ -19,6 +19,9 @@
     admin localhost:2019
 }
 
+# Shared snippets (common_headers, image_serving, preview_auth)
+import /root/webalive/claude-bridge/ops/caddy/Caddyfile.snippets
+
 # Production domains (edit manually, rarely changes)
 import /etc/caddy/Caddyfile.prod
 
