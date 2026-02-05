@@ -1,0 +1,29 @@
+{
+  "name": "@webalive/job-queue",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "pg-boss": "^10.1.5",
+    "@webalive/automation": "workspace:*",
+    "@webalive/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.2",
+    "typescript": "^5.9.3"
+  }
+}

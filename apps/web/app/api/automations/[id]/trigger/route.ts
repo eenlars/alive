@@ -11,7 +11,6 @@ import { getSessionUser } from "@/features/auth/lib/auth"
 import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
 import { structuredErrorResponse } from "@/lib/api/responses"
-import { runAutomationJob } from "@/lib/automation/executor"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -81,28 +80,27 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       })
     }
 
-    const startedAt = new Date()
-    console.log(`[Automation Trigger] Running job "${job.name}" for site ${hostname} at ${startedAt.toISOString()}`)
+    console.log(`[Automation Trigger] Enqueuing job "${job.name}" for site ${hostname}`)
 
-    // Run the automation
-    const result = await runAutomationJob({
+    // Enqueue via pg-boss for immediate execution
+    const { enqueueAutomation } = await import("@webalive/job-queue")
+    const pgBossJobId = await enqueueAutomation({
       jobId: job.id,
       userId: job.user_id,
       orgId: job.org_id,
       workspace: hostname,
       prompt: job.action_prompt,
       timeoutSeconds: job.action_timeout_seconds || 300,
+      model: job.action_model || undefined,
+      thinkingPrompt: job.action_thinking || undefined,
+      skills: job.skills || undefined,
     })
 
-    // Return complete response with timing info
     return NextResponse.json({
-      ok: result.success,
-      startedAt: startedAt.toISOString(),
-      completedAt: new Date().toISOString(),
-      durationMs: result.durationMs,
-      timeoutSeconds: job.action_timeout_seconds || 300,
-      error: result.error,
-      response: result.response,
+      ok: true,
+      queued: true,
+      pgBossJobId,
+      message: `Automation "${job.name}" has been queued for immediate execution.`,
     })
   } catch (error) {
     console.error("[Automation Trigger] Error:", error)
