@@ -34,4 +34,13 @@
 
 // Export ONLY schemas - no env object, no side effects
 // This file is safe to import anywhere (client, server, tests)
-export { serverSchema, clientSchema, runtimeEnv, httpsUrl, jwt, anthropicApiKey } from "./schema"
+export {
+  serverSchema,
+  clientSchema,
+  runtimeEnv,
+  httpsUrl,
+  jwt,
+  anthropicApiKey,
+  CLIENT_ENV_KEYS,
+  SERVER_ENV_KEYS,
+} from "./schema"

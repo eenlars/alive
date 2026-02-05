@@ -180,3 +180,10 @@ export const runtimeEnv = {
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 } as const
+
+/**
+ * Export schema keys for validation tooling
+ * Used by scripts/validation/validate-turbo-env.ts to ensure turbo.json is in sync
+ */
+export const CLIENT_ENV_KEYS = Object.keys(clientSchema) as (keyof typeof clientSchema)[]
+export const SERVER_ENV_KEYS = Object.keys(serverSchema) as (keyof typeof serverSchema)[]
