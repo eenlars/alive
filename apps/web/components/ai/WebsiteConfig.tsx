@@ -18,7 +18,7 @@
 
 import { Briefcase, Calendar, Check, ChevronRight, Globe, Image, Rocket, Sparkles } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { DOMAINS } from "@webalive/shared"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 
 export interface TemplateOption {
   id: string
@@ -58,6 +58,7 @@ function getTemplateIcon(icon: string) {
 }
 
 export function WebsiteConfig({ data, onComplete, onSkip }: WebsiteConfigProps) {
+  const { wildcard: WILDCARD } = useDomainConfig()
   const [step, setStep] = useState<"slug" | "template" | "ideas" | "confirm">("slug")
   const [slug, setSlug] = useState(data.defaultSlug || "")
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
@@ -244,7 +245,7 @@ export function WebsiteConfig({ data, onComplete, onSkip }: WebsiteConfigProps) 
                             : "border-zinc-200 dark:border-zinc-700"
                       }`}
                     >
-                      .{DOMAINS.WILDCARD}
+                      .{WILDCARD}
                     </span>
                   </div>
                   {slugError && (
@@ -262,7 +263,7 @@ export function WebsiteConfig({ data, onComplete, onSkip }: WebsiteConfigProps) 
                       className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1"
                     >
                       <Check size={12} />
-                      https://{slug}.{DOMAINS.WILDCARD}
+                      https://{slug}.{WILDCARD}
                     </p>
                   )}
                 </div>
@@ -356,7 +357,7 @@ export function WebsiteConfig({ data, onComplete, onSkip }: WebsiteConfigProps) 
                       Domain
                     </p>
                     <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                      https://{slug}.{DOMAINS.WILDCARD}
+                      https://{slug}.{WILDCARD}
                     </p>
                   </div>
                   <div className="flex flex-col gap-0.5 px-2 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">

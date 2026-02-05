@@ -10,7 +10,8 @@
 import { RotateCcw } from "lucide-react"
 import { useState } from "react"
 import { WebsiteConfig, type WebsiteConfigData, type WebsiteConfigResult } from "@/components/ai/WebsiteConfig"
-import { DOMAINS, TEMPLATES } from "@webalive/shared"
+import { TEMPLATES } from "@webalive/shared"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 
 const SAMPLE_DATA: WebsiteConfigData = {
   templates: [...TEMPLATES],
@@ -18,6 +19,7 @@ const SAMPLE_DATA: WebsiteConfigData = {
 }
 
 export function WebsiteConfigPreview() {
+  const { wildcard } = useDomainConfig()
   const [result, setResult] = useState<WebsiteConfigResult | null>(null)
   const [skipped, setSkipped] = useState(false)
   const [key, setKey] = useState(0)
@@ -67,7 +69,7 @@ export function WebsiteConfigPreview() {
                         Domain
                       </p>
                       <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-0.5">
-                        https://{result?.slug}.{DOMAINS.WILDCARD}
+                        https://{result?.slug}.{wildcard}
                       </p>
                     </div>
                     <div>

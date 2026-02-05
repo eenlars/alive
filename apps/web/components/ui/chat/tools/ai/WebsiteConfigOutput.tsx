@@ -8,7 +8,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { DOMAINS } from "@webalive/shared"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import { WebsiteConfig, type WebsiteConfigData, type WebsiteConfigResult } from "@/components/ai/WebsiteConfig"
 import type { ToolResultRendererProps } from "@/lib/tools/tool-registry"
 
@@ -52,9 +52,9 @@ export function validateWebsiteConfig(data: unknown): data is WebsiteConfigToolD
 /**
  * Format the result for submission to Claude
  */
-function formatResultForSubmission(result: WebsiteConfigResult): string {
+function formatResultForSubmission(result: WebsiteConfigResult, wildcardDomain: string): string {
   const lines: string[] = ["Here's my website configuration:", ""]
-  lines.push(`**Domain:** ${result.slug}.${DOMAINS.WILDCARD}`)
+  lines.push(`**Domain:** ${result.slug}.${wildcardDomain}`)
   lines.push(`**Template:** ${result.templateId}`)
   if (result.siteIdeas) {
     lines.push(`**Description:** ${result.siteIdeas}`)
@@ -69,6 +69,7 @@ interface WebsiteConfigOutputProps extends ToolResultRendererProps<WebsiteConfig
 }
 
 export function WebsiteConfigOutput({ data, onSubmitAnswer }: WebsiteConfigOutputProps) {
+  const { wildcard } = useDomainConfig()
   const [submitted, setSubmitted] = useState(false)
   const [skipped, setSkipped] = useState(false)
   const [submittedResult, setSubmittedResult] = useState<WebsiteConfigResult | null>(null)
@@ -84,7 +85,7 @@ export function WebsiteConfigOutput({ data, onSubmitAnswer }: WebsiteConfigOutpu
       setSubmittedResult(result)
       setSubmitted(true)
 
-      const message = formatResultForSubmission(result)
+      const message = formatResultForSubmission(result, wildcard)
       onSubmitAnswer?.(message)
     },
     [onSubmitAnswer],
@@ -105,7 +106,7 @@ export function WebsiteConfigOutput({ data, onSubmitAnswer }: WebsiteConfigOutpu
             <div className="text-xs">
               <span className="text-black/40 dark:text-white/40">Domain: </span>
               <span className="text-black/70 dark:text-white/70">
-                {submittedResult.slug}.{DOMAINS.WILDCARD}
+                {submittedResult.slug}.{wildcard}
               </span>
             </div>
             <div className="text-xs">

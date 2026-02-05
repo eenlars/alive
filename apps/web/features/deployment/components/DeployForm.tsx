@@ -22,6 +22,7 @@ import { generateRandomDomain } from "./formUtils"
 import { ModeOption } from "./ModeOption"
 import { SubdomainDeployForm } from "./SubdomainDeployForm"
 import { SubmitButton } from "./SubmitButton"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import { useDeployment } from "./useDeployment"
 
 const deployWithDomainSchema = z.object({
@@ -85,6 +86,7 @@ function ModeSelectionScreen({ onSelect }: ModeSelectionScreenProps) {
 }
 
 export function DeployForm() {
+  const { wildcard } = useDomainConfig()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -175,7 +177,7 @@ export function DeployForm() {
   }
 
   const _onSubmitDeployOnly = async (data: DeployOnlyInput): Promise<void> => {
-    const randomDomain = generateRandomDomain()
+    const randomDomain = generateRandomDomain(wildcard)
     await deploy(randomDomain, data.password)
   }
 
