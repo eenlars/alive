@@ -23,6 +23,7 @@
     "format": "biome format --write .",
     "clean": "rm -rf dist",
     "test": "vitest run",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:watch": "vitest watch",
     "verify": "bun scripts/verify.ts",
     "setup-schema": "bun scripts/setup-schema.ts"
@@ -46,6 +47,6 @@
   "devDependencies": {
     "@types/node": "^24.10.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.6"
+    "vitest": "4.0.17"
   }
 }

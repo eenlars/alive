@@ -6,8 +6,8 @@
  *
  * Environment values:
  * - "local"      → Local test server (PLAYWRIGHT_TEST=true, STREAM_ENV=local)
- * - "staging"    → Staging (staging.terminal.goalive.nl)
- * - "production" → Production (terminal.goalive.nl)
+ * - "staging"    → Staging (staging.test.local)
+ * - "production" → Production (test.local)
  */
 
 export const VALID_ENVS = ["local", "staging", "production"] as const

@@ -16,7 +16,8 @@
     "type-check": "tsc --noEmit",
     "lint": "biome lint .",
     "format": "npx biome format --write .",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
@@ -25,8 +26,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.5.2",
-    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/coverage-v8": "4.0.17",
     "typescript": "^5.9.3",
-    "vitest": "^2.1.8"
+    "vitest": "4.0.17"
   }
 }

@@ -40,8 +40,8 @@ function isDeployedServer(): boolean {
  *
  * Examples:
  * - "app.example.com" -> ".example.com"
- * - "app.alive.best" -> ".alive.best"
- * - "dev.app.alive.best" -> ".alive.best"
+ * - "app.sonno.tech" -> ".sonno.tech"
+ * - "dev.app.sonno.tech" -> ".sonno.tech"
  * - "localhost:3000" -> undefined (no domain for localhost)
  *
  * @param host - The request host (e.g., "app.example.com" or "app.example.com:3000")

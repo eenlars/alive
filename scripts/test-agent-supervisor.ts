@@ -7,7 +7,7 @@
 import { askAIFull } from "@webalive/tools"
 import Groq from "groq-sdk"
 
-const workspace = "larshallo.alive.best"
+const workspace = "larshallo.test.local"
 const prGoal = "Change the text Uw vertrouwde loodgieter to hallo wereld in the HTML"
 const conversation =
   "User: Change Uw vertrouwde loodgieter to hallo wereld\n\nAssistant: I will help you change that text. Let me find and edit the file."

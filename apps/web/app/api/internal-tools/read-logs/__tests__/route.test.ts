@@ -104,8 +104,8 @@ vi.mock("@/lib/workspace-api-handler", () => ({
 import { POST } from "../route"
 
 const TEST_SECRET = "test-secret-key-12345"
-const TEST_WORKSPACE = "example.alive.best"
-const TEST_WORKSPACE_ROOT = "/srv/webalive/sites/example.alive.best/user"
+const TEST_WORKSPACE = "example.test.local"
+const TEST_WORKSPACE_ROOT = "/srv/webalive/sites/example.test.local/user"
 
 describe("POST /api/internal-tools/read-logs - Secret Authentication", () => {
   beforeEach(() => {

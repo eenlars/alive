@@ -12,7 +12,7 @@ import { TEST_TIMEOUTS } from "./fixtures/test-data"
 import { TIMEOUTS } from "./lib/test-env"
 
 const TEST_SLUG = "test-e2e"
-const TEST_DOMAIN = `${TEST_SLUG}.alive.best`
+const TEST_DOMAIN = `${TEST_SLUG}.test.local`
 const SITE_PATH = `/srv/webalive/sites/${TEST_DOMAIN}`
 
 test.describe("Website Deployment with Authentication", () => {

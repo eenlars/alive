@@ -1,13 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks"
 import { vi } from "vitest"
-
-// Only import AsyncLocalStorage in node environment (not happy-dom)
-let AsyncLocalStorage: typeof import("node:async_hooks").AsyncLocalStorage | null = null
-try {
-  const asyncHooks = await import("node:async_hooks")
-  AsyncLocalStorage = asyncHooks.AsyncLocalStorage
-} catch {
-  // In happy-dom environment, node:async_hooks is not available
-}
 
 process.env.TZ = "UTC"
 // Note: NODE_ENV is read-only in some environments, only set if needed
@@ -43,16 +35,12 @@ if (process.env.CI) {
   process.env.FORCE_COLOR = "0"
 }
 
-// AsyncLocalStorage for test request context (only available in node environment)
-const testRequestContext = AsyncLocalStorage ? new AsyncLocalStorage<Request>() : null
+// AsyncLocalStorage for test request context
+const testRequestContext = new AsyncLocalStorage<Request>()
 
 // Export function to run code with request context
 export function runWithRequestContext<T>(request: Request, fn: () => T | Promise<T>): Promise<T> {
-  if (testRequestContext) {
-    return Promise.resolve(testRequestContext.run(request, fn))
-  }
-  // Fallback for happy-dom environment
-  return Promise.resolve(fn())
+  return Promise.resolve(testRequestContext.run(request, fn))
 }
 
 // Helper to parse cookie strings
@@ -67,11 +55,11 @@ function parseCookies(cookieString: string) {
   return cookies
 }
 
-// Mock Next.js cookies() to read from AsyncLocalStorage (when available)
+// Mock Next.js cookies() to read from AsyncLocalStorage
 vi.mock("next/headers", () => {
   return {
     cookies: async () => {
-      const request = testRequestContext?.getStore() ?? null
+      const request = testRequestContext.getStore() ?? null
       const cookieHeader = request?.headers?.get("cookie") || ""
       const cookieMap = parseCookies(cookieHeader)
 
@@ -86,7 +74,7 @@ vi.mock("next/headers", () => {
       }
     },
     headers: async () => {
-      const request = testRequestContext?.getStore() ?? null
+      const request = testRequestContext.getStore() ?? null
       return {
         get: (name: string) => request?.headers?.get(name) || null,
         has: (name: string) => request?.headers?.has(name) || false,
@@ -96,19 +84,18 @@ vi.mock("next/headers", () => {
   }
 })
 
-vi.mock("@anthropic-ai/claude-agent-sdk", async () => {
-  const actual = await vi.importActual("@anthropic-ai/claude-agent-sdk")
-  return {
-    ...actual,
-    query: vi.fn(() => {
-      throw new Error(
-        "🚨 Anthropic SDK query() called in test without mocking!\n" +
-          "This would make a REAL API call and cost money.\n\n" +
-          "To fix this:\n" +
-          "1. Mock the API response in your test\n" +
-          "2. Or use route mocking for e2e tests (Playwright)\n" +
-          "3. Never call real Anthropic API in unit tests",
-      )
-    }),
-  }
-})
+vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
+  query: vi.fn(() => {
+    throw new Error(
+      "🚨 Anthropic SDK query() called in test without mocking!\n" +
+        "This would make a REAL API call and cost money.\n\n" +
+        "To fix this:\n" +
+        "1. Mock the API response in your test\n" +
+        "2. Or use route mocking for e2e tests (Playwright)\n" +
+        "3. Never call real Anthropic API in unit tests",
+    )
+  }),
+  stream: vi.fn(() => {
+    throw new Error("🚨 Anthropic SDK stream() called in test without mocking!")
+  }),
+}))

@@ -14,7 +14,7 @@ import { ErrorCodes } from "@/lib/error-codes"
 import { getWorkspace } from "./workspaceRetriever"
 
 // Check if we're in an environment with actual workspace directories
-const workspacePath = process.env.TEST_WORKSPACE_PATH ?? "/srv/webalive/sites/demo-goalive-nl/user"
+const workspacePath = process.env.TEST_WORKSPACE_PATH ?? "/srv/webalive/sites/demo-sonno-nl/user"
 const hasWorkspaces = existsSync(workspacePath)
 
 // In CI, server-config.json doesn't exist so PATHS.SITES_ROOT is empty
@@ -23,7 +23,7 @@ const hasServerConfig = !process.env.CI
 describe("Workspace Resolution", () => {
   describe("Domain to Slug Conversion (Unit)", () => {
     it("domainToSlug converts dots to hyphens", () => {
-      expect(domainToSlug("demo.goalive.nl")).toBe("demo-goalive-nl")
+      expect(domainToSlug("demo.sonno.nl")).toBe("demo-sonno-nl")
     })
 
     it("domainToSlug handles multiple dots", () => {
@@ -59,7 +59,7 @@ describe("Workspace Resolution", () => {
     it.skipIf(!hasWorkspaces)("resolves demo-goalive-nl workspace correctly (legacy hyphenated format)", async () => {
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "demo.goalive.nl" }, // User sends with dots
+        body: { workspace: "demo.test.local" }, // User sends with dots
         requestId: "test-int-001",
       })
 
@@ -73,7 +73,7 @@ describe("Workspace Resolution", () => {
     it.skipIf(!hasWorkspaces)("path always ends with /user", async () => {
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "demo.goalive.nl" },
+        body: { workspace: "demo.test.local" },
         requestId: "test-int-002",
       })
 
@@ -86,7 +86,7 @@ describe("Workspace Resolution", () => {
     it.skipIf(!hasWorkspaces)("path always contains /webalive/sites/", async () => {
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "demo.goalive.nl" },
+        body: { workspace: "demo.test.local" },
         requestId: "test-int-003",
       })
 
@@ -101,7 +101,7 @@ describe("Workspace Resolution", () => {
     /**
      * Critical regression test for workspace naming conventions.
      * This test prevents the bug where new sites with dots in directory names
-     * (e.g., evermore.alive.best) couldn't be found because the code
+     * (e.g., evermore.test.local) couldn't be found because the code
      * was converting them to hyphens (evermore-alive-best).
      *
      * The system should support BOTH:
@@ -109,25 +109,25 @@ describe("Workspace Resolution", () => {
      * 2. Legacy sites: domain.com → /srv/webalive/sites/domain-com/user
      */
     it.skipIf(!hasWorkspaces)("finds workspace with dots in directory name (new convention)", async () => {
-      // Test case: New sites like evermore.alive.best use dots in filesystem
+      // Test case: New sites like evermore.test.local use dots in filesystem
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "evermore.alive.best" },
+        body: { workspace: "evermore.test.local" },
         requestId: "test-naming-001",
       })
 
       expect(result.success).toBe(true)
       if (result.success) {
-        // Should find /srv/webalive/sites/evermore.alive.best/user (with dots)
-        expect(result.workspace).toBe("/srv/webalive/sites/evermore.alive.best/user")
+        // Should find /srv/webalive/sites/evermore.test.local/user (with dots)
+        expect(result.workspace).toBe("/srv/webalive/sites/evermore.test.local/user")
       }
     })
 
     it.skipIf(!hasWorkspaces)("falls back to hyphens when dots directory doesn't exist (legacy)", async () => {
-      // Test case: Legacy sites like demo.goalive.nl use hyphens in filesystem
+      // Test case: Legacy sites like demo.test.local use hyphens in filesystem
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "demo.goalive.nl" },
+        body: { workspace: "demo.test.local" },
         requestId: "test-naming-002",
       })
 
@@ -163,14 +163,14 @@ describe("Workspace Resolution", () => {
       // This test documents the preference order
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "evermore.alive.best" },
+        body: { workspace: "evermore.test.local" },
         requestId: "test-naming-004",
       })
 
       expect(result.success).toBe(true)
       if (result.success) {
         // Should prefer the dotted version (new convention)
-        expect(result.workspace).toContain("evermore.alive.best")
+        expect(result.workspace).toContain("evermore.test.local")
         expect(result.workspace).not.toContain("evermore-alive-best")
       }
     })

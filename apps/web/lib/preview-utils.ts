@@ -11,8 +11,8 @@ const PREVIEW_BASE = env.NEXT_PUBLIC_PREVIEW_BASE
  * Convert workspace domain to preview subdomain label
  *
  * @example
- * domainToPreviewLabel("protino.alive.best") // "protino-alive-best"
- * domainToPreviewLabel("demo.goalive.nl") // "demo-goalive-nl"
+ * domainToPreviewLabel("protino.sonno.tech") // "protino-sonno-tech"
+ * domainToPreviewLabel("demo.sonno.tech") // "demo-sonno-tech"
  */
 export function domainToPreviewLabel(domain: string): string {
   return domain.replace(/\./g, "-")
@@ -22,7 +22,7 @@ export function domainToPreviewLabel(domain: string): string {
  * Convert preview label back to domain
  *
  * @example
- * previewLabelToDomain("protino-alive-best") // "protino.alive.best"
+ * previewLabelToDomain("protino-sonno-tech") // "protino.sonno.tech"
  */
 export function previewLabelToDomain(label: string): string {
   return label.replace(/-/g, ".")
@@ -32,8 +32,8 @@ export function previewLabelToDomain(label: string): string {
  * Get the actual site URL (production)
  *
  * @example
- * getSiteUrl("protino.alive.best") // "https://protino.alive.best/"
- * getSiteUrl("protino.alive.best", "/about") // "https://protino.alive.best/about"
+ * getSiteUrl("protino.sonno.tech") // "https://protino.sonno.tech/"
+ * getSiteUrl("protino.sonno.tech", "/about") // "https://protino.sonno.tech/about"
  */
 export function getSiteUrl(workspace: string, path = "/"): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
@@ -44,9 +44,9 @@ export function getSiteUrl(workspace: string, path = "/"): string {
  * Get the preview URL (for iframe embedding with auth bypass)
  *
  * @example
- * getPreviewUrl("protino.alive.best") // "https://protino-alive-best.preview.alive.best/"
- * getPreviewUrl("protino.alive.best", { path: "/about" }) // "https://protino-alive-best.preview.alive.best/about"
- * getPreviewUrl("protino.alive.best", { path: "/", token: "abc" }) // "https://protino-alive-best.preview.alive.best/?preview_token=abc"
+ * getPreviewUrl("protino.sonno.tech") // "https://protino-sonno-tech.preview.sonno.tech/"
+ * getPreviewUrl("protino.sonno.tech", { path: "/about" }) // "https://protino-sonno-tech.preview.sonno.tech/about"
+ * getPreviewUrl("protino.sonno.tech", { path: "/", token: "abc" }) // "https://protino-sonno-tech.preview.sonno.tech/?preview_token=abc"
  */
 export function getPreviewUrl(workspace: string, options?: { path?: string; token?: string }): string {
   const label = domainToPreviewLabel(workspace)

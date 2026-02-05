@@ -253,9 +253,9 @@ describe("extractDomainFromWorkspace", () => {
       expect(extractDomainFromWorkspace(workspace)).toBe("example.nl")
     })
 
-    it("handles alive.best subdomain pattern", () => {
-      const workspace = `${ALLOWED_BASES[0]}/mysite.alive.best/user`
-      expect(extractDomainFromWorkspace(workspace)).toBe("mysite.alive.best")
+    it("handles test.local subdomain pattern", () => {
+      const workspace = `${ALLOWED_BASES[0]}/mysite.test.local/user`
+      expect(extractDomainFromWorkspace(workspace)).toBe("mysite.test.local")
     })
   })
 

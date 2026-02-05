@@ -22,6 +22,9 @@ AI assistant guidelines for working on Claude Bridge.
 14. **CLEAN BEFORE DEPLOY** - Before ANY deployment, check for orphaned processes: `ps aux | grep -E "make|ship|turbo|next build" | grep -v grep`. If you see old ones, kill them: `pkill -9 -f "ship.sh|build-and-serve|turbo|next build"` and remove stale lock: `rm -f /tmp/alive-deploy.lock`. Only then deploy.
 15. **DEBUG STREAM ERRORS** - When users report "error while streaming", find root cause: `journalctl -u alive-staging | grep "STREAM_ERROR:<error-id>"`. See [docs/troubleshooting/stream-errors.md](./docs/troubleshooting/stream-errors.md).
 16. **NEXT.JS MODULE CACHING** - If config changes aren't picked up, clear cache: `rm -rf apps/web/.next/cache && systemctl restart [environment]`. Modules load config at initialization time.
+17. **NO FALLBACKS** - Never write `value || fallback` or `value ?? default` for configuration. If a value is required, throw when it's missing. Silent fallbacks hide bugs and create confusing behavior. Fail fast, fail loud.
+18. **NO `as` OR `any`** - Never use `as` type assertions or `any`. Fix the types properly. If TypeScript complains, the types are wrong — fix them at the source, don't silence the compiler.
+19. **NO HARDCODED DOMAINS** - Domain configuration comes from `server-config.json` at runtime. Never bake domains into env files, source code, or build artifacts. The same build must work on any server.
 
 ## Learn from OpenClaw (IMPORTANT)
 

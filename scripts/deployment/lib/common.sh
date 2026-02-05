@@ -21,7 +21,7 @@ NC='\033[0m'
 _DEPLOY_START=0
 _PHASE_START=0
 _CURRENT_PHASE=0
-_TOTAL_PHASES=8
+_TOTAL_PHASES=7
 
 # Initialize deployment timer
 timer_start() {

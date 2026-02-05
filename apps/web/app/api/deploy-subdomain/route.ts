@@ -4,9 +4,8 @@ import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { createSessionToken, verifySessionToken } from "@/features/auth/lib/jwt"
-import type { DeploySubdomainResponse } from "@/features/deployment/types/deploy-subdomain"
-import { validateDeploySubdomainRequest } from "@/features/deployment/types/guards"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { buildSubdomain } from "@/lib/config"
 import { deploySite } from "@/lib/deployment/deploy-site"
 import { DomainRegistrationError, registerDomain } from "@/lib/deployment/domain-registry"
@@ -35,40 +34,19 @@ export async function POST(request: NextRequest) {
     // Get user if authenticated (optional - allows anonymous deployments)
     const sessionUser = await getSessionUser()
 
-    // Parse and validate request body
-    let body: unknown
-    try {
-      body = await request.json()
-    } catch (_parseError) {
-      return structuredErrorResponse(ErrorCodes.INVALID_JSON, {
-        status: 400,
-        details: { message: "Invalid JSON in request body" },
+    // Parse and validate request body via typed schema
+    const parsed = await handleBody("deploy-subdomain", request)
+    if (isHandleBodyError(parsed)) return parsed
+
+    const { slug, siteIdeas, templateId, orgId, email, password } = parsed
+
+    // For anonymous users, require authentication (email/password)
+    if (!sessionUser && (!email || !password)) {
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
+        status: 401,
+        details: { message: "Authentication required. Please provide email and password to create an account." },
       })
     }
-
-    // For anonymous users, require authentication (email/password) before validating full schema
-    if (!sessionUser) {
-      const bodyObj = body as Record<string, unknown>
-      if (!bodyObj?.email || !bodyObj?.password) {
-        return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
-          status: 401,
-          details: { message: "Authentication required. Please provide email and password to create an account." },
-        })
-      }
-    }
-
-    // Validate using Zod schema
-    const parseResult = validateDeploySubdomainRequest(body)
-    if (!parseResult.success) {
-      const firstError = parseResult.error.issues[0]
-      const errorMessage = firstError ? `${firstError.path.join(".")}: ${firstError.message}` : "Invalid request"
-      return structuredErrorResponse(ErrorCodes.VALIDATION_ERROR, {
-        status: 400,
-        details: { message: errorMessage },
-      })
-    }
-
-    const { slug, siteIdeas, templateId, orgId, email, password } = parseResult.data
 
     // Ensure email is always a string (authenticated users get it from session, anonymous users must provide it)
     const deploymentEmail = sessionUser?.email || email
@@ -224,15 +202,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const response: DeploySubdomainResponse = {
+    const res = alrighty("deploy-subdomain", {
       ok: true,
       message: `Site ${fullDomain} deployed successfully!`,
       domain: fullDomain,
       orgId,
       chatUrl: `/chat?slug=${slug}`,
-    }
-
-    const res = NextResponse.json(response, { status: 200 })
+    })
 
     // For authenticated users: regenerate JWT with the new workspace included
     // For anonymous users: don't set session - they'll log in after account creation
@@ -268,12 +244,12 @@ export async function POST(request: NextRequest) {
 
     // Determine appropriate status code based on error type
     let status = 500
-    const nodeError = error as { code?: string | number; stderr?: string }
-
-    if (nodeError.code === "ETIMEDOUT") {
-      status = 408 // Request Timeout
-    } else if (nodeError.code === 12 || nodeError.stderr) {
-      status = 400 // Bad Request (DNS validation, script errors)
+    if (error && typeof error === "object") {
+      if ("code" in error && error.code === "ETIMEDOUT") {
+        status = 408 // Request Timeout
+      } else if (("code" in error && error.code === 12) || "stderr" in error) {
+        status = 400 // Bad Request (DNS validation, script errors)
+      }
     }
 
     return structuredErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, {

@@ -57,7 +57,7 @@ export interface OAuthConfig {
  * NOT from environment variables (to prevent misconfiguration).
  *
  * @param provider - OAuth provider key
- * @param baseUrl - Base URL for redirect URI (e.g., https://dev.terminal.goalive.nl)
+ * @param baseUrl - Base URL for redirect URI (e.g., https://dev.sonno.tech)
  */
 export function getOAuthConfig(provider: string, baseUrl?: string): OAuthConfig | null {
   if (!isOAuthProviderSupported(provider)) {

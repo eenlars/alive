@@ -25,3 +25,6 @@ dist-ssr
 
 # User uploads (temporary files for Claude analysis)
 .uploads/
+
+# Alive platform data (work files, schema metadata)
+.alive/

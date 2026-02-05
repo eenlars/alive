@@ -46,6 +46,11 @@ ${SITE_DOMAIN} {
 }
 EOF
 
+# Create workspace schema directories (.alive/files for user work files)
+log_info "Creating workspace schema directories..."
+mkdir -p "${TARGET_DIR}/user/.alive/files"
+echo "1" > "${TARGET_DIR}/user/.alive/.schema-version"
+
 # Set ownership
 log_info "Setting ownership to: $SITE_USER:$SITE_USER"
 chown -R "$SITE_USER:$SITE_USER" "$TARGET_DIR"

@@ -145,7 +145,7 @@ async function getOrgIdForDomain(domain: string): Promise<string | null> {
 /**
  * Get organization's credit balance via domain lookup
  *
- * @param domain - Domain identifier (e.g., "demo.goalive.nl")
+ * @param domain - Domain identifier (e.g., "demo.sonno.tech")
  * @returns Current credit balance, or null if domain/org not found
  */
 export async function getOrgCredits(domain: string): Promise<number | null> {

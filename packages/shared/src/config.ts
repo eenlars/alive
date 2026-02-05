@@ -115,7 +115,7 @@ const SITES_ROOT = requirePath(serverConfig.paths?.sitesRoot, "paths.sitesRoot")
 const IMAGES_STORAGE = requirePath(serverConfig.paths?.imagesStorage, "paths.imagesStorage")
 
 // Domain config from environment (REQUIRED - fails fast if missing)
-// NOTE: These are SERVER-ONLY. For client-side code, use NEXT_PUBLIC_ env vars directly.
+// NOTE: These are SERVER-ONLY. For client-side code, use apps/web/lib/config.client.ts
 const MAIN_DOMAIN = requireConfig("MAIN_DOMAIN", serverConfig.domains?.main, "Main domain")
 const WILDCARD_DOMAIN = requireConfig("WILDCARD_DOMAIN", serverConfig.domains?.wildcard, "Wildcard domain")
 const PREVIEW_BASE = requireConfig("PREVIEW_BASE", serverConfig.domains?.previewBase, "Preview base domain")
@@ -234,13 +234,13 @@ export const DOMAINS = {
   /** Dev domain suffix */
   DEV_SUFFIX: `.dev.${MAIN_DOMAIN}`,
 
-  /** Preview subdomain base (e.g., workspace-label.preview.alive.best) */
+  /** Preview subdomain base (e.g., workspace-label.preview.sonno.tech) */
   PREVIEW_BASE,
 
   /** Authentication forward endpoint for previews (uses dev server URL) */
   PREVIEW_AUTH: `${STREAM_DEV_URL}/api/auth/preview-guard`,
 
-  /** Cookie domain for cross-subdomain sharing (leading dot allows *.terminal.DOMAIN) */
+  /** Cookie domain for cross-subdomain sharing (leading dot allows *.DOMAIN) */
   COOKIE_DOMAIN,
 } as const
 

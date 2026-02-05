@@ -19,6 +19,7 @@ import {
 import { hasSessionCookie } from "@/features/auth/types/guards"
 import { isInputSafe } from "@/features/chat/lib/formatMessage"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
+import { ensureWorkspaceSchema } from "@/features/workspace/lib/ensure-workspace-schema"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
 import { getAccessTokenReadOnly, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
@@ -187,6 +188,9 @@ export async function POST(req: NextRequest) {
         return workspaceResult.response
       }
       cwd = workspaceResult.workspace
+
+      // Ensure workspace has required directory structure (.alive/files, etc.)
+      await ensureWorkspaceSchema(cwd)
 
       // Step 1: Get API key for authentication (user-provided OR OAuth)
       // Workers run as non-root and cannot read /root/.claude/.credentials.json,

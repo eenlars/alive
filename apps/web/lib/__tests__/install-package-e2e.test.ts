@@ -14,10 +14,10 @@ describe("install-package E2E", () => {
   describe("actual systemd service restart", () => {
     it("should be able to restart a real systemd service if available", () => {
       // This test checks if we can actually restart a service
-      // It's safe because we're using the startup.alive.best service
+      // It's safe because we're using the startup.test.local service
       // which is already deployed in the environment
 
-      const workspacePath = "/srv/webalive/sites/startup.alive.best/user"
+      const workspacePath = "/srv/webalive/sites/startup.test.local/user"
 
       // Verify workspace exists
       const workspaceExists = existsSync(workspacePath)
@@ -28,7 +28,7 @@ describe("install-package E2E", () => {
 
       // Extract domain
       const domain = extractDomainFromWorkspace(workspacePath)
-      expect(domain).toBe("startup.alive.best")
+      expect(domain).toBe("startup.test.local")
 
       // Try to restart service
       const result = restartSystemdService(domain!, "e2e-test-001")
@@ -62,18 +62,18 @@ describe("install-package E2E", () => {
   })
 
   describe("workspace path validation in real environment", () => {
-    it("should correctly identify startup.alive.best workspace", () => {
-      const workspacePath = "/srv/webalive/sites/startup.alive.best/user"
+    it("should correctly identify startup.test.local workspace", () => {
+      const workspacePath = "/srv/webalive/sites/startup.test.local/user"
       const domain = extractDomainFromWorkspace(workspacePath)
 
-      expect(domain).toBe("startup.alive.best")
+      expect(domain).toBe("startup.test.local")
     })
 
     it("should correctly identify other deployed sites if they exist", () => {
       const sitesPath = "/srv/webalive/sites"
 
       // Check which sites are actually deployed
-      const deployedSites = ["startup.alive.best", "two.goalive.nl", "staging.goalive.nl", DEFAULTS.WILDCARD_DOMAIN]
+      const deployedSites = ["startup.test.local", "two.test.local", "staging.test.local", DEFAULTS.WILDCARD_DOMAIN]
 
       for (const site of deployedSites) {
         const workspacePath = `${sitesPath}/${site}/user`
@@ -141,8 +141,8 @@ describe("install-package E2E", () => {
   describe("performance", () => {
     it("should extract domain quickly from valid paths", () => {
       const paths = [
-        "/srv/webalive/sites/startup.alive.best/user",
-        "/srv/webalive/sites/two.goalive.nl/user",
+        "/srv/webalive/sites/startup.test.local/user",
+        "/srv/webalive/sites/two.test.local/user",
         "/srv/webalive/sites/example.com/user",
       ]
 
@@ -187,11 +187,11 @@ describe("install-package E2E", () => {
 
     it("should not crash if systemctl is not available", () => {
       // Even if systemctl fails, the extraction should still work
-      const workspacePath = "/srv/webalive/sites/startup.alive.best/user"
+      const workspacePath = "/srv/webalive/sites/startup.test.local/user"
       const domain = extractDomainFromWorkspace(workspacePath)
 
       // Should succeed even if systemctl is unavailable
-      expect(domain).toBe("startup.alive.best")
+      expect(domain).toBe("startup.test.local")
     })
   })
 })

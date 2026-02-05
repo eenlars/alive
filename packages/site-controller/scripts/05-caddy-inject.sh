@@ -75,14 +75,14 @@ else
     # Validate legacy required variables
     require_var SITE_PORT CADDYFILE_PATH CADDY_LOCK_PATH FLOCK_TIMEOUT
 
-    # Generate preview subdomain label (e.g., windowsxp.alive.best -> windowsxp-alive-best)
+    # Generate preview subdomain label (e.g., windowsxp.sonno.tech -> windowsxp-alive-best)
     PREVIEW_LABEL=$(echo "$SITE_DOMAIN" | tr '.' '-')
 
     # Read environments from environments.json
     ENV_CONFIG_PATH="${STREAM_ROOT}/packages/shared/environments.json"
     if [[ -f "$ENV_CONFIG_PATH" ]] && command -v jq &> /dev/null; then
         log_info "Reading environments from: $ENV_CONFIG_PATH"
-        # Extract environments as JSON array: [{"key":"production","port":9000,"previewBase":"preview.terminal.goalive.nl","domain":"terminal.goalive.nl"},...]
+        # Extract environments as JSON array: [{"key":"production","port":9000,"previewBase":"preview.sonno.tech","domain":"sonno.tech"},...]
         ENVIRONMENTS=$(jq -c '[.environments | to_entries[] | {key: .value.key, port: .value.port, previewBase: .value.previewBase, domain: .value.domain}]' "$ENV_CONFIG_PATH")
 
         # Build frame ancestors: prefer server-config.json, fallback to environments.json domains
@@ -99,10 +99,10 @@ else
         fi
         log_warn "environments.json not found, using single environment fallback"
         # Fallback to single environment from env vars
-        PREVIEW_BASE="${PREVIEW_BASE:-preview.terminal.goalive.nl}"
+        PREVIEW_BASE="${PREVIEW_BASE:-preview.sonno.tech}"
         AUTH_PORT="${AUTH_PORT:-8998}"
         ENVIRONMENTS=$(cat <<EOF
-[{"key":"default","port":${AUTH_PORT},"previewBase":"${PREVIEW_BASE}","domain":"terminal.goalive.nl"}]
+[{"key":"default","port":${AUTH_PORT},"previewBase":"${PREVIEW_BASE}","domain":"sonno.tech"}]
 EOF
 )
         # Read from server config or use env var

@@ -2,7 +2,7 @@
  * Session store - Supabase IAM backed
  * Stores Claude SDK session IDs for conversation persistence
  *
- * NOTE: Session keys use workspace domain (e.g., "demo.goalive.nl") for compatibility
+ * NOTE: Session keys use workspace domain (e.g., "demo.sonno.tech") for compatibility
  * with conversation locking and cancellation, but database uses domain_id internally.
  */
 

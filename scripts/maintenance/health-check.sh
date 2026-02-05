@@ -12,8 +12,8 @@
 
 set -euo pipefail
 
-PROD_URL="https://terminal.goalive.nl/"
-STAGING_URL="https://staging.terminal.goalive.nl/"
+PROD_URL="https://sonno.tech/"
+STAGING_URL="https://staging.sonno.tech/"
 NTFY_TOPIC="${NTFY_TOPIC:-claude-bridge-alerts}"
 TIMEOUT=10
 STATE_FILE="/tmp/claude-bridge-health-state"
@@ -48,13 +48,13 @@ send_alert() {
 if ! check_url "$PROD_URL" "Production"; then
     # Only alert if this is a new failure (avoid spam)
     if [ ! -f "$STATE_FILE" ] || [ "$(cat "$STATE_FILE")" != "down" ]; then
-        send_alert "🔴 Production DOWN" "terminal.goalive.nl is not responding. Check: journalctl -u claude-bridge-production -n 50"
+        send_alert "🔴 Production DOWN" "sonno.tech is not responding. Check: journalctl -u claude-bridge-production -n 50"
         echo "down" > "$STATE_FILE"
     fi
 else
     # Clear state if recovered
     if [ -f "$STATE_FILE" ] && [ "$(cat "$STATE_FILE")" = "down" ]; then
-        send_alert "🟢 Production RECOVERED" "terminal.goalive.nl is back online" "default"
+        send_alert "🟢 Production RECOVERED" "sonno.tech is back online" "default"
     fi
     rm -f "$STATE_FILE"
 fi

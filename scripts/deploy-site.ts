@@ -3,7 +3,7 @@
  * Golden Path Site Deployment Script
  *
  * Usage:
- *   bun run deploy-site <domain>              # Deploy to alive.best subdomain
+ *   bun run deploy-site <domain>              # Deploy to sonno.tech subdomain
  *   bun run deploy-site mydomain.com          # Deploy custom domain
  *   bun run deploy-site --help                # Show help
  *
@@ -37,8 +37,8 @@ Usage:
   bun run deploy-site <domain>           Deploy a site
 
 Examples:
-  bun run deploy-site mysite             → mysite.alive.best
-  bun run deploy-site mysite.alive.best  → mysite.alive.best
+  bun run deploy-site mysite             → mysite.sonno.tech
+  bun run deploy-site mysite.sonno.tech  → mysite.sonno.tech
   bun run deploy-site custom.com         → custom.com (requires DNS)
 
 Environment:

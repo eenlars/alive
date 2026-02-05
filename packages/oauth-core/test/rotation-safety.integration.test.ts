@@ -1,5 +1,7 @@
 /**
- * Tests for safe secret rotation with instance awareness
+ * Integration tests for safe secret rotation with instance awareness.
+ *
+ * Requires real Supabase credentials (LOCKBOX + PostgREST) to be configured.
  */
 
 import { describe, expect, it, beforeEach } from "vitest"

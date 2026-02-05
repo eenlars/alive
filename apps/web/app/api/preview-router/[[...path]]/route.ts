@@ -1,9 +1,9 @@
 /**
  * Preview Router - Dynamic proxy for preview subdomains
  *
- * Handles all requests to *.PREVIEW_BASE (e.g., *.preview.alive.best) by:
- * 1. Extracting the subdomain (e.g., windowsxp-alive-best)
- * 2. Converting to hostname (e.g., windowsxp.alive.best)
+ * Handles all requests to *.PREVIEW_BASE (e.g., *.preview.sonno.tech) by:
+ * 1. Extracting the subdomain (e.g., windowsxp-sonno-tech)
+ * 2. Converting to hostname (e.g., windowsxp.sonno.tech)
  * 3. Looking up port from Supabase app.domains table
  * 4. Proxying to localhost:PORT
  *
@@ -73,10 +73,10 @@ async function getCachedPort(hostname: string): Promise<number | null> {
 
 /**
  * Extract hostname from preview subdomain
- * e.g., "windowsxp-alive-best.preview.alive.best" -> "windowsxp.alive.best"
+ * e.g., "windowsxp-sonno-tech.preview.sonno.tech" -> "windowsxp.sonno.tech"
  */
 function extractHostnameFromPreviewHost(host: string): string | null {
-  const previewBase = DOMAINS.PREVIEW_BASE // "preview.alive.best"
+  const previewBase = DOMAINS.PREVIEW_BASE // "preview.sonno.tech"
   const suffix = `.${previewBase}`
 
   if (!host.endsWith(suffix)) {

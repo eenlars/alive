@@ -270,7 +270,7 @@ const INTERNAL_TOOL_REGISTRY: ToolMetadata[] = [
         name: "workspace",
         type: "string",
         required: true,
-        description: "Workspace domain (e.g., 'two.goalive.nl')",
+        description: "Workspace domain (e.g., 'two.sonno.tech')",
       },
       {
         name: "search",

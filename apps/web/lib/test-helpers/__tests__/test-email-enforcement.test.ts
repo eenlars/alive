@@ -22,7 +22,7 @@ describe("Test Email Domain Enforcement", () => {
         "@yahoo.com",
         "@outlook.com",
         "@hotmail.com",
-        "@alive.best",
+        "@test.local",
         "@test.com",
         "@example.com",
         "@localhost",
@@ -47,7 +47,7 @@ describe("Test Email Domain Enforcement", () => {
       expect(isTestEmail("user@yahoo.com")).toBe(false)
       expect(isTestEmail("user@test.com")).toBe(false) // Too generic!
       expect(isTestEmail("user@example.com")).toBe(false) // Too generic!
-      expect(isTestEmail("user@alive.best")).toBe(false)
+      expect(isTestEmail("user@test.local")).toBe(false)
     })
 
     it("should return false for malformed emails", () => {
@@ -67,7 +67,7 @@ describe("Test Email Domain Enforcement", () => {
     it("should throw for real email domains", () => {
       expect(() => validateTestEmail("user@example.com")).toThrow("SECURITY ERROR")
       expect(() => validateTestEmail("user@yahoo.com")).toThrow("SECURITY ERROR")
-      expect(() => validateTestEmail("user@alive.best")).toThrow("SECURITY ERROR")
+      expect(() => validateTestEmail("user@test.local")).toThrow("SECURITY ERROR")
     })
 
     it("should throw with helpful error message", () => {

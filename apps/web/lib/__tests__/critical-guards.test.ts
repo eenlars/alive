@@ -47,7 +47,7 @@ describe("Path Security Guards", () => {
   describe("isValidWorkspaceString", () => {
     it("accepts valid workspaces", () => {
       expect(isValidWorkspaceString("example.com")).toBe(true)
-      expect(isValidWorkspaceString("my-site.alive.best")).toBe(true)
+      expect(isValidWorkspaceString("my-site.test.local")).toBe(true)
     })
 
     it("rejects invalid workspaces", () => {

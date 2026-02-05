@@ -11,7 +11,7 @@ export const debugWorkspaceParamsSchema = {
     .string()
     .min(1)
     .regex(/^[a-z0-9.-]+$/i)
-    .describe("Workspace domain (e.g., 'two.goalive.nl')"),
+    .describe("Workspace domain (e.g., 'two.sonno.tech')"),
   lines: z.number().int().min(1).max(1000).optional().default(200).describe("Log lines to analyze (default: 200)"),
   since: z.string().optional().describe('Time range (e.g., "5 minutes ago", "1 hour ago")'),
 }
@@ -45,8 +45,8 @@ export const debugWorkspaceTool = tool(
 Use this FIRST when troubleshooting workspace issues. Returns raw logs for you to analyze.
 
 Examples:
-- debug_workspace({ workspace: "two.goalive.nl" })
-- debug_workspace({ workspace: "demo.goalive.nl", since: "5 minutes ago" })`,
+- debug_workspace({ workspace: "two.sonno.tech" })
+- debug_workspace({ workspace: "demo.sonno.tech", since: "5 minutes ago" })`,
   debugWorkspaceParamsSchema,
   async args => {
     return debugWorkspace(args)

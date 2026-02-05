@@ -77,7 +77,7 @@ elif [[ -n "${CADDYFILE_PATH:-}" ]] && [[ -f "$CADDYFILE_PATH" ]]; then
 
     # Generate preview subdomain
     PREVIEW_LABEL=$(echo "$SITE_DOMAIN" | tr '.' '-')
-    PREVIEW_BASE="${PREVIEW_BASE:-preview.terminal.goalive.nl}"
+    PREVIEW_BASE="${PREVIEW_BASE:-preview.sonno.tech}"
     PREVIEW_DOMAIN="${PREVIEW_LABEL}.${PREVIEW_BASE}"
     ESCAPED_PREVIEW=$(echo "$PREVIEW_DOMAIN" | sed 's/\./\\./g')
 

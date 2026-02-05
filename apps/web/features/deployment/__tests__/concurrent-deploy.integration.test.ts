@@ -164,7 +164,7 @@ describe(SUITE_NAME, () => {
 
         return {
           slug,
-          domain: `${slug}.alive.best`,
+          domain: `${slug}.test.local`,
           user,
           sessionCookie,
         }
