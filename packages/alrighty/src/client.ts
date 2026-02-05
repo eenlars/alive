@@ -17,8 +17,8 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
     const path = `${basePath.replace(/\/$/, "")}/${String(endpoint).replace(/^\//, "")}`
     const hasBody = method !== "GET" && method !== "DELETE"
 
-    // Validate request
-    if (hasBody && body !== undefined && schemas[endpoint].req) {
+    // Validate request body against schema (runs even for undefined to catch missing required fields)
+    if (hasBody && schemas[endpoint].req) {
       try {
         schemas[endpoint].req.parse(body)
       } catch (e) {
