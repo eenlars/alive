@@ -26,14 +26,15 @@ export class SiteOrchestrator {
    * @returns Deployment result
    */
   static async deploy(config: DeployConfig): Promise<DeployResult> {
-    const {
-      domain,
-      slug,
-      templatePath,
-      rollbackOnFailure = true,
-      serverIp = DEFAULTS.SERVER_IP,
-      wildcardDomain = DEFAULTS.WILDCARD_DOMAIN,
-    } = config
+    const { domain, slug, templatePath, rollbackOnFailure = true, serverIp, wildcardDomain } = config
+
+    // Require serverIp and wildcardDomain - no fallbacks
+    if (!serverIp) {
+      throw DeploymentError.configurationMissing("serverIp is required")
+    }
+    if (!wildcardDomain) {
+      throw DeploymentError.configurationMissing("wildcardDomain is required")
+    }
 
     // Validate domain format to prevent path traversal
     if (!/^[a-z0-9.-]+$/i.test(domain)) {

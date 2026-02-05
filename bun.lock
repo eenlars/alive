@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "claude-bridge-mono",
@@ -317,16 +318,11 @@
       "name": "@webalive/worker-pool",
       "version": "1.0.0",
       "dependencies": {
+        "@anthropic-ai/claude-agent-sdk": "^0.1.25",
         "@types/node": "^20.0.0",
         "@webalive/shared": "workspace:*",
         "@webalive/tools": "workspace:*",
         "typescript": "^5.0.0",
-      },
-      "devDependencies": {
-        "@anthropic-ai/claude-agent-sdk": "^0.1.25",
-      },
-      "peerDependencies": {
-        "@anthropic-ai/claude-agent-sdk": "^0.1.0",
       },
     },
   },

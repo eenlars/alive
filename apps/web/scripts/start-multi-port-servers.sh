@@ -39,7 +39,7 @@ fi
 
 # Override JWT secret for E2E tests
 export JWT_SECRET=test-jwt-secret-for-e2e-tests
-export BRIDGE_ENV=local
+export STREAM_ENV=local
 export PLAYWRIGHT_TEST=true
 export TEST_MODE=true
 export SKIP_SSL_VALIDATION=true

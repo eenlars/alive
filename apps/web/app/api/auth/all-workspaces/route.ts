@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import { env } from "@webalive/env/server"
 import { SECURITY, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -25,11 +26,38 @@ export async function GET(req: NextRequest) {
     }
 
     // Test mode
-    if (process.env.BRIDGE_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+    if (env.STREAM_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
       return createCorsSuccessResponse(origin, {
         workspaces: {
           "test-org": [`test.${TEST_CONFIG.EMAIL_DOMAIN}`, `demo.${TEST_CONFIG.EMAIL_DOMAIN}`],
         },
+      })
+    }
+
+    const app = await createAppClient("service")
+
+    // Superadmins see ALL workspaces on this server (for support/debugging)
+    if (user.isSuperadmin) {
+      const { data: allDomains } = await app.from("domains").select("hostname,org_id")
+      const workspacesByOrg: Record<string, string[]> = {}
+
+      if (allDomains) {
+        for (const domain of allDomains) {
+          if (!domain.hostname) continue
+
+          // Only include domains that exist on this server
+          if (!domainExistsOnThisServer(domain.hostname)) continue
+
+          const orgKey = domain.org_id || "__unassigned__"
+          if (!workspacesByOrg[orgKey]) {
+            workspacesByOrg[orgKey] = []
+          }
+          workspacesByOrg[orgKey].push(domain.hostname)
+        }
+      }
+
+      return createCorsSuccessResponse(origin, {
+        workspaces: workspacesByOrg,
       })
     }
 
@@ -46,7 +74,6 @@ export async function GET(req: NextRequest) {
     const orgIds = memberships.map(m => m.org_id)
 
     // Get all domains for these orgs
-    const app = await createAppClient("service")
     const { data: domains } = await app.from("domains").select("hostname,org_id").in("org_id", orgIds)
 
     // Group workspaces by org_id

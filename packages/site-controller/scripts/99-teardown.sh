@@ -35,8 +35,8 @@ fi
 # Remove from Caddy configuration
 # =============================================================================
 
-# Get bridge root from env or use default
-BRIDGE_ROOT="${BRIDGE_ROOT:-/root/alive}"
+# Get stream root from env or use default
+STREAM_ROOT="${STREAM_ROOT:-/root/alive}"
 SERVER_CONFIG="/var/lib/claude-bridge/server-config.json"
 
 if [[ -f "$SERVER_CONFIG" ]]; then
@@ -47,7 +47,7 @@ if [[ -f "$SERVER_CONFIG" ]]; then
     # Regenerating will produce a Caddyfile without the deleted domain.
     log_info "Using generator mode for Caddy configuration..."
 
-    cd "$BRIDGE_ROOT"
+    cd "$STREAM_ROOT"
     if bun run --cwd packages/site-controller routing:generate; then
         log_info "Validating Caddy configuration..."
         if caddy validate --config /etc/caddy/Caddyfile 2>/dev/null; then

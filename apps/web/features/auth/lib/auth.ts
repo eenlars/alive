@@ -71,7 +71,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   }
 
   // Test mode
-  if (env.BRIDGE_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     const testEmail = SECURITY.LOCAL_TEST.EMAIL
     const isAdmin = isAdminUser(testEmail)
     const isSuperadmin = isSuperadminUser(testEmail)
@@ -117,7 +117,12 @@ export async function isWorkspaceAuthenticated(workspace: string): Promise<boole
   }
 
   // Test mode allows all workspaces
-  if (env.BRIDGE_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+    return true
+  }
+
+  // Superadmins can access any workspace
+  if (user.isSuperadmin) {
     return true
   }
 
@@ -156,7 +161,7 @@ export async function getAuthenticatedWorkspaces(): Promise<string[]> {
   }
 
   // Test mode
-  if (env.BRIDGE_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return []
   }
 
@@ -216,7 +221,7 @@ export async function getSafeSessionCookie(logPrefix = "[Auth]"): Promise<string
   }
 
   // Test mode special value
-  if (env.BRIDGE_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return sessionCookie.value
   }
 
@@ -264,20 +269,26 @@ export async function verifyWorkspaceAccess(
     return null
   }
 
-  // SECURITY: alive workspace requires SUPERADMIN status
-  // This is defense-in-depth - even if someone adds alive to their org,
+  // SECURITY: Superadmin workspace (alive) requires SUPERADMIN status
+  // This is defense-in-depth - even if someone adds it to their org,
   // they cannot access it without being a superadmin
   if (workspace === SUPERADMIN.WORKSPACE_NAME) {
     if (!user.isSuperadmin) {
-      console.log(`${logPrefix} ⛔ BLOCKED: Non-superadmin attempted alive access: ${user.email}`)
+      console.log(`${logPrefix} ⛔ BLOCKED: Non-superadmin attempted superadmin workspace access: ${user.email}`)
       return null
     }
-    console.log(`${logPrefix} ✅ Superadmin access granted for alive: ${user.email}`)
+    console.log(`${logPrefix} ✅ Superadmin access granted: ${user.email}`)
+    return workspace
+  }
+
+  // Superadmins can access ANY workspace (for support/debugging)
+  if (user.isSuperadmin) {
+    console.log(`${logPrefix} ✅ Superadmin accessing workspace: ${workspace} (user: ${user.email})`)
     return workspace
   }
 
   // Test mode allows all workspaces (except alive which is checked above)
-  if (env.BRIDGE_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return workspace
   }
 

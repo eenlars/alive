@@ -73,6 +73,15 @@ function sanitizeLabel(domain: string): string {
   return domain.replace(/\./g, "-")
 }
 
+function filterReservedDomains(domains: DomainRow[], environments: EnvironmentConfig[]): DomainRow[] {
+  const reservedDomains = new Set(environments.flatMap(e => [e.domain, e.previewBase]))
+
+  return domains.filter(d => {
+    if (reservedDomains.has(d.hostname)) return false
+    return !environments.some(e => d.hostname.endsWith(`.${e.previewBase}`))
+  })
+}
+
 async function loadServerConfig(): Promise<ServerConfig> {
   const raw = await readFile(SERVER_CONFIG_PATH, "utf8")
   const cfg = JSON.parse(raw) as ServerConfig
@@ -161,15 +170,17 @@ function renderCaddySites(
   _snippets: { common: string; image: string },
   domains: DomainRow[],
 ): string {
+  const filteredDomains = filterReservedDomains(domains, environments)
+
   const header = [
     "# GENERATED FILE - DO NOT EDIT",
     `# serverId: ${cfg.serverId}`,
     `# generated: ${new Date().toISOString()}`,
-    `# domains: ${domains.length}`,
+    `# domains: ${filteredDomains.length}`,
     `# environments: ${environments.map(e => e.key).join(", ")}`,
     "",
     "# NOTE: Snippets (common_headers, image_serving) are imported globally",
-    "# from /etc/caddy/snippets/ via the main Caddyfile",
+    "# by the main Caddyfile (see ops/caddy/Caddyfile.snippets)",
     "",
   ].join("\n")
 
@@ -177,7 +188,7 @@ function renderCaddySites(
   const frameAncestors = environments.map(e => `https://${e.domain}`).join(" ") + ` ${DOMAINS.STREAM_PROD}`
 
   // Generate site blocks
-  const siteBlocks = domains
+  const siteBlocks = filteredDomains
     .map(({ hostname, port }) => {
       // Main domain block
       const mainBlock = [
@@ -319,11 +330,12 @@ async function run() {
 
   console.log("\nQuerying database for domains...")
   const domains = await queryDomains(cfg.serverId)
+  const filteredDomains = filterReservedDomains(domains, environments)
   console.log(`  Found ${domains.length} domains for this server`)
-  console.log(`  Will generate ${domains.length * (1 + environments.length)} blocks total`)
-  console.log(`    - ${domains.length} main domain blocks`)
+  console.log(`  Will generate ${filteredDomains.length * (1 + environments.length)} blocks total`)
+  console.log(`    - ${filteredDomains.length} main domain blocks`)
   console.log(
-    `    - ${domains.length * environments.length} preview blocks (${environments.length} envs × ${domains.length} domains)`,
+    `    - ${filteredDomains.length * environments.length} preview blocks (${environments.length} envs × ${filteredDomains.length} domains)`,
   )
 
   console.log("\nGenerating files...")

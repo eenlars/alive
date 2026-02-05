@@ -5,6 +5,7 @@
  * Only accessible in test environments.
  */
 
+import { env } from "@webalive/env/server"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
@@ -17,9 +18,9 @@ interface SetQuotaRequest {
 
 export async function POST(req: Request) {
   // Environment guard - return 404 to hide endpoint existence
-  const isTestEnv = process.env.NODE_ENV === "test" || process.env.BRIDGE_ENV === "local"
+  const isTestEnv = env.NODE_ENV === "test" || env.STREAM_ENV === "local"
   const testSecret = req.headers.get("x-test-secret")
-  const expectedSecret = process.env.E2E_TEST_SECRET
+  const expectedSecret = env.E2E_TEST_SECRET
   const hasValidSecret = expectedSecret && testSecret === expectedSecret
 
   if (!isTestEnv && !hasValidSecret) {

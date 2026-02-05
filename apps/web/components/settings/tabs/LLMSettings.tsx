@@ -231,7 +231,7 @@ export function LLMSettings() {
             className={select}
             aria-label="Claude Model Selection"
           >
-            <option value={CLAUDE_MODELS.OPUS_4_5}>Claude Opus 4.5</option>
+            <option value={CLAUDE_MODELS.OPUS_4_6}>Claude Opus 4.6</option>
             <option value={CLAUDE_MODELS.SONNET_4_5}>Claude Sonnet 4.5 (Recommended)</option>
             <option value={CLAUDE_MODELS.HAIKU_4_5}>Claude Haiku 4.5</option>
           </select>

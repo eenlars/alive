@@ -4,7 +4,7 @@
  * Tests the USD cost calculation and credit conversion for Claude models.
  *
  * Pricing (per MTok):
- * - Opus 4.5: $5 input, $25 output
+ * - Opus 4.6: $5 input, $25 output
  * - Sonnet 4.5: $3/$6 input (≤200K/>200K), $15/$22.50 output
  * - Haiku 4.5: $1 input, $5 output
  *
@@ -29,13 +29,13 @@ describe("Model Pricing Configuration", () => {
   })
 
   test("should have pricing for all models", () => {
-    expect(MODEL_PRICING[CLAUDE_MODELS.OPUS_4_5]).toBeDefined()
+    expect(MODEL_PRICING[CLAUDE_MODELS.OPUS_4_6]).toBeDefined()
     expect(MODEL_PRICING[CLAUDE_MODELS.SONNET_4_5]).toBeDefined()
     expect(MODEL_PRICING[CLAUDE_MODELS.HAIKU_4_5]).toBeDefined()
   })
 
   test("Opus pricing should match Anthropic rates", () => {
-    const opus = MODEL_PRICING[CLAUDE_MODELS.OPUS_4_5]
+    const opus = MODEL_PRICING[CLAUDE_MODELS.OPUS_4_6]
     expect(opus.inputPerMTok).toBe(5)
     expect(opus.outputPerMTok).toBe(25)
   })
@@ -164,8 +164,8 @@ describe("calculateUSDCost()", () => {
     })
   })
 
-  describe("Opus 4.5", () => {
-    const model = CLAUDE_MODELS.OPUS_4_5
+  describe("Opus 4.6", () => {
+    const model = CLAUDE_MODELS.OPUS_4_6
 
     test("should calculate cost for 1M input tokens", () => {
       // 1M input tokens at $5/MTok = $5
@@ -216,7 +216,7 @@ describe("calculateCreditsToCharge()", () => {
   test("should convert Opus usage to credits", () => {
     // 1000 input + 1000 output = $0.03 USD
     // $0.03 * 10 = 0.3 credits
-    const credits = calculateCreditsToCharge(CLAUDE_MODELS.OPUS_4_5, 1000, 1000)
+    const credits = calculateCreditsToCharge(CLAUDE_MODELS.OPUS_4_6, 1000, 1000)
     expect(credits).toBe(0.3)
   })
 
@@ -258,7 +258,7 @@ describe("Cost comparison across models", () => {
   const OUTPUT_TOKENS = 1000
 
   test("Opus should be most expensive", () => {
-    const opusCost = calculateUSDCost(CLAUDE_MODELS.OPUS_4_5, INPUT_TOKENS, OUTPUT_TOKENS)
+    const opusCost = calculateUSDCost(CLAUDE_MODELS.OPUS_4_6, INPUT_TOKENS, OUTPUT_TOKENS)
     const sonnetCost = calculateUSDCost(CLAUDE_MODELS.SONNET_4_5, INPUT_TOKENS, OUTPUT_TOKENS)
     const haikuCost = calculateUSDCost(CLAUDE_MODELS.HAIKU_4_5, INPUT_TOKENS, OUTPUT_TOKENS)
 
@@ -267,11 +267,11 @@ describe("Cost comparison across models", () => {
   })
 
   test("Opus is 5x Haiku for input, 5x for output", () => {
-    const opusInput = calculateUSDCost(CLAUDE_MODELS.OPUS_4_5, 1_000_000, 0)
+    const opusInput = calculateUSDCost(CLAUDE_MODELS.OPUS_4_6, 1_000_000, 0)
     const haikuInput = calculateUSDCost(CLAUDE_MODELS.HAIKU_4_5, 1_000_000, 0)
     expect(opusInput / haikuInput).toBe(5)
 
-    const opusOutput = calculateUSDCost(CLAUDE_MODELS.OPUS_4_5, 0, 1_000_000)
+    const opusOutput = calculateUSDCost(CLAUDE_MODELS.OPUS_4_6, 0, 1_000_000)
     const haikuOutput = calculateUSDCost(CLAUDE_MODELS.HAIKU_4_5, 0, 1_000_000)
     expect(opusOutput / haikuOutput).toBe(5)
   })
@@ -283,8 +283,8 @@ describe("Cost comparison across models", () => {
     expect(haikuOutput / haikuInput).toBe(5)
 
     // For Opus: $5 input vs $25 output = 5x
-    const opusInput = calculateUSDCost(CLAUDE_MODELS.OPUS_4_5, 1_000_000, 0)
-    const opusOutput = calculateUSDCost(CLAUDE_MODELS.OPUS_4_5, 0, 1_000_000)
+    const opusInput = calculateUSDCost(CLAUDE_MODELS.OPUS_4_6, 1_000_000, 0)
+    const opusOutput = calculateUSDCost(CLAUDE_MODELS.OPUS_4_6, 0, 1_000_000)
     expect(opusOutput / opusInput).toBe(5)
 
     // For Sonnet (standard tier): $3 input vs $15 output = 5x

@@ -9,9 +9,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
 import { resolve } from "node:path"
 
-// Use vi.hoisted to define the mock before vi.mock hoisting
-const { existsSyncMock } = vi.hoisted(() => ({
+// Use vi.hoisted to define mocks before vi.mock hoisting
+const { existsSyncMock, TEST_WORKSPACE_BASES } = vi.hoisted(() => ({
   existsSyncMock: vi.fn(() => true),
+  TEST_WORKSPACE_BASES: ["/srv/webalive/sites", "/srv/webalive/legacy"] as const,
 }))
 
 // Mock existsSync
@@ -19,11 +20,23 @@ vi.mock("node:fs", () => ({
   existsSync: existsSyncMock,
 }))
 
+// Mock @webalive/shared to provide test values
+vi.mock("@webalive/shared", () => ({
+  SECURITY: {
+    ALLOWED_WORKSPACE_BASES: TEST_WORKSPACE_BASES,
+  },
+  isPathWithinWorkspace: (filePath: string, basePath: string) => {
+    const { resolve } = require("node:path")
+    const resolvedFile = resolve(filePath)
+    const resolvedBase = resolve(basePath)
+    return resolvedFile === resolvedBase || resolvedFile.startsWith(resolvedBase + "/")
+  },
+}))
+
 // Import after mocking
 import { validateWorkspacePath, extractDomainFromWorkspace, hasPackageJson } from "../src/lib/workspace-validator"
-import { SECURITY } from "@webalive/shared"
 
-const ALLOWED_BASES = SECURITY.ALLOWED_WORKSPACE_BASES
+const ALLOWED_BASES = TEST_WORKSPACE_BASES
 
 describe("validateWorkspacePath", () => {
   beforeEach(() => {

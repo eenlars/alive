@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs"
 import path from "node:path"
+import { env } from "@webalive/env/server"
 import { PATHS, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -114,7 +115,7 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
   // Allow "test" or "test.alive.local" workspace in local development mode (for E2E tests)
   // Test workspace is created by e2e-tests/genuine-setup.ts
   const testWorkspace = `test.${TEST_CONFIG.EMAIL_DOMAIN}`
-  if (process.env.BRIDGE_ENV === "local" && (customWorkspace === "test" || customWorkspace === testWorkspace)) {
+  if (env.STREAM_ENV === "local" && (customWorkspace === "test" || customWorkspace === testWorkspace)) {
     console.log(`[Workspace ${requestId}] Using test workspace in local mode`)
     return await resolveWorktreeIfRequested("/tmp/test-workspace", body, requestId)
   }
@@ -153,7 +154,7 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
 
     // Validate path is within workspace
     // Use candidate + "/user" (not normalized which includes "webalive/sites/" prefix)
-    const validation = resolveAndValidatePath(candidate + "/user", "/srv/webalive/sites")
+    const validation = resolveAndValidatePath(`${candidate}/user`, "/srv/webalive/sites")
     if (!validation.valid) {
       console.warn(`[Workspace ${requestId}] Invalid path validation: ${validation.error}`)
       continue

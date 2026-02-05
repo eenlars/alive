@@ -53,7 +53,7 @@ export function hasPackageJson(workspaceRoot: string): boolean {
  *
  * @example
  * extractDomainFromWorkspace("/srv/webalive/sites/example.com/user") // "example.com"
- * extractDomainFromWorkspace("/root/webalive/sites/test.com/user")   // "test.com"
+ * extractDomainFromWorkspace("/srv/webalive/sites/test.com/user")   // "test.com"
  *
  * @throws Error if the path is not within an allowed workspace base or domain cannot be extracted
  */

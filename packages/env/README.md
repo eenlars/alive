@@ -172,6 +172,33 @@ export const runtimeEnv = {
 MY_NEW_VAR=example_value
 ```
 
+4. **Run validation** to verify sync:
+```bash
+bun run validate:turbo-env
+```
+
+### IMPORTANT: NEXT_PUBLIC_* Variables
+
+**All `NEXT_PUBLIC_*` variables MUST be added to both:**
+- `src/schema.ts` (`clientSchema`)
+- `turbo.json` (`tasks.build.env`)
+
+If a `NEXT_PUBLIC_*` var is in schema.ts but NOT in turbo.json, it won't be baked into the client bundle during build, causing silent failures at runtime.
+
+**The validation script catches this:**
+```bash
+$ bun run validate:turbo-env
+❌ Missing from turbo.json tasks.build.env:
+   - NEXT_PUBLIC_MY_NEW_VAR
+
+These NEXT_PUBLIC_* vars are defined in @webalive/env schema
+but not in turbo.json, so they won't be baked into the client bundle.
+
+Fix: Add them to turbo.json tasks.build.env array
+```
+
+This validation runs automatically as part of `bun run static-check` (which runs in pre-push hooks).
+
 ## Why Server/Client Separation?
 
 **The Problem:**

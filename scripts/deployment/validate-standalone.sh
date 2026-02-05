@@ -91,17 +91,28 @@ for pkg in "${SUBPROCESS_PACKAGES[@]}"; do
     if [ ! -d "$PKG_DIR/node_modules" ]; then
         echo -e "  ${YELLOW}⚠${NC} packages/$pkg/node_modules missing (run bun install)"
     else
-        # For worker-pool, verify claude-agent-sdk exists
+        # For worker-pool, verify claude-agent-sdk exists (check both local and hoisted)
         if [ "$pkg" = "worker-pool" ]; then
             SDK_PATH="$PKG_DIR/node_modules/@anthropic-ai/claude-agent-sdk"
-            if [ ! -d "$SDK_PATH" ]; then
+            ROOT_SDK_PATH="$PROJECT_ROOT/node_modules/@anthropic-ai/claude-agent-sdk"
+            if [ -d "$SDK_PATH" ]; then
+                if [ -f "$SDK_PATH/cli.js" ]; then
+                    echo -e "  ${GREEN}✓${NC} packages/$pkg has claude-agent-sdk with cli.js"
+                else
+                    echo -e "  ${RED}✗${NC} packages/$pkg has SDK but missing cli.js"
+                    ERRORS=$((ERRORS + 1))
+                fi
+            elif [ -d "$ROOT_SDK_PATH" ]; then
+                # SDK is hoisted to root (monorepo behavior)
+                if [ -f "$ROOT_SDK_PATH/cli.js" ]; then
+                    echo -e "  ${GREEN}✓${NC} packages/$pkg has claude-agent-sdk (hoisted to root)"
+                else
+                    echo -e "  ${RED}✗${NC} packages/$pkg has SDK (hoisted) but missing cli.js"
+                    ERRORS=$((ERRORS + 1))
+                fi
+            else
                 echo -e "  ${RED}✗${NC} packages/$pkg missing @anthropic-ai/claude-agent-sdk"
                 ERRORS=$((ERRORS + 1))
-            elif [ ! -f "$SDK_PATH/cli.js" ]; then
-                echo -e "  ${RED}✗${NC} packages/$pkg has SDK but missing cli.js"
-                ERRORS=$((ERRORS + 1))
-            else
-                echo -e "  ${GREEN}✓${NC} packages/$pkg has claude-agent-sdk with cli.js"
             fi
         else
             echo -e "  ${GREEN}✓${NC} packages/$pkg has node_modules"

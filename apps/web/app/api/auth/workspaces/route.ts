@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import { env } from "@webalive/env/server"
 import { SECURITY, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -24,9 +25,23 @@ export async function GET(req: NextRequest) {
     }
 
     // Test mode
-    if (process.env.BRIDGE_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+    if (env.STREAM_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
       return createCorsSuccessResponse(origin, {
         workspaces: [`test.${TEST_CONFIG.EMAIL_DOMAIN}`, `demo.${TEST_CONFIG.EMAIL_DOMAIN}`],
+      })
+    }
+
+    const app = await createAppClient("service")
+
+    // Superadmins see ALL workspaces on this server (for support/debugging)
+    if (user.isSuperadmin) {
+      const { data: allDomains } = await app.from("domains").select("hostname, is_test_env")
+      const realDomains = allDomains?.filter(d => !d.is_test_env).map(d => d.hostname) || []
+      const testDomains = allDomains?.filter(d => d.is_test_env).map(d => d.hostname) || []
+      const workspaces = [...filterLocalDomains(realDomains), ...testDomains]
+
+      return createCorsSuccessResponse(origin, {
+        workspaces,
       })
     }
 
@@ -51,7 +66,6 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all domains for these orgs (include is_test_env to handle test domains)
-    const app = await createAppClient("service")
     const { data: domains } = await app.from("domains").select("hostname, is_test_env").in("org_id", orgIds)
 
     // Filter to only include domains that exist on THIS server

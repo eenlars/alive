@@ -14,7 +14,7 @@ fi
 # If you change this, update the constant in constants.ts AND .env.test (copied from .env.test.example)
 export JWT_SECRET=test-jwt-secret-for-e2e-tests
 
-export BRIDGE_ENV=local
+export STREAM_ENV=local
 export PLAYWRIGHT_TEST=true
 export TEST_MODE=true
 export SKIP_SSL_VALIDATION=true

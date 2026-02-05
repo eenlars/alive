@@ -10,13 +10,12 @@
   "domains": {
     "main": "goalive.nl",
     "wildcard": "alive.best",
-    "cookieDomain": ".terminal.goalive.nl",
-    "previewBase": "preview.terminal.goalive.nl",
+    "cookieDomain": ".alive.best",
+    "previewBase": "preview.alive.best",
     "frameAncestors": [
-      "https://terminal.goalive.nl",
-      "https://dev.terminal.goalive.nl",
-      "https://staging.terminal.goalive.nl",
-      "https://app.alive.best"
+      "https://app.alive.best",
+      "https://dev.app.alive.best",
+      "https://staging.alive.best"
     ]
   },
   "shell": {
