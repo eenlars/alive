@@ -22,7 +22,7 @@ Replaced the flat-rate token pricing with model-specific pricing based on Anthro
 
 | Model | Input | Output |
 |-------|-------|--------|
-| Opus 4.5 | $5 | $25 |
+| Opus 4.6 | $5 | $25 |
 | Sonnet 4.5 | $3 / $6 | $15 / $22.50 |
 | Haiku 4.5 | $1 | $5 |
 

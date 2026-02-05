@@ -2,12 +2,12 @@
  * Claude Model Pricing Configuration
  *
  * Prices per million tokens (MTok) in USD
- * Last updated: 2025-11-28
+ * Last updated: 2026-02-05
  *
  * Credit conversion: 1 USD = 10 credits
  *
  * Pricing source: Anthropic API pricing (excludes prompt caching)
- * - Opus 4.5: $5 input, $25 output per MTok
+ * - Opus 4.6: $5 input, $25 output per MTok
  * - Sonnet 4.5: $3/$6 input (≤200K/>200K), $15/$22.50 output per MTok
  * - Haiku 4.5: $1 input, $5 output per MTok
  */
@@ -42,7 +42,7 @@ export interface ModelPricing {
  * All prices in USD per million tokens (MTok)
  */
 export const MODEL_PRICING: Record<ClaudeModel, ModelPricing> = {
-  [CLAUDE_MODELS.OPUS_4_5]: {
+  [CLAUDE_MODELS.OPUS_4_6]: {
     inputPerMTok: 5,
     outputPerMTok: 25,
   },

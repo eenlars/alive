@@ -9,7 +9,7 @@
  * Available Claude models with short names (no version dates)
  */
 export const CLAUDE_MODELS = {
-  OPUS_4_5: "claude-opus-4-5",
+  OPUS_4_6: "claude-opus-4-6",
   SONNET_4_5: "claude-sonnet-4-5",
   HAIKU_4_5: "claude-haiku-4-5",
 } as const
@@ -38,8 +38,8 @@ export function isValidClaudeModel(value: unknown): value is ClaudeModel {
  */
 export function getModelDisplayName(model: ClaudeModel): string {
   switch (model) {
-    case CLAUDE_MODELS.OPUS_4_5:
-      return "Claude Opus 4.5"
+    case CLAUDE_MODELS.OPUS_4_6:
+      return "Claude Opus 4.6"
     case CLAUDE_MODELS.SONNET_4_5:
       return "Claude Sonnet 4.5"
     case CLAUDE_MODELS.HAIKU_4_5:
