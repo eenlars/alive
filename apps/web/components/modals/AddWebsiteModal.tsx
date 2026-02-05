@@ -40,7 +40,7 @@ export function AddWebsiteModal({ onClose, onSuccess }: AddWebsiteModalProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          domain,
+          slug: result.slug,
           templateId: result.templateId,
           siteIdeas: result.siteIdeas,
         }),
