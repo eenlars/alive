@@ -8,7 +8,7 @@
  *
  * Prerequisites:
  * - Test workspace created by globalSetup (e2e-tests/genuine-setup.ts)
- * - Local test server running on port 9548 (BRIDGE_ENV=local)
+ * - Local test server running on port 9548 (STREAM_ENV=local)
  * - ANTHROPIC_API_KEY in .env
  */
 

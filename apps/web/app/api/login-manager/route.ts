@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   const { passcode } = result.data
 
   // Local development mode - accept test passcode
-  if (env.BRIDGE_ENV === "local" && passcode === "test") {
+  if (env.STREAM_ENV === "local" && passcode === "test") {
     console.log("[Manager Login] Test mode authentication")
 
     // Create JWT session token (same as regular users, but with manager role)
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Verify passcode using timing-safe comparison
-  const isValid = env.BRIDGE_PASSCODE && timingSafeCompare(passcode, env.BRIDGE_PASSCODE)
+  const isValid = env.ALIVE_PASSCODE && timingSafeCompare(passcode, env.ALIVE_PASSCODE)
 
   if (!isValid) {
     console.warn(`[Manager Login] Invalid passcode attempt from ${clientId}`)

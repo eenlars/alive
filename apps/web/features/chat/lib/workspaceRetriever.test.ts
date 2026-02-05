@@ -214,8 +214,8 @@ describe("Workspace Resolution", () => {
   })
 
   describe("Local Development Mode", () => {
-    it("allows 'test' workspace in BRIDGE_ENV=local", () => {
-      vi.stubEnv("BRIDGE_ENV", "local")
+    it("allows 'test' workspace in STREAM_ENV=local", () => {
+      vi.stubEnv("STREAM_ENV", "local")
 
       const result = getWorkspace({
         host: "localhost",

@@ -6,7 +6,7 @@
  * - Layer 2: Server-side blocking
  *
  * NOTE: Some tests require a local test environment with PLAYWRIGHT_TEST=true
- * and BRIDGE_ENV=local set on the server. These are skipped on remote environments
+ * and STREAM_ENV=local set on the server. These are skipped on remote environments
  * (staging and production).
  */
 
@@ -105,10 +105,10 @@ test.describe("Protection System Verification", () => {
     expect(response.body.message).toContain("test mode")
   })
 
-  // This test uses test credentials from SECURITY.LOCAL_TEST that only work with BRIDGE_ENV=local
+  // This test uses test credentials from SECURITY.LOCAL_TEST that only work with STREAM_ENV=local
   // Purpose: Verify that non-Claude APIs (login) work and aren't blocked by PLAYWRIGHT_TEST=true
   test.skip("Allows non-Claude API calls (login, verify, etc)", async ({ page }) => {
-    test.skip(!isLocalTestServer, "Requires local test server with BRIDGE_ENV=local credentials")
+    test.skip(!isLocalTestServer, "Requires local test server with STREAM_ENV=local credentials")
     // Login should work - it's NOT a protected endpoint
     await page.goto("/")
     await page.getByTestId("email-input").fill(SECURITY.LOCAL_TEST.EMAIL)

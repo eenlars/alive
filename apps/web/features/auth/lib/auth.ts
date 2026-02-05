@@ -71,7 +71,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   }
 
   // Test mode
-  if (env.BRIDGE_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     const testEmail = SECURITY.LOCAL_TEST.EMAIL
     const isAdmin = isAdminUser(testEmail)
     const isSuperadmin = isSuperadminUser(testEmail)
@@ -117,7 +117,7 @@ export async function isWorkspaceAuthenticated(workspace: string): Promise<boole
   }
 
   // Test mode allows all workspaces
-  if (env.BRIDGE_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return true
   }
 
@@ -156,7 +156,7 @@ export async function getAuthenticatedWorkspaces(): Promise<string[]> {
   }
 
   // Test mode
-  if (env.BRIDGE_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return []
   }
 
@@ -216,7 +216,7 @@ export async function getSafeSessionCookie(logPrefix = "[Auth]"): Promise<string
   }
 
   // Test mode special value
-  if (env.BRIDGE_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return sessionCookie.value
   }
 
@@ -276,8 +276,8 @@ export async function verifyWorkspaceAccess(
     return workspace
   }
 
-  // Test mode allows all workspaces (except claude-bridge which is checked above)
-  if (env.BRIDGE_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  // Test mode allows all workspaces (except alive which is checked above)
+  if (env.STREAM_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return workspace
   }
 

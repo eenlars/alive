@@ -84,18 +84,18 @@ export const env = createEnv({
  * 3. OAuth token from ~/.claude/.credentials.json (auto-refreshed)
  * 4. Mock key for local development
  *
- * In local dev mode (BRIDGE_ENV=local), allows a mock key for testing.
+ * In local dev mode (STREAM_ENV=local), allows a mock key for testing.
  */
 export function getAnthropicApiKey(): string {
   const apiKey = env.ANTHROPIC_API_KEY || env.ANTH_API_SECRET
-  const isLocalDev = env.BRIDGE_ENV === "local"
+  const isLocalDev = env.STREAM_ENV === "local"
 
   if (apiKey) {
     return apiKey
   }
 
   if (!isLocalDev) {
-    throw new Error("ANTHROPIC_API_KEY or ANTH_API_SECRET is required (or set BRIDGE_ENV=local for development)")
+    throw new Error("ANTHROPIC_API_KEY or ANTH_API_SECRET is required (or set STREAM_ENV=local for development)")
   }
 
   return "sk-ant-mock-key-for-local-development"
@@ -110,18 +110,18 @@ const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
  * Get Redis URL with environment-aware validation
  *
  * - Production/Staging: REDIS_URL is REQUIRED (throws if missing)
- * - Local dev (BRIDGE_ENV=local): Falls back to default dev password
+ * - Local dev (STREAM_ENV=local): Falls back to default dev password
  *
  * This prevents auth mismatches in production while allowing easy local dev.
  */
 export function getRedisUrl(): string {
   const redisUrl = env.REDIS_URL
-  const isLocalDev = env.BRIDGE_ENV === "local"
+  const isLocalDev = env.STREAM_ENV === "local"
 
   if (!redisUrl && !isLocalDev) {
     throw new Error(
       "REDIS_URL is required in production/staging. " +
-        "Set REDIS_URL environment variable or use BRIDGE_ENV=local for development.",
+        "Set REDIS_URL environment variable or use STREAM_ENV=local for development.",
     )
   }
 
@@ -132,18 +132,18 @@ export function getRedisUrl(): string {
  * Get superadmin emails with environment-aware validation
  *
  * - Production/Staging: SUPERADMIN_EMAILS is REQUIRED (throws if missing)
- * - Local dev (BRIDGE_ENV=local): Returns empty array (all users are effectively superadmin)
+ * - Local dev (STREAM_ENV=local): Returns empty array (all users are effectively superadmin)
  *
  * This prevents the "no superadmin" scenario in production.
  */
 export function getSuperadminEmails(): readonly string[] {
   const emailsEnv = env.SUPERADMIN_EMAILS
-  const isLocalDev = env.BRIDGE_ENV === "local"
+  const isLocalDev = env.STREAM_ENV === "local"
 
   if (!emailsEnv && !isLocalDev) {
     throw new Error(
       "SUPERADMIN_EMAILS is required in production/staging. " +
-        "Set SUPERADMIN_EMAILS environment variable (comma-separated emails) or use BRIDGE_ENV=local for development.",
+        "Set SUPERADMIN_EMAILS environment variable (comma-separated emails) or use STREAM_ENV=local for development.",
     )
   }
 

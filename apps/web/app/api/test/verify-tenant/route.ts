@@ -14,7 +14,7 @@ import { createIamClient } from "@/lib/supabase/iam"
 
 export async function GET(req: Request) {
   // Environment guard - accessible in test/local environments OR with valid test secret
-  const isTestEnv = process.env.NODE_ENV === "test" || process.env.BRIDGE_ENV === "local"
+  const isTestEnv = process.env.NODE_ENV === "test" || process.env.STREAM_ENV === "local"
 
   // Check for test secret header (for staging/production E2E tests)
   const testSecret = req.headers.get("x-test-secret")

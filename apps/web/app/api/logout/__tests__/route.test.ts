@@ -273,12 +273,12 @@ describe("POST /api/logout - Cookie Configuration Consistency", () => {
 
   /**
    * THE SECURE FLAG BUG TEST
-   * On deployed servers (BRIDGE_ENV !== "local"), secure should be true (HTTPS only)
-   * In local development (BRIDGE_ENV === "local"), secure should be false (HTTP works)
+   * On deployed servers (STREAM_ENV !== "local"), secure should be true (HTTPS only)
+   * In local development (STREAM_ENV === "local"), secure should be false (HTTP works)
    */
-  it("should set secure flag based on BRIDGE_ENV (THE SECURE FLAG BUG)", async () => {
-    // Deployed server (BRIDGE_ENV !== "local"): secure should be TRUE
-    vi.stubEnv("BRIDGE_ENV", "production")
+  it("should set secure flag based on STREAM_ENV (THE SECURE FLAG BUG)", async () => {
+    // Deployed server (STREAM_ENV !== "local"): secure should be TRUE
+    vi.stubEnv("STREAM_ENV", "production")
     let req = createMockRequest("http://localhost/api/logout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -287,8 +287,8 @@ describe("POST /api/logout - Cookie Configuration Consistency", () => {
     let setCookie = res.headers.get("set-cookie")
     expect(setCookie).toContain("Secure")
 
-    // Local development (BRIDGE_ENV === "local"): secure should be FALSE
-    vi.stubEnv("BRIDGE_ENV", "local")
+    // Local development (STREAM_ENV === "local"): secure should be FALSE
+    vi.stubEnv("STREAM_ENV", "local")
     req = createMockRequest("http://localhost/api/logout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

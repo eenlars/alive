@@ -173,7 +173,7 @@ function getBuildInfo(): BuildInfo {
   buildInfo = {
     branch,
     buildTime,
-    env: process.env.BRIDGE_ENV ?? process.env.NODE_ENV ?? "unknown",
+    env: process.env.STREAM_ENV ?? process.env.NODE_ENV ?? "unknown",
   }
 
   return buildInfo

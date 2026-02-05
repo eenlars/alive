@@ -73,7 +73,7 @@ export const baseTestConfig = {
   setupFiles: ["./tests/setup.ts"],
   env: {
     ...loadEnvFile(),
-    BRIDGE_ENV: "local",
+    STREAM_ENV: "local",
   },
   exclude: [
     "**/node_modules/**",

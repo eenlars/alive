@@ -382,17 +382,17 @@ export const SECURITY = {
 } as const
 
 // =============================================================================
-// Bridge Environment
+// Stream Environment
 // =============================================================================
 
-export const BRIDGE_ENV = {
+export const STREAM_ENV = {
   LOCAL: "local",
   DEV: "dev",
   STAGING: "staging",
   PRODUCTION: "production",
 } as const
 
-export type BridgeEnv = (typeof BRIDGE_ENV)[keyof typeof BRIDGE_ENV]
+export type StreamEnv = (typeof STREAM_ENV)[keyof typeof STREAM_ENV]
 
 // =============================================================================
 // Helper Functions
