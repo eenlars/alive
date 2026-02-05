@@ -115,7 +115,7 @@ const SITES_ROOT = requirePath(serverConfig.paths?.sitesRoot, "paths.sitesRoot")
 const IMAGES_STORAGE = requirePath(serverConfig.paths?.imagesStorage, "paths.imagesStorage")
 
 // Domain config from environment (REQUIRED - fails fast if missing)
-// NOTE: These are SERVER-ONLY. For client-side code, use NEXT_PUBLIC_ env vars directly.
+// NOTE: These are SERVER-ONLY. For client-side code, use apps/web/lib/config.client.ts
 const MAIN_DOMAIN = requireConfig("MAIN_DOMAIN", serverConfig.domains?.main, "Main domain")
 const WILDCARD_DOMAIN = requireConfig("WILDCARD_DOMAIN", serverConfig.domains?.wildcard, "Wildcard domain")
 const PREVIEW_BASE = requireConfig("PREVIEW_BASE", serverConfig.domains?.previewBase, "Preview base domain")

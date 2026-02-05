@@ -6,7 +6,7 @@ import type { FieldErrors, FieldValues, Path, UseFormRegister } from "react-hook
 import { checkSlugAvailability } from "@/features/deployment/lib/slug-api"
 import { isValidSlug } from "@/features/deployment/lib/slug-utils"
 import { fieldVariants } from "@/lib/animations"
-import { WILDCARD_DOMAIN } from "@/lib/config.client"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 
 // Generic interface that works with any form containing a 'slug' field
 interface SlugInputProps<T extends FieldValues & { slug: string }> {
@@ -22,6 +22,7 @@ export function SlugInput<T extends FieldValues & { slug: string }>({
   watchSlug,
   isDeploying,
 }: SlugInputProps<T>) {
+  const { wildcard } = useDomainConfig()
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null)
   const [isChecking, setIsChecking] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -104,7 +105,7 @@ export function SlugInput<T extends FieldValues & { slug: string }>({
             className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap"
           >
             <span className="text-gray-900 dark:text-white font-bold">{watchSlug}</span>
-            <span className="text-gray-500 dark:text-gray-400 font-medium">.{WILDCARD_DOMAIN}</span>
+            <span className="text-gray-500 dark:text-gray-400 font-medium">.{wildcard}</span>
           </motion.div>
         )}
       </motion.div>

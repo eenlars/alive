@@ -3,11 +3,11 @@ import { DOMAINS, REFERRAL } from "@webalive/shared"
 const STORAGE_KEY = "alive_referral"
 
 /**
- * Build invite link from code
+ * Build invite link from code (server-side only — called from API routes)
  */
 export function buildInviteLink(code: string): string {
-  // Use NEXT_PUBLIC_APP_URL (set per-environment) with fallback to wildcard domain
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${DOMAINS.WILDCARD}`
+  if (!baseUrl || baseUrl === "https://") throw new Error("[referral] Missing NEXT_PUBLIC_APP_URL and WILDCARD_DOMAIN")
   return `${baseUrl}/invite/${code}`
 }
 
