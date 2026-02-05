@@ -119,7 +119,7 @@ Then create the automation via the automations API.
 Example flow:
 1. User: "Set up a daily task to check my website"
 2. You: Call ask_automation_config to show the form
-3. User submits: "Task: Daily check, Website: mybakery.alive.best, Schedule: Daily at 09:00..."
+3. User submits: "Task: Daily check, Website: mybakery.sonno.tech, Schedule: Daily at 09:00..."
 4. You: Create the automation via POST /api/automations`,
   askAutomationConfigParamsSchema,
   async args => {

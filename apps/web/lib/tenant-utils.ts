@@ -5,7 +5,7 @@
 export function workspaceToTenantId(workspace: string): string {
   // Convert workspace path to tenant ID
   // Examples:
-  // /srv/webalive/sites/demo.goalive.nl/user/src -> demo.goalive.nl
+  // /srv/webalive/sites/demo.sonno.tech/user/src -> demo.sonno.tech
   // /srv/webalive/sites/homable.nl/user -> homable.nl
 
   const normalized = workspace.replace(/\/+$/, "") // Remove trailing slashes

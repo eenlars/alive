@@ -8,18 +8,18 @@
     "imagesStorage": "/srv/webalive/storage"
   },
   "domains": {
-    "main": "goalive.nl",
-    "wildcard": "alive.best",
-    "cookieDomain": ".alive.best",
-    "previewBase": "preview.alive.best",
+    "main": "sonno.tech",
+    "wildcard": "sonno.tech",
+    "cookieDomain": ".sonno.tech",
+    "previewBase": "preview.sonno.tech",
     "frameAncestors": [
-      "https://app.alive.best",
-      "https://dev.app.alive.best",
-      "https://staging.alive.best"
+      "https://app.sonno.tech",
+      "https://dev.sonno.tech",
+      "https://staging.sonno.tech"
     ]
   },
   "shell": {
-    "domains": ["go.goalive.nl"],
+    "domains": ["go.sonno.tech"],
     "listen": ":8443",
     "upstream": "localhost:3888"
   },

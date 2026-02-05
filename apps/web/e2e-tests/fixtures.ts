@@ -151,7 +151,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       { expiresIn: "30d" },
     )
 
-    // Extract domain from baseURL for cookie (e.g., "staging.terminal.goalive.nl")
+    // Extract domain from baseURL for cookie (e.g., "staging.sonno.tech")
     const cookieDomain = baseURL ? new URL(baseURL).hostname : "localhost"
 
     // Set auth cookie

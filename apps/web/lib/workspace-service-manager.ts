@@ -37,7 +37,7 @@ function log(level: "log" | "error" | "warn", requestId: string, message: string
  *
  * Examples:
  * - /srv/webalive/sites/example.com/user → example.com
- * - /srv/webalive/sites/two.goalive.nl/user → two.goalive.nl
+ * - /srv/webalive/sites/two.sonno.tech/user → two.sonno.tech
  * - /srv/webalive/sites/test/user → test
  *
  * @param workspaceRoot - Absolute path to workspace root
@@ -94,7 +94,7 @@ export function extractDomainFromWorkspace(workspaceRoot: string): string | null
  *
  * Examples:
  * - example.com → site@example-com.service
- * - two.goalive.nl → site@two-goalive-nl.service
+ * - two.sonno.tech → site@two-sonno-tech.service
  * - test → site@test.service
  *
  * @param domain - Domain name (must be alphanumeric, dots, hyphens only)

@@ -36,9 +36,9 @@ export function getOAuthRoutePath(provider: OAuthProvider): string {
 
 /**
  * Build the full redirect URI for OAuth callbacks
- * @param baseUrl - The base URL (e.g., https://dev.terminal.goalive.nl)
+ * @param baseUrl - The base URL (e.g., https://dev.sonno.tech)
  * @param provider - The OAuth provider
- * @returns Full redirect URI (e.g., https://dev.terminal.goalive.nl/api/auth/linear)
+ * @returns Full redirect URI (e.g., https://dev.sonno.tech/api/auth/linear)
  */
 export function buildOAuthRedirectUri(baseUrl: string, provider: OAuthProvider): string {
   // Remove trailing slash from baseUrl if present

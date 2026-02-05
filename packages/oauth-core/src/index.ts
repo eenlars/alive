@@ -197,7 +197,7 @@ export class OAuthManager {
       if (config && redirectUriOverride && !config.redirect_uri) {
         config.redirect_uri = redirectUriOverride
       } else if (config && redirectUriOverride && config.redirect_uri !== redirectUriOverride) {
-        // Override takes precedence - this happens when app.alive.best calls but env has terminal.goalive.nl
+        // Override takes precedence - this happens when app.sonno.tech calls but env has different domain
         config.redirect_uri = redirectUriOverride
       }
 

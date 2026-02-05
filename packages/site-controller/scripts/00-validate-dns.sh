@@ -28,7 +28,7 @@ if [[ -z "$RESOLVED_IP" ]]; then
     log_error "  Value/Points to: $SERVER_IP"
     log_error "  TTL: 300 (or Auto)"
     log_error "⚠️  ALSO: Remove any AAAA records (IPv6) for $SITE_DOMAIN"
-    log_error "📖 See DNS setup guide: https://terminal.goalive.nl/docs/dns-setup"
+    log_error "📖 See DNS setup guide: https://sonno.tech/docs/dns-setup"
     exit 12
 fi
 
@@ -39,7 +39,7 @@ if [[ "$RESOLVED_IP" =~ ^(104\.1[6-9]\.|104\.2[0-4]\.|172\.6[4-7]\.|172\.7[0-1]\
     log_error "DNS Error: $SITE_DOMAIN points to $RESOLVED_IP (Cloudflare proxy IP)"
     log_error "🚨 CLOUDFLARE PROXY DETECTED: You must disable the orange cloud (proxy) in Cloudflare DNS settings!"
     log_error "💡 Make the cloud icon GRAY (not orange) next to your A record, then try again."
-    log_error "📖 See DNS setup guide: https://terminal.goalive.nl/docs/dns-setup"
+    log_error "📖 See DNS setup guide: https://sonno.tech/docs/dns-setup"
     exit 12
 fi
 
@@ -52,7 +52,7 @@ if [[ "$RESOLVED_IP" != "$SERVER_IP" ]]; then
     log_error "  Value/Points to: $SERVER_IP"
     log_error "  TTL: 300 (or Auto)"
     log_error "⚠️  ALSO: Remove any AAAA records (IPv6) for $SITE_DOMAIN"
-    log_error "📖 See DNS setup guide: https://terminal.goalive.nl/docs/dns-setup"
+    log_error "📖 See DNS setup guide: https://sonno.tech/docs/dns-setup"
     exit 12
 fi
 

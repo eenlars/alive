@@ -7,8 +7,8 @@ export const readServerLogsParamsSchema = {
   workspace: z
     .string()
     .min(1)
-    .regex(/^[a-z0-9.-]+$/i, "Workspace must be a valid domain (e.g., two.goalive.nl)")
-    .describe("Workspace domain (e.g., 'two.goalive.nl')"),
+    .regex(/^[a-z0-9.-]+$/i, "Workspace must be a valid domain (e.g., two.sonno.tech)")
+    .describe("Workspace domain (e.g., 'two.sonno.tech')"),
   search: z.string().optional().describe('Filter logs by search term (e.g., "error", "warning", "vite")'),
   search_regex: z
     .string()
@@ -174,8 +174,8 @@ export const readServerLogsTool = tool(
 Use this FIRST when debugging to see actual dev server errors.
 
 Examples:
-- read_server_logs({ workspace: "two.goalive.nl" })
-- read_server_logs({ workspace: "demo.goalive.nl", search: "error" })
+- read_server_logs({ workspace: "two.sonno.tech" })
+- read_server_logs({ workspace: "demo.sonno.tech", search: "error" })
 - read_server_logs({ workspace: "mysite.com", search_regex: "error|fail|exception" })
 - read_server_logs({ workspace: "site.com", lines: 200, since: "1 hour ago" })`,
   readServerLogsParamsSchema,

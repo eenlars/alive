@@ -49,7 +49,7 @@ export function isOriginInAllowedDomains(origin: string): boolean {
 }
 
 /**
- * Check if an origin matches the allowed domain pattern (.goalive.nl)
+ * Check if an origin matches the allowed domain pattern (.sonno.tech)
  */
 export function isOriginGoaliveNLDomain(origin: string): boolean {
   return origin.endsWith(DOMAINS.MAIN_SUFFIX)

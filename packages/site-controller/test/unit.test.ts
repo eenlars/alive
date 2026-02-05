@@ -39,6 +39,6 @@ describe("Server Configuration", () => {
   })
 
   it("should have valid wildcard domain", () => {
-    expect(DEFAULTS.WILDCARD_DOMAIN).toBe("alive.best")
+    expect(DEFAULTS.WILDCARD_DOMAIN).toBe("sonno.tech")
   })
 })

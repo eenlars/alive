@@ -14,12 +14,12 @@ import { domainToServiceName, extractDomainFromWorkspace } from "@/lib/workspace
 
 describe("install-package integration flow", () => {
   describe("successful installation with restart", () => {
-    it("extracts domain and generates service name correctly for startup.alive.best", () => {
-      const workspacePath = "/srv/webalive/sites/startup.alive.best/user"
+    it("extracts domain and generates service name correctly for startup.sonno.tech", () => {
+      const workspacePath = "/srv/webalive/sites/startup.sonno.tech/user"
 
       // Step 1: Extract domain
       const domain = extractDomainFromWorkspace(workspacePath)
-      expect(domain).toBe("startup.alive.best")
+      expect(domain).toBe("startup.sonno.tech")
 
       // Step 2: Generate service name
       const serviceName = domainToServiceName(domain!)
@@ -29,11 +29,11 @@ describe("install-package integration flow", () => {
       expect(serviceName).toMatch(/^site@[a-zA-Z0-9-]+\.service$/)
     })
 
-    it("handles two.goalive.nl workspace", () => {
-      const workspacePath = "/srv/webalive/sites/two.goalive.nl/user"
+    it("handles two.sonno.tech workspace", () => {
+      const workspacePath = "/srv/webalive/sites/two.sonno.tech/user"
 
       const domain = extractDomainFromWorkspace(workspacePath)
-      expect(domain).toBe("two.goalive.nl")
+      expect(domain).toBe("two.sonno.tech")
 
       const serviceName = domainToServiceName(domain!)
       expect(serviceName).toBe("site@two-goalive-nl.service")
@@ -193,14 +193,14 @@ describe("install-package integration flow", () => {
     })
   })
 
-  describe("real-world workflow - zustand for startup.alive.best", () => {
+  describe("real-world workflow - zustand for startup.sonno.tech", () => {
     it("shows complete flow from workspace to service restart", () => {
-      const workspacePath = "/srv/webalive/sites/startup.alive.best/user"
+      const workspacePath = "/srv/webalive/sites/startup.sonno.tech/user"
       const _packageName = "zustand"
 
       // Step 1: Validate workspace path
       const domain = extractDomainFromWorkspace(workspacePath)
-      expect(domain).toBe("startup.alive.best")
+      expect(domain).toBe("startup.sonno.tech")
 
       // Step 2: Generate systemd service name
       const serviceName = domainToServiceName(domain!)
@@ -212,7 +212,7 @@ describe("install-package integration flow", () => {
 
       // Expected flow:
       // - bun add zustand succeeds
-      // - Domain "startup.alive.best" extracted
+      // - Domain "startup.sonno.tech" extracted
       // - Service "site@startup-alive-best.service" restarted
       // - API returns { ok: true, message: "...", devServerRestarted: true }
     })

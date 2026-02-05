@@ -21,7 +21,7 @@ describe("Domain normalization", () => {
 
   it("validates domains", () => {
     expect(isValidDomain("example.com")).toBe(true)
-    expect(isValidDomain("my-site.alive.best")).toBe(true)
+    expect(isValidDomain("my-site.sonno.tech")).toBe(true)
     expect(isValidDomain("sub.domain.com")).toBe(true)
 
     expect(isValidDomain("")).toBe(false)
@@ -31,7 +31,7 @@ describe("Domain normalization", () => {
 
   it("converts domain to slug", () => {
     expect(domainToSlug("example.com")).toBe("example-com")
-    expect(domainToSlug("my-site.alive.best")).toBe("my-site-alive-best")
+    expect(domainToSlug("my-site.sonno.tech")).toBe("my-site-alive-best")
   })
 })
 

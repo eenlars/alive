@@ -205,3 +205,12 @@ export {
   type TemplateIcon,
   type TemplateId,
 } from "./templates.js"
+export {
+  WORKSPACE_SCHEMA_VERSION,
+  WORKSPACE_DIRS,
+  WORKSPACE_SCHEMA_VERSION_FILE,
+  WORKSPACE_MIGRATIONS,
+  getRequiredDirectories,
+  type WorkspaceMigration,
+  type WorkspaceDir,
+} from "./workspace-schema.js"

@@ -66,9 +66,9 @@ vi.mock("@/lib/supabase/iam", () => ({
 
 import { sessionStore, tabKey, tryLockConversation, unlockConversation } from "@/features/auth/lib/sessionStore"
 
-// Use real workspace and user from migrated database (demo.goalive.nl)
-const TEST_WORKSPACE = "demo.goalive.nl"
-const TEST_USER_ID = "ace1261c-2b9a-4845-8d41-4f6ecab8cb37" // demo.goalive.nl user
+// Use real workspace and user from migrated database (demo.sonno.tech)
+const TEST_WORKSPACE = "demo.sonno.tech"
+const TEST_USER_ID = "ace1261c-2b9a-4845-8d41-4f6ecab8cb37" // demo.sonno.tech user
 
 describe("Session Store - Tab Locking", () => {
   beforeEach(async () => {

@@ -21,7 +21,7 @@ echo "🔍 Scanning for domains in $SITES_DIR..."
 
 # Start with base domains
 DOMAINS=(
-    "https://terminal.goalive.nl"
+    "https://sonno.tech"
     "http://localhost:3000"
     "http://localhost:$PROD_PORT"
     "http://localhost:$STAGING_PORT"

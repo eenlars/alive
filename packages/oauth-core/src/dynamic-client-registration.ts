@@ -105,7 +105,7 @@ export async function registerClient(
   const payload = {
     redirect_uris: options.redirect_uris,
     client_name: options.client_name || "WebAlive",
-    client_uri: options.client_uri || "https://goalive.nl/",
+    client_uri: options.client_uri || "https://sonno.tech/",
     scope: options.scope,
     grant_types: options.grant_types || ["authorization_code", "refresh_token"],
     response_types: options.response_types || ["code"],

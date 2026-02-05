@@ -5,7 +5,7 @@
  * Reuses the WebsiteConfig component from the MCP tool.
  *
  * Parameters match the MCP tool `ask_website_config`:
- * - slug: subdomain name (e.g., "my-bakery" -> my-bakery.alive.best)
+ * - slug: subdomain name (e.g., "my-bakery" -> my-bakery.sonno.tech)
  * - templateId: which template to use
  * - siteIdeas: optional description
  */

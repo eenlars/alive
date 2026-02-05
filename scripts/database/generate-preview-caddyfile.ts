@@ -8,9 +8,9 @@
  * 3. Outputs Caddyfile snippet to stdout (append manually or via script)
  *
  * Each environment gets its own preview subdomain:
- *   - production: protino-alive-best.preview.terminal.goalive.nl → auth:9000
- *   - staging: protino-alive-best.preview.staging.terminal.goalive.nl → auth:8998
- *   - dev: protino-alive-best.preview.dev.terminal.goalive.nl → auth:8997
+ *   - production: protino-sonno-tech.preview.sonno.tech → auth:9000
+ *   - staging: protino-sonno-tech.preview.staging.sonno.tech → auth:8998
+ *   - dev: protino-sonno-tech.preview.dev.sonno.tech → auth:8997
  */
 
 import { existsSync, readFileSync } from "node:fs"
@@ -98,8 +98,8 @@ function parseCaddyfile(content: string): DomainMapping[] {
 /**
  * Convert domain to preview subdomain label
  * Examples:
- *   protino.alive.best → protino-alive-best
- *   demo.goalive.nl → demo-goalive-nl
+ *   protino.sonno.tech → protino-sonno-tech
+ *   demo.sonno.tech → demo-sonno-tech
  *
  * Note: Matches domainToPreviewLabel() in apps/web/lib/preview-utils.ts
  */

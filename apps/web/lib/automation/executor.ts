@@ -34,7 +34,7 @@ export interface AutomationJobParams {
   jobId: string
   userId: string
   orgId: string
-  workspace: string // hostname like "zomaar.alive.best"
+  workspace: string // hostname like "zomaar.sonno.tech"
   prompt: string
   timeoutSeconds?: number
   /** Optional model override (e.g., "claude-sonnet-4-20250514") */

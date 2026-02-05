@@ -47,7 +47,7 @@ vi.mock("@webalive/shared", () => ({
 
 // Mock referral lib
 vi.mock("@/lib/referral", () => ({
-  buildInviteLink: vi.fn((code: string) => `https://alive.best/invite/${code}`),
+  buildInviteLink: vi.fn((code: string) => `https://sonno.tech/invite/${code}`),
 }))
 
 // Import after mocking
@@ -331,7 +331,7 @@ describe("POST /api/referrals/send-invite", () => {
       expect(sendReferralInvite).toHaveBeenCalledWith({
         to: "recipient@example.com",
         senderName: "John Doe",
-        inviteLink: "https://alive.best/invite/INVITE123",
+        inviteLink: "https://sonno.tech/invite/INVITE123",
       })
     })
 
@@ -348,7 +348,7 @@ describe("POST /api/referrals/send-invite", () => {
       expect(sendReferralInvite).toHaveBeenCalledWith({
         to: "recipient@example.com",
         senderName: "Someone",
-        inviteLink: "https://alive.best/invite/INVITE123",
+        inviteLink: "https://sonno.tech/invite/INVITE123",
       })
     })
   })

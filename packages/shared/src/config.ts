@@ -234,13 +234,13 @@ export const DOMAINS = {
   /** Dev domain suffix */
   DEV_SUFFIX: `.dev.${MAIN_DOMAIN}`,
 
-  /** Preview subdomain base (e.g., workspace-label.preview.alive.best) */
+  /** Preview subdomain base (e.g., workspace-label.preview.sonno.tech) */
   PREVIEW_BASE,
 
   /** Authentication forward endpoint for previews (uses dev server URL) */
   PREVIEW_AUTH: `${STREAM_DEV_URL}/api/auth/preview-guard`,
 
-  /** Cookie domain for cross-subdomain sharing (leading dot allows *.terminal.DOMAIN) */
+  /** Cookie domain for cross-subdomain sharing (leading dot allows *.DOMAIN) */
   COOKIE_DOMAIN,
 } as const
 

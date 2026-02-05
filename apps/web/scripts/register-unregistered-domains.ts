@@ -79,7 +79,7 @@ function getPortFromRegistry(domain: string): number | null {
 
 // Domains that should NOT be registered (test domains, special cases)
 const SKIP_DOMAINS = new Set([
-  "api.alive.best", // API endpoint, not a user site
+  "api.sonno.tech", // API endpoint, not a user site
   // Add test domains here if needed
 ])
 

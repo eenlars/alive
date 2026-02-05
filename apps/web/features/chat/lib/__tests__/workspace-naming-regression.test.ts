@@ -1,7 +1,7 @@
 /**
  * CRITICAL REGRESSION TEST
  *
- * This test reproduces the actual bug that broke evermore.alive.best.
+ * This test reproduces the actual bug that broke evermore.sonno.tech.
  * It verifies that workspace resolution tries DOTS first, then HYPHENS.
  *
  * If this test fails, someone broke the naming convention support.
@@ -28,25 +28,25 @@ function skipIfMissing(ctx: TestContext, path: string, extraMessage?: string): v
 
 describe("Workspace Naming Bug - Regression Test", () => {
   /**
-   * THE BUG: Code was converting evermore.alive.best → evermore-alive-best
+   * THE BUG: Code was converting evermore.sonno.tech → evermore-alive-best
    * THE FIX: Try both, dots first
    *
    * This test fails if someone reverts to the old behavior.
    */
-  it("CRITICAL: finds evermore.alive.best with DOTS in directory name", async ctx => {
+  it("CRITICAL: finds evermore.sonno.tech with DOTS in directory name", async ctx => {
     // Verify the actual directory exists with DOTS
-    const dotsPath = "/srv/webalive/sites/evermore.alive.best/user"
+    const dotsPath = "/srv/webalive/sites/evermore.sonno.tech/user"
     const hyphensPath = "/srv/webalive/sites/evermore-alive-best/user"
 
-    skipIfMissing(ctx, dotsPath, "This test requires evermore.alive.best to exist")
+    skipIfMissing(ctx, dotsPath, "This test requires evermore.sonno.tech to exist")
 
     // Validate path is within workspace
-    const validation = resolveAndValidatePath("evermore.alive.best/user", "/srv/webalive/sites")
+    const validation = resolveAndValidatePath("evermore.sonno.tech/user", "/srv/webalive/sites")
     expect(validation.valid).toBe(true)
 
     const result = await getWorkspace({
       host: DOMAINS.STREAM_DEV_HOST,
-      body: { workspace: "evermore.alive.best" },
+      body: { workspace: "evermore.sonno.tech" },
       requestId: "regression-test",
     })
 
@@ -61,17 +61,17 @@ describe("Workspace Naming Bug - Regression Test", () => {
   })
 
   it("CRITICAL: still supports legacy sites with HYPHENS", async ctx => {
-    const hyphensPath = "/srv/webalive/sites/demo-goalive-nl/user"
+    const hyphensPath = "/srv/webalive/sites/demo-sonno-nl/user"
 
     skipIfMissing(ctx, hyphensPath)
 
     // Validate path is within workspace
-    const validation = resolveAndValidatePath("demo-goalive-nl/user", "/srv/webalive/sites")
+    const validation = resolveAndValidatePath("demo-sonno-nl/user", "/srv/webalive/sites")
     expect(validation.valid).toBe(true)
 
     const result = await getWorkspace({
       host: DOMAINS.STREAM_DEV_HOST,
-      body: { workspace: "demo.goalive.nl" }, // User provides dots
+      body: { workspace: "demo.sonno.tech" }, // User provides dots
       requestId: "legacy-test",
     })
 
