@@ -36,3 +36,18 @@ export const OptionalWorktreeSchema = z
   .refine(val => !val || !["user", "worktrees", ".", ".."].includes(val), {
     message: "Reserved worktree slug.",
   })
+
+/**
+ * Optional worktree schema that only allows undefined (not null)
+ * Used when form data parses to undefined rather than null
+ */
+export const OptionalWorktreeSlugSchema = z
+  .string()
+  .optional()
+  .transform(val => (val ? normalizeWorktreeSlug(val) : val))
+  .refine(val => !val || WORKTREE_SLUG_REGEX.test(val), {
+    message: "Invalid worktree slug. Use lowercase letters, numbers, and hyphens (max 49 chars).",
+  })
+  .refine(val => !val || !["user", "worktrees", ".", ".."].includes(val), {
+    message: "Reserved worktree slug.",
+  })

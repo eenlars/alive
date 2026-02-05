@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { OptionalWorktreeSchema } from "@/types/guards/worktree-schemas"
+import { OptionalWorktreeSchema, OptionalWorktreeSlugSchema } from "@/types/guards/worktree-schemas"
 
 // ============================================================================
 // STANDARDIZED RESPONSE ENVELOPES
@@ -491,7 +491,7 @@ export const apiSchemas = {
     req: z
       .object({
         workspace: z.string(),
-        slug: z.string().optional(),
+        slug: OptionalWorktreeSlugSchema,
         branch: z.string().optional(),
         from: z.string().optional(),
       })

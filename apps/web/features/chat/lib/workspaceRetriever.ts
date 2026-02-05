@@ -6,6 +6,7 @@ import { createErrorResponse } from "@/features/auth/lib/auth"
 import { domainToSlug, normalizeDomain } from "@/features/manager/lib/domain-utils"
 import { WorktreeError, resolveWorktreePath } from "@/features/worktrees/lib/worktrees"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
+import { resolveAndValidatePath } from "@/lib/utils/path-security"
 
 export interface GetWorkspaceParams {
   host: string
@@ -147,8 +148,17 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
       continue
     }
 
-    // Build full path and check if it exists
+    // Build full path and validate it's within workspace boundaries
     const candidateFullPath = path.join("/srv", normalized)
+
+    // Validate path is within workspace
+    // Use candidate + "/user" (not normalized which includes "webalive/sites/" prefix)
+    const validation = resolveAndValidatePath(candidate + "/user", "/srv/webalive/sites")
+    if (!validation.valid) {
+      console.warn(`[Workspace ${requestId}] Invalid path validation: ${validation.error}`)
+      continue
+    }
+
     if (existsSync(candidateFullPath)) {
       workspacePath = normalized
       fullPath = candidateFullPath

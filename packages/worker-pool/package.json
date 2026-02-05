@@ -20,6 +20,7 @@
   "dependencies": {
     "@types/node": "^20.0.0",
     "@webalive/shared": "workspace:*",
+    "@webalive/tools": "workspace:*",
     "typescript": "^5.0.0"
   },
   "devDependencies": {

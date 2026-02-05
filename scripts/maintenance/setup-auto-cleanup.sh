@@ -28,7 +28,6 @@ Requires=claude-bridge-cleanup.service
 
 [Timer]
 # Run daily at 3 AM
-OnCalendar=daily
 OnCalendar=*-*-* 03:00:00
 Persistent=true
 

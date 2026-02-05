@@ -27,13 +27,19 @@ export async function POST(request: NextRequest) {
     console.log(`[Image Upload ${requestId}] Step 3: Verifying workspace access`)
     const workspaceParam = formData.get("workspace") as string | null
     const worktreeParam = formData.get("worktree") as string | null
-    const body =
-      workspaceParam && worktreeParam
-        ? { workspace: workspaceParam, worktree: worktreeParam }
-        : workspaceParam
-          ? { workspace: workspaceParam }
-          : {}
-    console.log(`[Image Upload ${requestId}] Workspace param: ${workspaceParam || "(none)"}`)
+
+    // Build body object with optional worktree
+    const body: { workspace?: string; worktree?: string } = {}
+    if (workspaceParam) {
+      body.workspace = workspaceParam
+      if (worktreeParam) {
+        body.worktree = worktreeParam
+      }
+    }
+
+    console.log(
+      `[Image Upload ${requestId}] Workspace param: ${workspaceParam || "(none)"}, Worktree param: ${worktreeParam || "(none)"}`,
+    )
 
     const workspace = await verifyWorkspaceAccess(user, body, `[Upload ${requestId}]`)
     if (!workspace) {
