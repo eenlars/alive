@@ -71,7 +71,8 @@ describe("domainExistsOnThisServer", () => {
     expect(domainExistsOnThisServer(SUPERADMIN.WORKSPACE_NAME)).toBe(true)
   })
 
-  it("is case-sensitive (filesystem is case-sensitive on Linux)", () => {
+  // macOS filesystem is case-insensitive by default, so skip this test on macOS
+  it.skipIf(process.platform === "darwin")("is case-sensitive (filesystem is case-sensitive on Linux)", () => {
     expect(domainExistsOnThisServer("site-a.example.com")).toBe(true)
     expect(domainExistsOnThisServer("Site-A.Example.Com")).toBe(false)
     expect(domainExistsOnThisServer("SITE-A.EXAMPLE.COM")).toBe(false)

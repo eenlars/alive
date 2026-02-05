@@ -87,6 +87,11 @@ export const baseTestConfig = {
     "**/features/chat/hooks/__tests__/useStreamCancellation.test.ts",
     "**/lib/db/__tests__/useTabMessages.test.ts",
   ],
+  // Use forks instead of threads - native modules (@napi-rs/image) hang with threads
+  pool: "forks" as const,
+  // Timeouts
+  testTimeout: 10000,
+  hookTimeout: 10000,
 }
 
 export const dbIntegrationGlobs = [
@@ -113,6 +118,5 @@ export default defineConfig({
     environment: "node",
     include: ["**/*.test.{ts,tsx}"],
     exclude: [...baseTestConfig.exclude, ...dbIntegrationGlobs, ...systemGlobs],
-    testTimeout: 10000, // Fail fast on slow tests
   },
 })
