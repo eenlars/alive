@@ -10,7 +10,7 @@ If you have [Claude Code](https://claude.ai/claude-code) installed:
 
 ```bash
 git clone <repository>
-cd claude-bridge
+cd alive
 claude
 ```
 
@@ -37,7 +37,7 @@ Claude will:
 
 ```bash
 git clone <repository>
-cd claude-bridge
+cd alive
 bun install
 ```
 
@@ -52,8 +52,8 @@ bun run setup
 Create `apps/web/.env.local`:
 
 ```bash
-BRIDGE_ENV=local
-LOCAL_TEMPLATE_PATH=/your/path/to/claude-bridge/.alive/template
+ALIVE_ENV=local
+LOCAL_TEMPLATE_PATH=/your/path/to/alive/.alive/template
 ANTH_API_SECRET=sk-ant-your-key-here
 ```
 
@@ -72,7 +72,7 @@ bun run web
 
 Open `http://localhost:8999`
 
-- **Email**: `test@bridge.local`
+- **Email**: `test@alive.local`
 - **Password**: `test`
 
 ---
@@ -83,7 +83,7 @@ Open `http://localhost:8999`
 |-----------|-------------|
 | Chat Interface | Talk to Claude with file access |
 | Local Workspace | `.alive/template/` - your sandbox |
-| Test User | `test@bridge.local` / `test` |
+| Test User | `test@alive.local` / `test` |
 | Hot Reload | Changes reflect immediately |
 
 ---
@@ -134,4 +134,4 @@ lsof -i :8999 | awk 'NR>1 {print $2}' | xargs kill -9
 
 ### "Test credentials don't work"
 
-Ensure `BRIDGE_ENV=local` is set in `apps/web/.env.local`.
+Ensure `ALIVE_ENV=local` is set in `apps/web/.env.local`.

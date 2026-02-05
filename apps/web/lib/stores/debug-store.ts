@@ -104,7 +104,7 @@ export const useDebugStoreBase = create<DebugStore>()(
       }
     },
     {
-      name: "claude-bridge-debug-view-v6",
+      name: "alive-debug-view-v6",
       partialize: state => ({
         isDebugView: state.isDebugView,
         showSSETerminal: state.showSSETerminal,

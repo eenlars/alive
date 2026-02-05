@@ -32,7 +32,7 @@ describe("Manager Login Integration", () => {
 
     // To fix:
     // 1. Add BRIDGE_PASSCODE=your_password to .env
-    // 2. Restart the systemd service: systemctl restart claude-bridge-dev
+    // 2. Restart the systemd service: systemctl restart alive-dev
     // 3. If using bun dev: restart the dev server
   })
 

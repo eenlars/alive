@@ -7,7 +7,7 @@
 
 import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { z } from "zod"
-import { errorResult, successResult, type ToolResult } from "../../lib/bridge-api-client.js"
+import { errorResult, successResult, type ToolResult } from "../../lib/api-client.js"
 import { executeQuery, getSupabaseContext, isToolError } from "./supabase-client.js"
 
 export const runQueryParamsSchema = {

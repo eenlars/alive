@@ -275,7 +275,7 @@ async function createDomainEntry(hostname: string, port: number, orgId: string):
   if (!serverId) {
     throw new DomainRegistrationError(
       ErrorCodes.DEPLOYMENT_FAILED,
-      "Server ID not configured. Set serverId in /var/lib/claude-bridge/server-config.json",
+      "Server ID not configured. Set serverId in /var/lib/alive/server-config.json",
       { domain: hostname },
     )
   }

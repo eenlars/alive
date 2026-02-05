@@ -26,9 +26,9 @@ export default async function globalSetup() {
   // Set workspace using typed helper from @webalive/shared
   await page.evaluate(({ key, value }) => localStorage.setItem(key, value), {
     key: WORKSPACE_STORAGE.KEY,
-    value: createWorkspaceStorageValue('test.bridge.local', orgId),
+    value: createWorkspaceStorageValue('test.alive.local', orgId),
   })
-  await page.getByPlaceholder('you@example.com').fill('test@bridge.local')
+  await page.getByPlaceholder('you@example.com').fill('test@alive.local')
   await page.getByPlaceholder('Enter your password').fill('test')
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.waitForURL('/chat')
@@ -222,9 +222,9 @@ export default defineConfig({
 ```typescript
 // e2e-tests/fixtures/test-data.ts
 export const TEST_USER = {
-  email: 'test@bridge.local',
+  email: 'test@alive.local',
   password: 'test',
-  workspace: 'test.bridge.local',
+  workspace: 'test.alive.local',
 }
 
 export const TEST_MESSAGES = {

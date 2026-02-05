@@ -1,6 +1,6 @@
 // Simple domain checker for Caddy on-demand TLS
 // Returns 200 for *.alive.best domains, 403 otherwise
-// Run with: bun run /root/webalive/claude-bridge/ops/caddy/domain-checker.ts
+// Run with: bun run /root/alive/ops/caddy/domain-checker.ts
 
 const ALLOWED_PATTERNS = [/\.alive\.best$/, /\.goalive\.nl$/]
 

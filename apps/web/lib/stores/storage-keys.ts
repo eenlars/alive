@@ -18,7 +18,7 @@ export const LLM_STORAGE_KEY = "llm-config" as const
 export const API_KEY_STORAGE_KEY = "llm-api-key-obf" as const
 
 // Auth store key
-export const AUTH_STORAGE_KEY = "claude-bridge-auth" as const
+export const AUTH_STORAGE_KEY = "alive-auth" as const
 
 // Workspace store key
 export const WORKSPACE_STORAGE_KEY = "workspace-store" as const

@@ -22,7 +22,7 @@ interface ServerConfig {
   serverId?: string
   serverIp?: string
   paths?: {
-    bridgeRoot?: string
+    aliveRoot?: string
     sitesRoot?: string
     imagesStorage?: string
   }
@@ -57,7 +57,7 @@ interface CheckResult {
 // Constants
 // =============================================================================
 
-const SERVER_CONFIG_PATH = "/var/lib/claude-bridge/server-config.json"
+const SERVER_CONFIG_PATH = "/var/lib/alive/server-config.json"
 const COLORS = {
   reset: "\x1b[0m",
   red: "\x1b[31m",
@@ -133,7 +133,7 @@ async function checkServerConfig(): Promise<{ result: CheckResult; config?: Serv
     const issues: string[] = []
 
     if (!config.serverId) issues.push("serverId is required")
-    if (!config.paths?.bridgeRoot) issues.push("paths.bridgeRoot is required")
+    if (!config.paths?.aliveRoot) issues.push("paths.aliveRoot is required")
     if (!config.paths?.sitesRoot) issues.push("paths.sitesRoot is required")
     if (!config.generated?.dir) issues.push("generated.dir is required")
 
@@ -303,11 +303,7 @@ async function checkServerIdInDatabase(serverId: string | undefined): Promise<Ch
     const supabase = createClient(url, key, { db: { schema: "app" } })
 
     // Check if server_id column exists and has our server
-    const { data, error } = await supabase
-      .from("domains")
-      .select("hostname")
-      .eq("server_id", serverId)
-      .limit(5)
+    const { data, error } = await supabase.from("domains").select("hostname").eq("server_id", serverId).limit(5)
 
     if (error) {
       if (error.message.includes("server_id")) {
@@ -370,18 +366,18 @@ async function checkCaddyInstalled(): Promise<CheckResult> {
   }
 }
 
-async function checkSnippetsExist(bridgeRoot: string | undefined): Promise<CheckResult> {
+async function checkSnippetsExist(aliveRoot: string | undefined): Promise<CheckResult> {
   const name = "Caddy Snippets"
 
-  if (!bridgeRoot) {
-    return { name, status: "skip", message: "bridgeRoot not configured" }
+  if (!aliveRoot) {
+    return { name, status: "skip", message: "aliveRoot not configured" }
   }
 
   const snippets = ["common_headers.caddy", "image_serving.caddy"]
   const missing: string[] = []
 
   for (const snippet of snippets) {
-    const path = `${bridgeRoot}/ops/caddy/snippets/${snippet}`
+    const path = `${aliveRoot}/ops/caddy/snippets/${snippet}`
     if (!(await fileExists(path))) {
       missing.push(snippet)
     }
@@ -392,7 +388,7 @@ async function checkSnippetsExist(bridgeRoot: string | undefined): Promise<Check
       name,
       status: "fail",
       message: `Missing: ${missing.join(", ")}`,
-      fix: `Ensure ${bridgeRoot}/ops/caddy/snippets/ contains all snippet files`,
+      fix: `Ensure ${aliveRoot}/ops/caddy/snippets/ contains all snippet files`,
     }
   }
 
@@ -428,12 +424,12 @@ async function main() {
   // 2. Check directories
   print(`${COLORS.dim}[2/6] Checking directories...${COLORS.reset}`)
   const dirChecks = await Promise.all([
-    checkDirectory("Bridge Root", config?.paths?.bridgeRoot),
+    checkDirectory("Bridge Root", config?.paths?.aliveRoot),
     checkDirectory("Sites Root", config?.paths?.sitesRoot),
     checkDirectory("Images Storage", config?.paths?.imagesStorage),
     checkDirectory("Generated Output", config?.generated?.dir, true), // Create if missing
   ])
-  dirChecks.forEach((r) => {
+  dirChecks.forEach(r => {
     results.push(r)
     printResult(r)
   })
@@ -447,7 +443,7 @@ async function main() {
     checkEnvVar("Anthropic API Key", "ANTHROPIC_API_KEY", false),
     checkEnvVar("JWT Secret", "JWT_SECRET", false),
   ]
-  envChecks.forEach((r) => {
+  envChecks.forEach(r => {
     results.push(r)
     printResult(r)
   })
@@ -470,17 +466,17 @@ async function main() {
   results.push(caddyCheck)
   printResult(caddyCheck)
 
-  const snippetsCheck = await checkSnippetsExist(config?.paths?.bridgeRoot)
+  const snippetsCheck = await checkSnippetsExist(config?.paths?.aliveRoot)
   results.push(snippetsCheck)
   printResult(snippetsCheck)
   print("")
 
   // 6. Summary
   print(`${COLORS.dim}[6/6] Summary${COLORS.reset}`)
-  const passed = results.filter((r) => r.status === "pass").length
-  const failed = results.filter((r) => r.status === "fail").length
-  const warned = results.filter((r) => r.status === "warn").length
-  const skipped = results.filter((r) => r.status === "skip").length
+  const passed = results.filter(r => r.status === "pass").length
+  const failed = results.filter(r => r.status === "fail").length
+  const warned = results.filter(r => r.status === "warn").length
+  const skipped = results.filter(r => r.status === "skip").length
 
   print("")
   print(`  ${COLORS.green}Passed:${COLORS.reset}  ${passed}`)
@@ -508,7 +504,7 @@ async function main() {
   }
 }
 
-main().catch((e) => {
+main().catch(e => {
   print(`${COLORS.red}Unexpected error: ${e.message}${COLORS.reset}`)
   process.exit(1)
 })

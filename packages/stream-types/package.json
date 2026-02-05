@@ -1,5 +1,5 @@
 {
-  "name": "@webalive/bridge-types",
+  "name": "@webalive/stream-types",
   "version": "1.0.0",
   "description": "Shared types for Claude Bridge streaming protocol",
   "type": "module",

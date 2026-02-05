@@ -6,10 +6,10 @@ Playwright tests with parallel workers, each with dedicated test tenant.
 
 ```text
 Test Run: E2E_2025-11-21T10:30:00Z
-├── Worker 0 → e2e-w0@bridge.local (e2e-w0.bridge.local)
-├── Worker 1 → e2e-w1@bridge.local (e2e-w1.bridge.local)
-├── Worker 2 → e2e-w2@bridge.local (e2e-w2.bridge.local)
-└── Worker 3 → e2e-w3@bridge.local (e2e-w3.bridge.local)
+├── Worker 0 → e2e-w0@alive.local (e2e-w0.alive.local)
+├── Worker 1 → e2e-w1@alive.local (e2e-w1.alive.local)
+├── Worker 2 → e2e-w2@alive.local (e2e-w2.alive.local)
+└── Worker 3 → e2e-w3@alive.local (e2e-w3.alive.local)
 ```
 
 Each worker gets isolated user/org/domain - no shared state, true parallelization.
@@ -81,8 +81,8 @@ test("my test", async ({ authenticatedPage, workerTenant }) => {
   await authenticatedPage.goto("/chat")
 
   // Use workerTenant for assertions
-  console.log(workerTenant.email)      // e2e-w0@bridge.local
-  console.log(workerTenant.workspace)  // e2e-w0.bridge.local
+  console.log(workerTenant.email)      // e2e-w0@alive.local
+  console.log(workerTenant.workspace)  // e2e-w0.alive.local
 })
 ```
 
@@ -179,7 +179,7 @@ All test config in `@webalive/shared/constants`:
 ```typescript
 TEST_CONFIG.PORT            // 9547
 TEST_CONFIG.BASE_URL        // http://localhost:9547
-TEST_CONFIG.EMAIL_DOMAIN    // bridge.local
+TEST_CONFIG.EMAIL_DOMAIN    // alive.local
 TEST_CONFIG.DEFAULT_CREDITS // 1000
 ```
 

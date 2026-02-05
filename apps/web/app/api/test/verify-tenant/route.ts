@@ -65,7 +65,7 @@ export async function GET(req: Request) {
     }
 
     // 4. Check if domain exists (extract workspace from email pattern)
-    // Email format is e2e_w{N}@bridge.local (TEST_CONFIG.WORKER_EMAIL_PREFIX = "e2e_w")
+    // Email format is e2e_w{N}@alive.local (TEST_CONFIG.WORKER_EMAIL_PREFIX = "e2e_w")
     const workerIndex = email.match(/e2e_w(\d+)@/)?.[1]
     if (workerIndex !== undefined) {
       const workspace = `${TEST_CONFIG.WORKSPACE_PREFIX}${workerIndex}.${TEST_CONFIG.EMAIL_DOMAIN}`

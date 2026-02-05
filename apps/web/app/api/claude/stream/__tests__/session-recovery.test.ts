@@ -464,7 +464,7 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
       // This is the EXACT error from the production logs
       const prodError = Object.assign(new Error("Claude Code process exited with code 1"), {
         stderr:
-          "Spawning Claude Code process: node /root/webalive/claude-bridge/node_modules/@anthropic-ai/claude-agent-sdk/cli.js ...\n" +
+          "Spawning Claude Code process: node /root/alive/node_modules/@anthropic-ai/claude-agent-sdk/cli.js ...\n" +
           `No message found with message.uuid of: ${staleMessageId}\n`,
       })
 

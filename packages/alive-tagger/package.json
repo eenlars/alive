@@ -37,7 +37,7 @@
     "react",
     "element-selection",
     "source-tagging",
-    "claude-bridge"
+    "alive"
   ],
   "author": "WebAlive",
   "license": "MIT",

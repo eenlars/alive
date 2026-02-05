@@ -65,72 +65,72 @@ export const StartStreamRequestSchema = z.object({
 export type StartStreamRequest = z.infer<typeof StartStreamRequestSchema>
 
 // =============================================================================
-// Bridge Events (NDJSON protocol)
+// Stream Events (NDJSON protocol)
 // =============================================================================
 
-export const BRIDGE_EVENT_TYPES = {
-  START: "bridge_start",
-  MESSAGE: "bridge_message",
-  SESSION: "bridge_session",
-  COMPLETE: "bridge_complete",
-  INTERRUPT: "bridge_interrupt",
-  ERROR: "bridge_error",
+export const STREAM_EVENT_TYPES = {
+  START: "stream_start",
+  MESSAGE: "stream_message",
+  SESSION: "stream_session",
+  COMPLETE: "stream_complete",
+  INTERRUPT: "stream_interrupt",
+  ERROR: "stream_error",
 } as const
 
-export type BridgeEventType = (typeof BRIDGE_EVENT_TYPES)[keyof typeof BRIDGE_EVENT_TYPES]
+export type StreamEventType = (typeof STREAM_EVENT_TYPES)[keyof typeof STREAM_EVENT_TYPES]
 
-export interface BridgeEventBase {
-  type: BridgeEventType
+export interface StreamEventBase {
+  type: StreamEventType
   requestId: string
   tabId: string
   timestamp: number
 }
 
-export interface BridgeStartEvent extends BridgeEventBase {
-  type: typeof BRIDGE_EVENT_TYPES.START
+export interface StreamStartEvent extends StreamEventBase {
+  type: typeof STREAM_EVENT_TYPES.START
 }
 
-export interface BridgeMessageEvent extends BridgeEventBase {
-  type: typeof BRIDGE_EVENT_TYPES.MESSAGE
+export interface StreamMessageEvent extends StreamEventBase {
+  type: typeof STREAM_EVENT_TYPES.MESSAGE
   data: unknown
 }
 
-export interface BridgeSessionEvent extends BridgeEventBase {
-  type: typeof BRIDGE_EVENT_TYPES.SESSION
+export interface StreamSessionEvent extends StreamEventBase {
+  type: typeof STREAM_EVENT_TYPES.SESSION
   sessionId: string
 }
 
-export interface BridgeCompleteEvent extends BridgeEventBase {
-  type: typeof BRIDGE_EVENT_TYPES.COMPLETE
+export interface StreamCompleteEvent extends StreamEventBase {
+  type: typeof STREAM_EVENT_TYPES.COMPLETE
   result?: unknown
 }
 
-export interface BridgeInterruptEvent extends BridgeEventBase {
-  type: typeof BRIDGE_EVENT_TYPES.INTERRUPT
+export interface StreamInterruptEvent extends StreamEventBase {
+  type: typeof STREAM_EVENT_TYPES.INTERRUPT
   reason: "cancelled" | "timeout"
 }
 
-export interface BridgeErrorEvent extends BridgeEventBase {
-  type: typeof BRIDGE_EVENT_TYPES.ERROR
+export interface StreamErrorEvent extends StreamEventBase {
+  type: typeof STREAM_EVENT_TYPES.ERROR
   error: string
   code?: string
 }
 
-export type BridgeEvent =
-  | BridgeStartEvent
-  | BridgeMessageEvent
-  | BridgeSessionEvent
-  | BridgeCompleteEvent
-  | BridgeInterruptEvent
-  | BridgeErrorEvent
+export type StreamEvent =
+  | StreamStartEvent
+  | StreamMessageEvent
+  | StreamSessionEvent
+  | StreamCompleteEvent
+  | StreamInterruptEvent
+  | StreamErrorEvent
 
 // Type guards
-export function isBridgeEvent(value: unknown): value is BridgeEvent {
+export function isStreamEvent(value: unknown): value is StreamEvent {
   if (typeof value !== "object" || value === null) return false
   const obj = value as Record<string, unknown>
   return (
     typeof obj.type === "string" &&
-    Object.values(BRIDGE_EVENT_TYPES).includes(obj.type as BridgeEventType) &&
+    Object.values(STREAM_EVENT_TYPES).includes(obj.type as StreamEventType) &&
     typeof obj.requestId === "string" &&
     typeof obj.tabId === "string"
   )

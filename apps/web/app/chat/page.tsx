@@ -182,7 +182,7 @@ function ChatPageContent() {
     }
   }, [mounted, sessionTabId, tabParam, setTabParam])
 
-  // Superadmin workspace (claude-bridge) shows terminal & code views only
+  // Superadmin workspace (alive) shows terminal & code views only
   const isSuperadminWorkspace = workspace === SUPERADMIN.WORKSPACE_NAME
   const showSandbox = showSandboxRaw // Show for all workspaces
 
@@ -782,7 +782,7 @@ function ChatPageContent() {
         </AnimatePresence>
       )}
 
-      {/* Mobile preview overlay - not shown for claude-bridge workspace */}
+      {/* Mobile preview overlay - not shown for alive workspace */}
       {isHydrated && (
         <AnimatePresence>
           {modals.mobilePreview && !isSuperadminWorkspace && (

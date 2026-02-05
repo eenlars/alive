@@ -188,7 +188,14 @@ func Load(configPath string) (*AppConfig, error) {
 		return filepath.Join(cwd, path)
 	}
 
-	resolvedDefaultCwd := resolvePathFn(envConfig.DefaultCwd)
+	// Allow env var override for default cwd
+	defaultCwd := envConfig.DefaultCwd
+	if envOverride := os.Getenv("SHELL_DEFAULT_CWD"); envOverride != "" {
+		defaultCwd = envOverride
+		log.Info("Using SHELL_DEFAULT_CWD override: %s", envOverride)
+	}
+
+	resolvedDefaultCwd := resolvePathFn(defaultCwd)
 	resolvedUploadCwd := resolvePathFn(envConfig.UploadDefaultCwd)
 	resolvedSitesPath := resolvePathFn(envConfig.SitesPath)
 

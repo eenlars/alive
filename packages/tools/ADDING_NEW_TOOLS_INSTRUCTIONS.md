@@ -1,4 +1,4 @@
-# Adding New Tools to @alive-brug/tools
+# Adding New Tools to @webalive/tools
 
 This package contains custom MCP tools that extend Claude's capabilities in the Claude Bridge application. Tools are organized by category: `guides/`, `debug/`, and `workspace/`.
 
@@ -237,7 +237,7 @@ export { debugToolsMcp } from "./mcp-server.js"  // if new server
 Update `apps/web/app/api/claude/stream/route.ts`:
 
 ```typescript
-import { myToolsMcp } from "@alive-brug/tools"
+import { myToolsMcp } from "@webalive/tools"
 
 const claudeOptions: Options = {
   mcpServers: {
@@ -254,7 +254,7 @@ const claudeOptions: Options = {
 Also update `apps/web/scripts/run-agent.mjs`:
 
 ```javascript
-import { myToolsMcp } from "@alive-brug/tools"
+import { myToolsMcp } from "@webalive/tools"
 
 const agentQuery = query({
   prompt: request.message,
@@ -307,7 +307,7 @@ bun run lint
 
 ```bash
 # Restart staging to test
-systemctl restart claude-bridge-staging
+systemctl restart alive-staging
 ```
 
 ## Tool Response Format
@@ -407,7 +407,7 @@ bun remove zod && bun add zod@^3.25.0
 
 **Tool not appearing:**
 ```bash
-journalctl -u claude-bridge-staging -n 50 | grep -i mcp
+journalctl -u alive-staging -n 50 | grep -i mcp
 # Check tool name: mcp__server-name__tool-name
 ```
 
@@ -419,7 +419,7 @@ curl -X POST http://localhost:8998/api/your-endpoint \
   -d '{"param": "value"}'
 
 # Check logs
-journalctl -u claude-bridge-staging | grep -i error
+journalctl -u alive-staging | grep -i error
 ```
 
 **Build issues:**

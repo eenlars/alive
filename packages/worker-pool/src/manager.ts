@@ -77,7 +77,7 @@ function validateCredentials(credentials: WorkspaceCredentials): void {
   } else {
     // Canonical path traversal check using resolved paths
     const resolvedCwd = path.resolve(credentials.cwd)
-    // Allow both regular sites and the superadmin workspace (claude-bridge repo)
+    // Allow both regular sites and the superadmin workspace (alive repo)
     const isWithinSitesRoot = isPathWithinWorkspace(resolvedCwd, PATHS.SITES_ROOT)
     const isSuperadminWorkspace = resolvedCwd === SUPERADMIN.WORKSPACE_PATH
     if (!isWithinSitesRoot && !isSuperadminWorkspace) {

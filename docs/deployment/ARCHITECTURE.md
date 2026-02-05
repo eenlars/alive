@@ -137,7 +137,7 @@ fi
 
 | Scenario | Protected | Method |
 |----------|-----------|--------|
-| Concurrent deploys | ✅ | Lock file (`/tmp/claude-bridge-deploy.lock`) |
+| Concurrent deploys | ✅ | Lock file (`/tmp/alive-deploy.lock`) |
 | Corrupted server | ✅ | PM2 detects crash, sets status "errored" |
 | Failed builds | ✅ | Old build untouched until symlink swap |
 | Port conflicts | ✅ | Check `pm2 list` before deploy |
@@ -157,7 +157,7 @@ fi
 
 Lock file with PID:
 ```bash
-LOCK_FILE="/tmp/claude-bridge-deploy.lock"
+LOCK_FILE="/tmp/alive-deploy.lock"
 if [ -f "$LOCK_FILE" ]; then
     PID=$(cat "$LOCK_FILE")
     echo "ERROR: Deployment already in progress (PID: $PID)"
@@ -171,7 +171,7 @@ trap "rm -f $LOCK_FILE" EXIT
 
 Check PM2 process list (not lsof, which shows interpreter):
 ```bash
-if pm2 list | grep -q "claude-bridge.*online"; then
+if pm2 list | grep -q "alive.*online"; then
     # Our process, will be replaced
 else
     # Non-PM2 process, block deploy
@@ -256,7 +256,7 @@ const nextConfig = {
 {
   script: '.builds/current/standalone/apps/web/server.js',
   interpreter: 'bun',
-  cwd: '/root/webalive/claude-bridge',
+  cwd: '/root/alive',
   env: { PORT: '8999', NODE_ENV: 'production' }
 }
 ```
@@ -266,7 +266,7 @@ const nextConfig = {
 {
   script: 'bunx',
   args: 'next dev --turbo -p 8998',
-  cwd: '/root/webalive/claude-bridge/apps/web',
+  cwd: '/root/alive/apps/web',
   env: { NODE_ENV: 'development' }
 }
 ```

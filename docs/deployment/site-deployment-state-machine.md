@@ -2,7 +2,7 @@
 
 Complete deployment flow split into **6 phases** for readability.
 
-Based on `/root/webalive/claude-bridge/scripts/sites/deploy-site-systemd.sh`
+Based on `/root/alive/scripts/sites/deploy-site-systemd.sh`
 
 ---
 
@@ -193,7 +193,7 @@ stateDiagram-v2
 5. **AAAA warning**: Non-blocking warning if IPv6 records found
 
 **Special Behaviors:**
-- Line 48: `cd /root/webalive/claude-bridge && bun ...` - Subject to set -e (will exit if cd or bun fails)
+- Line 48: `cd /root/alive && bun ...` - Subject to set -e (will exit if cd or bun fails)
 - Line 70: `dig +short "$DOMAIN" A | tail -n1` - Subject to set -e (will exit if dig fails)
 - Line 86: Complex regex matching multiple Cloudflare IP ranges (nested if)
 - Line 109: `|| true` prevents set -e exit if grep finds nothing
@@ -673,7 +673,7 @@ stateDiagram-v2
     end note
 
     note right of CheckTemplateExists
-        Line 220: if [ ! -d "/root/webalive/claude-bridge/packages/template" ]
+        Line 220: if [ ! -d "/root/alive/packages/template" ]
         Nested if inside else
         Negation: checks if NOT exists
     end note
@@ -691,7 +691,7 @@ stateDiagram-v2
     end note
 
     note right of CopyTemplate
-        Line 224: cp -r "/root/webalive/claude-bridge/packages/template"/* "$NEW_SITE_DIR/"
+        Line 224: cp -r "/root/alive/packages/template"/* "$NEW_SITE_DIR/"
         After nested if
         Copies template to new location
     end note
@@ -1142,7 +1142,7 @@ stateDiagram-v2
 
     note right of CheckDomainInCaddy
         Line 349: grep -q "^$DOMAIN {" "$CADDYFILE"
-        File: /root/webalive/claude-bridge/Caddyfile
+        File: /root/alive/Caddyfile
         Enables idempotent redeploys
     end note
 
@@ -1213,5 +1213,5 @@ stateDiagram-v2
   - Phase 6, Line 345: Caddyfile lock timeout (another deployment in progress)
 - This makes it impossible to distinguish these errors from the exit code alone
 
-**Script:** `/root/webalive/claude-bridge/scripts/sites/deploy-site-systemd.sh`
+**Script:** `/root/alive/scripts/sites/deploy-site-systemd.sh`
 **Lines:** 1-417

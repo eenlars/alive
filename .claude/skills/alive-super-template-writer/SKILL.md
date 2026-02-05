@@ -7,7 +7,7 @@ description: Write high-quality Alive Super Templates for features with 0-knowle
 
 **Templates go here:**
 ```
-/root/webalive/claude-bridge/packages/tools/internals-folder/templates/
+/root/alive/packages/tools/internals-folder/templates/
 ```
 
 **File naming convention:**
@@ -228,7 +228,7 @@ npm install leaflet react-leaflet @types/leaflet
 
 ✅ **CORRECT APPROACH:**
 
-1. Check if package exists: `grep -E "leaflet|react-leaflet" /root/webalive/claude-bridge/packages/template/user/package.json`
+1. Check if package exists: `grep -E "leaflet|react-leaflet" /root/alive/packages/template/user/package.json`
 2. If NOT found, THEN add it:
    ```bash
    bun add leaflet @types/leaflet

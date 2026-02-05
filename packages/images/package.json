@@ -1,5 +1,5 @@
 {
-  "name": "@alive-brug/images",
+  "name": "@webalive/images",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",

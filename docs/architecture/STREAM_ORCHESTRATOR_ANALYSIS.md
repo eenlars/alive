@@ -316,7 +316,7 @@ return new ReadableStream({
 
 **Two event types**:
 
-1. **Session events** (`bridge_session`):
+1. **Session events** (`stream_session`):
    ```typescript
    await sessionStore.set(conversationKey, sessionId)
    onSessionIdReceived?.(sessionId)
@@ -933,7 +933,7 @@ function cleanup() {
 
 **SDK Output** (stdout):
 ```json
-{"type":"bridge_session","sessionId":"sess_abc123"}
+{"type":"stream_session","sessionId":"sess_abc123"}
 {"type":"assistant","text":"I'll help you...","usage":{"input_tokens":100,"output_tokens":50}}
 {"type":"tool_use","id":"tu_123","name":"Read","input":{"path":"..."}}
 ```

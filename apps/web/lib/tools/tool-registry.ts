@@ -1,7 +1,7 @@
 /**
  * Tool Registry (React Extension)
  *
- * Extends @alive-brug/tools display config with React components.
+ * Extends @webalive/tools display config with React components.
  * Base display logic (autoExpand, preview, transform) comes from the package.
  *
  * @example
@@ -16,7 +16,7 @@
  * ```
  */
 
-import type { ToolDisplayConfig, ToolName } from "@alive-brug/tools/display"
+import type { ToolDisplayConfig, ToolName } from "@webalive/tools/display"
 
 // Import from the shared package (display-only, browser-safe)
 import {
@@ -34,7 +34,7 @@ import {
   shouldAutoExpand,
   transformData,
   unwrapMcp,
-} from "@alive-brug/tools/display"
+} from "@webalive/tools/display"
 import type { ComponentType } from "react"
 
 // Re-export for consumers

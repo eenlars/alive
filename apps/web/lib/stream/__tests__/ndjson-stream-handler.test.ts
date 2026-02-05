@@ -394,11 +394,11 @@ describe("NDJSON Stream Handler", () => {
     it("should call onStreamComplete callback on successful completion", async () => {
       const onStreamComplete = vi.fn()
 
-      // Child stream that emits bridge_complete and then ends
+      // Child stream that emits stream_complete and then ends
       const mockChildStream = new ReadableStream({
         start(controller) {
           const completeEvent = JSON.stringify({
-            type: "bridge_complete",
+            type: "stream_complete",
             totalMessages: 1,
             result: { type: "result", is_error: false },
           })
@@ -501,7 +501,7 @@ describe("NDJSON Stream Handler", () => {
       const mockChildStream = new ReadableStream({
         start(controller) {
           const message = JSON.stringify({
-            type: "bridge_message",
+            type: "stream_message",
             messageCount: 1,
             messageType: "user",
             content: { type: "user", content: "test" },
@@ -592,9 +592,9 @@ describe("NDJSON Stream Handler", () => {
       expect(onStreamComplete).toHaveBeenCalledTimes(1)
     })
 
-    it("should release lock EARLY when bridge_complete is received (before stream closes)", async () => {
+    it("should release lock EARLY when stream_complete is received (before stream closes)", async () => {
       // This test verifies the critical fix: the lock should be released AS SOON AS
-      // bridge_complete is received, NOT when the stream closes. This prevents the
+      // stream_complete is received, NOT when the stream closes. This prevents the
       // lock from being held during Claude SDK cleanup (MCP server shutdown, etc.)
 
       let lockReleasedBeforeStreamClosed = false
@@ -608,13 +608,13 @@ describe("NDJSON Stream Handler", () => {
       })
 
       // Child stream that:
-      // 1. Sends bridge_complete event
+      // 1. Sends stream_complete event
       // 2. Does NOT close immediately (simulates SDK cleanup delay)
       const mockChildStream = new ReadableStream({
         async start(controller) {
           // Send the complete event
           const completeEvent = JSON.stringify({
-            type: "bridge_complete",
+            type: "stream_complete",
             totalMessages: 1,
             result: { type: "result", is_error: false },
           })
@@ -651,7 +651,7 @@ describe("NDJSON Stream Handler", () => {
       }
 
       // The lock should have been released BEFORE the stream finished reading
-      // (i.e., as soon as bridge_complete was processed, not when stream closed)
+      // (i.e., as soon as stream_complete was processed, not when stream closed)
       expect(onStreamComplete).toHaveBeenCalledTimes(1)
       expect(lockReleasedBeforeStreamClosed).toBe(true)
     })
@@ -662,7 +662,7 @@ describe("NDJSON Stream Handler", () => {
       const mockChildStream = new ReadableStream({
         start(controller) {
           const message = JSON.stringify({
-            type: "bridge_message",
+            type: "stream_message",
             messageCount: 1,
             messageType: "assistant",
             content: {
@@ -698,7 +698,7 @@ describe("NDJSON Stream Handler", () => {
       const mockChildStream = new ReadableStream({
         start(controller) {
           const message = JSON.stringify({
-            type: "bridge_message",
+            type: "stream_message",
             messageCount: 1,
             messageType: "assistant",
             content: {
@@ -733,7 +733,7 @@ describe("NDJSON Stream Handler", () => {
       const mockChildStream = new ReadableStream({
         start(controller) {
           const message = JSON.stringify({
-            type: "bridge_message",
+            type: "stream_message",
             messageCount: 1,
             messageType: "assistant",
             content: {
@@ -768,7 +768,7 @@ describe("NDJSON Stream Handler", () => {
       const mockChildStream = new ReadableStream({
         start(controller) {
           const message = JSON.stringify({
-            type: "bridge_message",
+            type: "stream_message",
             messageCount: 1,
             messageType: "assistant",
             content: {
@@ -807,7 +807,7 @@ describe("NDJSON Stream Handler", () => {
       const mockChildStream = new ReadableStream({
         start(controller) {
           const message = JSON.stringify({
-            type: "bridge_message",
+            type: "stream_message",
             messageCount: 1,
             messageType: "assistant",
             content: {
@@ -846,7 +846,7 @@ describe("NDJSON Stream Handler", () => {
       const mockChildStream = new ReadableStream({
         start(controller) {
           const message = JSON.stringify({
-            type: "bridge_message",
+            type: "stream_message",
             messageCount: 1,
             messageType: "assistant",
             content: {
@@ -877,11 +877,11 @@ describe("NDJSON Stream Handler", () => {
       expect(parsed.data.content.content).toBe("Normal content without tags")
     })
 
-    it("should strip <system-reminder> from bridge_complete result", async () => {
+    it("should strip <system-reminder> from stream_complete result", async () => {
       const mockChildStream = new ReadableStream({
         start(controller) {
           const completeEvent = JSON.stringify({
-            type: "bridge_complete",
+            type: "stream_complete",
             totalMessages: 1,
             result: {
               type: "result",

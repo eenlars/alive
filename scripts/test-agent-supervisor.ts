@@ -4,7 +4,7 @@
  * Run: bun scripts/test-agent-supervisor.ts
  */
 
-import { askAIFull } from "@alive-brug/tools"
+import { askAIFull } from "@webalive/tools"
 import Groq from "groq-sdk"
 
 const workspace = "larshallo.alive.best"

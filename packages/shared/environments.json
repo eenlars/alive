@@ -7,17 +7,17 @@
       "port": 9000,
       "domain": "terminal.goalive.nl",
       "previewBase": "preview.terminal.goalive.nl",
-      "processName": "claude-bridge-production",
+      "processName": "alive-production",
       "serviceType": "systemd",
-      "systemdService": "claude-bridge-production.service",
+      "systemdService": "alive-production.service",
       "serverScript": ".builds/production/current/standalone/apps/web/server.js",
       "buildPath": ".builds/production",
       "workspacePath": "/srv/webalive/sites",
       "isProduction": true,
       "hasHotReload": false,
       "deployCommand": "make wash-skip",
-      "logsCommand": "journalctl -u claude-bridge-production.service -f",
-      "restartCommand": "systemctl restart claude-bridge-production.service"
+      "logsCommand": "journalctl -u alive-production.service -f",
+      "restartCommand": "systemctl restart alive-production.service"
     },
     "staging": {
       "key": "staging",
@@ -26,17 +26,17 @@
       "port": 8998,
       "domain": "staging.terminal.goalive.nl",
       "previewBase": "preview.staging.terminal.goalive.nl",
-      "processName": "claude-bridge-staging",
+      "processName": "alive-staging",
       "serviceType": "systemd",
-      "systemdService": "claude-bridge-staging.service",
+      "systemdService": "alive-staging.service",
       "serverScript": ".builds/staging/current/standalone/apps/web/server.js",
       "buildPath": ".builds/staging",
       "workspacePath": "/srv/webalive/sites",
       "isProduction": false,
       "hasHotReload": false,
       "deployCommand": "make staging",
-      "logsCommand": "journalctl -u claude-bridge-staging.service -f",
-      "restartCommand": "systemctl restart claude-bridge-staging.service"
+      "logsCommand": "journalctl -u alive-staging.service -f",
+      "restartCommand": "systemctl restart alive-staging.service"
     },
     "dev": {
       "key": "dev",
@@ -45,16 +45,16 @@
       "port": 8997,
       "domain": "dev.terminal.goalive.nl",
       "previewBase": "preview.dev.terminal.goalive.nl",
-      "processName": "claude-bridge-dev",
+      "processName": "alive-dev",
       "serviceType": "systemd",
-      "systemdService": "claude-bridge-dev.service",
+      "systemdService": "alive-dev.service",
       "serverScript": "node_modules/.bin/next",
       "workspacePath": "/srv/webalive/sites",
       "isProduction": false,
       "hasHotReload": true,
       "deployCommand": "make dev",
-      "logsCommand": "journalctl -u claude-bridge-dev.service -f",
-      "restartCommand": "systemctl restart claude-bridge-dev.service"
+      "logsCommand": "journalctl -u alive-dev.service -f",
+      "restartCommand": "systemctl restart alive-dev.service"
     }
   }
 }

@@ -11,7 +11,7 @@
  * @example
  * ```typescript
  * // In Claude SDK tool configuration
- * import { sessionsListToolDefinition, sessionsSendToolDefinition } from "@alive-brug/tools"
+ * import { sessionsListToolDefinition, sessionsSendToolDefinition } from "@webalive/tools"
  *
  * const tools = [
  *   sessionsListToolDefinition,

@@ -2,7 +2,7 @@ import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { z } from "zod"
 import { COOKIE_NAMES } from "@webalive/shared"
 import { validateWorkspacePath } from "../../lib/workspace-validator.js"
-import type { ToolResult } from "../../lib/bridge-api-client.js"
+import type { ToolResult } from "../../lib/api-client.js"
 
 export const switchServeModeParamsSchema = {
   mode: z
@@ -64,7 +64,7 @@ export async function switchServeMode(params: SwitchServeModeParams): Promise<To
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 120000)
 
-    const sessionCookie = process.env.BRIDGE_SESSION_COOKIE
+    const sessionCookie = process.env.ALIVE_SESSION_COOKIE
     const internalSecret = process.env.INTERNAL_TOOLS_SECRET
 
     const response = await fetch(apiUrl, {

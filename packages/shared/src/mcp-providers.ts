@@ -248,7 +248,7 @@ export const OAUTH_MCP_PROVIDERS = {
     ],
   },
   supabase: {
-    url: "internal", // Tools are built into @alive-brug/tools, not a separate MCP server
+    url: "internal", // Tools are built into @webalive/tools, not a separate MCP server
     oauthKey: "supabase",
     friendlyName: "Supabase",
     defaultScopes: "", // Supabase OAuth doesn't use scopes - grants full Management API access

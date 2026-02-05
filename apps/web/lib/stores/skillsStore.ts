@@ -1,6 +1,6 @@
 import { createJSONStorage, persist } from "zustand/middleware"
 import { createStore } from "zustand/vanilla"
-import type { SkillListItem, SkillSource } from "@alive-brug/tools"
+import type { SkillListItem, SkillSource } from "@webalive/tools"
 
 /**
  * Skills Store - Unified store for global and user skills

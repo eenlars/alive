@@ -264,7 +264,7 @@ export async function collectStreamEvents(
           const event: StreamEvent = JSON.parse(line)
           events.push(event)
 
-          if (failOnError && event.type === "bridge_error") {
+          if (failOnError && event.type === "stream_error") {
             throw new Error(`Stream error: ${JSON.stringify(event.data)}`)
           }
         } catch (e) {
@@ -283,7 +283,7 @@ export async function collectStreamEvents(
         const event: StreamEvent = JSON.parse(buffer)
         events.push(event)
 
-        if (failOnError && event.type === "bridge_error") {
+        if (failOnError && event.type === "stream_error") {
           throw new Error(`Stream error: ${JSON.stringify(event.data)}`)
         }
       } catch (e) {
@@ -303,7 +303,7 @@ export async function collectStreamEvents(
  * Assert that a stream response has no errors
  */
 export function assertNoStreamErrors(events: StreamEvent[]): void {
-  const errors = events.filter(e => e.type === "bridge_error")
+  const errors = events.filter(e => e.type === "stream_error")
   if (errors.length > 0) {
     throw new Error(`Stream contained ${errors.length} error(s):\n${JSON.stringify(errors, null, 2)}`)
   }
@@ -311,10 +311,10 @@ export function assertNoStreamErrors(events: StreamEvent[]): void {
 
 /**
  * Extract text content from stream events.
- * Works with both bridge_message assistant responses and raw text blocks.
+ * Works with both stream_message assistant responses and raw text blocks.
  *
  * Event structure for assistant messages:
- *   event.type = "bridge_message" | "message"
+ *   event.type = "stream_message" | "message"
  *   event.data.messageType = "assistant"
  *   event.data.content.message.content = [{ type: "text", text: "..." }, ...]
  */
@@ -322,7 +322,7 @@ export function extractTextFromEvents(events: StreamEvent[]): string {
   let text = ""
 
   for (const event of events) {
-    if (event.type === "bridge_message" || event.type === "message") {
+    if (event.type === "stream_message" || event.type === "message") {
       const data = event.data as {
         messageType?: string
         content?: {

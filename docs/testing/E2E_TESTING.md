@@ -33,7 +33,7 @@ This section explains how E2E tests work across different environments.
 │          │                 └─────────────────┘                 │
 │          │                                                      │
 │          ▼                                                      │
-│   Creates test users: e2e_w0@bridge.local, e2e_w1@bridge.local │
+│   Creates test users: e2e_w0@alive.local, e2e_w1@alive.local │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -80,7 +80,7 @@ This section explains how E2E tests work across different environments.
 - Tests run on the **same server** as the deployed app
 - No separate test server - tests hit the real deployed application
 - Uses production Supabase database
-- Test users use `.bridge.local` domain (not real TLD) for isolation
+- Test users use `.alive.local` domain (not real TLD) for isolation
 
 ### Deployment Flow with E2E Tests
 
@@ -106,9 +106,9 @@ make wash (production deployment)
 Each Playwright worker gets its own isolated test user:
 
 ```typescript
-// Worker 0: e2e_w0@bridge.local → workspace e2e-w0.bridge.local
-// Worker 1: e2e_w1@bridge.local → workspace e2e-w1.bridge.local
-// Worker 2: e2e_w2@bridge.local → workspace e2e-w2.bridge.local
+// Worker 0: e2e_w0@alive.local → workspace e2e-w0.alive.local
+// Worker 1: e2e_w1@alive.local → workspace e2e-w1.alive.local
+// Worker 2: e2e_w2@alive.local → workspace e2e-w2.alive.local
 // etc.
 ```
 

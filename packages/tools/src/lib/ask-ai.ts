@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { askAI } from "@alive-brug/tools"
+ * import { askAI } from "@webalive/tools"
  *
  * const response = await askAI({
  *   question: "What is the capital of France?",

@@ -4,7 +4,7 @@ import { COOKIE_NAMES } from "@webalive/shared"
 /**
  * BRIDGE API CLIENT SECRET HEADER TESTS
  *
- * These tests verify that the bridge-api-client correctly includes
+ * These tests verify that the stream-api-client correctly includes
  * the INTERNAL_TOOLS_SECRET header for internal-tools API calls.
  *
  * Critical security checks:
@@ -17,7 +17,7 @@ import { COOKIE_NAMES } from "@webalive/shared"
 // Store original env
 const originalPort = process.env.PORT
 const originalSecret = process.env.INTERNAL_TOOLS_SECRET
-const originalSessionCookie = process.env.BRIDGE_SESSION_COOKIE
+const originalSessionCookie = process.env.ALIVE_SESSION_COOKIE
 const _originalValidate = global.validateWorkspacePath
 
 // Mock workspace validator to bypass path validation for these tests
@@ -25,7 +25,7 @@ vi.mock("../src/lib/workspace-validator.js", () => ({
   validateWorkspacePath: vi.fn(), // No-op, allows all paths
 }))
 
-import { callBridgeApi } from "../src/lib/bridge-api-client.js"
+import { callBridgeApi } from "../src/lib/api-client.js"
 
 // Mock fetch globally
 const mockFetch = vi.fn()
@@ -35,7 +35,7 @@ describe("callBridgeApi - Internal Tools Secret Header", () => {
   beforeEach(() => {
     process.env.PORT = "1234" // Fake port for tests (fetch is mocked)
     process.env.INTERNAL_TOOLS_SECRET = "test-secret-xyz"
-    process.env.BRIDGE_SESSION_COOKIE = "test-session-abc"
+    process.env.ALIVE_SESSION_COOKIE = "test-session-abc"
     mockFetch.mockClear()
 
     // Default mock response
@@ -52,7 +52,7 @@ describe("callBridgeApi - Internal Tools Secret Header", () => {
       delete process.env.PORT
     }
     process.env.INTERNAL_TOOLS_SECRET = originalSecret
-    process.env.BRIDGE_SESSION_COOKIE = originalSessionCookie
+    process.env.ALIVE_SESSION_COOKIE = originalSessionCookie
     vi.clearAllMocks()
   })
 
@@ -259,7 +259,7 @@ describe("callBridgeApi - Internal Tools Secret Header", () => {
  */
 describe("callBridgeApi - PORT Environment Variable Validation", () => {
   beforeEach(() => {
-    process.env.BRIDGE_SESSION_COOKIE = "test-session"
+    process.env.ALIVE_SESSION_COOKIE = "test-session"
     mockFetch.mockClear()
 
     // Default mock response
@@ -275,7 +275,7 @@ describe("callBridgeApi - PORT Environment Variable Validation", () => {
     } else {
       delete process.env.PORT
     }
-    process.env.BRIDGE_SESSION_COOKIE = originalSessionCookie
+    process.env.ALIVE_SESSION_COOKIE = originalSessionCookie
     vi.clearAllMocks()
   })
 
@@ -514,7 +514,7 @@ describe("callBridgeApi - PORT Environment Variable Validation", () => {
 describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () => {
   beforeEach(() => {
     process.env.PORT = "1234" // Fake port for tests (fetch is mocked)
-    process.env.BRIDGE_SESSION_COOKIE = "jwt-token-123"
+    process.env.ALIVE_SESSION_COOKIE = "jwt-token-123"
     mockFetch.mockClear()
 
     // Default mock response
@@ -530,7 +530,7 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
     } else {
       delete process.env.PORT
     }
-    process.env.BRIDGE_SESSION_COOKIE = originalSessionCookie
+    process.env.ALIVE_SESSION_COOKIE = originalSessionCookie
     vi.clearAllMocks()
   })
 
@@ -607,7 +607,7 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
 
     for (const token of testTokens) {
       mockFetch.mockClear()
-      process.env.BRIDGE_SESSION_COOKIE = token
+      process.env.ALIVE_SESSION_COOKIE = token
 
       await callBridgeApi({ endpoint: "/api/test", body: {} })
 
@@ -645,8 +645,8 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
   /**
    * Verify graceful handling when session cookie is missing
    */
-  it("should omit Cookie header when BRIDGE_SESSION_COOKIE is undefined", async () => {
-    delete process.env.BRIDGE_SESSION_COOKIE
+  it("should omit Cookie header when ALIVE_SESSION_COOKIE is undefined", async () => {
+    delete process.env.ALIVE_SESSION_COOKIE
 
     await callBridgeApi({
       endpoint: "/api/test",
@@ -663,8 +663,8 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
   /**
    * Verify empty cookie value is handled gracefully
    */
-  it("should omit Cookie header when BRIDGE_SESSION_COOKIE is empty string", async () => {
-    process.env.BRIDGE_SESSION_COOKIE = ""
+  it("should omit Cookie header when ALIVE_SESSION_COOKIE is empty string", async () => {
+    process.env.ALIVE_SESSION_COOKIE = ""
 
     await callBridgeApi({
       endpoint: "/api/test",

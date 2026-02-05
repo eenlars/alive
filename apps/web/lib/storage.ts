@@ -1,4 +1,4 @@
-import { FilesystemStorage } from "@alive-brug/images"
+import { FilesystemStorage } from "@webalive/images"
 import { PATHS } from "@webalive/shared"
 
 export const imageStorage = new FilesystemStorage({

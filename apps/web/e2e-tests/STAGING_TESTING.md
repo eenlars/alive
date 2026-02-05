@@ -11,7 +11,7 @@ E2E tests can run against deployed environments (staging/production) using test 
 The test endpoints (`/api/test/bootstrap-tenant` and `/api/test/verify-tenant`) require authentication:
 
 **Local/Test Environment:**
-- Automatically accessible when `BRIDGE_ENV=local` or `NODE_ENV=test`
+- Automatically accessible when `ALIVE_ENV=local` or `NODE_ENV=test`
 - No secret needed
 
 **Staging/Production:**

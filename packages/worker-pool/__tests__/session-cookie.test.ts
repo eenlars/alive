@@ -5,12 +5,12 @@
  * production code paths, not mocks.
  *
  * THE BUG: MCP tools like restart_dev_server call Bridge API, which requires
- * authentication via BRIDGE_SESSION_COOKIE. Without it, tools fail silently.
+ * authentication via ALIVE_SESSION_COOKIE. Without it, tools fail silently.
  *
  * TEST STRATEGY:
  * 1. Type-safe: Uses TypeScript interfaces from types.ts
  * 2. Static analysis: Verify route.ts includes sessionCookie in payload
- * 3. Static analysis: Verify worker-entry.mjs sets BRIDGE_SESSION_COOKIE
+ * 3. Static analysis: Verify worker-entry.mjs sets ALIVE_SESSION_COOKIE
  * 4. Contract: Verify payload shape between route.ts and worker-entry.mjs
  */
 
@@ -23,7 +23,7 @@ import { ENV_VARS } from "../src/types"
 // Paths to actual production code
 const ROUTE_PATH = join(__dirname, "../../../apps/web/app/api/claude/stream/route.ts")
 const WORKER_ENTRY_PATH = join(__dirname, "../src/worker-entry.mjs")
-const BRIDGE_API_CLIENT_PATH = join(__dirname, "../../tools/src/lib/bridge-api-client.ts")
+const API_CLIENT_PATH = join(__dirname, "../../tools/src/lib/api-client.ts")
 
 // Extract field names from types for validation
 type AgentRequestFields = keyof AgentRequest
@@ -39,7 +39,7 @@ const REQUIRED_AGENT_CONFIG_FIELDS: AgentConfigFields[] = [
   "permissionMode",
   "settingSources",
   "oauthMcpServers",
-  "bridgeStreamTypes",
+  "streamTypes",
 ]
 
 describe("Session Cookie: Static Analysis of Production Code", () => {
@@ -87,22 +87,22 @@ describe("Session Cookie: Static Analysis of Production Code", () => {
   })
 
   /**
-   * CRITICAL: Verify worker-entry.mjs sets BRIDGE_SESSION_COOKIE from payload.
+   * CRITICAL: Verify worker-entry.mjs sets ALIVE_SESSION_COOKIE from payload.
    *
    * Without this, MCP tools can't authenticate API calls.
    */
-  it(`worker-entry.mjs MUST set ${ENV_VARS.BRIDGE_SESSION_COOKIE} env var from payload`, () => {
+  it(`worker-entry.mjs MUST set ${ENV_VARS.ALIVE_SESSION_COOKIE} env var from payload`, () => {
     const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
 
     // Must check for payload.sessionCookie
     expect(workerCode).toContain("payload.sessionCookie")
 
-    // Must set process.env.BRIDGE_SESSION_COOKIE
-    expect(workerCode).toContain(`process.env.${ENV_VARS.BRIDGE_SESSION_COOKIE}`)
+    // Must set process.env.ALIVE_SESSION_COOKIE
+    expect(workerCode).toContain(`process.env.${ENV_VARS.ALIVE_SESSION_COOKIE}`)
 
     // The assignment must exist
     const assignmentRegex = new RegExp(
-      `process\\.env\\.${ENV_VARS.BRIDGE_SESSION_COOKIE}\\s*=\\s*payload\\.sessionCookie`,
+      `process\\.env\\.${ENV_VARS.ALIVE_SESSION_COOKIE}\\s*=\\s*payload\\.sessionCookie`,
     )
     expect(assignmentRegex.test(workerCode)).toBe(true)
   })
@@ -115,8 +115,8 @@ describe("Session Cookie: Static Analysis of Production Code", () => {
   it("worker-entry.mjs MUST set env var before query() call", () => {
     const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
 
-    // Find where BRIDGE_SESSION_COOKIE is set
-    const envSetIndex = workerCode.indexOf(`process.env.${ENV_VARS.BRIDGE_SESSION_COOKIE} = payload.sessionCookie`)
+    // Find where ALIVE_SESSION_COOKIE is set
+    const envSetIndex = workerCode.indexOf(`process.env.${ENV_VARS.ALIVE_SESSION_COOKIE} = payload.sessionCookie`)
     expect(envSetIndex).toBeGreaterThan(-1)
 
     // Find where query() is called
@@ -128,15 +128,15 @@ describe("Session Cookie: Static Analysis of Production Code", () => {
   })
 
   /**
-   * Verify bridge-api-client.ts uses BRIDGE_SESSION_COOKIE for authentication.
+   * Verify api-client.ts uses ALIVE_SESSION_COOKIE for authentication.
    *
    * This is what MCP tools use to call back to Bridge API.
    */
-  it(`bridge-api-client.ts MUST use ${ENV_VARS.BRIDGE_SESSION_COOKIE} for API auth`, () => {
-    const clientCode = readFileSync(BRIDGE_API_CLIENT_PATH, "utf-8")
+  it(`api-client.ts MUST use ${ENV_VARS.ALIVE_SESSION_COOKIE} for API auth`, () => {
+    const clientCode = readFileSync(API_CLIENT_PATH, "utf-8")
 
-    // Must read from process.env.BRIDGE_SESSION_COOKIE
-    expect(clientCode).toContain(`process.env.${ENV_VARS.BRIDGE_SESSION_COOKIE}`)
+    // Must read from process.env.ALIVE_SESSION_COOKIE
+    expect(clientCode).toContain(`process.env.${ENV_VARS.ALIVE_SESSION_COOKIE}`)
 
     // Must include it in Cookie header
     expect(clientCode).toContain("Cookie:")
@@ -249,7 +249,7 @@ describe("Session Cookie: Security Considerations", () => {
 
     // Should not log the cookie value
     expect(workerCode).not.toMatch(/console\.(log|error).*sessionCookie/)
-    expect(workerCode).not.toMatch(new RegExp(`console\\.(log|error).*${ENV_VARS.BRIDGE_SESSION_COOKIE}`))
+    expect(workerCode).not.toMatch(new RegExp(`console\\.(log|error).*${ENV_VARS.ALIVE_SESSION_COOKIE}`))
   })
 
   /**
@@ -259,18 +259,18 @@ describe("Session Cookie: Security Considerations", () => {
   it("worker-entry.mjs should always set/clear env var to prevent leakage", () => {
     const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
 
-    // Should always set BRIDGE_SESSION_COOKIE (with fallback to empty string)
-    // Pattern: process.env.BRIDGE_SESSION_COOKIE = payload.sessionCookie || ""
-    expect(workerCode).toMatch(/process\.env\.BRIDGE_SESSION_COOKIE\s*=\s*payload\.sessionCookie\s*\|\|\s*["']/)
+    // Should always set ALIVE_SESSION_COOKIE (with fallback to empty string)
+    // Pattern: process.env.ALIVE_SESSION_COOKIE = payload.sessionCookie || ""
+    expect(workerCode).toMatch(/process\.env\.ALIVE_SESSION_COOKIE\s*=\s*payload\.sessionCookie\s*\|\|\s*["']/)
   })
 })
 
 describe("Session Cookie: Error Scenarios", () => {
   /**
-   * Verify bridge-api-client handles missing cookie gracefully.
+   * Verify api-client handles missing cookie gracefully.
    */
-  it("bridge-api-client.ts should handle missing session cookie", () => {
-    const clientCode = readFileSync(BRIDGE_API_CLIENT_PATH, "utf-8")
+  it("api-client.ts should handle missing session cookie", () => {
+    const clientCode = readFileSync(API_CLIENT_PATH, "utf-8")
 
     // Should have conditional for sessionCookie
     expect(clientCode).toMatch(/sessionCookie\s*&&/)
@@ -279,8 +279,8 @@ describe("Session Cookie: Error Scenarios", () => {
   /**
    * Verify PORT env var is validated (required for API base URL).
    */
-  it("bridge-api-client.ts should validate PORT env var", () => {
-    const clientCode = readFileSync(BRIDGE_API_CLIENT_PATH, "utf-8")
+  it("api-client.ts should validate PORT env var", () => {
+    const clientCode = readFileSync(API_CLIENT_PATH, "utf-8")
 
     // Should check PORT exists
     expect(clientCode).toContain("process.env.PORT")

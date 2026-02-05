@@ -23,7 +23,7 @@ Insert a "supervisor" step after each Claude completion that:
 ## Flow
 
 ```
-bridge_complete event
+stream_complete event
        ↓
 formatMessagesAsText(messages)
        ↓
@@ -62,7 +62,7 @@ setMsg(nextAction) → Ready in input box
 
 | File | Role |
 |------|------|
-| `apps/web/app/chat/page.tsx:684-695` | Hook point (bridge_complete) |
+| `apps/web/app/chat/page.tsx:684-695` | Hook point (stream_complete) |
 | `apps/web/app/api/evaluate-progress/route.ts` | API: askAIFull → Groq pipeline |
 | `apps/web/lib/groq/client.ts` | Groq API wrapper |
 | `apps/web/lib/stores/goalStore.ts` | Stores PR goal |
@@ -230,7 +230,7 @@ export const useGoalActions = () => useGoalStore((s) => s.actions)
 2. [x] Add Goal tab to SettingsModal
 3. [x] Use existing `apps/web/lib/clients/groq.ts`
 4. [x] Create `/api/evaluate-progress` endpoint
-5. [x] Hook into `page.tsx` bridge_complete handler
+5. [x] Hook into `page.tsx` stream_complete handler
 6. [x] Add feature flag (`FEATURE_FLAGS.AGENT_SUPERVISOR`)
 7. [x] Add evaluating state (`isEvaluatingProgress`)
 
@@ -241,7 +241,7 @@ export const useGoalActions = () => useGoalStore((s) => s.actions)
 | `apps/web/lib/stores/goalStore.ts` | Created - Zustand store for PR goal |
 | `apps/web/components/modals/SettingsModal.tsx` | Modified - Added Goal tab |
 | `apps/web/app/api/evaluate-progress/route.ts` | Created - askAIFull → Groq pipeline |
-| `apps/web/app/chat/page.tsx` | Modified - Hook into bridge_complete |
+| `apps/web/app/chat/page.tsx` | Modified - Hook into stream_complete |
 | `packages/shared/src/constants.ts` | Modified - Added AGENT_SUPERVISOR flag |
 
 ## Usage

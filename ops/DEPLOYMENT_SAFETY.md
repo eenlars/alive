@@ -39,10 +39,10 @@ pre-deployment-check.sh [staging|production]
 **If checks fail:**
 ```bash
 # Service in failed state?
-systemctl reset-failed claude-bridge-production
+systemctl reset-failed alive-production
 
 # Restart limit exceeded?
-systemctl reset-failed claude-bridge-production
+systemctl reset-failed alive-production
 
 # Port in use but service not running?
 lsof -i :9000  # Find process
@@ -167,14 +167,14 @@ curl http://localhost:8998/api/health
 pre-deployment-check.sh production
 
 # 2. Check logs first
-journalctl -u claude-bridge-production -n 50
+journalctl -u alive-production -n 50
 
 # 3. Deploy (never use --force for production)
 safe-deploy.sh production
 
 # 4. Monitor
-tail -f /var/log/deployment-claude-bridge-production-*.log
-journalctl -u claude-bridge-production -f
+tail -f /var/log/deployment-alive-production-*.log
+journalctl -u alive-production -f
 ```
 
 ### Scenario 3: Emergency Rollback
@@ -183,15 +183,15 @@ If something goes wrong and auto-rollback didn't work:
 
 ```bash
 # Identify previous build
-ls /root/webalive/claude-bridge/.builds/production/
+ls /root/alive/.builds/production/
 
 # Manual rollback
-cd /root/webalive/claude-bridge/.builds/production
+cd /root/alive/.builds/production
 ln -sfn dist.20260203-123600 current.tmp
 mv current.tmp current
 
 # Restart service
-systemctl restart claude-bridge-production
+systemctl restart alive-production
 
 # Verify
 curl http://localhost:9000/api/health
@@ -203,16 +203,16 @@ curl http://localhost:9000/api/health
 
 ```bash
 # Status
-systemctl status claude-bridge-production
+systemctl status alive-production
 
 # Recent logs
-journalctl -u claude-bridge-production -n 100
+journalctl -u alive-production -n 100
 
 # Restart history
-systemctl show -p NRestarts --value claude-bridge-production
+systemctl show -p NRestarts --value alive-production
 
 # Memory usage
-systemctl show -p MemoryCurrent --value claude-bridge-production
+systemctl show -p MemoryCurrent --value alive-production
 
 # Port verification
 lsof -i :9000
@@ -224,8 +224,8 @@ ss -tlnp | grep 9000
 | Log | Purpose |
 |-----|---------|
 | `/var/log/deployment-*.log` | Deployment script logs |
-| `journalctl -u claude-bridge-production` | Service logs |
-| `journalctl -u claude-bridge-staging` | Staging logs |
+| `journalctl -u alive-production` | Service logs |
+| `journalctl -u alive-staging` | Staging logs |
 
 ## Command Reference
 
@@ -236,7 +236,7 @@ ss -tlnp | grep 9000
 pre-deployment-check.sh production
 
 # Just check restart limits
-systemctl show -p NRestarts,StartLimitBurst --value claude-bridge-production
+systemctl show -p NRestarts,StartLimitBurst --value alive-production
 
 # Just check port
 lsof -i :9000 || echo "Port available"
@@ -249,8 +249,8 @@ lsof -i :9000 || echo "Port available"
 safe-deploy.sh production
 
 # Direct zero-downtime deploy (if needed)
-deploy-with-zero-downtime.sh claude-bridge-production \
-  /root/webalive/claude-bridge/.builds/production/dist.xyz \
+deploy-with-zero-downtime.sh alive-production \
+  /root/alive/.builds/production/dist.xyz \
   9000
 
 # Force deployment (NOT recommended, use only if --force in safe-deploy)
@@ -264,10 +264,10 @@ safe-deploy.sh production --force
 curl http://localhost:9000/api/health | jq .
 
 # Check resources
-systemctl status claude-bridge-production | grep Memory
+systemctl status alive-production | grep Memory
 
 # View recent errors
-journalctl -u claude-bridge-production --since "1 hour ago" | grep -i error
+journalctl -u alive-production --since "1 hour ago" | grep -i error
 ```
 
 ## What NOT to Do
@@ -283,7 +283,7 @@ bun /path/to/server.js
 rm current && ln -s dist.xyz current
 
 # ❌ Deploy while service is in failed state
-systemctl restart claude-bridge-production
+systemctl restart alive-production
 
 # ❌ Ignore pre-deployment checks
 safe-deploy.sh production --force
@@ -296,7 +296,7 @@ safe-deploy.sh production --force
 safe-deploy.sh production
 
 # ✅ Reset failed state first
-systemctl reset-failed claude-bridge-production
+systemctl reset-failed alive-production
 
 # ✅ Always run pre-checks
 pre-deployment-check.sh production
@@ -314,11 +314,11 @@ safe-deploy.sh staging --force
 lsof -i :9000
 
 # Check service logs
-journalctl -u claude-bridge-production -n 100
+journalctl -u alive-production -n 100
 
 # Reset and try again
-systemctl reset-failed claude-bridge-production
-systemctl start claude-bridge-production
+systemctl reset-failed alive-production
+systemctl start alive-production
 
 # Check health
 curl http://localhost:9000/api/health
@@ -331,23 +331,23 @@ curl http://localhost:9000/api/health
 curl -v http://localhost:9000/api/health
 
 # Check service status
-systemctl status claude-bridge-production
+systemctl status alive-production
 
 # Check recent errors
-journalctl -u claude-bridge-production --since "5 min ago" | tail -50
+journalctl -u alive-production --since "5 min ago" | tail -50
 
 # Check database connection
-systemctl show -p ExecStart --value claude-bridge-production | grep -o "DB.*="
+systemctl show -p ExecStart --value alive-production | grep -o "DB.*="
 ```
 
 ### Deployment taking too long
 
 ```bash
 # Check service status
-systemctl show -p State --value claude-bridge-production
+systemctl show -p State --value alive-production
 
 # Increase timeout temporarily
-# Edit /etc/systemd/system/claude-bridge-production.service
+# Edit /etc/systemd/system/alive-production.service
 # Change TimeoutStartSec=60s to TimeoutStartSec=120s
 systemctl daemon-reload
 ```

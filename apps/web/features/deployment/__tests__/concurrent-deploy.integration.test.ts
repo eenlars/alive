@@ -155,7 +155,7 @@ describe(SUITE_NAME, () => {
     // Create test users with organizations
     const users = await Promise.all(
       TEST_SLUGS.map(async slug => {
-        const email = `${slug}@bridge-vitest.internal`
+        const email = `${slug}@alive-vitest.internal`
         const password = TEST_CONFIG.TEST_PASSWORD
         const user = await createTestUser(email, TEST_CONFIG.DEFAULT_CREDITS, password)
 

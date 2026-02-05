@@ -3,7 +3,7 @@
  * Server Setup Script
  *
  * Single command to set up a new server or update an existing one.
- * Reads configuration from /var/lib/claude-bridge/server-config.json
+ * Reads configuration from /var/lib/alive/server-config.json
  *
  * Usage: bun run setup:server [--production] [--enable]
  */
@@ -16,8 +16,8 @@ import { constants, existsSync } from "node:fs"
 // Types & Constants
 // =============================================================================
 
-const CONFIG_PATH = "/var/lib/claude-bridge/server-config.json"
-const GENERATED_DIR = "/var/lib/claude-bridge/generated"
+const CONFIG_PATH = "/var/lib/alive/server-config.json"
+const GENERATED_DIR = "/var/lib/alive/generated"
 
 const COLORS = {
   red: "\x1b[31m",
@@ -84,7 +84,7 @@ function which(name: string): string | null {
 // Checks
 // =============================================================================
 
-async function checkPrerequisites(): Promise<{ ok: boolean; bridgeRoot: string }> {
+async function checkPrerequisites(): Promise<{ ok: boolean; aliveRoot: string }> {
   header("Checking prerequisites")
 
   let allOk = true
@@ -101,21 +101,21 @@ async function checkPrerequisites(): Promise<{ ok: boolean; bridgeRoot: string }
   }
 
   // Check server config
-  let bridgeRoot = ""
+  let aliveRoot = ""
   try {
     await access(CONFIG_PATH, constants.R_OK)
     const raw = await readFile(CONFIG_PATH, "utf8")
     const config = JSON.parse(raw)
-    bridgeRoot = config.paths?.bridgeRoot
+    aliveRoot = config.paths?.aliveRoot
 
-    if (!bridgeRoot) {
-      fail("paths.bridgeRoot not set in config")
+    if (!aliveRoot) {
+      fail("paths.aliveRoot not set in config")
       allOk = false
-    } else if (!existsSync(bridgeRoot)) {
-      fail(`bridgeRoot does not exist: ${bridgeRoot}`)
+    } else if (!existsSync(aliveRoot)) {
+      fail(`aliveRoot does not exist: ${aliveRoot}`)
       allOk = false
     } else {
-      ok(`server-config.json (bridgeRoot: ${bridgeRoot})`)
+      ok(`server-config.json (aliveRoot: ${aliveRoot})`)
     }
   } catch {
     fail(`${CONFIG_PATH} not found`)
@@ -130,17 +130,17 @@ async function checkPrerequisites(): Promise<{ ok: boolean; bridgeRoot: string }
     warn("Redis not responding (may need to start)")
   }
 
-  return { ok: allOk, bridgeRoot }
+  return { ok: allOk, aliveRoot }
 }
 
 // =============================================================================
 // Build
 // =============================================================================
 
-async function buildProduction(bridgeRoot: string): Promise<boolean> {
+async function buildProduction(aliveRoot: string): Promise<boolean> {
   header("Building production")
 
-  const buildDir = `${bridgeRoot}/.builds/production`
+  const buildDir = `${aliveRoot}/.builds/production`
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
   const buildPath = `${buildDir}/${timestamp}`
 
@@ -150,13 +150,13 @@ async function buildProduction(bridgeRoot: string): Promise<boolean> {
   log(`Building to: ${buildPath}`)
 
   // Run Next.js build
-  if (!run(`bun run build`, { cwd: `${bridgeRoot}/apps/web` })) {
+  if (!run(`bun run build`, { cwd: `${aliveRoot}/apps/web` })) {
     fail("Build failed")
     return false
   }
 
   // Copy standalone output
-  const standaloneSrc = `${bridgeRoot}/apps/web/.next/standalone`
+  const standaloneSrc = `${aliveRoot}/apps/web/.next/standalone`
   const standaloneDst = `${buildPath}/standalone`
 
   if (!existsSync(standaloneSrc)) {
@@ -167,8 +167,8 @@ async function buildProduction(bridgeRoot: string): Promise<boolean> {
   run(`cp -r "${standaloneSrc}" "${standaloneDst}"`)
 
   // Copy static files
-  run(`cp -r "${bridgeRoot}/apps/web/.next/static" "${standaloneDst}/apps/web/.next/"`)
-  run(`cp -r "${bridgeRoot}/apps/web/public" "${standaloneDst}/apps/web/"`)
+  run(`cp -r "${aliveRoot}/apps/web/.next/static" "${standaloneDst}/apps/web/.next/"`)
+  run(`cp -r "${aliveRoot}/apps/web/public" "${standaloneDst}/apps/web/"`)
 
   // Update symlink
   const currentLink = `${buildDir}/current`
@@ -185,23 +185,23 @@ async function buildProduction(bridgeRoot: string): Promise<boolean> {
 // Services
 // =============================================================================
 
-async function setupServices(bridgeRoot: string, enable: boolean): Promise<boolean> {
+async function setupServices(aliveRoot: string, enable: boolean): Promise<boolean> {
   header("Setting up systemd services")
 
   // Generate services
-  if (!run(`bun run gen:systemd`, { cwd: bridgeRoot })) {
+  if (!run(`bun run gen:systemd`, { cwd: aliveRoot })) {
     fail("Failed to generate services")
     return false
   }
 
   // Install services
-  run(`cp ${GENERATED_DIR}/claude-bridge-*.service /etc/systemd/system/`)
+  run(`cp ${GENERATED_DIR}/alive-*.service /etc/systemd/system/`)
   run(`systemctl daemon-reload`)
   ok("Services installed")
 
   if (enable) {
-    run(`systemctl enable claude-bridge-dev`)
-    run(`systemctl enable claude-bridge-production`)
+    run(`systemctl enable alive-dev`)
+    run(`systemctl enable alive-production`)
     ok("Services enabled for auto-start")
   }
 
@@ -212,24 +212,24 @@ async function startServices(production: boolean): Promise<void> {
   header("Starting services")
 
   // Stop old instances
-  run(`systemctl stop claude-bridge-dev 2>/dev/null || true`, { silent: true })
-  run(`systemctl stop claude-bridge-production 2>/dev/null || true`, { silent: true })
+  run(`systemctl stop alive-dev 2>/dev/null || true`, { silent: true })
+  run(`systemctl stop alive-production 2>/dev/null || true`, { silent: true })
 
   if (production) {
-    run(`systemctl start claude-bridge-production`)
-    if (run(`systemctl is-active claude-bridge-production`, { silent: true })) {
-      ok("claude-bridge-production running on port 9000")
+    run(`systemctl start alive-production`)
+    if (run(`systemctl is-active alive-production`, { silent: true })) {
+      ok("alive-production running on port 9000")
     } else {
       fail("Failed to start production")
-      log(`  ${COLORS.dim}Check: journalctl -u claude-bridge-production -n 50${COLORS.reset}`)
+      log(`  ${COLORS.dim}Check: journalctl -u alive-production -n 50${COLORS.reset}`)
     }
   } else {
-    run(`systemctl start claude-bridge-dev`)
-    if (run(`systemctl is-active claude-bridge-dev`, { silent: true })) {
-      ok("claude-bridge-dev running on port 8997")
+    run(`systemctl start alive-dev`)
+    if (run(`systemctl is-active alive-dev`, { silent: true })) {
+      ok("alive-dev running on port 8997")
     } else {
       fail("Failed to start dev")
-      log(`  ${COLORS.dim}Check: journalctl -u claude-bridge-dev -n 50${COLORS.reset}`)
+      log(`  ${COLORS.dim}Check: journalctl -u alive-dev -n 50${COLORS.reset}`)
     }
   }
 }
@@ -256,22 +256,22 @@ ${COLORS.bold}╔═════════════════════
     process.exit(1)
   }
 
-  const bridgeRoot = prereq.bridgeRoot
+  const aliveRoot = prereq.aliveRoot
 
   // Generate routing
   header("Generating routing config")
-  run(`bun run gen:routing`, { cwd: bridgeRoot })
+  run(`bun run gen:routing`, { cwd: aliveRoot })
 
   // Build if production
   if (production) {
-    const built = await buildProduction(bridgeRoot)
+    const built = await buildProduction(aliveRoot)
     if (!built) {
       process.exit(1)
     }
   }
 
   // Setup services
-  await setupServices(bridgeRoot, enable)
+  await setupServices(aliveRoot, enable)
 
   // Start services
   await startServices(production)
@@ -285,7 +285,7 @@ ${COLORS.dim}Useful commands:${COLORS.reset}
   bun run see         # View production logs
   bun run see:dev     # View dev logs
   bun run gen:all     # Regenerate all configs
-  systemctl status claude-bridge-*
+  systemctl status alive-*
 `)
 }
 

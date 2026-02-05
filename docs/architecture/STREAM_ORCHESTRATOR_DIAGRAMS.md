@@ -176,7 +176,7 @@ stateDiagram-v2
 
     ParseError --> LineParse: Log error, continue
 
-    EventProcess --> SessionEvent: type = "bridge_session"
+    EventProcess --> SessionEvent: type = "stream_session"
     EventProcess --> MessageEvent: Other types
 
     SessionEvent --> SessionPersist: Store in SessionStore
@@ -382,7 +382,7 @@ sequenceDiagram
     SessionStore-->>Endpoint1: null
     Endpoint1->>SDK1: Start new session (resume = null)
     SDK1->>SDK1: Generate session ID = "sess_abc"
-    SDK1-->>Endpoint1: Event {type: "bridge_session", sessionId: "sess_abc"}
+    SDK1-->>Endpoint1: Event {type: "stream_session", sessionId: "sess_abc"}
     Endpoint1->>SessionStore: set("user1::workspace1::conv-123", "sess_abc")
     SessionStore->>Supabase: UPSERT sessions (user_id, domain_id, conv_id, sdk_session_id)
     Supabase-->>SessionStore: Success

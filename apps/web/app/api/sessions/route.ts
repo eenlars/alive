@@ -5,7 +5,7 @@
  * Used by A2A tools (sessions_list, sessions_send, sessions_history).
  */
 
-import type { SessionInfo } from "@alive-brug/tools"
+import type { SessionInfo } from "@webalive/tools"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { isConversationLocked, type TabSessionKey } from "@/features/auth/types/session"

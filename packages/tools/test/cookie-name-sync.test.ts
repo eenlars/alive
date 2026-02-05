@@ -39,10 +39,10 @@ describe("Cookie Name Synchronization - Prevent Hardcoding", () => {
 
   /**
    * THE HARDCODED COOKIE BUG - Source code verification
-   * Ensure bridge-api-client imports COOKIE_NAMES (not hardcoded)
+   * Ensure api-client imports COOKIE_NAMES (not hardcoded)
    */
-  it("should import COOKIE_NAMES from @webalive/shared in bridge-api-client.ts", () => {
-    const sourcePath = join(__dirname, "../src/lib/bridge-api-client.ts")
+  it("should import COOKIE_NAMES from @webalive/shared in stream-api-client.ts", () => {
+    const sourcePath = join(__dirname, "../src/lib/api-client.ts")
     const sourceCode = readFileSync(sourcePath, "utf-8")
 
     // Must import COOKIE_NAMES from shared package (allow other imports too)
@@ -65,8 +65,8 @@ describe("Cookie Name Synchronization - Prevent Hardcoding", () => {
   /**
    * Verify no hardcoded "auth_session_v2" strings (must use constant)
    */
-  it("should not hardcode 'auth_session' string in bridge-api-client.ts", () => {
-    const sourcePath = join(__dirname, "../src/lib/bridge-api-client.ts")
+  it("should not hardcode 'auth_session' string in stream-api-client.ts", () => {
+    const sourcePath = join(__dirname, "../src/lib/api-client.ts")
     const sourceCode = readFileSync(sourcePath, "utf-8")
 
     // Remove import line from check (that's the one place it's okay in comments)
@@ -97,7 +97,7 @@ describe("Cookie Name Synchronization - Prevent Hardcoding", () => {
    * Test that we can detect the old bug pattern
    */
   it("should detect if someone tries to hardcode 'session=' again", () => {
-    const sourcePath = join(__dirname, "../src/lib/bridge-api-client.ts")
+    const sourcePath = join(__dirname, "../src/lib/api-client.ts")
     const sourceCode = readFileSync(sourcePath, "utf-8")
 
     // The OLD BUG pattern that we're preventing

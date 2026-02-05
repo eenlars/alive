@@ -5,7 +5,7 @@
  * They're designed with proper TDD principles:
  *
  * 1. NO FIXED TIMEOUTS - Poll actual state instead of guessing
- * 2. FAIL ON ANY ERROR - bridge_error events should fail the test
+ * 2. FAIL ON ANY ERROR - stream_error events should fail the test
  * 3. VERIFY BEHAVIOR - Test what should happen, not just "did it not crash"
  * 4. CLEAN STATE ASSERTIONS - Verify cleanup actually happened
  *
@@ -251,17 +251,17 @@ describe.skipIf(SKIP_REAL_API_TESTS)("REAL Cancellation E2E (uses API credits)",
     expect(res2.status).not.toBe(409)
     expect(res2.status).toBe(200)
 
-    // Read and verify response - we test the bridge, not Claude's exact output
+    // Read and verify response - we test the stream, not Claude's exact output
     const events = await collectStreamEvents(res2, { failOnError: true })
     assertNoStreamErrors(events)
 
-    // Verify we got assistant content (any content - we're testing the bridge, not Claude)
+    // Verify we got assistant content (any content - we're testing the stream, not Claude)
     const text = extractTextFromEvents(events)
     console.log(`[E2E] Response text: "${text.substring(0, 100)}..."`)
     expect(text.length).toBeGreaterThan(0)
 
     // Verify completion event
-    const completeEvents = events.filter(e => e.type === "complete" || e.type === "bridge_complete")
+    const completeEvents = events.filter(e => e.type === "complete" || e.type === "stream_complete")
     expect(completeEvents.length).toBeGreaterThan(0)
 
     console.log("[E2E] ✅ Second request succeeded after cancellation")
@@ -307,14 +307,14 @@ describe.skipIf(SKIP_REAL_API_TESTS)("REAL Cancellation E2E (uses API credits)",
     expect(response.status).not.toBe(409)
     expect(response.status).toBe(200)
 
-    // Verify stream completes with content - we test the bridge, not Claude
+    // Verify stream completes with content - we test the stream, not Claude
     const events = await collectStreamEvents(response, { failOnError: true })
     assertNoStreamErrors(events)
 
     const text = extractTextFromEvents(events)
     expect(text.length).toBeGreaterThan(0)
 
-    const completeEvents = events.filter(e => e.type === "complete" || e.type === "bridge_complete")
+    const completeEvents = events.filter(e => e.type === "complete" || e.type === "stream_complete")
     expect(completeEvents.length).toBeGreaterThan(0)
 
     console.log("[E2E] ✅ Rapid cancellation stress test passed")
@@ -390,7 +390,7 @@ describe.skipIf(SKIP_REAL_API_TESTS)("REAL Cancellation E2E (uses API credits)",
    * TEST 5: Error-free completion
    *
    * Verifies that:
-   * - A normal request completes without any bridge_error events
+   * - A normal request completes without any stream_error events
    * - Response contains expected content
    */
   it("should complete request without errors", async () => {
@@ -401,18 +401,18 @@ describe.skipIf(SKIP_REAL_API_TESTS)("REAL Cancellation E2E (uses API credits)",
 
     expect(response.status).toBe(200)
 
-    // Collect events - this will FAIL if any bridge_error is found
+    // Collect events - this will FAIL if any stream_error is found
     const events = await collectStreamEvents(response, { failOnError: true })
 
     // Explicit assertion - no errors should have been collected
     assertNoStreamErrors(events)
 
-    // Verify we got assistant content - we test the bridge, not Claude's exact words
+    // Verify we got assistant content - we test the stream, not Claude's exact words
     const text = extractTextFromEvents(events)
     expect(text.length).toBeGreaterThan(0)
 
     // Verify we got a completion event
-    const completeEvents = events.filter(e => e.type === "bridge_complete" || e.type === "complete")
+    const completeEvents = events.filter(e => e.type === "stream_complete" || e.type === "complete")
     expect(completeEvents.length).toBeGreaterThan(0)
 
     console.log("[E2E] ✅ Request completed cleanly without errors")
