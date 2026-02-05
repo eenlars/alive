@@ -536,7 +536,7 @@ bun run dev
 ```
 
 **Test Credentials** (when `STREAM_ENV=local`):
-- Email: `test@bridge.local`
+- Email: `test@stream.local`
 - Password: `test`
 
 ### Before Committing

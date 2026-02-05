@@ -204,13 +204,14 @@ if (!isPathWithinWorkspace(filePath, workspacePath)) {
 
 ### 2. Session Management
 
-**Pattern**: Each browser tab = one independent chat session. Sessions are keyed by `userId::workspace::tabId`
+**Pattern**: Each browser tab = one independent chat session. Sessions are keyed by `userId::workspace::tabGroupId::tabId`
 
 ```typescript
 // Session key builder
 import { tabKey } from '@/features/auth/lib/sessionStore'
-const key = tabKey({ userId, workspace, tabId })
-// → "userId::workspace::tabId"
+const key = tabKey({ userId, workspace, tabGroupId, tabId })
+// → "userId::workspace::tabGroupId::tabId"
+// or with worktree: "userId::workspace::wt/<slug>::tabGroupId::tabId"
 
 // Session store interface
 interface SessionStore {
@@ -564,7 +565,7 @@ bun run dev
 ```
 
 **Test Credentials** (when `STREAM_ENV=local`):
-- Email: `test@bridge.local`
+- Email: `test@stream.local`
 - Password: `test`
 
 ### Before Committing
@@ -814,8 +815,9 @@ We have a custom in-process automation scheduler (NOT n8n). Jobs are stored in S
 # Check if cron service is running (look for "[CronService]" logs)
 journalctl -u claude-bridge-staging | grep CronService | tail -20
 
-# Check automation_jobs table
-sqlite3 use_this_to_remember.db "SELECT 'Check app.automation_jobs in Supabase'"
+# Check app.automation_jobs in Supabase (use the Supabase SQL editor or psql)
+# Example (psql):
+# psql "$SUPABASE_DB_URL" -c "select id, cron, prompt from app.automation_jobs limit 20;"
 ```
 
 ## External Reference Repos

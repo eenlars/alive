@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   // DNS checks run after we have all domains (requires SERVER_IP to be configured)
   const serverIp = DEFAULTS.SERVER_IP
   if (!serverIp) {
-    throw new Error("SERVER_IP not configured in server-config.json")
+    return Response.json({ error: "SERVER_IP not configured" }, { status: 500 })
   }
   await fetchSourceSafely("dns", () => fetchDnsSources(results, serverIp))
 

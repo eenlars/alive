@@ -258,7 +258,7 @@ export async function GET(req: NextRequest) {
   const serverConfig = await loadServerConfig()
   const serverIp = serverConfig?.serverIp || DEFAULTS.SERVER_IP
   if (!serverIp) {
-    throw new Error("SERVER_IP not configured in server-config.json")
+    return Response.json({ error: "SERVER_IP not configured" }, { status: 500 })
   }
 
   const checks = domains.map(async domainInfo => {
