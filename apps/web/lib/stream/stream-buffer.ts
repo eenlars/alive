@@ -424,6 +424,7 @@ export async function ackStreamCursor(
   lastSeenSeq: number,
 ): Promise<{ lastReadSeq: number } | null> {
   const redis = getRedis()
+  if (!redis) return null
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
   const result = await redis.eval(ACK_SCRIPT, 1, key, userId, lastSeenSeq.toString())

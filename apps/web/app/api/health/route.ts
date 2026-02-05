@@ -98,6 +98,7 @@ function getHealthCheckRedis() {
 // For testing: reset singleton
 export function _resetHealthCheckRedis() {
   healthCheckRedis = null
+  healthCheckRedisInitialized = false
 }
 
 /**
