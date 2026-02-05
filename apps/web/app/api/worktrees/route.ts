@@ -38,6 +38,8 @@ function mapWorktreeError(
       return { code: ErrorCodes.WORKTREE_DELETE_BRANCH_BLOCKED, status: 409, details }
     case "WORKTREE_NOT_GIT":
       return { code: ErrorCodes.WORKTREE_NOT_GIT, status: 404, details }
+    case "WORKTREE_GIT_FAILED":
+      return { code: ErrorCodes.WORKTREE_GIT_FAILED, status: 500, details }
     default:
       return {
         code: ErrorCodes.INTERNAL_ERROR,
@@ -113,6 +115,10 @@ export async function POST(req: NextRequest) {
     const parsed = await handleBody("worktrees/create", req)
     if (isHandleBodyError(parsed)) return parsed
     body = parsed
+
+    if (!body.workspace?.trim()) {
+      return createErrorResponse(ErrorCodes.WORKSPACE_MISSING, 400, { requestId })
+    }
 
     const authorized = await verifyWorkspaceAccess(user, body, `[Worktrees ${requestId}]`)
     if (!authorized) {

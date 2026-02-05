@@ -28,7 +28,7 @@ export const WorktreeSlugSchema = z
  */
 export const OptionalWorktreeSchema = z
   .string()
-  .optional()
+  .nullish()
   .transform(val => (val ? normalizeWorktreeSlug(val) : val))
   .refine(val => !val || WORKTREE_SLUG_REGEX.test(val), {
     message: "Invalid worktree slug. Use lowercase letters, numbers, and hyphens (max 49 chars).",

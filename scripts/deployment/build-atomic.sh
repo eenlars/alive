@@ -48,7 +48,7 @@ cleanup_failed_build() {
     log_error "Build failed with exit code $exit_code"
 
     # Clean up temp build
-    [ -d "$TEMP_BUILD_DIR" ] && rm -rf "$TEMP_BUILD_DIR"
+    [ -d "$TEMP_BUILD_DIR" ] && rm -rf "${TEMP_BUILD_DIR:?}"
 
     # Restore dev server files
     if [ -n "$DEV_BACKUP" ] && [ -d "$DEV_BACKUP" ]; then
@@ -79,7 +79,7 @@ mkdir -p "$BUILDS_DIR"
 if [ -d "$WEB_NEXT_DIR/dev" ]; then
     log_step "Backing up dev server files..."
     DEV_BACKUP="$WEB_NEXT_DIR.dev-backup"
-    rm -rf "$DEV_BACKUP" 2>/dev/null || true
+    rm -rf "${DEV_BACKUP:?}" 2>/dev/null || true
     mv "$WEB_NEXT_DIR/dev" "$DEV_BACKUP"
 fi
 
@@ -87,8 +87,8 @@ fi
 # Phase 3: Clean & Validate
 # =============================================================================
 log_step "Cleaning build artifacts..."
-rm -rf "$WEB_NEXT_DIR" "$PROJECT_ROOT/.turbo" "$PROJECT_ROOT/node_modules/.cache/turbo"
-rm -rf "$WEB_DIR/dist" 2>/dev/null || true
+rm -rf "${WEB_NEXT_DIR:?}" "${PROJECT_ROOT:?}/.turbo" "${PROJECT_ROOT:?}/node_modules/.cache/turbo"
+rm -rf "${WEB_DIR:?}/dist" 2>/dev/null || true
 
 log_step "Validating workspace..."
 if ! "$SCRIPT_DIR/../validation/detect-workspace-issues.sh" >/dev/null 2>&1; then
@@ -163,7 +163,7 @@ mkdir -p "$STANDALONE_PACKAGES_DIR"
 # Use STANDALONE_PACKAGES array from lib/standalone-packages.sh (single source of truth)
 for pkg in "${STANDALONE_PACKAGES[@]}"; do
     [ ! -d "packages/$pkg" ] && { log_error "Package not found: $pkg"; exit 1; }
-    rm -rf "$STANDALONE_PACKAGES_DIR/$pkg" 2>/dev/null || true
+    rm -rf "${STANDALONE_PACKAGES_DIR:?}/$pkg" 2>/dev/null || true
     # Use cp -rL to follow symlinks (bun creates symlinks to .bun/ cache)
     # This ensures dependencies like zod get copied as real files
     cp -rL "packages/$pkg" "$STANDALONE_PACKAGES_DIR/$pkg" 2>/dev/null || cp -r "packages/$pkg" "$STANDALONE_PACKAGES_DIR/$pkg"
@@ -171,7 +171,7 @@ done
 
 # Copy template
 [ ! -d "templates/site-template" ] && { log_error "Template not found"; exit 1; }
-rm -rf "$STANDALONE_PACKAGES_DIR/template" 2>/dev/null || true
+rm -rf "${STANDALONE_PACKAGES_DIR:?}/template" 2>/dev/null || true
 cp -rL "templates/site-template" "$STANDALONE_PACKAGES_DIR/template" 2>/dev/null || cp -r "templates/site-template" "$STANDALONE_PACKAGES_DIR/template"
 
 # =============================================================================
@@ -195,7 +195,8 @@ done
 
 # Copy worker-entry.mjs (it's in src/ not dist/)
 if [ -f "packages/worker-pool/src/worker-entry.mjs" ]; then
-    cp "packages/worker-pool/src/worker-entry.mjs" "$STANDALONE_NODE_MODULES/@webalive/worker-pool/dist/"
+    mkdir -p "${STANDALONE_NODE_MODULES:?}/@webalive/worker-pool/dist/"
+    cp "packages/worker-pool/src/worker-entry.mjs" "${STANDALONE_NODE_MODULES:?}/@webalive/worker-pool/dist/"
 fi
 
 # Worker-entry.mjs imports @webalive/tools - add it to worker-pool's node_modules

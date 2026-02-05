@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
           debugEntry.result = "unauthorized"
           debugEntry.errorMessage = error.message
           logCancelDebug(debugEntry)
-          return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403)
+          return createErrorResponse(ErrorCodes.FORBIDDEN, 403)
         }
 
         throw error
@@ -252,7 +252,7 @@ export async function POST(req: NextRequest) {
           debugEntry.result = "unauthorized"
           debugEntry.errorMessage = error.message
           logCancelDebug(debugEntry)
-          return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403)
+          return createErrorResponse(ErrorCodes.FORBIDDEN, 403)
         }
 
         throw error

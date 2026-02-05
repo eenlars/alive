@@ -48,7 +48,8 @@ NEXT_CONFIG="$PROJECT_ROOT/apps/web/next.config.js"
 if [ -f "$NEXT_CONFIG" ]; then
     # Extract package names from outputFileTracingIncludes
     # Matches patterns like "../../packages/tools/**/*"
-    NEXT_PACKAGES=$(grep -oE '\.\./\.\./packages/[a-z-]+' "$NEXT_CONFIG" | sed 's|../../packages/||' | sort -u)
+    # Note: grep returns exit code 1 when no matches found, which would fail with set -e
+    NEXT_PACKAGES=$(grep -oE '\.\./\.\./packages/[a-z-]+' "$NEXT_CONFIG" 2>/dev/null | sed 's|../../packages/||' | sort -u || true)
 
     for next_pkg in $NEXT_PACKAGES; do
         # Skip guides - it's optional/documentation only

@@ -24,11 +24,13 @@ export const ErrorCodes = {
   WORKTREE_DELETE_BRANCH_BLOCKED: "WORKTREE_DELETE_BRANCH_BLOCKED",
   WORKTREE_LOCKED: "WORKTREE_LOCKED",
   WORKTREE_DIRTY: "WORKTREE_DIRTY",
+  WORKTREE_GIT_FAILED: "WORKTREE_GIT_FAILED",
 
   // Authentication errors (2xxx)
   NO_SESSION: "NO_SESSION",
   AUTH_REQUIRED: "AUTH_REQUIRED",
   UNAUTHORIZED: "UNAUTHORIZED",
+  FORBIDDEN: "FORBIDDEN",
   ORG_ACCESS_DENIED: "ORG_ACCESS_DENIED",
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
   INVALID_SIGNATURE: "INVALID_SIGNATURE",
@@ -211,12 +213,20 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
     case ErrorCodes.WORKTREE_DIRTY:
       return "The worktree has uncommitted changes. Commit or clean it before removing."
 
+    case ErrorCodes.WORKTREE_GIT_FAILED:
+      return details?.message
+        ? `A git command failed: ${details.message}`
+        : "A git command failed unexpectedly. Please try again."
+
     case ErrorCodes.NO_SESSION:
     case ErrorCodes.AUTH_REQUIRED:
       return "You need to log in first. Please refresh the page and enter your passcode."
 
     case ErrorCodes.UNAUTHORIZED:
       return "You don't have access to this. Please check with your administrator if you need permission."
+
+    case ErrorCodes.FORBIDDEN:
+      return "You don't have permission to perform this action."
 
     case ErrorCodes.ORG_ACCESS_DENIED:
       return "You do not have access to this organization. Please check with your administrator if you need permission."
@@ -536,6 +546,9 @@ export function getErrorHelp(code: ErrorCode, details?: Record<string, any>): st
 
     case ErrorCodes.WORKTREE_DELETE_BRANCH_BLOCKED:
       return "Switch the base workspace to another branch before deleting this one."
+
+    case ErrorCodes.WORKTREE_GIT_FAILED:
+      return "This may be a transient issue. Check your network connection and try again. If the problem persists, check the server logs for details."
 
     case ErrorCodes.ERROR_MAX_TURNS:
       return "Click 'New Conversation' to start fresh and continue working."

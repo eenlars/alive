@@ -1,3 +1,15 @@
+/**
+ * HTTP Layer Tests for /api/worktrees
+ *
+ * These tests verify the HTTP contract (status codes, error responses, auth checks).
+ * Business logic mocking is intentional - the actual worktree operations are tested
+ * with real git repositories in:
+ *   @see apps/web/features/worktrees/lib/__tests__/worktrees.test.ts
+ *
+ * This separation allows:
+ * - Fast HTTP layer tests that don't need git setup
+ * - Comprehensive integration tests for git operations in worktrees.test.ts
+ */
 import { NextRequest } from "next/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -131,6 +143,32 @@ describe("/api/worktrees", () => {
 
     expect(res.status).toBe(404)
     expect(data.error).toBe(ErrorCodes.WORKTREE_NOT_FOUND)
+  })
+
+  it("POST returns 400 when workspace is empty", async () => {
+    const req = createRequest("http://localhost/api/worktrees", "POST", {
+      workspace: "",
+      slug: "feature",
+    })
+
+    const res = await POST(req)
+    const data = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(data.error).toBe(ErrorCodes.WORKSPACE_MISSING)
+  })
+
+  it("POST returns 400 when workspace is whitespace only", async () => {
+    const req = createRequest("http://localhost/api/worktrees", "POST", {
+      workspace: "   ",
+      slug: "feature",
+    })
+
+    const res = await POST(req)
+    const data = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(data.error).toBe(ErrorCodes.WORKSPACE_MISSING)
   })
 
   it("POST returns 400 on invalid slug", async () => {

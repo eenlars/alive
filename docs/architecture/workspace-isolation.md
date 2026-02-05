@@ -22,8 +22,8 @@ Claude Bridge uses multi-layered isolation to prevent cross-tenant file access:
 │   │   ├── src/             # Application code
 │   │   ├── package.json
 │   │   └── index.ts
-│   └── worktrees/
-│       └── feature-x/        # Git worktree checkout
+│   ├── worktrees/
+│   │   └── feature-x/        # Git worktree checkout
 │   └── .env
 │
 └── demo.site.com/            # Owned by site-demo-site-com

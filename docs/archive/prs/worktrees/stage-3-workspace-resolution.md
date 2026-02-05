@@ -28,7 +28,7 @@
 ## Containment Rules
 - `resolveWorktreePath` must:
 - `realpath` the worktree root and target path.
-- Use `ensurePathWithinWorkspace` against the worktree root.
+- Use `ensurePathWithinWorkspace()` against the worktree root (this throws on invalid paths; for boolean checks, use `isPathWithinWorkspace()`).
 - Confirm the target exists in `git worktree list --porcelain`.
 
 ## Codebase Patterns (Use These)

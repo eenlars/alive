@@ -162,13 +162,13 @@ if (!isPathWithinWorkspace(filePath, workspacePath)) {
 
 ### 2. Session Management
 
-**Pattern**: Each browser tab = one independent chat session. Sessions are keyed by `userId::workspace::tabId`
+**Pattern**: Each browser tab = one independent chat session. Sessions are keyed by `userId::workspace(::wt/<slug>)::tabGroupId::tabId`
 
 ```typescript
 // Session key builder
 import { tabKey } from '@/features/auth/lib/sessionStore'
-const key = tabKey({ userId, workspace, tabId })
-// → "userId::workspace::tabId"
+const key = tabKey({ userId, workspace, worktree, tabGroupId, tabId })
+// → "userId::workspace::tabGroupId::tabId" (or "userId::workspace::wt/<slug>::tabGroupId::tabId" with worktree)
 
 // Session store interface
 interface SessionStore {
@@ -209,7 +209,7 @@ This enables proper component rendering for interleaved messages.
 
 ```typescript
 import { tabKey } from '@/features/auth/lib/sessionStore'
-const key = tabKey({ userId, workspace, tabId })
+const key = tabKey({ userId, workspace, worktree, tabGroupId, tabId })
 
 if (activeConversations.has(key)) {
   return res.status(409).json({ error: 'Conversation in progress' })
@@ -631,7 +631,7 @@ if (!isPathWithinWorkspace(resolvedPath, workspacePath)) {
 **Solution**: Check session key format and storage
 ```typescript
 import { tabKey } from '@/features/auth/lib/sessionStore'
-const key = tabKey({ userId, workspace, tabId })
+const key = tabKey({ userId, workspace, worktree, tabGroupId, tabId })
 const sessionId = await sessionStore.get(key)
 ```
 

@@ -1,3 +1,36 @@
+/**
+ * Worktree Management Library
+ *
+ * SECURITY NOTE: Path traversal protection layers
+ * ================================================
+ * This module is protected against path traversal attacks through multiple layers:
+ *
+ * 1. baseWorkspacePath validation (upstream in workspaceRetriever.ts):
+ *    - Path normalization rejects ".." components
+ *    - Only allows paths under /srv/webalive/sites/
+ *    - Verifies path exists before returning
+ *
+ * 2. Slug validation (SLUG_REGEX + RESERVED_SLUGS):
+ *    - Only allows [a-z0-9][a-z0-9-]{0,48} - no path separators or special chars
+ *    - Explicitly blocks ".", "..", "user", "worktrees"
+ *    - Enforced by assertValidSlug() before any path construction
+ *
+ * 3. Symlink resolution (in resolveWorktreePath):
+ *    - Uses fs.realpathSync() to resolve symlinks BEFORE validation
+ *    - Calls ensurePathWithinWorkspace() on the resolved path
+ *    - Prevents symlink-based escapes
+ *
+ * 4. Constants-based path construction:
+ *    - All derived paths use path.join() with hardcoded constants
+ *    - No user input interpolated beyond the validated slug
+ *
+ * Additional isPathWithinWorkspace() guards are not needed because:
+ * - The slug regex prevents path separator injection
+ * - All paths are built from validated baseWorkspacePath + constants + validated slug
+ * - The only user-controlled path (worktree target) is validated after symlink resolution
+ *
+ * Last reviewed: 2026-02-05 (CodeRabbit issue #false-positive)
+ */
 import fs from "node:fs"
 import path from "node:path"
 import { runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
@@ -400,8 +433,7 @@ export async function createWorktree({
         isBranchInUse(existing, branchName)
       ) {
         attempt += 1
-        const suffix = attempt > 1 ? `-${attempt}` : ""
-        branchName = `${requestedBranch}-${formatTimestampUTC()}${suffix}`
+        branchName = `${requestedBranch}-${attempt}`
       }
     } else if (isBranchInUse(existing, branchName)) {
       throw new WorktreeError("WORKTREE_BRANCH_IN_USE", `Branch already checked out: ${branchName}`)
@@ -464,7 +496,12 @@ export async function removeWorktree({
       }
     }
 
-    await runGit(baseWorkspacePath, ["worktree", "remove", targetPath])
+    const removeArgs = ["worktree", "remove"]
+    if (allowDirty) {
+      removeArgs.push("--force")
+    }
+    removeArgs.push(targetPath)
+    await runGit(baseWorkspacePath, removeArgs)
 
     if (deleteBranch && branchName) {
       await runGit(baseWorkspacePath, ["branch", "-D", branchName])

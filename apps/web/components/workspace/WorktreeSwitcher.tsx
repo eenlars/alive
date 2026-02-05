@@ -46,13 +46,14 @@ export function WorktreeSwitcher({
   const modalOpen = isControlled ? isOpen : internalOpen
   const setModalOpen = useCallback(
     (value: boolean) => {
-      if (onOpenChange) {
-        onOpenChange(value)
+      if (isControlled) {
+        onOpenChange?.(value)
         return
       }
       setInternalOpen(value)
+      onOpenChange?.(value)
     },
-    [onOpenChange],
+    [isControlled, onOpenChange],
   )
 
   const workspaceKey = useMemo(() => buildWorkspaceKey(workspace, currentWorktree), [workspace, currentWorktree])
@@ -150,7 +151,7 @@ export function WorktreeSwitcher({
           ...existing,
           {
             slug: response.slug,
-            pathRelative: response.worktreePath,
+            pathRelative: response.slug,
             branch: response.branch,
             head: null,
           },
@@ -262,6 +263,7 @@ export function WorktreeSwitcher({
                 placeholder="slug (optional, e.g. feature-branch)"
                 value={slug}
                 onChange={e => setSlug(e.target.value)}
+                aria-label="Worktree slug"
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-transparent px-3 py-2 text-sm"
               />
               <input
@@ -269,6 +271,7 @@ export function WorktreeSwitcher({
                 placeholder="branch (optional)"
                 value={branch}
                 onChange={e => setBranch(e.target.value)}
+                aria-label="Branch name (optional)"
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-transparent px-3 py-2 text-sm"
               />
               <input
@@ -276,6 +279,7 @@ export function WorktreeSwitcher({
                 placeholder="from (optional, e.g. main)"
                 value={from}
                 onChange={e => setFrom(e.target.value)}
+                aria-label="Base ref (optional)"
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-transparent px-3 py-2 text-sm"
               />
               {createError && <div className="text-xs text-red-500">{createError}</div>}

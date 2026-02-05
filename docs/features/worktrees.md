@@ -13,7 +13,7 @@ Worktrees allow a single site repo to have multiple checked out branches at once
 - Client URL param `wt=<slug>` mirrors the selected worktree in the UI.
 
 ## Path Layout
-```
+```text
 /srv/webalive/sites/<domain>/
 ├── user/                  # Base repo
 └── worktrees/
