@@ -66,7 +66,7 @@ async function readStdinJson() {
     }
 
     // SUPERADMIN MODE: uid/gid = 0 means skip privilege drop (run as root)
-    // This is only set when user is superadmin AND workspace is claude-bridge
+    // This is only set when user is superadmin AND workspace is alive
     if (targetUid === 0 && targetGid === 0) {
       console.error("[runner] 🔓 SUPERADMIN MODE: Skipping privilege drop (running as root)")
     } else {

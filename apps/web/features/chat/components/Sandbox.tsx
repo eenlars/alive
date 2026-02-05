@@ -11,7 +11,7 @@ import { PanelViewMenu, SandboxCodePanel } from "./sandbox/index"
 import { PulsingDot } from "./ui/PulsingDot"
 
 export function Sandbox() {
-  const { workspace } = useWorkspace({ allowEmpty: true })
+  const { workspace, worktree } = useWorkspace({ allowEmpty: true })
   const isSuperadminWorkspace = workspace === SUPERADMIN.WORKSPACE_NAME
   const {
     setSelectedElement,
@@ -310,6 +310,7 @@ export function Sandbox() {
         ) : panel.view === "code" ? (
           <SandboxCodePanel
             workspace={workspace}
+            worktree={worktree}
             filePath={panel.filePath}
             expandedFolders={panel.expandedFolders}
             treeWidth={panel.treeWidth}

@@ -21,6 +21,8 @@ interface UseStreamReconnectOptions {
   tabGroupId: string | null
   /** Current workspace */
   workspace: string | null
+  /** Current worktree */
+  worktree?: string | null
   /** Whether a stream is currently active */
   isStreaming: boolean
   /**
@@ -46,6 +48,7 @@ export function useStreamReconnect({
   tabId,
   tabGroupId,
   workspace,
+  worktree,
   isStreaming,
   addMessage,
   mounted,
@@ -83,6 +86,7 @@ export function useStreamReconnect({
           tabGroupId,
           tabId,
           workspace,
+          worktree: worktree || undefined,
           acknowledge: false, // Don't delete buffer yet, in case we need to retry
           lastSeenSeq: typeof lastSeenSeq === "number" ? lastSeenSeq : undefined,
         }),
@@ -133,6 +137,7 @@ export function useStreamReconnect({
             tabGroupId,
             tabId,
             workspace,
+            worktree: worktree || undefined,
             acknowledge: true,
           }),
         })
@@ -147,7 +152,7 @@ export function useStreamReconnect({
       reconnectingRef.current = false
       setIsReconnecting(false)
     }
-  }, [tabId, tabGroupId, workspace, addMessage, streamingActions])
+  }, [tabId, tabGroupId, workspace, worktree, addMessage, streamingActions])
 
   // Poll for remaining messages when stream is still active
   const pollForRemainingMessages = useCallback(
@@ -174,6 +179,7 @@ export function useStreamReconnect({
               tabGroupId,
               tabId: pollTabId,
               workspace: ws,
+              worktree: worktree || undefined,
               acknowledge: false,
               lastSeenSeq: typeof lastSeenSeq === "number" ? lastSeenSeq : undefined,
             }),
@@ -219,6 +225,7 @@ export function useStreamReconnect({
                 tabGroupId,
                 tabId: pollTabId,
                 workspace: ws,
+                worktree: worktree || undefined,
                 acknowledge: true,
               }),
             })
@@ -233,7 +240,7 @@ export function useStreamReconnect({
       console.warn("[StreamReconnect] Max polls reached, stopping")
       streamingActions.endStream(pollTabId)
     },
-    [tabGroupId, addMessage, streamingActions],
+    [tabGroupId, addMessage, streamingActions, worktree],
   )
 
   // Check for active stream on mount (handles page refresh during active stream)

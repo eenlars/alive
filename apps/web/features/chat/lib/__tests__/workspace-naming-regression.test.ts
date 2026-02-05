@@ -20,7 +20,7 @@ describe("Workspace Naming Bug - Regression Test", () => {
    *
    * This test fails if someone reverts to the old behavior.
    */
-  it("CRITICAL: finds evermore.alive.best with DOTS in directory name", () => {
+  it("CRITICAL: finds evermore.alive.best with DOTS in directory name", async () => {
     // Verify the actual directory exists with DOTS
     const dotsPath = "/srv/webalive/sites/evermore.alive.best/user"
     const hyphensPath = "/srv/webalive/sites/evermore-alive-best/user"
@@ -31,8 +31,8 @@ describe("Workspace Naming Bug - Regression Test", () => {
       return // Skip if test site doesn't exist
     }
 
-    const result = getWorkspace({
-      host: DOMAINS.BRIDGE_DEV_HOST,
+    const result = await getWorkspace({
+      host: DOMAINS.STREAM_DEV_HOST,
       body: { workspace: "evermore.alive.best" },
       requestId: "regression-test",
     })
@@ -47,7 +47,7 @@ describe("Workspace Naming Bug - Regression Test", () => {
     }
   })
 
-  it("CRITICAL: still supports legacy sites with HYPHENS", () => {
+  it("CRITICAL: still supports legacy sites with HYPHENS", async () => {
     const hyphensPath = "/srv/webalive/sites/demo-goalive-nl/user"
 
     if (!existsSync(hyphensPath)) {
@@ -55,8 +55,8 @@ describe("Workspace Naming Bug - Regression Test", () => {
       return
     }
 
-    const result = getWorkspace({
-      host: DOMAINS.BRIDGE_DEV_HOST,
+    const result = await getWorkspace({
+      host: DOMAINS.STREAM_DEV_HOST,
       body: { workspace: "demo.goalive.nl" }, // User provides dots
       requestId: "legacy-test",
     })
@@ -70,8 +70,8 @@ describe("Workspace Naming Bug - Regression Test", () => {
   })
 
   it("CRITICAL: error message shows BOTH paths when workspace not found", async () => {
-    const result = getWorkspace({
-      host: DOMAINS.BRIDGE_DEV_HOST,
+    const result = await getWorkspace({
+      host: DOMAINS.STREAM_DEV_HOST,
       body: { workspace: "this-site-definitely-does-not-exist.com" },
       requestId: "error-test",
     })

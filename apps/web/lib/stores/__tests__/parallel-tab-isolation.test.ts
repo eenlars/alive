@@ -24,6 +24,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { tabKey } from "@/features/auth/lib/sessionStore"
 import { useTabDataStore } from "../tabDataStore"
 import { useTabActions, useTabStore } from "../tabStore"
 import { useTabViewStore } from "../tabViewStore"
@@ -202,8 +203,8 @@ describe("Parallel Tab Isolation Architecture", () => {
       const { tabId: tabIdB } = actions.createTabGroupWithTab(workspace)
 
       // Construct session keys as server would (from tabKey function)
-      const sessionKeyA = `${userId}::${workspace}::${tabGroupId}::${tabIdA}`
-      const sessionKeyB = `${userId}::${workspace}::${tabGroupId}::${tabIdB}`
+      const sessionKeyA = tabKey({ userId, workspace, tabGroupId, tabId: tabIdA })
+      const sessionKeyB = tabKey({ userId, workspace, tabGroupId, tabId: tabIdB })
 
       // Keys are different - no lock conflict!
       expect(sessionKeyA).not.toBe(sessionKeyB)

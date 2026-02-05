@@ -13,7 +13,7 @@
  *   RUN_REAL_E2E=1 TEST_EMAIL=your@email.com TEST_PASSWORD=yourpass bun run test real-cancellation-e2e.test.ts
  *
  * Requirements:
- * - Dev server running (localhost:PORTS.DEV or DOMAINS.BRIDGE_DEV)
+ * - Dev server running (localhost:PORTS.DEV or DOMAINS.STREAM_DEV)
  * - Real Supabase user credentials
  * - RUN_REAL_E2E=1 to explicitly enable (safety flag)
  */
@@ -35,7 +35,7 @@ const RUN_REAL_E2E = process.env.RUN_REAL_E2E === "1"
 const BASE_URL = process.env.TEST_BASE_URL || `http://localhost:${PORTS.DEV}`
 const TEST_EMAIL = process.env.TEST_EMAIL
 const TEST_PASSWORD = process.env.TEST_PASSWORD
-const TEST_WORKSPACE = process.env.TEST_WORKSPACE || DOMAINS.BRIDGE_PROD_HOST
+const TEST_WORKSPACE = process.env.TEST_WORKSPACE || DOMAINS.STREAM_PROD_HOST
 
 // Skip unless explicitly enabled with credentials
 const SKIP_REAL_API_TESTS = !RUN_REAL_E2E || !TEST_EMAIL || !TEST_PASSWORD

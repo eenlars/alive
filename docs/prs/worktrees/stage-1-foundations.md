@@ -2,40 +2,79 @@
 
 ## Goals
 - Add Git worktree support per website workspace with strong containment, ownership correctness, and zero cross-tenant leakage.
-- Keep auth tied to the site domain (no new JWT scopes or env vars).
+- Keep auth tied to the site domain. No new JWT scopes and no new env vars.
 
-## Assumptions
-- Base repo for a site is `/srv/webalive/sites/<domain>/user` and is a Git repo.
-- Worktrees live under `/srv/webalive/sites/<domain>/worktrees/<slug>`.
+## Non-goals
+- No changes to authentication or workspace access rules.
+- No new database schema required in this stage.
 
-## Canonical Paths
-- Base workspace: `/srv/webalive/sites/<domain>/user`
+## Path Model
+- Base workspace path: `/srv/webalive/sites/<domain>/user`
+- Site root: `path.dirname(baseWorkspacePath)`
 - Worktree root: `/srv/webalive/sites/<domain>/worktrees`
 - Worktree path: `<worktreeRoot>/<slug>`
 
-## Slug + Branch Rules
-- Slug: `[a-z0-9][a-z0-9-]{0,48}`
-- Default branch: `worktree/<slug>`
-- Collision: suffix with `-<timestamp>`
+## Slug Rules
+- Allowed: `^[a-z0-9][a-z0-9-]{0,48}$`
+- Must be lowercase.
+- Reject reserved slugs like `user`, `worktrees`, and `.` or `..`.
+- Reject any slug that would produce a nested path (no `/`).
 
-## Concurrency + Safety
-- Use a per-site lock file to serialize `git worktree` mutations.
-  - Suggested: `<siteRoot>/.git/bridge-worktree.lock`
-- Use `runAsWorkspaceUser` for all git commands so ownership is correct.
-- All paths resolved with `realpath` + containment checks.
+## Branch Rules
+- Validate branch refs with `git check-ref-format --branch <branch>`.
+- Default branch name: `worktree/<slug>`.
+- If the default branch exists *or is already checked out by another worktree*, append a timestamp suffix `worktree/<slug>-YYYYMMDD-HHMM` (UTC). If that still collides, append `-2`, `-3`, etc.
+- If `branch` is provided and already checked out by another worktree, return `WORKTREE_BRANCH_IN_USE`.
 
-## New Server Module
+## Preconditions
+- `baseWorkspacePath` must exist and be a git repo.
+- Verify with `.git` existence plus `git -C <baseWorkspacePath> rev-parse --git-dir`.
+- `.git` must be a **directory** (reject if `.git` is a file → likely a worktree path). Return `WORKTREE_BASE_INVALID`.
+- Return a clear `WORKTREE_NOT_GIT` error when the base workspace is not a repo.
+- Ensure `worktreeRoot` exists and is owned by the workspace user (chown to base workspace uid/gid when created).
+
+## Concurrency and Safety
+- Use a per-repo lock to serialize `git worktree` mutations.
+- Lock file: `<baseWorkspacePath>/.git/bridge-worktree.lock`.
+- Return `WORKTREE_LOCKED` on contention.
+- Acquire with `fs.open(lock, "wx")` and keep the fd open until done.
+- Store `pid` and timestamp in the lock for debugging.
+- If the lock exists, return a 409 so the caller can retry.
+
+## Worktree Service Module
 Create `apps/web/features/worktrees/lib/worktrees.ts` with:
-- `listWorktrees(baseWorkspacePath)`
-  - Uses `git worktree list --porcelain`
-  - Filters to our worktree root
-- `createWorktree({ baseWorkspacePath, slug, branch, from })`
-  - Validates slug
-  - Ensures branch name safe
-  - `git worktree add <path> -b <branch> <from>`
-- `removeWorktree({ baseWorkspacePath, slug, deleteBranch })`
-  - `git worktree remove <path>`
-  - Optional branch deletion
-- `resolveWorktreePath(baseWorkspacePath, slug)`
-  - Ensures worktree exists in `git worktree list`
-  - Ensures worktree path is inside `worktreeRoot`
+
+### `listWorktrees(baseWorkspacePath)`
+- Runs `git worktree list --porcelain` via `runAsWorkspaceUser`.
+- Parses blocks into `{ path, branch, head, isBare }`.
+- Filters to `worktreeRoot` only. Do not include the base workspace.
+- Ignore entries whose slug is invalid or nested (defensive against manual git worktree add).
+- If `worktreeRoot` does not exist, return an empty list.
+
+### `resolveWorktreePath(baseWorkspacePath, slug)`
+- Builds `<worktreeRoot>/<slug>` and resolves realpath.
+- Uses `ensurePathWithinWorkspace` on `worktreeRoot` **after** `realpath`.
+- Verifies the real path exists in `git worktree list --porcelain`.
+- Returns the real path only if it is a listed worktree.
+
+### `createWorktree({ baseWorkspacePath, slug, branch, from })`
+- Validates slug and branch.
+- If `slug` is empty, generate `wt-YYYYMMDD-HHMM`.
+- Default `from` is the current HEAD (`git rev-parse --abbrev-ref HEAD`).
+- Acquire the lock before any git mutation.
+- Reject if `worktreePath` already exists on disk (`WORKTREE_PATH_EXISTS`).
+- Re-check existing worktrees *inside* the lock to prevent races (`WORKTREE_EXISTS`).
+- Create the worktree with `git worktree add <path> -b <branch> <from>`.
+
+### `removeWorktree({ baseWorkspacePath, slug, deleteBranch })`
+- Resolves the path with `resolveWorktreePath`.
+- Optionally reject dirty worktrees unless `force` is explicitly allowed later.
+- If `deleteBranch` is true, validate **before** removal:
+  - Reject if the worktree is detached (`WORKTREE_BRANCH_UNKNOWN`).
+  - Reject if the branch matches the base workspace branch (`WORKTREE_DELETE_BRANCH_BLOCKED`).
+- Run `git worktree remove <path>`.
+- If `deleteBranch` is true, delete with `git branch -D <branch>`.
+
+## Ownership and Execution
+- All git commands must run via `runAsWorkspaceUser` so new files are owned by the workspace user.
+- Always pass `-C <baseWorkspacePath>` to ensure operations target the correct repo.

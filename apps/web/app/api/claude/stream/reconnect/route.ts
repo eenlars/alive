@@ -24,6 +24,7 @@ import { hasSessionCookie } from "@/features/auth/types/guards"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { ErrorCodes } from "@/lib/error-codes"
 import { ackStreamCursor, deleteStreamBuffer, getUnreadMessages, hasActiveStream } from "@/lib/stream/stream-buffer"
+import { OptionalWorktreeSchema } from "@/types/guards/api"
 
 export const runtime = "nodejs"
 
@@ -32,6 +33,7 @@ const ReconnectSchema = z.object({
   tabGroupId: z.string().uuid(),
   tabId: z.string().uuid(),
   workspace: z.string().min(1),
+  worktree: OptionalWorktreeSchema, // Validated to prevent session key corruption
   /** If true, deletes the buffer after returning messages (client confirms receipt) */
   acknowledge: z.boolean().optional(),
   /** Last stream sequence seen by client (for cursor-based replay) */
@@ -83,12 +85,13 @@ export async function POST(req: Request) {
       })
     }
 
-    const { tabGroupId, tabId, workspace, acknowledge, lastSeenSeq, ackOnly } = parseResult.data
+    const { tabGroupId, tabId, workspace, worktree, acknowledge, lastSeenSeq, ackOnly } = parseResult.data
 
     // Build tab key (same format as stream route)
     const tabKeyValue = tabKey({
       userId: user.id,
       workspace,
+      worktree,
       tabGroupId,
       tabId,
     })

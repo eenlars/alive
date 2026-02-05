@@ -48,6 +48,7 @@ import { useLastSeenStreamSeq, useStreamingActions } from "@/lib/stores/streamin
 import { useTabActions } from "@/lib/stores/tabStore"
 import { useSelectedOrgId } from "@/lib/stores/workspaceStore"
 import { useQueryState } from "nuqs"
+import { validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import { QUERY_KEYS } from "@/lib/url/queryState"
 // Local components
 import {
@@ -100,6 +101,7 @@ function ChatPageContent() {
   const isSidebarOpen = useSidebarOpen()
   const isHydrated = useAppHydrated()
   const [subdomainInitialized, setSubdomainInitialized] = useState(false)
+  const [worktreeModalOpen, setWorktreeModalOpen] = useState(false)
   const [_showCompletionDots, setShowCompletionDots] = useState(false)
   const modals = useModals()
 
@@ -122,9 +124,10 @@ function ChatPageContent() {
   const showSandboxRaw = useSandbox()
   const isDebugMode = useDebugVisible()
   const { addEvent: addDevEvent } = useDevTerminal()
-  const { workspace, isTerminal, mounted, setWorkspace } = useWorkspace({
+  const { workspace, worktree, workspaceKey, isTerminal, mounted, setWorkspace, setWorktree } = useWorkspace({
     allowEmpty: true,
   })
+  const tabWorkspace = workspaceKey
 
   // Tab-isolated messages, busy state, and session actions from single source of truth
   const {
@@ -136,10 +139,11 @@ function ChatPageContent() {
     activeTab,
     workspaceTabs,
     actions: sessionActions,
-  } = useTabIsolatedMessages({ workspace })
+  } = useTabIsolatedMessages({ workspace: tabWorkspace })
 
   // Handle ?wk= URL parameter to pre-select workspace (e.g., from widget "Edit me" button)
   const [wkParam] = useQueryState(QUERY_KEYS.workspace)
+  const [wtParam, setWtParam] = useQueryState(QUERY_KEYS.worktree)
   useEffect(() => {
     if (mounted && wkParam && wkParam !== workspace) {
       console.log("[ChatPage] Setting workspace from URL param:", wkParam)
@@ -147,14 +151,60 @@ function ChatPageContent() {
     }
   }, [mounted, wkParam, workspace, setWorkspace])
 
+  // Handle ?wt= URL parameter for worktree selection
+  // Normalize URL param to prevent casing inconsistencies (e.g., "Feature" vs "feature")
+  useEffect(() => {
+    if (!mounted) return
+
+    // Normalize and validate the URL param
+    let normalizedParam: string | null = null
+    if (wtParam && wtParam.length > 0) {
+      const validation = validateWorktreeSlug(wtParam)
+      if (validation.valid) {
+        normalizedParam = validation.slug
+      } else {
+        // Invalid worktree in URL - clear the param
+        console.warn(`[ChatPage] Invalid worktree in URL rejected: "${wtParam}" - ${validation.reason}`)
+        void setWtParam(null, { shallow: true })
+        return
+      }
+    }
+
+    // Compare normalized values to prevent loops
+    if (normalizedParam !== worktree) {
+      setWorktree(normalizedParam)
+    }
+  }, [mounted, wtParam, worktree, setWorktree, setWtParam])
+
+  // Sync worktree state back to URL
+  useEffect(() => {
+    if (!mounted) return
+    const desired = worktree && worktree.length > 0 ? worktree : null
+    if (wtParam !== desired) {
+      void setWtParam(desired, { shallow: true })
+    }
+  }, [mounted, worktree, wtParam, setWtParam])
+
   // Sync tab ID to URL for shareable links and browser history
   const [tabParam, setTabParam] = useQueryState(QUERY_KEYS.chatTab)
   const { setActiveTab: setStoreActiveTab } = useTabActions()
   const initialTabRestored = useRef(false)
+  const previousWorkspaceKeyRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!mounted) return
+    if (previousWorkspaceKeyRef.current && previousWorkspaceKeyRef.current !== tabWorkspace) {
+      initialTabRestored.current = false
+      if (tabParam) {
+        void setTabParam(null, { shallow: true })
+      }
+    }
+    previousWorkspaceKeyRef.current = tabWorkspace ?? null
+  }, [mounted, tabWorkspace, tabParam, setTabParam])
 
   // On mount: if URL has a tab param, restore it (ONCE only)
   useEffect(() => {
-    if (!mounted || !workspace || !dexieSession || initialTabRestored.current) return
+    if (!mounted || !tabWorkspace || !dexieSession || initialTabRestored.current) return
     if (!tabParam) {
       // No tab param in URL - mark as restored so we don't try again
       initialTabRestored.current = true
@@ -166,11 +216,11 @@ function ChatPageContent() {
     const targetTab = allTabs.find(t => t.id === tabParam && !t.closedAt)
     if (targetTab && sessionTabId !== tabParam) {
       console.log("[ChatPage] Restoring tab from URL param:", tabParam)
-      setStoreActiveTab(workspace, tabParam)
+      setStoreActiveTab(tabWorkspace, tabParam)
     }
     // Mark as restored whether we found the tab or not
     initialTabRestored.current = true
-  }, [mounted, workspace, dexieSession, tabParam, workspaceTabs, sessionTabId, setStoreActiveTab])
+  }, [mounted, tabWorkspace, dexieSession, tabParam, workspaceTabs, sessionTabId, setStoreActiveTab])
 
   // When active tab changes, update URL (shallow, no navigation)
   useEffect(() => {
@@ -240,11 +290,11 @@ function ChatPageContent() {
   // Fetch conversations from server when workspace changes
   const { syncFromServer } = useDexieMessageActions()
   useEffect(() => {
-    if (!mounted || !workspace || !dexieSession) return
+    if (!mounted || !tabWorkspace || !dexieSession) return
 
     // Fetch server conversations in background (non-blocking)
-    void syncFromServer(workspace)
-  }, [mounted, workspace, dexieSession, syncFromServer])
+    void syncFromServer(tabWorkspace)
+  }, [mounted, tabWorkspace, dexieSession, syncFromServer])
 
   // Check for session expiry
   const isSessionExpired = useIsSessionExpired()
@@ -271,6 +321,7 @@ function ChatPageContent() {
     isSubmittingByTabRef,
   } = useChatMessaging({
     workspace,
+    worktree,
     tabId,
     tabGroupId,
     isTerminal,
@@ -289,6 +340,7 @@ function ChatPageContent() {
     tabId: sessionTabId ?? "",
     tabGroupId: sessionTabGroupId,
     workspace,
+    worktree,
     addMessage,
     setShowCompletionDots,
     abortControllerRef,
@@ -316,6 +368,7 @@ function ChatPageContent() {
     tabId: sessionTabId,
     tabGroupId: sessionTabGroupId,
     workspace,
+    worktree,
     isStreaming: busy,
     addMessage,
     mounted,
@@ -327,6 +380,7 @@ function ChatPageContent() {
     tabId: sessionTabId,
     tabGroupId: sessionTabGroupId,
     workspace,
+    worktree,
     lastSeenStreamSeq,
     currentRequestIdRef,
     isStreaming: busy,
@@ -367,7 +421,7 @@ function ChatPageContent() {
     handleToggleTabs,
     handleOpenTabGroupInTab,
   } = useTabsManagement({
-    workspace,
+    workspace: tabWorkspace,
     tabGroupId,
     activeTabId: tabId,
     onSwitchTab: handleSwitchConversationForTabs,
@@ -379,15 +433,15 @@ function ChatPageContent() {
   // Ensure the session tab is mapped to Dexie (for message persistence)
   // activeTab is now the single source of truth from useActiveSession
   useEffect(() => {
-    if (!mounted || !workspace || !dexieSession || !activeTab) return
+    if (!mounted || !tabWorkspace || !dexieSession || !activeTab) return
 
     // Sync Dexie store if it doesn't match the active tab
     // Tab.id IS the conversation key
     if (storeTabId === activeTab.id && storeTabGroupId === activeTab.tabGroupId) return
-    void ensureTabGroupWithTab(workspace, activeTab.tabGroupId, activeTab.id)
+    void ensureTabGroupWithTab(tabWorkspace, activeTab.tabGroupId, activeTab.id)
   }, [
     mounted,
-    workspace,
+    tabWorkspace,
     dexieSession,
     activeTab?.id,
     activeTab?.tabGroupId,
@@ -397,7 +451,7 @@ function ChatPageContent() {
   ])
 
   // Image upload handler
-  const handleAttachmentUpload = useImageUpload({ workspace: workspace ?? undefined, isTerminal })
+  const handleAttachmentUpload = useImageUpload({ workspace: workspace ?? undefined, worktree, isTerminal })
 
   // Show SSE terminal minimized on staging
   useEffect(() => {
@@ -453,7 +507,7 @@ function ChatPageContent() {
   }
 
   const handleNewTabGroup = useCallback(async () => {
-    if (!workspace) return
+    if (!tabWorkspace) return
 
     const previousTabId = tabId
     // startNewTabGroup creates a new tabGroup + first tab in tabStore
@@ -468,12 +522,19 @@ function ChatPageContent() {
     }
     setMsg("")
     setTimeout(() => chatInputRef.current?.focus(), 0)
-  }, [tabId, streamingActions, startNewTabGroup, workspace])
+  }, [tabId, streamingActions, startNewTabGroup, tabWorkspace])
 
   const handleNewWorktree = useCallback(() => {
-    // TODO: Implement worktree creation
-    toast("Worktree feature coming soon!", { icon: "🌳" })
-  }, [])
+    if (!workspace) {
+      toast.error("Select a site before creating a worktree.")
+      return
+    }
+    if (isSuperadminWorkspace) {
+      toast.error("Worktrees are not available in the Alive workspace.")
+      return
+    }
+    setWorktreeModalOpen(true)
+  }, [workspace, isSuperadminWorkspace])
 
   const handleInsertTemplate = useCallback((prompt: string) => {
     setMsg(prompt)
@@ -497,20 +558,20 @@ function ChatPageContent() {
           : null
 
       await archiveConversation(tabGroupIdToArchive)
-      if (workspace) {
-        removeTabGroup(workspace, tabGroupIdToArchive)
+      if (tabWorkspace) {
+        removeTabGroup(tabWorkspace, tabGroupIdToArchive)
       }
 
-      if (tabGroupIdToArchive === tabGroupId && workspace) {
+      if (tabGroupIdToArchive === tabGroupId && tabWorkspace) {
         if (nextTab) {
-          setActiveTab(workspace, nextTab.id)
+          setActiveTab(tabWorkspace, nextTab.id)
           switchTab(nextTab.id)
-          await ensureTabGroupWithTab(workspace, nextTab.tabGroupId, nextTab.id)
+          await ensureTabGroupWithTab(tabWorkspace, nextTab.tabGroupId, nextTab.id)
         } else {
           // Create a new tab group when archiving the current one
-          const created = createTabGroupWithTab(workspace)
+          const created = createTabGroupWithTab(tabWorkspace)
           if (created) {
-            await ensureTabGroupWithTab(workspace, created.tabGroupId, created.tabId)
+            await ensureTabGroupWithTab(tabWorkspace, created.tabGroupId, created.tabId)
           }
         }
         setMsg("")
@@ -520,7 +581,7 @@ function ChatPageContent() {
       archiveConversation,
       tabGroupId,
       workspaceTabs,
-      workspace,
+      tabWorkspace,
       removeTabGroup,
       setActiveTab,
       switchTab,
@@ -552,7 +613,7 @@ function ChatPageContent() {
       data-chat-ready={isChatReady}
     >
       <ConversationSidebar
-        workspace={workspace}
+        workspace={tabWorkspace}
         activeTabGroupId={sessionTabGroupId}
         onTabGroupSelect={handleTabGroupSelect}
         onArchiveTabGroup={handleArchiveTabGroup}
@@ -610,12 +671,16 @@ function ChatPageContent() {
 
           <WorkspaceInfoBar
             workspace={workspace}
+            worktree={worktree}
             mounted={mounted}
             isTerminal={isTerminal}
             isSuperadminWorkspace={isSuperadminWorkspace}
             onSelectSite={() => modals.openSettings("websites")}
             onNewTabGroup={handleNewTabGroup}
             onMobilePreview={modals.openMobilePreview}
+            onSelectWorktree={setWorktree}
+            worktreeModalOpen={worktreeModalOpen}
+            onWorktreeModalOpenChange={setWorktreeModalOpen}
             onToggleTabs={handleToggleTabs}
             showTabsToggle={showTabs && !!workspace}
             tabsExpanded={tabsExpanded}
@@ -753,6 +818,8 @@ function ChatPageContent() {
                 enableCamera: true,
                 maxAttachments: 5,
                 maxFileSize: 20 * 1024 * 1024,
+                workspace: workspace ?? undefined,
+                worktree,
                 placeholder:
                   !workspace && mounted && !organizationsLoading
                     ? "Select a site to start chatting..."
@@ -807,6 +874,8 @@ function ChatPageContent() {
                   enableCamera: false,
                   maxAttachments: 5,
                   maxFileSize: 20 * 1024 * 1024,
+                  workspace: workspace ?? undefined,
+                  worktree,
                   placeholder: "Tell me what to change...",
                   onAttachmentUpload: handleAttachmentUpload,
                 }}

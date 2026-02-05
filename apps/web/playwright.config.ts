@@ -12,8 +12,8 @@ const LOCAL_BASE_URL = `http://localhost:${TEST_CONFIG.PORT}`
 // Determine base URL based on environment (TEST_ENV is validated, no fallback needed)
 const BASE_URLS: Record<string, string> = {
   local: LOCAL_BASE_URL,
-  staging: DOMAINS.BRIDGE_STAGING,
-  production: DOMAINS.BRIDGE_PROD,
+  staging: DOMAINS.STREAM_STAGING,
+  production: DOMAINS.STREAM_PROD,
 }
 const baseURL = BASE_URLS[TEST_ENV]
 

@@ -30,12 +30,16 @@ interface ApiError {
 
 type ApiResponse<T> = ApiResult<T> | ApiError
 
-export async function listFiles(workspace: string, path: string): Promise<ApiResponse<FileInfo[]>> {
+export async function listFiles(
+  workspace: string,
+  path: string,
+  worktree?: string | null,
+): Promise<ApiResponse<FileInfo[]>> {
   try {
     const response = await fetch("/api/files", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workspace, path }),
+      body: JSON.stringify({ workspace, path, worktree: worktree || undefined }),
     })
 
     const data = await response.json()
@@ -50,12 +54,16 @@ export async function listFiles(workspace: string, path: string): Promise<ApiRes
   }
 }
 
-export async function readFile(workspace: string, path: string): Promise<ApiResponse<FileContent>> {
+export async function readFile(
+  workspace: string,
+  path: string,
+  worktree?: string | null,
+): Promise<ApiResponse<FileContent>> {
   try {
     const response = await fetch("/api/files/read", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workspace, path }),
+      body: JSON.stringify({ workspace, path, worktree: worktree || undefined }),
     })
 
     const data = await response.json()

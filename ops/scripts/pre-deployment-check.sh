@@ -87,7 +87,7 @@ fi
 # ============================================================================
 
 echo "[4/7] Checking disk space..."
-BUILD_DIR="/root/webalive/claude-bridge/.builds/$ENVIRONMENT"
+BUILD_DIR="/root/alive/.builds/$ENVIRONMENT"
 DISK_USAGE=$(df "$BUILD_DIR" | awk 'NR==2 {print $5}' | sed 's/%//')
 
 if [ "$DISK_USAGE" -gt 80 ]; then

@@ -66,22 +66,23 @@ const nextConfig = {
       "../../packages/guides/**/*",
       "../../packages/site-controller/**/*",
       "../../packages/worker-pool/**/*",
+      "../../packages/shared/**/*",
+      "../../packages/database/**/*",
       // packages/tools dependencies (used in child process, not auto-traced)
       "../../node_modules/@anthropic-ai/**/*",
       "../../node_modules/groq-sdk/**/*",
       "../../node_modules/zod/**/*",
     ],
   },
-  serverExternalPackages: [
-    "@napi-rs/image",
+  serverExternalPackages: ["@napi-rs/image", "@webalive/site-controller", "@webalive/oauth-core", "better-sqlite3"],
+  transpilePackages: [
+    "@webalive/guides",
+    "@webalive/images",
+    "@webalive/tools",
     "@webalive/shared",
-    "@webalive/site-controller",
     "@webalive/env",
     "@webalive/worker-pool",
-    "@webalive/oauth-core",
     "@webalive/database",
-    "better-sqlite3",
   ],
-  transpilePackages: ["@alive-brug/guides", "@alive-brug/images", "@alive-brug/tools"],
 }
 export default nextConfig

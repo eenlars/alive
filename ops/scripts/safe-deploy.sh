@@ -28,12 +28,12 @@ case "$ENVIRONMENT" in
   staging)
     SERVICE="claude-bridge-staging"
     PORT=8998
-    BUILD_DIR="/root/webalive/claude-bridge/.builds/staging"
+    BUILD_DIR="/root/alive/.builds/staging"
     ;;
   production)
     SERVICE="claude-bridge-production"
     PORT=9000
-    BUILD_DIR="/root/webalive/claude-bridge/.builds/production"
+    BUILD_DIR="/root/alive/.builds/production"
     ;;
 esac
 

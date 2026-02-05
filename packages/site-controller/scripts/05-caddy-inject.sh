@@ -21,7 +21,7 @@ require_var SITE_DOMAIN
 log_info "Configuring Caddy for: $SITE_DOMAIN"
 
 # Get bridge root from server config or use default
-BRIDGE_ROOT="${BRIDGE_ROOT:-/root/webalive/claude-bridge}"
+BRIDGE_ROOT="${BRIDGE_ROOT:-/root/alive}"
 
 # Check if server-config.json exists (new generator mode)
 SERVER_CONFIG="/var/lib/claude-bridge/server-config.json"

@@ -24,18 +24,41 @@ export interface SessionStore {
   delete(key: TabSessionKey): Promise<void>
 }
 
-// Parse composite key: userId::workspaceDomain::tabGroupId::tabId
-// NOTE: DB queries only use (userId, domainId, tabId). tabGroupId is returned
-// for callers that need it (e.g., lock keys), but DB ignores it because tabId is a UUID.
-function parseKey(key: TabSessionKey): { userId: string; workspaceDomain: string; tabGroupId: string; tabId: string } {
+// Parse composite key: userId::workspaceDomain(::wt/<slug>)::tabGroupId::tabId
+// NOTE: DB queries only use (userId, domainId, tabId). tabGroupId/worktree are
+// returned for callers that need them (e.g., lock keys), but DB ignores them.
+function parseKey(key: TabSessionKey): {
+  userId: string
+  workspaceDomain: string
+  tabGroupId: string
+  tabId: string
+  worktree: string | null
+} {
   const parts = key.split("::")
-  if (parts.length !== 4) {
+  if (parts.length !== 4 && parts.length !== 5) {
     throw new Error(
-      `[SessionStore] Invalid session key: expected 4 segments (userId::workspace::tabGroupId::tabId), got ${parts.length}. Key: "${key}"`,
+      `[SessionStore] Invalid session key: expected 4 or 5 segments (userId::workspace::tabGroupId::tabId or userId::workspace::wt/<slug>::tabGroupId::tabId), got ${parts.length}. Key: "${key}"`,
     )
   }
-  const [userId, workspaceDomain, tabGroupId, tabId] = parts
-  return { userId, workspaceDomain: workspaceDomain || "default", tabGroupId, tabId }
+
+  const [userId, workspaceDomain, maybeWorktreeOrTabGroup, maybeTabGroupOrTabId, maybeTabId] = parts
+  if (parts.length === 4) {
+    return {
+      userId,
+      workspaceDomain: workspaceDomain || "default",
+      tabGroupId: maybeWorktreeOrTabGroup,
+      tabId: maybeTabGroupOrTabId,
+      worktree: null,
+    }
+  }
+
+  return {
+    userId,
+    workspaceDomain: workspaceDomain || "default",
+    worktree: maybeWorktreeOrTabGroup?.startsWith("wt/") ? maybeWorktreeOrTabGroup.slice(3) : maybeWorktreeOrTabGroup,
+    tabGroupId: maybeTabGroupOrTabId,
+    tabId: maybeTabId ?? "",
+  }
 }
 
 // In-memory cache for hostname → domain_id lookups (reduces DB queries by 50%)
@@ -184,15 +207,19 @@ export const sessionStore: SessionStore = {
 export function tabKey({
   userId,
   workspace,
+  worktree,
   tabGroupId,
   tabId,
 }: {
   userId: string
   workspace?: string
+  worktree?: string | null
   tabGroupId: string
   tabId: string
 }): TabSessionKey {
-  return `${userId}::${workspace ?? "default"}::${tabGroupId}::${tabId}` as TabSessionKey
+  const workspacePart = workspace ?? "default"
+  const worktreePart = worktree ? `::wt/${worktree}` : ""
+  return `${userId}::${workspacePart}${worktreePart}::${tabGroupId}::${tabId}` as TabSessionKey
 }
 
 // Re-export guards from types/guards/session for backward compatibility

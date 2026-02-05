@@ -1,16 +1,21 @@
 "use client"
 
 import { AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from "lucide-react"
+import { WorktreeSwitcher } from "@/components/workspace/WorktreeSwitcher"
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher"
 
 interface WorkspaceInfoBarProps {
   workspace: string | null
+  worktree: string | null
   mounted: boolean
   isTerminal: boolean
   isSuperadminWorkspace: boolean
   onSelectSite: () => void
   onNewTabGroup: () => void
   onMobilePreview: () => void
+  onSelectWorktree: (worktree: string | null) => void
+  worktreeModalOpen?: boolean
+  onWorktreeModalOpenChange?: (open: boolean) => void
   onToggleTabs?: () => void
   showTabsToggle?: boolean
   tabsExpanded?: boolean
@@ -18,11 +23,15 @@ interface WorkspaceInfoBarProps {
 
 export function WorkspaceInfoBar({
   workspace,
+  worktree,
   mounted,
   isTerminal,
   isSuperadminWorkspace,
   onSelectSite,
   onMobilePreview,
+  onSelectWorktree,
+  worktreeModalOpen,
+  onWorktreeModalOpenChange,
   onToggleTabs,
   showTabsToggle = false,
   tabsExpanded = false,
@@ -48,7 +57,18 @@ export function WorkspaceInfoBar({
               />
             )}
             {isTerminal ? (
-              <WorkspaceSwitcher currentWorkspace={workspace} onOpenSettings={onSelectSite} />
+              <div className="flex items-center min-w-0">
+                <WorkspaceSwitcher currentWorkspace={workspace} onOpenSettings={onSelectSite} />
+                {!isSuperadminWorkspace && (
+                  <WorktreeSwitcher
+                    workspace={workspace}
+                    currentWorktree={worktree}
+                    onChange={onSelectWorktree}
+                    isOpen={worktreeModalOpen}
+                    onOpenChange={onWorktreeModalOpenChange}
+                  />
+                )}
+              </div>
             ) : showWarning ? (
               <button
                 type="button"

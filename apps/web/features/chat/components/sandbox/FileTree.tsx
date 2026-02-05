@@ -7,6 +7,7 @@ import { getFileColor } from "./lib/file-colors"
 
 interface FileTreeProps {
   workspace: string
+  worktree?: string | null
   activeFile: string | null
   expandedFolders: Set<string>
   onToggleFolder: (path: string) => void
@@ -16,15 +17,24 @@ interface FileTreeProps {
 // Global cache for file listings - persists across re-renders
 const fileCache = new Map<string, FileInfo[]>()
 
-function getCacheKey(workspace: string, path: string): string {
-  return `${workspace}::${path}`
+function getCacheKey(workspace: string, worktree: string | null | undefined, path: string): string {
+  const scope = worktree ? `wt/${worktree}` : "base"
+  return `${workspace}::${scope}::${path}`
 }
 
-export function FileTree({ workspace, activeFile, expandedFolders, onToggleFolder, onSelectFile }: FileTreeProps) {
+export function FileTree({
+  workspace,
+  worktree,
+  activeFile,
+  expandedFolders,
+  onToggleFolder,
+  onSelectFile,
+}: FileTreeProps) {
   return (
     <div className="h-full overflow-y-auto text-[13px] py-1">
       <TreeLevel
         workspace={workspace}
+        worktree={worktree}
         path=""
         depth={0}
         activeFile={activeFile}
@@ -38,6 +48,7 @@ export function FileTree({ workspace, activeFile, expandedFolders, onToggleFolde
 
 interface TreeLevelProps {
   workspace: string
+  worktree?: string | null
   path: string
   depth: number
   activeFile: string | null
@@ -48,6 +59,7 @@ interface TreeLevelProps {
 
 function TreeLevel({
   workspace,
+  worktree,
   path,
   depth,
   activeFile,
@@ -55,7 +67,7 @@ function TreeLevel({
   onToggleFolder,
   onSelectFile,
 }: TreeLevelProps) {
-  const cacheKey = getCacheKey(workspace, path)
+  const cacheKey = getCacheKey(workspace, worktree, path)
   const [files, setFiles] = useState<FileInfo[]>(() => fileCache.get(cacheKey) || [])
   const [loading, setLoading] = useState(!fileCache.has(cacheKey))
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +84,7 @@ function TreeLevel({
 
     async function load() {
       setLoading(true)
-      const result = await listFiles(workspace, path)
+      const result = await listFiles(workspace, path, worktree)
       if (!mounted) return
 
       if (result.ok) {
@@ -94,7 +106,7 @@ function TreeLevel({
     return () => {
       mounted = false
     }
-  }, [workspace, path, cacheKey])
+  }, [workspace, worktree, path, cacheKey])
 
   if (loading && depth === 0) {
     return <div className="px-3 py-2 text-neutral-600">Loading...</div>
@@ -130,6 +142,7 @@ function TreeLevel({
 
 interface TreeNodeProps {
   workspace: string
+  worktree?: string | null
   item: FileInfo
   depth: number
   isActive: boolean
@@ -143,6 +156,7 @@ interface TreeNodeProps {
 // Memoize TreeNode to prevent re-renders when other nodes change
 const TreeNode = memo(function TreeNode({
   workspace,
+  worktree,
   item,
   depth,
   isActive,
@@ -200,6 +214,7 @@ const TreeNode = memo(function TreeNode({
       {isFolder && isExpanded && (
         <TreeLevel
           workspace={workspace}
+          worktree={worktree}
           path={item.path}
           depth={depth + 1}
           activeFile={activeFile}
@@ -213,17 +228,19 @@ const TreeNode = memo(function TreeNode({
 })
 
 // Export cache invalidation for manual refresh
-export function invalidateFileCache(workspace?: string, path?: string): void {
+export function invalidateFileCache(workspace?: string, worktree?: string | null, path?: string): void {
   if (workspace && path !== undefined) {
-    fileCache.delete(getCacheKey(workspace, path))
-  } else if (workspace) {
-    // Clear all entries for workspace
+    fileCache.delete(getCacheKey(workspace, worktree, path))
+    return
+  }
+  if (workspace) {
+    const scope = worktree ? `wt/${worktree}` : "base"
     for (const key of fileCache.keys()) {
-      if (key.startsWith(`${workspace}::`)) {
+      if (key.startsWith(`${workspace}::${scope}::`)) {
         fileCache.delete(key)
       }
     }
-  } else {
-    fileCache.clear()
+    return
   }
+  fileCache.clear()
 }

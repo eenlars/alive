@@ -6,7 +6,7 @@
  * This file contains ALL hardcoded infrastructure constants used throughout
  * the WebAlive platform. Always import from this file - never hardcode values.
  *
- * SERVER-AGNOSTIC: Values are loaded from /var/lib/claude-bridge/server-config.json
+ * SERVER-AGNOSTIC: Values are loaded from /var/lib/claude-stream/server-config.json
  * when running on a server. Falls back to defaults for local dev and browser.
  *
  * Organization:
@@ -25,7 +25,7 @@
 interface ServerConfigFile {
   serverId?: string
   paths?: {
-    bridgeRoot?: string
+    streamRoot?: string
     sitesRoot?: string
     imagesStorage?: string
   }
@@ -61,7 +61,7 @@ function loadServerConfig(): ServerConfigFile {
     // Dynamic require to avoid bundler issues
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require("node:fs")
-    const configPath = "/var/lib/claude-bridge/server-config.json"
+    const configPath = "/var/lib/claude-stream/server-config.json"
 
     if (!fs.existsSync(configPath)) {
       return {}
@@ -93,7 +93,7 @@ const getEnv = (key: string): string | undefined => {
   return process.env[key]
 }
 
-const BRIDGE_ROOT = cfg(serverConfig.paths?.bridgeRoot, "/root/webalive/claude-bridge")
+const STREAM_ROOT = cfg(serverConfig.paths?.streamRoot, "/root/webalive/claude-bridge")
 const SITES_ROOT = cfg(serverConfig.paths?.sitesRoot, "/srv/webalive/sites")
 const IMAGES_STORAGE = cfg(serverConfig.paths?.imagesStorage, "/srv/webalive/storage")
 
@@ -115,32 +115,32 @@ export const PATHS = {
   /** Root directory for webalive project */
   WEBALIVE_ROOT: "/root/webalive",
 
-  /** Claude Bridge root directory */
-  BRIDGE_ROOT,
+  /** Claude Stream root directory */
+  STREAM_ROOT,
 
   /** Site directory (systemd-managed) */
   SITES_ROOT,
 
   /** Template directory for new sites */
-  TEMPLATE_PATH: `${BRIDGE_ROOT}/templates/site-template`,
+  TEMPLATE_PATH: `${STREAM_ROOT}/templates/site-template`,
 
   /** Site controller deployment scripts directory */
-  SCRIPTS_DIR: `${BRIDGE_ROOT}/packages/site-controller/scripts`,
+  SCRIPTS_DIR: `${STREAM_ROOT}/packages/site-controller/scripts`,
 
   /** Domain password registry */
-  REGISTRY_PATH: "/var/lib/claude-bridge/domain-passwords.json",
+  REGISTRY_PATH: "/var/lib/claude-stream/domain-passwords.json",
 
   /** Server config (contains server identity and paths) */
-  SERVER_CONFIG: "/var/lib/claude-bridge/server-config.json",
+  SERVER_CONFIG: "/var/lib/claude-stream/server-config.json",
 
   /** Generated routing files directory */
-  GENERATED_DIR: "/var/lib/claude-bridge/generated",
+  GENERATED_DIR: "/var/lib/claude-stream/generated",
 
   /** Caddyfile location for reverse proxy configuration (legacy - now generated) */
-  CADDYFILE_PATH: `${BRIDGE_ROOT}/ops/caddy/Caddyfile`,
+  CADDYFILE_PATH: `${STREAM_ROOT}/ops/caddy/Caddyfile`,
 
   /** Generated Caddyfile for sites */
-  CADDYFILE_SITES: "/var/lib/claude-bridge/generated/Caddyfile.sites",
+  CADDYFILE_SITES: "/var/lib/claude-stream/generated/Caddyfile.sites",
 
   /** Systemd service environment files */
   SYSTEMD_ENV_DIR: "/etc/sites",
@@ -160,9 +160,9 @@ export const PATHS = {
 // =============================================================================
 
 // Allow explicit URL overrides for environments that don't match the pattern
-const BRIDGE_PROD_URL = getEnv("BRIDGE_PROD_URL") || `https://app.${WILDCARD_DOMAIN}`
-const BRIDGE_STAGING_URL = getEnv("BRIDGE_STAGING_URL") || `https://staging.${WILDCARD_DOMAIN}`
-const BRIDGE_DEV_URL = getEnv("BRIDGE_DEV_URL") || `https://dev.${WILDCARD_DOMAIN}`
+const STREAM_PROD_URL = getEnv("STREAM_PROD_URL") || `https://app.${WILDCARD_DOMAIN}`
+const STREAM_STAGING_URL = getEnv("STREAM_STAGING_URL") || `https://staging.${WILDCARD_DOMAIN}`
+const STREAM_DEV_URL = getEnv("STREAM_DEV_URL") || `https://dev.${WILDCARD_DOMAIN}`
 
 // Extract hostnames from URLs
 const extractHost = (url: string) => url.replace(/^https?:\/\//, "")
@@ -177,23 +177,23 @@ export const DOMAINS = {
   /** Main domain suffix for CORS/origin checks */
   MAIN_SUFFIX: `.${MAIN_DOMAIN}`,
 
-  /** Production bridge URL */
-  BRIDGE_PROD: BRIDGE_PROD_URL,
+  /** Production stream URL */
+  STREAM_PROD: STREAM_PROD_URL,
 
-  /** Production bridge hostname */
-  BRIDGE_PROD_HOST: extractHost(BRIDGE_PROD_URL),
+  /** Production stream hostname */
+  STREAM_PROD_HOST: extractHost(STREAM_PROD_URL),
 
-  /** Development bridge URL */
-  BRIDGE_DEV: BRIDGE_DEV_URL,
+  /** Development stream URL */
+  STREAM_DEV: STREAM_DEV_URL,
 
-  /** Development bridge hostname */
-  BRIDGE_DEV_HOST: extractHost(BRIDGE_DEV_URL),
+  /** Development stream hostname */
+  STREAM_DEV_HOST: extractHost(STREAM_DEV_URL),
 
-  /** Staging bridge URL */
-  BRIDGE_STAGING: BRIDGE_STAGING_URL,
+  /** Staging stream URL */
+  STREAM_STAGING: STREAM_STAGING_URL,
 
-  /** Staging bridge hostname */
-  BRIDGE_STAGING_HOST: extractHost(BRIDGE_STAGING_URL),
+  /** Staging stream hostname */
+  STREAM_STAGING_HOST: extractHost(STREAM_STAGING_URL),
 
   /** Staging domain suffix */
   STAGING_SUFFIX: `.staging.${MAIN_DOMAIN}`,
@@ -329,14 +329,14 @@ const SUPERADMIN_EMAILS_ENV = !isBrowser && typeof process !== "undefined" ? pro
 const SUPERADMIN_EMAIL_LIST = parseEmailList(SUPERADMIN_EMAILS_ENV)
 
 export const SUPERADMIN = {
-  /** Emails with superadmin access (can edit Bridge itself). Set via SUPERADMIN_EMAILS env var. */
+  /** Emails with superadmin access (can edit Stream itself). Set via SUPERADMIN_EMAILS env var. */
   EMAILS: SUPERADMIN_EMAIL_LIST,
 
-  /** Special workspace name for Bridge editing */
+  /** Special workspace name for Stream editing */
   WORKSPACE_NAME: "alive",
 
-  /** Path to Bridge repository */
-  WORKSPACE_PATH: BRIDGE_ROOT,
+  /** Path to Stream repository */
+  WORKSPACE_PATH: STREAM_ROOT,
 } as const
 
 // =============================================================================
@@ -374,7 +374,7 @@ export const SECURITY = {
 
   /** Environment-specific test credentials */
   LOCAL_TEST: {
-    EMAIL: "test@bridge.local",
+    EMAIL: "test@stream.local",
     PASSWORD: "test",
     /** Session cookie value for local test mode (bypasses JWT verification) */
     SESSION_VALUE: "test-user",

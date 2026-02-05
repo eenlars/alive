@@ -28,9 +28,9 @@ while [ $elapsed -lt $timeout ]; do
         echo "  - URL: redis://127.0.0.1:6379"
         echo ""
         echo "Quick commands:"
-        echo "  - Status: bun --filter @alive-brug/redis status"
-        echo "  - Logs:   bun --filter @alive-brug/redis logs"
-        echo "  - CLI:    bun --filter @alive-brug/redis cli"
+        echo "  - Status: bun --filter @webalive/redis status"
+        echo "  - Logs:   bun --filter @webalive/redis logs"
+        echo "  - CLI:    bun --filter @webalive/redis cli"
         exit 0
     fi
     sleep 1
@@ -38,5 +38,5 @@ while [ $elapsed -lt $timeout ]; do
 done
 
 echo "❌ Redis failed to start within ${timeout}s"
-echo "Check logs with: bun --filter @alive-brug/redis logs"
+echo "Check logs with: bun --filter @webalive/redis logs"
 exit 1

@@ -9,6 +9,8 @@ interface UseBrowserCleanupOptions {
   tabGroupId: string | null
   /** Current workspace */
   workspace: string | null
+  /** Current worktree */
+  worktree?: string | null
   /** Last stream sequence seen by client (for cursor ack) */
   lastSeenStreamSeq: number | null
   /** Ref to the current request ID */
@@ -33,6 +35,7 @@ export function useBrowserCleanup({
   tabId,
   tabGroupId,
   workspace,
+  worktree,
   lastSeenStreamSeq,
   currentRequestIdRef,
   isStreaming,
@@ -58,6 +61,7 @@ export function useBrowserCleanup({
                 tabId,
                 tabGroupId,
                 workspace,
+                worktree: worktree || undefined,
                 ackOnly: true,
                 lastSeenSeq: lastSeenSeqRef.current,
               }),
@@ -73,11 +77,17 @@ export function useBrowserCleanup({
       // Include clientStack marker so server can identify this as a page unload cancel
       const clientStack = "PAGE_UNLOAD_BEACON: beforeunload event fired"
 
-      let payload: Record<string, string>
+      let payload: Record<string, string | undefined>
       if (requestId) {
         payload = { requestId, clientStack }
       } else if (tabId && tabGroupId && workspace) {
-        payload = { tabId, tabGroupId, workspace, clientStack }
+        payload = {
+          tabId,
+          tabGroupId,
+          workspace,
+          worktree: worktree || undefined,
+          clientStack,
+        }
       } else {
         // Can't build valid cancel request
         console.warn("[useBrowserCleanup] Cannot send cancel beacon - missing identifiers")
@@ -104,5 +114,5 @@ export function useBrowserCleanup({
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload)
     }
-  }, [tabId, tabGroupId, workspace, currentRequestIdRef])
+  }, [tabId, tabGroupId, workspace, worktree, currentRequestIdRef])
 }

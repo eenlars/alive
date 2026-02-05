@@ -31,7 +31,7 @@ export async function DELETE(request: NextRequest) {
 
     // 4. Resolve workspace path (after authorization)
     const host = request.headers.get("host") || ""
-    const workspaceResult = resolveWorkspace(host, body, requestId)
+    const workspaceResult = await resolveWorkspace(host, body, requestId)
     if (!workspaceResult.success) {
       return workspaceResult.response
     }

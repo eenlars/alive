@@ -13,6 +13,8 @@ interface UseStreamCancellationOptions {
   tabGroupId: string | null
   /** Current workspace */
   workspace: string | null
+  /** Current worktree */
+  worktree?: string | null
   /**
    * Callback to add message to chat.
    * IMPORTANT: targetTabId is REQUIRED for tab isolation.
@@ -66,6 +68,7 @@ export function useStreamCancellation({
   tabId,
   tabGroupId,
   workspace,
+  worktree,
   addMessage,
   setShowCompletionDots,
   abortControllerRef,
@@ -148,6 +151,7 @@ export function useStreamCancellation({
             tabGroupId,
             tabId,
             workspace,
+            worktree: worktree || undefined,
             clientStack, // Send stack for server-side debugging
           })
           const response = await postty("claude/stream/cancel", validatedRequest)
@@ -211,6 +215,7 @@ export function useStreamCancellation({
     tabId,
     tabGroupId,
     workspace,
+    worktree,
     addMessage,
     setShowCompletionDots,
     abortControllerRef,

@@ -14,8 +14,8 @@ After=network.target
 [Service]
 Type=oneshot
 User=root
-WorkingDirectory=/root/webalive/claude-bridge/apps/web
-ExecStart=/root/.bun/bin/bun /root/webalive/claude-bridge/scripts/cleanup-test-database.ts --force
+WorkingDirectory=/root/alive/apps/web
+ExecStart=/root/.bun/bin/bun /root/alive/scripts/cleanup-test-database.ts --force
 StandardOutput=append:/var/log/claude-bridge-cleanup.log
 StandardError=append:/var/log/claude-bridge-cleanup.log
 EOF
