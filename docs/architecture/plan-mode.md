@@ -11,7 +11,7 @@ Plan mode allows Claude to explore and analyze without making modifications.
 
 ## ExitPlanMode Requires User Approval
 
-**CRITICAL**: Claude cannot approve its own plan. `ExitPlanMode` is intentionally NOT in `BRIDGE_ALLOWED_SDK_TOOLS`.
+**CRITICAL**: Claude cannot approve its own plan. `ExitPlanMode` is intentionally NOT in `STREAM_ALLOWED_SDK_TOOLS`.
 
 When Claude tries to use `ExitPlanMode`, `canUseTool()` denies it with a message:
 > "You cannot approve your own plan. The user must review and approve the plan."

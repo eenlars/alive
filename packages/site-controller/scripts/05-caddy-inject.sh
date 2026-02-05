@@ -21,7 +21,7 @@ require_var SITE_DOMAIN
 log_info "Configuring Caddy for: $SITE_DOMAIN"
 
 # Get bridge root from server config or use default
-BRIDGE_ROOT="${BRIDGE_ROOT:-/root/alive}"
+STREAM_ROOT="${STREAM_ROOT:-/root/alive}"
 
 # Check if server-config.json exists (new generator mode)
 SERVER_CONFIG="/var/lib/claude-bridge/server-config.json"
@@ -31,14 +31,14 @@ if [[ -f "$SERVER_CONFIG" ]]; then
     # Run the generator to regenerate Caddyfile.sites from database
     log_info "Regenerating Caddy configuration from database..."
 
-    cd "$BRIDGE_ROOT"
+    cd "$STREAM_ROOT"
     if ! bun run --cwd packages/site-controller routing:generate; then
         log_error "Failed to generate Caddy configuration"
         exit 16
     fi
 
     # Sync filtered Caddyfile for main import (excludes reserved env domains)
-    if ! bun "$BRIDGE_ROOT/scripts/sync-generated-caddy.ts"; then
+    if ! bun "$STREAM_ROOT/scripts/sync-generated-caddy.ts"; then
         log_error "Failed to sync filtered Caddy configuration"
         exit 16
     fi
@@ -71,7 +71,7 @@ else
     PREVIEW_LABEL=$(echo "$SITE_DOMAIN" | tr '.' '-')
 
     # Read environments from environments.json
-    ENV_CONFIG_PATH="${BRIDGE_ROOT}/packages/shared/environments.json"
+    ENV_CONFIG_PATH="${STREAM_ROOT}/packages/shared/environments.json"
     if [[ -f "$ENV_CONFIG_PATH" ]] && command -v jq &> /dev/null; then
         log_info "Reading environments from: $ENV_CONFIG_PATH"
         # Extract environments as JSON array: [{"key":"production","port":9000,"previewBase":"preview.terminal.goalive.nl","domain":"terminal.goalive.nl"},...]

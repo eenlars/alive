@@ -356,7 +356,7 @@ const ALLOWED_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep"] as const
 const SDK_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep"]
 
 // File C
-export const BRIDGE_TOOLS: string[] = ["Read", "Write", "Edit", "Glob", "Grep"]
+export const STREAM_TOOLS: string[] = ["Read", "Write", "Edit", "Glob", "Grep"]
 
 // File D (the audacity)
 const fileTools = ["Read", "Write", "Edit", "Glob", "Grep"]
@@ -365,13 +365,13 @@ const fileTools = ["Read", "Write", "Edit", "Glob", "Grep"]
 **AFTER (JUSTICE):**
 ```typescript
 // packages/shared/src/stream-tools.ts - THE ONLY DEFINITION
-export const BRIDGE_ALLOWED_SDK_TOOLS: string[] = [
+export const STREAM_ALLOWED_SDK_TOOLS: string[] = [
   "Read", "Write", "Edit", "Glob", "Grep"
 ]
 
 // EVERYWHERE ELSE - IMPORT
-import { BRIDGE_ALLOWED_SDK_TOOLS } from "@webalive/shared"
-const ALLOWED_TOOLS = BRIDGE_ALLOWED_SDK_TOOLS  // Re-export if you must
+import { STREAM_ALLOWED_SDK_TOOLS } from "@webalive/shared"
+const ALLOWED_TOOLS = STREAM_ALLOWED_SDK_TOOLS  // Re-export if you must
 ```
 
 ---
@@ -517,7 +517,7 @@ done
 
 ```bash
 # Each constant should be ASSIGNED EXACTLY ONCE (not counting imports)
-for const in "BRIDGE_ALLOWED_SDK_TOOLS" "BRIDGE_DISALLOWED_SDK_TOOLS" "BRIDGE_PERMISSION_MODE"; do
+for const in "STREAM_ALLOWED_SDK_TOOLS" "STREAM_DISALLOWED_SDK_TOOLS" "STREAM_PERMISSION_MODE"; do
   count=$(grep -rn "$const.*=" --include="*.ts" --include="*.mjs" | grep -v "import" | grep -v "^[^:]*:.*export.*from" | wc -l)
   echo "$const: $count assignments (should be 1)"
 done
@@ -640,8 +640,8 @@ Functions (each defined exactly once):
   createBridgeCanUseTool  → packages/shared/src/stream-tools.ts:161 ✓
 
 Constants (each assigned exactly once):
-  BRIDGE_ALLOWED_SDK_TOOLS   → packages/shared/src/stream-tools.ts:33 ✓
-  BRIDGE_DISALLOWED_SDK_TOOLS → packages/shared/src/stream-tools.ts:76 ✓
+  STREAM_ALLOWED_SDK_TOOLS   → packages/shared/src/stream-tools.ts:33 ✓
+  STREAM_DISALLOWED_SDK_TOOLS → packages/shared/src/stream-tools.ts:76 ✓
 
 Sync comments remaining: 0 ✓
 Type check: PASSED ✓

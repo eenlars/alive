@@ -528,14 +528,14 @@ bun run setup
 
 # 3. Add .env.local (as shown by setup script)
 # ANTHROPIC_API_KEY=your_key
-# BRIDGE_ENV=local
+# STREAM_ENV=local
 # LOCAL_TEMPLATE_PATH=/path/to/.alive/template
 
 # 4. Start dev server
 bun run dev
 ```
 
-**Test Credentials** (when `BRIDGE_ENV=local`):
+**Test Credentials** (when `STREAM_ENV=local`):
 - Email: `test@bridge.local`
 - Password: `test`
 
