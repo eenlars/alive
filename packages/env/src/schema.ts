@@ -109,8 +109,8 @@ export const serverSchema = {
   IMAGES_SIGNATURE_SECRET: z.string().optional(),
   IMAGES_STORAGE_PATH: z.string().optional(),
 
-  // Infrastructure (optional)
-  WILDCARD_TLD: z.string().optional(),
+  // Infrastructure
+  WILDCARD_TLD: z.string().optional(), // Deprecated: use WILDCARD_DOMAIN
 
   // Server identity
   SERVER_IP: z.string().ip().optional(),

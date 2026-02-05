@@ -1,4 +1,4 @@
-import { REFERRAL } from "@webalive/shared"
+import { DOMAINS, REFERRAL } from "@webalive/shared"
 
 const STORAGE_KEY = "alive_referral"
 
@@ -6,8 +6,8 @@ const STORAGE_KEY = "alive_referral"
  * Build invite link from code
  */
 export function buildInviteLink(code: string): string {
-  // Use NEXT_PUBLIC_APP_URL (set per-environment) with fallback to production
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://alive.best"
+  // Use NEXT_PUBLIC_APP_URL (set per-environment) with fallback to wildcard domain
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${DOMAINS.WILDCARD}`
   return `${baseUrl}/invite/${code}`
 }
 

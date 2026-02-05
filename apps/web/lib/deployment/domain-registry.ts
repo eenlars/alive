@@ -77,16 +77,26 @@ async function getAppClient() {
  * Get all domains with full information
  * Joins domains → orgs → users to get complete picture
  * @param includeTestData - If true, includes test domains (default: false)
+ * @param thisServerOnly - If true, only returns domains for this server (default: true)
  */
-export async function getAllDomains(includeTestData = false): Promise<DomainInfo[]> {
+export async function getAllDomains(includeTestData = false, thisServerOnly = true): Promise<DomainInfo[]> {
   const app = await getAppClient()
   const iam = await getIamClient()
 
   // Get all domains with org IDs (excluding test domains by default)
-  let query = app.from("domains").select("hostname, port, org_id, created_at")
+  let query = app.from("domains").select("hostname, port, org_id, created_at, server_id")
   if (!includeTestData) {
     query = query.eq("is_test_env", false)
   }
+
+  // Filter by current server if requested
+  if (thisServerOnly) {
+    const serverId = getServerId()
+    if (serverId) {
+      query = query.eq("server_id", serverId)
+    }
+  }
+
   const { data: domains, error: domainsError } = await query
 
   if (domainsError || !domains) {

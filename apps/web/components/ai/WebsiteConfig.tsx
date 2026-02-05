@@ -18,6 +18,7 @@
 
 import { Briefcase, Calendar, Check, ChevronRight, Globe, Image, Rocket, Sparkles } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { DOMAINS } from "@webalive/shared"
 
 export interface TemplateOption {
   id: string
@@ -243,7 +244,7 @@ export function WebsiteConfig({ data, onComplete, onSkip }: WebsiteConfigProps) 
                             : "border-zinc-200 dark:border-zinc-700"
                       }`}
                     >
-                      .alive.best
+                      .{DOMAINS.WILDCARD}
                     </span>
                   </div>
                   {slugError && (
@@ -261,7 +262,7 @@ export function WebsiteConfig({ data, onComplete, onSkip }: WebsiteConfigProps) 
                       className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1"
                     >
                       <Check size={12} />
-                      https://{slug}.alive.best
+                      https://{slug}.{DOMAINS.WILDCARD}
                     </p>
                   )}
                 </div>
@@ -354,7 +355,9 @@ export function WebsiteConfig({ data, onComplete, onSkip }: WebsiteConfigProps) 
                     <p className="text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">
                       Domain
                     </p>
-                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">https://{slug}.alive.best</p>
+                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                      https://{slug}.{DOMAINS.WILDCARD}
+                    </p>
                   </div>
                   <div className="flex flex-col gap-0.5 px-2 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
                     <p className="text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">

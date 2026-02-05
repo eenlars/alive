@@ -443,3 +443,62 @@ export function getEnvFilePath(slug: string): string {
 export function getServerId(): string | undefined {
   return serverConfig.serverId
 }
+
+// =============================================================================
+// Configuration Validation
+// =============================================================================
+
+export interface ConfigValidationResult {
+  valid: boolean
+  errors: string[]
+  warnings: string[]
+}
+
+/**
+ * Validate critical configuration is set.
+ * Call this at app startup to catch missing config early.
+ *
+ * Required for deployments:
+ * - WILDCARD_DOMAIN (from env var or server-config.json)
+ *
+ * Required for multi-server:
+ * - SERVER_ID (from server-config.json)
+ */
+export function validateConfig(): ConfigValidationResult {
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  // WILDCARD_DOMAIN is required for site deployments
+  if (!WILDCARD_DOMAIN) {
+    errors.push(
+      "WILDCARD_DOMAIN is not configured. Set via WILDCARD_DOMAIN env var or domains.wildcard in /var/lib/claude-stream/server-config.json",
+    )
+  }
+
+  // SERVER_ID is recommended for multi-server deployments
+  if (!serverConfig.serverId) {
+    warnings.push(
+      "SERVER_ID is not configured. Set serverId in /var/lib/claude-stream/server-config.json for multi-server deployments",
+    )
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  }
+}
+
+/**
+ * Assert that critical configuration is set.
+ * Throws an error if validation fails.
+ */
+export function assertConfigValid(): void {
+  const result = validateConfig()
+  if (!result.valid) {
+    throw new Error(`Configuration validation failed:\n${result.errors.join("\n")}`)
+  }
+  if (result.warnings.length > 0) {
+    console.warn(`Configuration warnings:\n${result.warnings.join("\n")}`)
+  }
+}
