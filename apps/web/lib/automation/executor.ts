@@ -10,7 +10,8 @@
  */
 
 import { statSync } from "node:fs"
-import { DEFAULTS, WORKER_POOL, getWorkspacePath } from "@webalive/shared"
+import { resolve } from "node:path"
+import { DEFAULTS, PATHS, WORKER_POOL, getWorkspacePath, isPathWithinWorkspace } from "@webalive/shared"
 import { createClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
@@ -153,6 +154,12 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     // Use the same workspace path as the normal chat flow: /srv/webalive/sites/<domain>/user
     // NOT /user/src (which is too restrictive — Claude needs access to server.ts, package.json, etc.)
     const cwd = getWorkspacePath(workspace)
+    const resolvedCwd = resolve(cwd)
+    const resolvedSitesRoot = resolve(PATHS.SITES_ROOT)
+
+    if (!isPathWithinWorkspace(resolvedCwd, resolvedSitesRoot)) {
+      throw new Error("Path traversal attack detected")
+    }
 
     if (!statSync(cwd, { throwIfNoEntry: false })) {
       throw new Error(

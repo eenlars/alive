@@ -359,7 +359,7 @@ describe("POST /api/internal/resume-conversation", () => {
       })
 
       const res = await POST(req)
-      expect(res.status).toBe(500)
+      expect(res.status).toBe(400)
     })
 
     it("should use PORT env var for stream URL", async () => {

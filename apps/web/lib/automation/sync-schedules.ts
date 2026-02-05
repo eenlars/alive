@@ -76,7 +76,7 @@ export async function syncAutomationSchedules(): Promise<void> {
     }
 
     try {
-      await scheduleAutomation(
+      const scheduled = await scheduleAutomation(
         `automation-${job.id}`,
         job.cron_schedule,
         {
@@ -94,7 +94,11 @@ export async function syncAutomationSchedules(): Promise<void> {
         },
         { tz: job.cron_timezone || "UTC" },
       )
-      synced++
+      if (scheduled) {
+        synced++
+      } else {
+        console.warn(`[SyncSchedules] Could not resolve next run for job ${job.id}, skipping`)
+      }
     } catch (err) {
       console.error(`[SyncSchedules] Failed to schedule automation ${job.id}:`, err)
     }
