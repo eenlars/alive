@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
     const {
       message,
       workspace: requestWorkspace,
+      worktree,
       conversationId,
       tabGroupId,
       tabId,
@@ -181,7 +182,7 @@ export async function POST(req: NextRequest) {
       logger.log("Workspace authentication verified for:", resolvedWorkspaceName)
 
       // Only after authorization, resolve workspace path
-      const workspaceResult = resolveWorkspace(host, { ...body, workspace: requestWorkspace }, requestId, origin)
+      const workspaceResult = await resolveWorkspace(host, { ...body, workspace: requestWorkspace }, requestId, origin)
       if (!workspaceResult.success) {
         return workspaceResult.response
       }
@@ -275,6 +276,7 @@ export async function POST(req: NextRequest) {
     sessionKey = tabKey({
       userId: user.id,
       workspace: resolvedWorkspaceName,
+      worktree,
       tabGroupId,
       tabId,
     })
@@ -363,10 +365,10 @@ export async function POST(req: NextRequest) {
     logger.log("User isAdmin:", user.isAdmin)
     logger.log("User isSuperadmin:", user.isSuperadmin)
 
-    // Check if this is a superadmin accessing the Bridge workspace
+    // Check if this is a superadmin accessing the Alive workspace
     const isSuperadminWorkspace = resolvedWorkspaceName === SUPERADMIN.WORKSPACE_NAME && user.isSuperadmin
     if (isSuperadminWorkspace) {
-      logger.log("🔓 SUPERADMIN MODE: Bridge workspace access granted")
+      logger.log("🔓 SUPERADMIN MODE: Alive workspace access granted")
     }
 
     // Admins (and superadmins who inherit admin) get 2x maxTurns
@@ -490,7 +492,7 @@ export async function POST(req: NextRequest) {
         permissionMode: effectivePermissionMode,
         settingSources: SETTINGS_SOURCES,
         oauthMcpServers: getOAuthMcpServers(oauthTokens) as Record<string, unknown>,
-        streamTypes: STREAM_TYPES,
+        bridgeStreamTypes: STREAM_TYPES,
         isAdmin: user.isAdmin, // Pass to worker for permission checks
         isSuperadmin: isSuperadminWorkspace, // Superadmin has all tools, runs as root
       }

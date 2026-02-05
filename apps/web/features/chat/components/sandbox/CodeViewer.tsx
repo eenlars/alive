@@ -10,6 +10,7 @@ import { ErrorMessage, LoadingSpinner } from "./ui"
 
 interface CodeViewerProps {
   workspace: string
+  worktree?: string | null
   filePath: string
   onClose: () => void
 }
@@ -21,8 +22,8 @@ const OVERSCAN = 10
 // Virtualization threshold - only virtualize files with more lines
 const VIRTUALIZATION_THRESHOLD = 200
 
-export function CodeViewer({ workspace, filePath, onClose }: CodeViewerProps) {
-  const { file, loading, error } = useFileContent(workspace, filePath)
+export function CodeViewer({ workspace, worktree, filePath, onClose }: CodeViewerProps) {
+  const { file, loading, error } = useFileContent(workspace, filePath, worktree)
   const [copied, setCopied] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)

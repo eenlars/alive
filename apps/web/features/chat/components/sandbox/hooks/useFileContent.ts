@@ -18,8 +18,9 @@ interface UseFileContentResult {
 const MAX_CACHE_ENTRIES = 50
 const fileContentCache = new Map<string, { content: FileContent; timestamp: number }>()
 
-function getCacheKey(workspace: string, path: string): string {
-  return `${workspace}::${path}`
+function getCacheKey(workspace: string, worktree: string | null | undefined, path: string): string {
+  const scope = worktree ? `wt/${worktree}` : "base"
+  return `${workspace}::${scope}::${path}`
 }
 
 function getFromCache(key: string): FileContent | null {
@@ -42,8 +43,8 @@ function setInCache(key: string, content: FileContent): void {
   fileContentCache.set(key, { content, timestamp: Date.now() })
 }
 
-export function useFileContent(workspace: string, path: string): UseFileContentResult {
-  const cacheKey = getCacheKey(workspace, path)
+export function useFileContent(workspace: string, path: string, worktree?: string | null): UseFileContentResult {
+  const cacheKey = getCacheKey(workspace, worktree, path)
   const cached = getFromCache(cacheKey)
 
   const [file, setFile] = useState<FileContent | null>(cached)
@@ -66,7 +67,7 @@ export function useFileContent(workspace: string, path: string): UseFileContentR
       setLoading(true)
       setError(null)
 
-      const result = await readFile(workspace, path)
+      const result = await readFile(workspace, path, worktree)
 
       if (result.ok) {
         setInCache(cacheKey, result.data)
@@ -77,7 +78,7 @@ export function useFileContent(workspace: string, path: string): UseFileContentR
 
       setLoading(false)
     },
-    [workspace, path, cacheKey],
+    [workspace, path, worktree, cacheKey],
   )
 
   useEffect(() => {
@@ -91,16 +92,19 @@ export function useFileContent(workspace: string, path: string): UseFileContentR
 }
 
 // Export cache invalidation for manual refresh (e.g., after file edit)
-export function invalidateFileContentCache(workspace?: string, path?: string): void {
+export function invalidateFileContentCache(workspace?: string, worktree?: string | null, path?: string): void {
   if (workspace && path) {
-    fileContentCache.delete(getCacheKey(workspace, path))
-  } else if (workspace) {
+    fileContentCache.delete(getCacheKey(workspace, worktree, path))
+    return
+  }
+  if (workspace) {
+    const scope = worktree ? `wt/${worktree}` : "base"
     for (const key of fileContentCache.keys()) {
-      if (key.startsWith(`${workspace}::`)) {
+      if (key.startsWith(`${workspace}::${scope}::`)) {
         fileContentCache.delete(key)
       }
     }
-  } else {
-    fileContentCache.clear()
+    return
   }
+  fileContentCache.clear()
 }

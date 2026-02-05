@@ -462,7 +462,7 @@ export async function requireWorkspaceAuth(
   // Step 3: Resolve workspace path
   const { resolveWorkspace } = await import("@/features/workspace/lib/workspace-utils")
   const host = req.headers.get("host") || ""
-  const workspaceResult = resolveWorkspace(host, body, requestId || "unknown")
+  const workspaceResult = await resolveWorkspace(host, body, requestId || "unknown")
 
   if (!workspaceResult.success) {
     return {

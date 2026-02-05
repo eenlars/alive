@@ -44,16 +44,20 @@ interface ImageState {
 // Actions interface - grouped under stable object (Guide §14.3)
 interface ImageActions {
   actions: {
-    loadImages: (workspace?: string) => Promise<void>
-    uploadImages: (files: FileList, workspace?: string) => Promise<{ success: boolean; error?: string }>
-    deleteImage: (key: string, workspace?: string) => Promise<void>
+    loadImages: (workspace?: string, worktree?: string | null) => Promise<void>
+    uploadImages: (
+      files: FileList,
+      workspace?: string,
+      worktree?: string | null,
+    ) => Promise<{ success: boolean; error?: string }>
+    deleteImage: (key: string, workspace?: string, worktree?: string | null) => Promise<void>
   }
 }
 
 type ImageStore = ImageState & ImageActions
 
 const useImageStoreBase = create<ImageStore>((set, get) => {
-  const loadImages = async (workspace?: string) => {
+  const loadImages = async (workspace?: string, worktree?: string | null) => {
     const currentState = get()
     if (currentState.loading) return
 
@@ -63,6 +67,9 @@ const useImageStoreBase = create<ImageStore>((set, get) => {
       const url = new URL("/api/images/list", window.location.origin)
       if (workspace) {
         url.searchParams.set("workspace", workspace)
+      }
+      if (worktree) {
+        url.searchParams.set("worktree", worktree)
       }
 
       const response = await fetch(url.toString(), { credentials: "include" })
@@ -89,7 +96,7 @@ const useImageStoreBase = create<ImageStore>((set, get) => {
     }
   }
 
-  const uploadImages = async (files: FileList, workspace?: string) => {
+  const uploadImages = async (files: FileList, workspace?: string, worktree?: string | null) => {
     if (files.length === 0) {
       return { success: false, error: "No files selected" }
     }
@@ -101,6 +108,7 @@ const useImageStoreBase = create<ImageStore>((set, get) => {
       const uploadPromises = Array.from(files).map(async file => {
         return await uploadImage(file, {
           workspace,
+          worktree,
           isTerminal: !!workspace, // If workspace is explicitly provided, treat as terminal mode
         })
       })
@@ -108,7 +116,7 @@ const useImageStoreBase = create<ImageStore>((set, get) => {
       await Promise.all(uploadPromises)
 
       // Reload images after successful upload
-      await loadImages(workspace)
+      await loadImages(workspace, worktree)
 
       set({ uploading: false })
       return { success: true }
@@ -122,7 +130,7 @@ const useImageStoreBase = create<ImageStore>((set, get) => {
     }
   }
 
-  const deleteImage = async (key: string, workspace?: string) => {
+  const deleteImage = async (key: string, workspace?: string, worktree?: string | null) => {
     const imageToDelete = get().images.find(img => img.key === key)
 
     // Optimistically remove from UI
@@ -131,9 +139,12 @@ const useImageStoreBase = create<ImageStore>((set, get) => {
     }))
 
     try {
-      const body: { key: string; workspace?: string } = { key }
+      const body: { key: string; workspace?: string; worktree?: string } = { key }
       if (workspace) {
         body.workspace = workspace
+      }
+      if (worktree) {
+        body.worktree = worktree
       }
 
       const response = await fetch("/api/images/delete", {

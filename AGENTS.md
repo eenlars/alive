@@ -12,7 +12,7 @@ AI assistant guidelines for working on Claude Bridge.
 4. **GIT HOOKS** - Pre-push hooks run automatically; if they fail, fix the issues (don't force-push)
 5. **NO RANDOM ENV VARS** - Don't add environment variables unless absolutely necessary. Use existing config, constants, or code-level defaults instead. Adding .env variables creates deployment complexity and hidden dependencies.
 6. **NO EXPLORE AGENT** - Never use `Task(subagent_type=Explore)`. Use Glob and Grep directly instead - they're faster and more precise for this codebase.
-7. **USE THE BRAIN** - Query `use_this_to_remember.db` for past decisions, insights, and context before starting work. Store important learnings when you're done.
+7. **BE METHODICAL** - Use workflows and systematic approaches for complex tasks. Document decisions and patterns for consistency.
 8. **CADDYFILE IS LARGE** - The Caddyfile at `/root/alive/ops/caddy/Caddyfile` is too large to read in one go. Use `Read` with `offset` and `limit` parameters, or use `Grep` to find specific domain configurations.
 9. **OWN YOUR CHANGES** - When deploying or committing, NEVER say "these unrelated changes are not mine" or refuse to include changes in the working directory. If changes exist, they are part of the current work. Take responsibility and include them.
 10. **SEEMINGLY UNRELATED ISSUES ARE OFTEN RELATED** - When you see multiple errors or issues, assume they share a common cause until proven otherwise. Type errors in test files often stem from the same interface change. Build failures across packages usually have one root cause. Don't treat each error as isolated - find the pattern first.
@@ -54,48 +54,6 @@ These domains are **NOT** Vite website templates. Do not deploy them as sites:
    - Small scope = verifiable scope
 
    If you spot the anti-patterns, say: **"⚠️ Architecture smell: [pattern]. Does this help agents do exactly what they promise, or does it add ways to fail?"**
-
-## Agent Memory (IMPORTANT)
-
-**`use_this_to_remember.db`** - SQLite database at project root containing persistent knowledge across conversations.
-
-**ALWAYS check this first** when working on unfamiliar areas:
-```bash
-sqlite3 use_this_to_remember.db "SELECT topic, content FROM memories WHERE topic LIKE '%your-topic%'"
-```
-
-**Store important learnings** when you discover something:
-```bash
-sqlite3 use_this_to_remember.db "INSERT INTO memories (id, type, topic, content, context, tags) VALUES (lower(hex(randomblob(16))), 'insight', 'topic-name', 'what you learned', 'why it matters', '[\"tag1\",\"tag2\"]')"
-```
-
-**Memory types:** `decision` | `insight` | `pattern` | `todo` | `question` | `context` | `preference`
-
-**Quick queries:**
-```bash
-# All decisions
-sqlite3 use_this_to_remember.db "SELECT topic, content FROM memories WHERE type='decision'"
-
-# Search everything
-sqlite3 use_this_to_remember.db "SELECT * FROM memories WHERE content LIKE '%keyword%'"
-
-# Recent memories
-sqlite3 use_this_to_remember.db "SELECT topic, type, substr(content,1,100) FROM memories ORDER BY created_at DESC LIMIT 10"
-```
-
-**User shortcut:** When the user says `usemem`, query recent memories to recall what we were working on:
-```bash
-sqlite3 use_this_to_remember.db "SELECT type, topic, content, context FROM memories ORDER BY created_at DESC LIMIT 10"
-```
-
-**Conversation summaries:** Store summaries of completed sessions for continuity:
-```bash
-# Read recent conversation summaries
-sqlite3 use_this_to_remember.db "SELECT title, summary, next_steps FROM conversations ORDER BY created_at DESC LIMIT 5"
-
-# Store a conversation summary when ending a session
-sqlite3 use_this_to_remember.db "INSERT INTO conversations (id, title, summary, key_decisions, next_steps) VALUES (lower(hex(randomblob(16))), 'Brief title', 'What we accomplished', 'Key decisions made', 'What to do next')"
-```
 
 ## Project Overview
 

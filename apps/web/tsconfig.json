@@ -40,7 +40,8 @@
     ".next-test/dev/types/**/*.ts",
     "**/*.mts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    ".next-test/dev/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

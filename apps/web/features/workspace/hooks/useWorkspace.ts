@@ -1,7 +1,8 @@
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useRef } from "react"
 import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
-import { useCurrentWorkspace, useWorkspaceActions } from "@/lib/stores/workspaceStore"
+import { buildWorkspaceKey } from "@/features/workspace/lib/worktree-utils"
+import { useCurrentWorkspace, useCurrentWorktree, useWorkspaceActions } from "@/lib/stores/workspaceStore"
 
 interface UseWorkspaceOptions {
   redirectOnMissing?: string | null
@@ -12,9 +13,12 @@ interface UseWorkspaceOptions {
 
 interface UseWorkspaceReturn {
   workspace: string | null
+  worktree: string | null
+  workspaceKey: string | null
   isTerminal: boolean
   mounted: boolean
   setWorkspace: (workspace: string, orgId?: string) => void
+  setWorktree: (worktree: string | null) => void
 }
 
 /**
@@ -31,7 +35,9 @@ export function useWorkspace(options: UseWorkspaceOptions = {}): UseWorkspaceRet
   // Read from store (single source of truth)
   const workspace = useCurrentWorkspace()
   const hasHydrated = useAppHydrated()
-  const { setCurrentWorkspace, autoSelectWorkspace } = useWorkspaceActions()
+  const { setCurrentWorkspace, setCurrentWorktree, autoSelectWorkspace } = useWorkspaceActions()
+  const worktree = useCurrentWorktree(workspace)
+  const workspaceKey = buildWorkspaceKey(workspace, worktree)
 
   // Derive mounted directly from hasHydrated - no extra state/render cycle
   const mounted = hasHydrated
@@ -62,10 +68,21 @@ export function useWorkspace(options: UseWorkspaceOptions = {}): UseWorkspaceRet
     [setCurrentWorkspace],
   )
 
+  const setWorktree = useCallback(
+    (newWorktree: string | null) => {
+      if (!workspace) return
+      setCurrentWorktree(workspace, newWorktree)
+    },
+    [setCurrentWorktree, workspace],
+  )
+
   return {
     workspace,
+    worktree,
+    workspaceKey,
     isTerminal: true, // Always terminal mode now
     mounted,
     setWorkspace,
+    setWorktree,
   }
 }

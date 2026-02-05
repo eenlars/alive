@@ -106,6 +106,17 @@ describe("Session Store - Tab Locking", () => {
       expect(key).toContain("default")
     })
 
+    it("should include worktree segment when provided", () => {
+      const key = tabKey({
+        userId: "user1",
+        workspace: "workspace1",
+        worktree: "feature-branch",
+        tabGroupId: "test-tabgroup",
+        tabId: "tab1",
+      })
+      expect(key).toContain("::wt/feature-branch::")
+    })
+
     it("should allow different tabs to be locked independently", () => {
       const key1 = tabKey({ userId: "user1", workspace: "workspace1", tabGroupId: "test-tabgroup", tabId: "tab1" })
       const key2 = tabKey({ userId: "user1", workspace: "workspace1", tabGroupId: "test-tabgroup", tabId: "tab2" })
@@ -266,17 +277,17 @@ describe("Session Store - Tab Locking", () => {
     it("should reject keys with wrong segment count (old 3-segment format)", async () => {
       // Simulate a stale key from the old format: userId::workspace::tabId
       const malformedKey = "user1::workspace1::tab1" as ReturnType<typeof tabKey>
-      await expect(sessionStore.get(malformedKey)).rejects.toThrow("expected 4 segments")
+      await expect(sessionStore.get(malformedKey)).rejects.toThrow("expected 4 or 5 segments")
     })
 
     it("should reject keys with too many segments", async () => {
-      const malformedKey = "a::b::c::d::e" as ReturnType<typeof tabKey>
-      await expect(sessionStore.get(malformedKey)).rejects.toThrow("expected 4 segments")
+      const malformedKey = "a::b::c::d::e::f" as ReturnType<typeof tabKey>
+      await expect(sessionStore.get(malformedKey)).rejects.toThrow("expected 4 or 5 segments")
     })
 
     it("should reject empty keys", async () => {
       const malformedKey = "" as ReturnType<typeof tabKey>
-      await expect(sessionStore.get(malformedKey)).rejects.toThrow("expected 4 segments")
+      await expect(sessionStore.get(malformedKey)).rejects.toThrow("expected 4 or 5 segments")
     })
 
     it("should accept valid 4-segment keys", async () => {
@@ -287,6 +298,18 @@ describe("Session Store - Tab Locking", () => {
         tabId: "test-tab-valid",
       })
       // Should not throw — null result is fine
+      const result = await sessionStore.get(validKey)
+      expect(result).toBeNull()
+    })
+
+    it("should accept valid 5-segment keys with worktree", async () => {
+      const validKey = tabKey({
+        userId: TEST_USER_ID,
+        workspace: TEST_WORKSPACE,
+        worktree: "feature-branch",
+        tabGroupId: "test-tabgroup",
+        tabId: "test-tab-valid",
+      })
       const result = await sessionStore.get(validKey)
       expect(result).toBeNull()
     })

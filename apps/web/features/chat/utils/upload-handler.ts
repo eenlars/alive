@@ -10,6 +10,7 @@ export interface UploadProgress {
 
 export interface UploadOptions {
   workspace?: string
+  worktree?: string | null
   isTerminal?: boolean
   onProgress?: (progress: UploadProgress) => void
   signal?: AbortSignal
@@ -96,6 +97,9 @@ async function uploadWithProgress(file: File, options: UploadOptions, attempt: n
     // Add workspace if in terminal mode
     if (options.isTerminal && options.workspace) {
       formData.append("workspace", options.workspace)
+    }
+    if (options.isTerminal && options.worktree) {
+      formData.append("worktree", options.worktree)
     }
 
     // Track upload progress

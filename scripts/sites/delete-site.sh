@@ -81,7 +81,7 @@ USER="site-${SLUG}"
 NEW_SITE_DIR="/srv/webalive/sites/$DOMAIN"
 OLD_SITE_DIR="/root/webalive/sites/$DOMAIN"
 SYMLINK_PATH="/srv/webalive/sites/$SLUG"
-CADDYFILE="/root/webalive/claude-bridge/Caddyfile"
+CADDYFILE="/root/alive/ops/caddy/Caddyfile"
 ENV_FILE="/etc/sites/${SLUG}.env"
 
 echo ""

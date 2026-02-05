@@ -28,10 +28,16 @@ export async function GET(request: NextRequest) {
     const host = request.headers.get("host") || ""
     const searchParams = request.nextUrl.searchParams
     const workspaceParam = searchParams.get("workspace")
+    const worktreeParam = searchParams.get("worktree")
 
-    const body = workspaceParam ? { workspace: workspaceParam } : {}
+    const body =
+      workspaceParam && worktreeParam
+        ? { workspace: workspaceParam, worktree: worktreeParam }
+        : workspaceParam
+          ? { workspace: workspaceParam }
+          : {}
 
-    const workspaceResult = resolveWorkspace(host, body, requestId)
+    const workspaceResult = await resolveWorkspace(host, body, requestId)
     if (!workspaceResult.success) {
       return workspaceResult.response
     }

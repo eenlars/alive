@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     console.log(`[Verify API ${requestId}] Host: ${host}`)
 
     // Only after authorization, check if workspace directory exists
-    const workspaceResult = getWorkspace({ host, body, requestId })
+    const workspaceResult = await getWorkspace({ host, body, requestId })
 
     if (!workspaceResult.success) {
       console.log(`[Verify API ${requestId}] Workspace verification failed`)

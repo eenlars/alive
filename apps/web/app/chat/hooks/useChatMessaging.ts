@@ -29,6 +29,7 @@ import { useActiveTab } from "@/lib/stores/tabStore"
 
 interface UseChatMessagingOptions {
   workspace: string | null
+  worktree?: string | null
   /** Tab ID — also the Claude conversation key */
   tabId: string | null
   /** Tab group ID — required for lock key */
@@ -54,6 +55,7 @@ interface UseChatMessagingOptions {
  */
 export function useChatMessaging({
   workspace,
+  worktree,
   tabId,
   tabGroupId,
   isTerminal,
@@ -132,10 +134,11 @@ export function useChatMessaging({
         planMode: getPlanModeState().planMode || undefined, // Only send if true
         // Resume at specific message if user deleted messages
         resumeSessionAt,
+        worktree: worktree || undefined,
       }
       return isTerminal ? { ...baseBody, workspace: workspace || undefined } : baseBody
     },
-    [tabId, activeTab?.id, tabGroupId, userApiKey, userModel, planMode, isTerminal, workspace],
+    [tabId, activeTab?.id, tabGroupId, userApiKey, userModel, planMode, isTerminal, workspace, worktree],
   )
 
   const buildPromptForClaude = useCallback((userMessage: UIMessage): PromptBuildResult => {

@@ -85,7 +85,7 @@ describe("POST /api/files/delete", () => {
     vi.mocked(verifyWorkspaceAccess).mockResolvedValue("test-workspace")
 
     // Default: valid workspace
-    vi.mocked(getWorkspace).mockReturnValue({
+    vi.mocked(getWorkspace).mockResolvedValue({
       success: true,
       workspace: TEST_WORKSPACE,
     })
@@ -406,7 +406,7 @@ describe("POST /api/files/delete", () => {
 
   describe("Workspace Resolution", () => {
     it("should reject invalid workspace", async () => {
-      vi.mocked(getWorkspace).mockReturnValue({
+      vi.mocked(getWorkspace).mockResolvedValue({
         success: false,
         response: NextResponse.json({ ok: false, error: "WORKSPACE_NOT_FOUND" }, { status: 404 }),
       })

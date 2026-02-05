@@ -129,7 +129,7 @@ export interface AgentConfig {
    */
   oauthMcpServers: Record<string, unknown>
   /** Bridge stream type constants (from @webalive/shared) */
-  streamTypes: typeof STREAM_TYPES
+  bridgeStreamTypes: typeof STREAM_TYPES
   /** Whether the user is an admin (enables Bash tools) */
   isAdmin?: boolean
 }

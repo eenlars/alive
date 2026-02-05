@@ -15,6 +15,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Load shared libraries
 source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/standalone-packages.sh"
 
 # =============================================================================
 # Configuration
@@ -47,7 +48,7 @@ cleanup_failed_build() {
     log_error "Build failed with exit code $exit_code"
 
     # Clean up temp build
-    [ -d "$TEMP_BUILD_DIR" ] && rm -rf "$TEMP_BUILD_DIR"
+    [ -d "$TEMP_BUILD_DIR" ] && rm -rf "${TEMP_BUILD_DIR:?}"
 
     # Restore dev server files
     if [ -n "$DEV_BACKUP" ] && [ -d "$DEV_BACKUP" ]; then
@@ -78,7 +79,7 @@ mkdir -p "$BUILDS_DIR"
 if [ -d "$WEB_NEXT_DIR/dev" ]; then
     log_step "Backing up dev server files..."
     DEV_BACKUP="$WEB_NEXT_DIR.dev-backup"
-    rm -rf "$DEV_BACKUP" 2>/dev/null || true
+    rm -rf "${DEV_BACKUP:?}" 2>/dev/null || true
     mv "$WEB_NEXT_DIR/dev" "$DEV_BACKUP"
 fi
 
@@ -86,12 +87,19 @@ fi
 # Phase 3: Clean & Validate
 # =============================================================================
 log_step "Cleaning build artifacts..."
-rm -rf "$WEB_NEXT_DIR" "$PROJECT_ROOT/.turbo" "$PROJECT_ROOT/node_modules/.cache/turbo"
-rm -rf "$WEB_DIR/dist" 2>/dev/null || true
+rm -rf "${WEB_NEXT_DIR:?}" "${PROJECT_ROOT:?}/.turbo" "${PROJECT_ROOT:?}/node_modules/.cache/turbo"
+rm -rf "${WEB_DIR:?}/dist" 2>/dev/null || true
 
 log_step "Validating workspace..."
 if ! "$SCRIPT_DIR/../validation/detect-workspace-issues.sh" >/dev/null 2>&1; then
     log_error "Workspace validation failed"
+    exit 1
+fi
+
+log_step "Validating standalone packages..."
+if ! "$SCRIPT_DIR/validate-standalone.sh" >/dev/null 2>&1; then
+    log_error "Standalone package validation failed"
+    "$SCRIPT_DIR/validate-standalone.sh"  # Run again to show errors
     exit 1
 fi
 
@@ -149,33 +157,62 @@ STANDALONE_DIR="$TEMP_BUILD_DIR/standalone/apps/web"
 # Phase 8: Copy Workspace Packages
 # =============================================================================
 log_step "Copying workspace packages..."
-STANDALONE_PACKAGES="$TEMP_BUILD_DIR/standalone/packages"
-mkdir -p "$STANDALONE_PACKAGES"
+STANDALONE_PACKAGES_DIR="$TEMP_BUILD_DIR/standalone/packages"
+mkdir -p "$STANDALONE_PACKAGES_DIR"
 
-for pkg in tools images site-controller; do
+# Use STANDALONE_PACKAGES array from lib/standalone-packages.sh (single source of truth)
+for pkg in "${STANDALONE_PACKAGES[@]}"; do
     [ ! -d "packages/$pkg" ] && { log_error "Package not found: $pkg"; exit 1; }
-    rm -rf "$STANDALONE_PACKAGES/$pkg" 2>/dev/null || true
-    cp -r "packages/$pkg" "$STANDALONE_PACKAGES/$pkg"
-    find "$STANDALONE_PACKAGES/$pkg" -type l -delete 2>/dev/null || true
+    rm -rf "${STANDALONE_PACKAGES_DIR:?}/$pkg" 2>/dev/null || true
+    # Use cp -rL to follow symlinks (bun creates symlinks to .bun/ cache)
+    # This ensures dependencies like zod get copied as real files
+    cp -rL "packages/$pkg" "$STANDALONE_PACKAGES_DIR/$pkg" 2>/dev/null || cp -r "packages/$pkg" "$STANDALONE_PACKAGES_DIR/$pkg"
 done
 
 # Copy template
 [ ! -d "templates/site-template" ] && { log_error "Template not found"; exit 1; }
-rm -rf "$STANDALONE_PACKAGES/template" 2>/dev/null || true
-cp -r "templates/site-template" "$STANDALONE_PACKAGES/template"
-find "$STANDALONE_PACKAGES/template" -type l -delete 2>/dev/null || true
+rm -rf "${STANDALONE_PACKAGES_DIR:?}/template" 2>/dev/null || true
+cp -rL "templates/site-template" "$STANDALONE_PACKAGES_DIR/template" 2>/dev/null || cp -r "templates/site-template" "$STANDALONE_PACKAGES_DIR/template"
 
 # =============================================================================
-# Phase 9: Create Package Symlinks
+# Phase 9: Copy Packages to node_modules (NO SYMLINKS)
 # =============================================================================
-log_step "Creating package symlinks..."
+log_step "Copying packages to node_modules..."
 STANDALONE_NODE_MODULES="$STANDALONE_DIR/node_modules"
-mkdir -p "$STANDALONE_NODE_MODULES/@alive-brug" "$STANDALONE_NODE_MODULES/@webalive"
+mkdir -p "$STANDALONE_NODE_MODULES/@webalive"
 
-for pkg in tools images template; do
-    ln -sf "../../../../packages/$pkg" "$STANDALONE_NODE_MODULES/@alive-brug/$pkg"
+# Copy workspace packages to node_modules/@webalive (actual copies, not symlinks)
+# Include template which was copied separately
+for pkg in "${STANDALONE_PACKAGES[@]}" template; do
+    if [ -d "$STANDALONE_PACKAGES_DIR/$pkg" ]; then
+        cp -rL "$STANDALONE_PACKAGES_DIR/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg" 2>/dev/null || \
+        cp -r "$STANDALONE_PACKAGES_DIR/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg"
+    elif [ -d "packages/$pkg" ]; then
+        cp -rL "packages/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg" 2>/dev/null || \
+        cp -r "packages/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg"
+    fi
 done
-ln -sf "../../../../packages/site-controller" "$STANDALONE_NODE_MODULES/@webalive/site-controller"
+
+# Copy worker-entry.mjs (it's in src/ not dist/)
+if [ -f "packages/worker-pool/src/worker-entry.mjs" ]; then
+    mkdir -p "${STANDALONE_NODE_MODULES:?}/@webalive/worker-pool/dist/"
+    cp "packages/worker-pool/src/worker-entry.mjs" "${STANDALONE_NODE_MODULES:?}/@webalive/worker-pool/dist/"
+fi
+
+# Worker-entry.mjs imports @webalive/tools - add it to worker-pool's node_modules
+# Also need to add it to packages/worker-pool for the actual worker process
+WORKER_POOL_PKG="$STANDALONE_PACKAGES_DIR/worker-pool"
+if [ -d "$WORKER_POOL_PKG" ]; then
+    mkdir -p "$WORKER_POOL_PKG/node_modules/@webalive"
+    cp -rL "$STANDALONE_PACKAGES_DIR/tools" "$WORKER_POOL_PKG/node_modules/@webalive/tools" 2>/dev/null || \
+    cp -r "$STANDALONE_PACKAGES_DIR/tools" "$WORKER_POOL_PKG/node_modules/@webalive/tools"
+fi
+
+# Copy zod dependency from the .bun cache (it's in the root standalone node_modules)
+BUN_ZOD="$TEMP_BUILD_DIR/standalone/node_modules/.bun/node_modules/zod"
+if [ -d "$BUN_ZOD" ]; then
+    cp -rL "$BUN_ZOD" "$STANDALONE_NODE_MODULES/zod" 2>/dev/null || true
+fi
 
 # =============================================================================
 # Phase 10: Atomic Swap

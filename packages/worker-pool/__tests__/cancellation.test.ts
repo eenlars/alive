@@ -54,7 +54,7 @@ function createTestAgentConfig(): AgentConfig {
     permissionMode: "default",
     settingSources: [],
     oauthMcpServers: {},
-    streamTypes: STREAM_TYPES,
+    bridgeStreamTypes: STREAM_TYPES,
   }
 }
 

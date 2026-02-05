@@ -2,6 +2,7 @@ import { appendFileSync, mkdirSync } from "node:fs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { tabKey } from "@/features/auth/lib/sessionStore"
+import { WORKTREE_SLUG_REGEX, normalizeWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { cancelStream, cancelStreamByConversationKey } from "@/lib/stream/cancellation-registry"
 
@@ -38,6 +39,7 @@ interface CancelDebugEntry {
   tabId?: string
   tabGroupId?: string
   workspace?: string
+  worktree?: string
   userAgent?: string
   referer?: string
   contentType?: string
@@ -120,9 +122,23 @@ export async function POST(req: NextRequest) {
     // Parse request body
     const body = await req.json()
     const { requestId, tabId, tabGroupId, clientStack } = body
+
+    // Validate and normalize worktree to prevent session key corruption
+    // A malformed worktree containing "::" would break parseKey() in sessionStore
+    let worktree: string | undefined = body.worktree
+    if (worktree && typeof worktree === "string") {
+      worktree = normalizeWorktreeSlug(worktree)
+      if (!WORKTREE_SLUG_REGEX.test(worktree) || ["user", "worktrees", ".", ".."].includes(worktree)) {
+        console.warn(`[Cancel Stream] Invalid worktree slug rejected: ${body.worktree}`)
+        return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
+          message: "Invalid worktree slug. Use lowercase letters, numbers, and hyphens (max 49 chars).",
+        })
+      }
+    }
+
     console.log(
       "[Cancel Stream] Request body:",
-      JSON.stringify({ requestId, tabId, tabGroupId, workspace: body.workspace }),
+      JSON.stringify({ requestId, tabId, tabGroupId, workspace: body.workspace, worktree }),
     )
 
     // Log if client sent a stack trace (for debugging where cancel originated)
@@ -139,6 +155,7 @@ export async function POST(req: NextRequest) {
       tabId,
       tabGroupId,
       workspace: body.workspace,
+      worktree,
       userAgent,
       referer,
       contentType,
@@ -175,7 +192,7 @@ export async function POST(req: NextRequest) {
           debugEntry.result = "unauthorized"
           debugEntry.errorMessage = error.message
           logCancelDebug(debugEntry)
-          return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403)
+          return createErrorResponse(ErrorCodes.FORBIDDEN, 403)
         }
 
         throw error
@@ -201,6 +218,7 @@ export async function POST(req: NextRequest) {
       const tabKeyValue = tabKey({
         userId: user.id,
         workspace: verifiedWorkspace,
+        worktree,
         tabGroupId,
         tabId,
       })
@@ -234,7 +252,7 @@ export async function POST(req: NextRequest) {
           debugEntry.result = "unauthorized"
           debugEntry.errorMessage = error.message
           logCancelDebug(debugEntry)
-          return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403)
+          return createErrorResponse(ErrorCodes.FORBIDDEN, 403)
         }
 
         throw error

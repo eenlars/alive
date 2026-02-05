@@ -8,11 +8,12 @@ import { useImageActions } from "@/lib/stores/imageStore"
 
 interface UseImageUploadOptions {
   workspace?: string
+  worktree?: string | null
   isTerminal?: boolean
 }
 
 export function useImageUpload(options: UseImageUploadOptions) {
-  const { workspace, isTerminal } = options
+  const { workspace, worktree, isTerminal } = options
   const { loadImages } = useImageActions()
 
   const uploadWithSync = useCallback(
@@ -20,18 +21,19 @@ export function useImageUpload(options: UseImageUploadOptions) {
       // Upload with progress tracking and retry logic
       const imageKey = await uploadImage(file, {
         workspace,
+        worktree,
         isTerminal,
         onProgress: onProgress ? progress => onProgress(progress.percentage) : undefined,
       })
 
       // Sync image store after successful upload (background, don't block)
-      loadImages(workspace).catch(err => {
+      loadImages(workspace, worktree).catch(err => {
         console.warn("[useImageUpload] Failed to sync image store:", err)
       })
 
       return imageKey
     },
-    [workspace, isTerminal, loadImages],
+    [workspace, worktree, isTerminal, loadImages],
   )
 
   return uploadWithSync

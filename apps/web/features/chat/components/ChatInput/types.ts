@@ -161,6 +161,8 @@ export interface ChatInputConfig {
   // Callbacks
   onMessage?: (message: string, type: "info" | "error" | "success") => void
   onAttachmentUpload?: (file: File, onProgress?: (progress: number) => void) => Promise<string> // Returns image key
+  workspace?: string
+  worktree?: string | null
 }
 
 export interface ChatInputContextValue extends ChatInputState, ChatInputActions {
@@ -196,7 +198,7 @@ export interface ChatInputHandle {
     prompt: string,
     source: "global" | "user" | "project",
   ) => void
-  addFileForAnalysis: (file: File, workspace?: string) => Promise<void>
+  addFileForAnalysis: (file: File, workspace?: string, worktree?: string | null) => Promise<void>
   getAttachments: () => Attachment[]
   clearLibraryImages: () => void
   clearAllAttachments: () => void

@@ -31,13 +31,14 @@ export type Site = Res<"sites">["sites"][number]
  * - Type-safe query key for invalidation
  * - Auth store integration (handles 401, marks authenticated on success)
  * - Zod validation ensures response shape is correct
+ * - Validates workspace availability on this server
  *
  * @example
  * const { data, isLoading, error } = useOrganizationsQuery()
  * // data?.organizations, data?.current_user_id
  */
 export function useOrganizationsQuery() {
-  const { validateAndCleanup } = useWorkspaceActions()
+  const { validateAndCleanup, validateWorkspaceAvailability } = useWorkspaceActions()
 
   const query = useQuery<Res<"auth/organizations">, ApiError>({
     queryKey: queryKeys.organizations.list(),
@@ -59,8 +60,19 @@ export function useOrganizationsQuery() {
     if (query.data?.organizations) {
       authStore.setAuthenticated()
       validateAndCleanup(query.data.organizations as Organization[])
+
+      // Also validate workspace availability on this server
+      // This clears currentWorkspace if the site doesn't exist on the filesystem
+      getty("auth/all-workspaces")
+        .then(response => {
+          const allWorkspaces = Object.values(response.workspaces).flat()
+          validateWorkspaceAvailability(allWorkspaces)
+        })
+        .catch(err => {
+          console.warn("[useOrganizationsQuery] Failed to validate workspace availability:", err)
+        })
     }
-  }, [query.data, validateAndCleanup])
+  }, [query.data, validateAndCleanup, validateWorkspaceAvailability])
 
   return query
 }

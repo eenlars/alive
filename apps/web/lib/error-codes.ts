@@ -10,10 +10,27 @@ export const ErrorCodes = {
   WORKSPACE_NOT_AUTHENTICATED: "WORKSPACE_NOT_AUTHENTICATED",
   PATH_OUTSIDE_WORKSPACE: "PATH_OUTSIDE_WORKSPACE",
 
+  // Worktree errors (1.5xxx)
+  WORKTREE_NOT_GIT: "WORKTREE_NOT_GIT",
+  WORKTREE_NOT_FOUND: "WORKTREE_NOT_FOUND",
+  WORKTREE_EXISTS: "WORKTREE_EXISTS",
+  WORKTREE_INVALID_SLUG: "WORKTREE_INVALID_SLUG",
+  WORKTREE_INVALID_BRANCH: "WORKTREE_INVALID_BRANCH",
+  WORKTREE_INVALID_FROM: "WORKTREE_INVALID_FROM",
+  WORKTREE_BASE_INVALID: "WORKTREE_BASE_INVALID",
+  WORKTREE_BRANCH_IN_USE: "WORKTREE_BRANCH_IN_USE",
+  WORKTREE_PATH_EXISTS: "WORKTREE_PATH_EXISTS",
+  WORKTREE_BRANCH_UNKNOWN: "WORKTREE_BRANCH_UNKNOWN",
+  WORKTREE_DELETE_BRANCH_BLOCKED: "WORKTREE_DELETE_BRANCH_BLOCKED",
+  WORKTREE_LOCKED: "WORKTREE_LOCKED",
+  WORKTREE_DIRTY: "WORKTREE_DIRTY",
+  WORKTREE_GIT_FAILED: "WORKTREE_GIT_FAILED",
+
   // Authentication errors (2xxx)
   NO_SESSION: "NO_SESSION",
   AUTH_REQUIRED: "AUTH_REQUIRED",
   UNAUTHORIZED: "UNAUTHORIZED",
+  FORBIDDEN: "FORBIDDEN",
   ORG_ACCESS_DENIED: "ORG_ACCESS_DENIED",
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
   INVALID_SIGNATURE: "INVALID_SIGNATURE",
@@ -157,12 +174,59 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
         ? `I cannot access '${details.attemptedPath}' - it's outside my allowed workspace. I can only access files within your project directory.`
         : "I cannot access this file - it's outside my allowed workspace. I can only access files within your project directory."
 
+    case ErrorCodes.WORKTREE_NOT_GIT:
+      return "This workspace does not appear to be a git repository."
+
+    case ErrorCodes.WORKTREE_NOT_FOUND:
+      return details?.slug ? `I cannot find the worktree '${details.slug}'.` : "I cannot find that worktree."
+
+    case ErrorCodes.WORKTREE_EXISTS:
+      return details?.slug ? `The worktree '${details.slug}' already exists.` : "That worktree already exists."
+
+    case ErrorCodes.WORKTREE_INVALID_SLUG:
+      return "The worktree slug is invalid. Use lowercase letters, numbers, and hyphens."
+
+    case ErrorCodes.WORKTREE_INVALID_BRANCH:
+      return "The branch name is invalid."
+
+    case ErrorCodes.WORKTREE_INVALID_FROM:
+      return "The base ref does not exist."
+
+    case ErrorCodes.WORKTREE_BASE_INVALID:
+      return "This path is not a git repository root. Use the base workspace."
+
+    case ErrorCodes.WORKTREE_BRANCH_IN_USE:
+      return "That branch is already checked out by another worktree."
+
+    case ErrorCodes.WORKTREE_PATH_EXISTS:
+      return "That worktree path already exists on disk."
+
+    case ErrorCodes.WORKTREE_BRANCH_UNKNOWN:
+      return "Cannot delete the branch for a detached worktree."
+
+    case ErrorCodes.WORKTREE_DELETE_BRANCH_BLOCKED:
+      return "Refusing to delete the base workspace branch."
+
+    case ErrorCodes.WORKTREE_LOCKED:
+      return "A worktree operation is already in progress. Please retry in a moment."
+
+    case ErrorCodes.WORKTREE_DIRTY:
+      return "The worktree has uncommitted changes. Commit or clean it before removing."
+
+    case ErrorCodes.WORKTREE_GIT_FAILED:
+      return details?.message
+        ? `A git command failed: ${details.message}`
+        : "A git command failed unexpectedly. Please try again."
+
     case ErrorCodes.NO_SESSION:
     case ErrorCodes.AUTH_REQUIRED:
       return "You need to log in first. Please refresh the page and enter your passcode."
 
     case ErrorCodes.UNAUTHORIZED:
       return "You don't have access to this. Please check with your administrator if you need permission."
+
+    case ErrorCodes.FORBIDDEN:
+      return "You don't have permission to perform this action."
 
     case ErrorCodes.ORG_ACCESS_DENIED:
       return "You do not have access to this organization. Please check with your administrator if you need permission."
@@ -473,6 +537,18 @@ export function getErrorHelp(code: ErrorCode, details?: Record<string, any>): st
       return details?.workspacePath
         ? `I can only work with files in: ${details.workspacePath}`
         : "For security, I can only access files within your project workspace."
+
+    case ErrorCodes.WORKTREE_BRANCH_IN_USE:
+      return "Pick a different branch or remove the existing worktree using that branch."
+
+    case ErrorCodes.WORKTREE_PATH_EXISTS:
+      return "Choose a different slug or delete the existing folder under /worktrees."
+
+    case ErrorCodes.WORKTREE_DELETE_BRANCH_BLOCKED:
+      return "Switch the base workspace to another branch before deleting this one."
+
+    case ErrorCodes.WORKTREE_GIT_FAILED:
+      return "This may be a transient issue. Check your network connection and try again. If the problem persists, check the server logs for details."
 
     case ErrorCodes.ERROR_MAX_TURNS:
       return "Click 'New Conversation' to start fresh and continue working."

@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { OptionalWorktreeSchema } from "@/types/guards/worktree-schemas"
 
 // ============================================================================
 // STANDARDIZED RESPONSE ENVELOPES
@@ -129,6 +130,7 @@ export const apiSchemas = {
         tabGroupId: z.string().optional(), // Tab group ID for lock key
         tabId: z.string().optional(), // Primary session key (replaces conversationId for fallback)
         workspace: z.string().optional(),
+        worktree: OptionalWorktreeSchema, // Validated to prevent session key corruption
         clientStack: z.string().optional(), // Debug: client-side stack trace for tracking cancel origin
       })
       .refine(data => data.requestId || (data.tabGroupId && data.tabId && data.workspace), {
@@ -459,6 +461,57 @@ export const apiSchemas = {
           org_id: z.string(),
         }),
       ),
+    }),
+  },
+
+  /**
+   * GET /api/worktrees?workspace=<domain>
+   * List worktrees for a workspace
+   */
+  worktrees: {
+    req: z.undefined().brand<"WorktreesRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      worktrees: z.array(
+        z.object({
+          slug: z.string(),
+          pathRelative: z.string(),
+          branch: z.string().nullable(),
+          head: z.string().nullable(),
+        }),
+      ),
+    }),
+  },
+
+  /**
+   * POST /api/worktrees
+   * Create a worktree
+   */
+  "worktrees/create": {
+    req: z
+      .object({
+        workspace: z.string(),
+        slug: z.string().optional(),
+        branch: z.string().optional(),
+        from: z.string().optional(),
+      })
+      .brand<"WorktreesCreateRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      slug: z.string(),
+      branch: z.string(),
+      worktreePath: z.string(),
+    }),
+  },
+
+  /**
+   * DELETE /api/worktrees?workspace=<domain>&slug=<slug>
+   * Remove a worktree
+   */
+  "worktrees/delete": {
+    req: z.undefined().brand<"WorktreesDeleteRequest">(),
+    res: z.object({
+      ok: z.literal(true),
     }),
   },
 

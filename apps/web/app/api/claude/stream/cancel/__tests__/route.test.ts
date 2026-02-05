@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { tabKey } from "@/features/auth/lib/sessionStore"
 import { getRegistrySize, registerCancellation, unregisterCancellation } from "@/lib/stream/cancellation-registry"
 
 // Mock auth functions
@@ -10,6 +11,7 @@ interface MockUser {
 
 interface CancelRequestBody {
   workspace?: string
+  worktree?: string
   requestId?: string
   tabId?: string
   tabGroupId?: string
@@ -183,7 +185,7 @@ describe("POST /api/claude/stream/cancel", () => {
     const tabId = "tab-abc-123"
     const tabGroupId = "11111111-1111-1111-1111-111111111111"
     const workspace = "test-workspace"
-    const tabKeyValue = `${userId}::${workspace}::${tabGroupId}::${tabId}`
+    const tabKeyValue = tabKey({ userId, workspace, tabGroupId, tabId })
 
     // Register a stream
     registerCancellation(requestId, userId, tabKeyValue, () => {
@@ -233,7 +235,7 @@ describe("POST /api/claude/stream/cancel", () => {
     const tabId = "tab-xyz-789"
     const tabGroupId = "11111111-1111-1111-1111-111111111111"
     const workspace = "test-workspace"
-    const tabKeyValue = `${ownerUserId}::${workspace}::${tabGroupId}::${tabId}`
+    const tabKeyValue = tabKey({ userId: ownerUserId, workspace, tabGroupId, tabId })
 
     // Register a stream owned by different user
     registerCancellation(requestId, ownerUserId, tabKeyValue, () => {
@@ -300,7 +302,7 @@ describe("POST /api/claude/stream/cancel", () => {
     const tabId = "tab-both-123"
     const tabGroupId = "11111111-1111-1111-1111-111111111111"
     const workspace = "test-workspace"
-    const tabKeyValue = `${userId}::${workspace}::${tabGroupId}::${tabId}`
+    const tabKeyValue = tabKey({ userId, workspace, tabGroupId, tabId })
 
     // Register two streams: one for requestId, one for tabKey
     registerCancellation(requestId1, userId, tabKeyValue, () => {
@@ -330,5 +332,139 @@ describe("POST /api/claude/stream/cancel", () => {
     // Cleanup
     unregisterCancellation(requestId1)
     unregisterCancellation(requestId2)
+  })
+
+  // Worktree validation tests (prevent session key corruption)
+  describe("worktree validation", () => {
+    it("should reject worktree containing :: (session key delimiter)", async () => {
+      const req = new Request("http://localhost/api/claude/stream/cancel", {
+        method: "POST",
+        body: JSON.stringify({
+          tabId: "some-tab",
+          tabGroupId: "11111111-1111-1111-1111-111111111111",
+          workspace: "test-workspace",
+          worktree: "foo::bar", // Malicious: contains session key delimiter
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const response = await POST(req as any)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.ok).toBe(false)
+      expect(data.message).toContain("Invalid worktree slug")
+    })
+
+    it("should reject reserved worktree slugs", async () => {
+      const req = new Request("http://localhost/api/claude/stream/cancel", {
+        method: "POST",
+        body: JSON.stringify({
+          tabId: "some-tab",
+          tabGroupId: "11111111-1111-1111-1111-111111111111",
+          workspace: "test-workspace",
+          worktree: "user", // Reserved slug
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const response = await POST(req as any)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.ok).toBe(false)
+      expect(data.message).toContain("Invalid worktree slug")
+    })
+
+    it("should reject worktree with spaces", async () => {
+      const req = new Request("http://localhost/api/claude/stream/cancel", {
+        method: "POST",
+        body: JSON.stringify({
+          tabId: "some-tab",
+          tabGroupId: "11111111-1111-1111-1111-111111111111",
+          workspace: "test-workspace",
+          worktree: "foo bar",
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const response = await POST(req as any)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.ok).toBe(false)
+      expect(data.message).toContain("Invalid worktree slug")
+    })
+
+    it("should normalize and accept valid worktree with uppercase", async () => {
+      let cancelled = false
+      const requestId = "test-req-worktree-valid"
+      const userId = "test-user-123"
+      const tabId = "tab-worktree-123"
+      const tabGroupId = "11111111-1111-1111-1111-111111111111"
+      const workspace = "test-workspace"
+      const worktree = "feature-1" // Will be normalized from "Feature-1"
+      const tabKeyValue = tabKey({ userId, workspace, worktree, tabGroupId, tabId })
+
+      registerCancellation(requestId, userId, tabKeyValue, () => {
+        cancelled = true
+      })
+
+      const req = new Request("http://localhost/api/claude/stream/cancel", {
+        method: "POST",
+        body: JSON.stringify({
+          tabId,
+          tabGroupId,
+          workspace,
+          worktree: "Feature-1", // Uppercase should be normalized
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const response = await POST(req as any)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.ok).toBe(true)
+      expect(data.status).toBe("cancelled")
+      expect(cancelled).toBe(true)
+
+      unregisterCancellation(requestId)
+    })
+
+    it("should allow cancel without worktree", async () => {
+      let cancelled = false
+      const requestId = "test-req-no-worktree"
+      const userId = "test-user-123"
+      const tabId = "tab-no-wt-123"
+      const tabGroupId = "11111111-1111-1111-1111-111111111111"
+      const workspace = "test-workspace"
+      const tabKeyValue = tabKey({ userId, workspace, tabGroupId, tabId })
+
+      registerCancellation(requestId, userId, tabKeyValue, () => {
+        cancelled = true
+      })
+
+      const req = new Request("http://localhost/api/claude/stream/cancel", {
+        method: "POST",
+        body: JSON.stringify({
+          tabId,
+          tabGroupId,
+          workspace,
+          // No worktree - should work
+        }),
+        headers: { "Content-Type": "application/json" },
+      })
+
+      const response = await POST(req as any)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.ok).toBe(true)
+      expect(data.status).toBe("cancelled")
+      expect(cancelled).toBe(true)
+
+      unregisterCancellation(requestId)
+    })
   })
 })

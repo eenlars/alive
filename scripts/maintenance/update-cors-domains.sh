@@ -6,7 +6,7 @@
 set -e
 
 SITES_DIR="/root/webalive/sites"
-ALLOWED_DOMAINS_FILE="/root/webalive/claude-bridge/allowed-domains.json"
+ALLOWED_DOMAINS_FILE="/root/alive/allowed-domains.json"
 
 # Read environment configuration
 SCRIPT_DIR="$(dirname "$0")"

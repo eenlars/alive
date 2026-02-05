@@ -81,6 +81,7 @@ function sanitizeFilename(filename: string): string {
  * Request: multipart/form-data
  * - file: File (required)
  * - workspace: string (required) - workspace identifier
+ * - worktree: string (optional) - worktree slug
  *
  * Response:
  * - ok: true
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
 
     const file = formData.get("file")
     const workspaceParam = formData.get("workspace")
+    const worktreeParam = formData.get("worktree")
 
     // 3. Validate file
     if (!file || !(file instanceof File)) {
@@ -132,7 +134,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Verify workspace access
-    const body = workspaceParam ? { workspace: String(workspaceParam) } : {}
+    const body = workspaceParam
+      ? { workspace: String(workspaceParam), worktree: worktreeParam ? String(worktreeParam) : undefined }
+      : {}
     const authorizedWorkspace = await verifyWorkspaceAccess(user, body, `[Upload ${requestId}]`)
 
     if (!authorizedWorkspace) {
@@ -145,7 +149,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Resolve workspace path
     const host = request.headers.get("host") || "localhost"
-    const workspaceResult = getWorkspace({ host, body, requestId })
+    const workspaceResult = await getWorkspace({ host, body, requestId })
 
     if (!workspaceResult.success) {
       return workspaceResult.response
