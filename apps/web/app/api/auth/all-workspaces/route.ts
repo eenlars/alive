@@ -5,6 +5,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { addCorsHeaders } from "@/lib/cors-utils"
+import { domainExistsOnThisServer } from "@/lib/domains"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
@@ -60,6 +61,12 @@ export async function GET(req: NextRequest) {
         if (domain.org_id && domain.hostname) {
           // SECURITY: Never include alive workspace unless user is superadmin
           if (domain.hostname === SUPERADMIN.WORKSPACE_NAME && !user.isSuperadmin) {
+            continue
+          }
+
+          // SERVER-AGNOSTIC: Only include domains that exist on this server's filesystem
+          // This ensures multi-server deployments only show locally available sites
+          if (!domainExistsOnThisServer(domain.hostname)) {
             continue
           }
 

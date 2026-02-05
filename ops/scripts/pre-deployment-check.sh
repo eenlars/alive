@@ -88,7 +88,14 @@ fi
 
 echo "[4/7] Checking disk space..."
 BUILD_DIR="/root/alive/.builds/$ENVIRONMENT"
-DISK_USAGE=$(df "$BUILD_DIR" | awk 'NR==2 {print $5}' | sed 's/%//')
+
+# Guard against missing build directory
+if [[ ! -d "$BUILD_DIR" ]]; then
+  echo "  ⚠️  Build directory not yet created: $BUILD_DIR"
+  DISK_USAGE=$(df /root/alive | awk 'NR==2 {print $5}' | sed 's/%//')
+else
+  DISK_USAGE=$(df "$BUILD_DIR" | awk 'NR==2 {print $5}' | sed 's/%//')
+fi
 
 if [ "$DISK_USAGE" -gt 80 ]; then
   echo "  ❌ CRITICAL: Disk usage is ${DISK_USAGE}% (> 80%)"

@@ -114,7 +114,12 @@ export async function POST(req: NextRequest) {
 
     const parsed = await handleBody("worktrees/create", req)
     if (isHandleBodyError(parsed)) return parsed
-    body = parsed
+    body = {
+      workspace: parsed.workspace,
+      slug: parsed.slug ?? undefined,
+      branch: parsed.branch,
+      from: parsed.from,
+    }
 
     if (!body.workspace?.trim()) {
       return createErrorResponse(ErrorCodes.WORKSPACE_MISSING, 400, { requestId })

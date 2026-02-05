@@ -21,6 +21,7 @@
     "@anthropic-ai/claude-agent-sdk": "^0.1.25",
     "@types/node": "^20.0.0",
     "@webalive/shared": "workspace:*",
+    "@webalive/tools": "workspace:*",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {

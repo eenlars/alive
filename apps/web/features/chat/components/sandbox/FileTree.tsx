@@ -126,6 +126,7 @@ function TreeLevel({
         <TreeNode
           key={item.path}
           workspace={workspace}
+          worktree={worktree}
           item={item}
           depth={depth}
           isActive={activeFile === item.path}
