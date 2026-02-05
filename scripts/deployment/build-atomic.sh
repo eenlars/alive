@@ -15,6 +15,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Load shared libraries
 source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/standalone-packages.sh"
 
 # =============================================================================
 # Configuration
@@ -95,6 +96,13 @@ if ! "$SCRIPT_DIR/../validation/detect-workspace-issues.sh" >/dev/null 2>&1; the
     exit 1
 fi
 
+log_step "Validating standalone packages..."
+if ! "$SCRIPT_DIR/validate-standalone.sh" >/dev/null 2>&1; then
+    log_error "Standalone package validation failed"
+    "$SCRIPT_DIR/validate-standalone.sh"  # Run again to show errors
+    exit 1
+fi
+
 # Remove circular symlinks from bun
 rm -f templates/site-template/site-template 2>/dev/null || true
 for pkg in packages/*/; do rm -f "$pkg/$(basename "$pkg")" 2>/dev/null || true; done
@@ -149,21 +157,22 @@ STANDALONE_DIR="$TEMP_BUILD_DIR/standalone/apps/web"
 # Phase 8: Copy Workspace Packages
 # =============================================================================
 log_step "Copying workspace packages..."
-STANDALONE_PACKAGES="$TEMP_BUILD_DIR/standalone/packages"
-mkdir -p "$STANDALONE_PACKAGES"
+STANDALONE_PACKAGES_DIR="$TEMP_BUILD_DIR/standalone/packages"
+mkdir -p "$STANDALONE_PACKAGES_DIR"
 
-for pkg in tools images site-controller shared worker-pool; do
+# Use STANDALONE_PACKAGES array from lib/standalone-packages.sh (single source of truth)
+for pkg in "${STANDALONE_PACKAGES[@]}"; do
     [ ! -d "packages/$pkg" ] && { log_error "Package not found: $pkg"; exit 1; }
-    rm -rf "$STANDALONE_PACKAGES/$pkg" 2>/dev/null || true
+    rm -rf "$STANDALONE_PACKAGES_DIR/$pkg" 2>/dev/null || true
     # Use cp -rL to follow symlinks (bun creates symlinks to .bun/ cache)
     # This ensures dependencies like zod get copied as real files
-    cp -rL "packages/$pkg" "$STANDALONE_PACKAGES/$pkg" 2>/dev/null || cp -r "packages/$pkg" "$STANDALONE_PACKAGES/$pkg"
+    cp -rL "packages/$pkg" "$STANDALONE_PACKAGES_DIR/$pkg" 2>/dev/null || cp -r "packages/$pkg" "$STANDALONE_PACKAGES_DIR/$pkg"
 done
 
 # Copy template
 [ ! -d "templates/site-template" ] && { log_error "Template not found"; exit 1; }
-rm -rf "$STANDALONE_PACKAGES/template" 2>/dev/null || true
-cp -rL "templates/site-template" "$STANDALONE_PACKAGES/template" 2>/dev/null || cp -r "templates/site-template" "$STANDALONE_PACKAGES/template"
+rm -rf "$STANDALONE_PACKAGES_DIR/template" 2>/dev/null || true
+cp -rL "templates/site-template" "$STANDALONE_PACKAGES_DIR/template" 2>/dev/null || cp -r "templates/site-template" "$STANDALONE_PACKAGES_DIR/template"
 
 # =============================================================================
 # Phase 9: Copy Packages to node_modules (NO SYMLINKS)
@@ -173,10 +182,11 @@ STANDALONE_NODE_MODULES="$STANDALONE_DIR/node_modules"
 mkdir -p "$STANDALONE_NODE_MODULES/@webalive"
 
 # Copy workspace packages to node_modules/@webalive (actual copies, not symlinks)
-for pkg in tools images template site-controller shared worker-pool; do
-    if [ -d "$STANDALONE_PACKAGES/$pkg" ]; then
-        cp -rL "$STANDALONE_PACKAGES/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg" 2>/dev/null || \
-        cp -r "$STANDALONE_PACKAGES/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg"
+# Include template which was copied separately
+for pkg in "${STANDALONE_PACKAGES[@]}" template; do
+    if [ -d "$STANDALONE_PACKAGES_DIR/$pkg" ]; then
+        cp -rL "$STANDALONE_PACKAGES_DIR/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg" 2>/dev/null || \
+        cp -r "$STANDALONE_PACKAGES_DIR/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg"
     elif [ -d "packages/$pkg" ]; then
         cp -rL "packages/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg" 2>/dev/null || \
         cp -r "packages/$pkg" "$STANDALONE_NODE_MODULES/@webalive/$pkg"
@@ -190,11 +200,11 @@ fi
 
 # Worker-entry.mjs imports @webalive/tools - add it to worker-pool's node_modules
 # Also need to add it to packages/worker-pool for the actual worker process
-WORKER_POOL_PKG="$STANDALONE_PACKAGES/worker-pool"
+WORKER_POOL_PKG="$STANDALONE_PACKAGES_DIR/worker-pool"
 if [ -d "$WORKER_POOL_PKG" ]; then
     mkdir -p "$WORKER_POOL_PKG/node_modules/@webalive"
-    cp -rL "$STANDALONE_PACKAGES/tools" "$WORKER_POOL_PKG/node_modules/@webalive/tools" 2>/dev/null || \
-    cp -r "$STANDALONE_PACKAGES/tools" "$WORKER_POOL_PKG/node_modules/@webalive/tools"
+    cp -rL "$STANDALONE_PACKAGES_DIR/tools" "$WORKER_POOL_PKG/node_modules/@webalive/tools" 2>/dev/null || \
+    cp -r "$STANDALONE_PACKAGES_DIR/tools" "$WORKER_POOL_PKG/node_modules/@webalive/tools"
 fi
 
 # Copy zod dependency from the .bun cache (it's in the root standalone node_modules)
