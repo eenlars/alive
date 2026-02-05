@@ -1,5 +1,5 @@
 import { FlowgladServer } from "@flowglad/nextjs/server"
-import { env } from "@webalive/env/server"
+import { getFlowgladSecretKey } from "@webalive/env/server"
 import { createIamClient } from "@/lib/supabase/iam"
 
 /**
@@ -12,9 +12,14 @@ import { createIamClient } from "@/lib/supabase/iam"
  * @returns FlowgladServer instance scoped to that user
  */
 export function createFlowgladServer(customerExternalId: string): FlowgladServer {
+  const apiKey = getFlowgladSecretKey()
+  if (!apiKey) {
+    throw new Error("Flowglad is not configured. Set FLOWGLAD_SECRET_KEY or use STREAM_ENV=local.")
+  }
+
   return new FlowgladServer({
     customerExternalId,
-    apiKey: env.FLOWGLAD_SECRET_KEY,
+    apiKey,
     getCustomerDetails: async (externalId: string) => {
       // Fetch user details from our database
       const iam = await createIamClient("service")

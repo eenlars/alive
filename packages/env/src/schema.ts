@@ -25,6 +25,14 @@ export const anthropicApiKey = z
   .min(1)
   .refine(key => key.startsWith("sk-ant-"), "Must be valid Anthropic API key")
 
+export const flowgladSecretKey = z
+  .string()
+  .min(1)
+  .refine(
+    key => key.startsWith("sk_test_") || key.startsWith("sk_live_"),
+    "Must be valid Flowglad secret key (sk_test_* or sk_live_*)",
+  )
+
 /**
  * Custom validators for domain configuration
  */
@@ -80,7 +88,10 @@ export const serverSchema = {
   STRIPE_CLIENT_ID: z.string().optional(), // Stripe Connect Client ID (ca_xxx)
   STRIPE_CLIENT_SECRET: z.string().optional(), // Platform API secret key
   STRIPE_REDIRECT_URI: z.string().optional(), // Optional, derived from baseUrl
-  FLOWGLAD_SECRET_KEY: z.string().optional(), // Flowglad billing/payment integration
+  // Flowglad billing/payment integration
+  // REQUIRED in production/staging, optional in local dev (STREAM_ENV=local)
+  // Validated at runtime by getFlowgladSecretKey() helper
+  FLOWGLAD_SECRET_KEY: flowgladSecretKey.optional(),
   LINEAR_CLIENT_ID: z.string().optional(),
   LINEAR_CLIENT_SECRET: z.string().optional(),
   LINEAR_REDIRECT_URI: z.string().optional(),

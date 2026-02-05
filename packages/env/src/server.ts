@@ -286,5 +286,28 @@ export function getStreamDevUrl(): string {
   return url
 }
 
+/**
+ * Get Flowglad secret key with environment-aware validation
+ *
+ * - Production/Staging: FLOWGLAD_SECRET_KEY is REQUIRED (throws if missing)
+ * - Local dev (STREAM_ENV=local): Returns undefined (billing features disabled)
+ *
+ * This ensures billing integration works in deployed environments while
+ * allowing local development without Flowglad credentials.
+ */
+export function getFlowgladSecretKey(): string | undefined {
+  const secretKey = env.FLOWGLAD_SECRET_KEY
+  const isLocalDev = env.STREAM_ENV === "local"
+
+  if (!secretKey && !isLocalDev) {
+    throw new Error(
+      "FLOWGLAD_SECRET_KEY is required in production/staging. " +
+        "Set FLOWGLAD_SECRET_KEY environment variable (sk_test_* or sk_live_*) or use STREAM_ENV=local for development.",
+    )
+  }
+
+  return secretKey
+}
+
 // Re-export schema types for convenience
 export type { serverSchema, clientSchema } from "./schema"

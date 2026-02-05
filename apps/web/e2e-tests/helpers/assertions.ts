@@ -143,6 +143,20 @@ export async function expectWorkspaceReady(page: Page) {
 }
 
 /**
+ * Wait for chat to be fully ready for sending messages.
+ * Uses the explicit data-chat-ready marker rather than the send button state.
+ */
+export async function waitForChatReady(page: Page) {
+  await waitForAppReady(page)
+  await expect(page.locator(TEST_SELECTORS.chatReady)).toBeAttached({
+    timeout: TEST_TIMEOUTS.max,
+  })
+  await expect(page.locator(TEST_SELECTORS.messageInput)).toBeVisible({
+    timeout: TEST_TIMEOUTS.fast,
+  })
+}
+
+/**
  * Expect a chat message to be visible
  * Uses .first() to handle message appearing in both sidebar and chat area
  */

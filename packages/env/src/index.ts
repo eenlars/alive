@@ -41,6 +41,7 @@ export {
   httpsUrl,
   jwt,
   anthropicApiKey,
+  flowgladSecretKey,
   domainName,
   CLIENT_ENV_KEYS,
   SERVER_ENV_KEYS,
