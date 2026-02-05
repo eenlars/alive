@@ -9,7 +9,7 @@ const testParams = {
   jobId: "test-manual-" + Date.now(),
   userId: "test-user",
   orgId: "test-org",
-  workspace: "zomaar.sonno.tech",
+  workspace: "zomaar.test.local",
   prompt: "List the files in the current directory and report what you see. Do not make any changes.",
   timeoutSeconds: 60,
 }

@@ -100,7 +100,7 @@ describe("/api/manager/templates", () => {
       ;(requireManagerAuth as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const mockTemplates = [
-        { template_id: "tmpl_test", name: "Test", source_path: "/srv/webalive/sites/test.sonno.tech" },
+        { template_id: "tmpl_test", name: "Test", source_path: "/srv/webalive/sites/test.test.local" },
       ]
       setupSupabaseMock({
         selectResult: { data: mockTemplates, error: null },
@@ -166,7 +166,7 @@ describe("/api/manager/templates", () => {
       const newTemplate = {
         template_id: "tmpl_new",
         name: "New Template",
-        source_path: "/srv/webalive/sites/new.sonno.tech",
+        source_path: "/srv/webalive/sites/new.test.local",
       }
       setupSupabaseMock({
         insertResult: { data: newTemplate, error: null },
@@ -174,7 +174,7 @@ describe("/api/manager/templates", () => {
 
       const req = createMockRequest("http://localhost/api/manager/templates", {
         method: "POST",
-        body: { name: "New Template", source_path: "/srv/webalive/sites/new.sonno.tech" },
+        body: { name: "New Template", source_path: "/srv/webalive/sites/new.test.local" },
       })
       const response = await POST(req)
       const data = await response.json()

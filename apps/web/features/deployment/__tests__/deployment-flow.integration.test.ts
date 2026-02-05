@@ -19,7 +19,7 @@ assertSupabaseServiceEnv()
 
 describe("Full Deployment Flow Integration", () => {
   const testSlug = "test-flow"
-  const testDomain = `${testSlug}.sonno.tech`
+  const testDomain = `${testSlug}.test.local`
   const sitePath = `/srv/webalive/sites/${testDomain}`
 
   let testUser!: TestUser

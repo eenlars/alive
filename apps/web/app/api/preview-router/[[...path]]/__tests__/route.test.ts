@@ -34,9 +34,11 @@ vi.mock("@/lib/preview-utils", () => ({
 
 // Mock @webalive/shared
 // Only mock the exports actually used by this route (DOMAINS.PREVIEW_BASE, PREVIEW_MESSAGES)
+// Use a generic test domain to keep tests server-agnostic
+const TEST_PREVIEW_BASE = "preview.test.local"
 vi.mock("@webalive/shared", () => ({
   DOMAINS: {
-    PREVIEW_BASE: "preview.sonno.tech", // Test-specific value for simpler test URLs
+    PREVIEW_BASE: TEST_PREVIEW_BASE,
   },
   PREVIEW_MESSAGES: {
     NAVIGATION_START: "preview-navigation-start",
@@ -91,7 +93,7 @@ describe("Preview Router", () => {
     it("should require session (401 without user)", async () => {
       vi.mocked(getSessionUser).mockResolvedValue(null)
 
-      const req = createMockRequest("test-workspace.preview.sonno.tech")
+      const req = createMockRequest("test-workspace.preview.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -104,7 +106,7 @@ describe("Preview Router", () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("test-workspace.preview.sonno.tech")
+      const req = createMockRequest("test-workspace.preview.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -119,7 +121,7 @@ describe("Preview Router", () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("other-tenant.preview.sonno.tech")
+      const req = createMockRequest("other-tenant.preview.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -133,10 +135,10 @@ describe("Preview Router", () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("my-site-alive-best.preview.sonno.tech")
+      const req = createMockRequest("my-cool-site.preview.test.local")
       await GET(req)
 
-      expect(isWorkspaceAuthenticated).toHaveBeenCalledWith("my.site.sonno.tech")
+      expect(isWorkspaceAuthenticated).toHaveBeenCalledWith("my.cool.site")
     })
 
     it("should allow access to authorized workspace", async () => {
@@ -154,7 +156,7 @@ describe("Preview Router", () => {
       // @ts-expect-error - Mock fetch doesn't need full type compliance
       global.fetch = mockFetch
 
-      const req = createMockRequest("my-workspace.preview.sonno.tech")
+      const req = createMockRequest("my-workspace.preview.test.local")
       const response = await GET(req)
 
       expect(response.status).toBe(200)
@@ -175,7 +177,7 @@ describe("Preview Router", () => {
       // User A tries to access User B's workspace
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("user-b-site.preview.sonno.tech")
+      const req = createMockRequest("user-b-site.preview.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -199,7 +201,7 @@ describe("Preview Router", () => {
     it("should return 400 for empty preview label", async () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
 
-      const req = createMockRequest(".preview.sonno.tech")
+      const req = createMockRequest(".preview.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -214,7 +216,7 @@ describe("Preview Router", () => {
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(true)
       vi.mocked(getDomainPort).mockResolvedValue(null)
 
-      const req = createMockRequest("unconfigured-site.preview.sonno.tech")
+      const req = createMockRequest("unconfigured-site.preview.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -236,7 +238,7 @@ describe("Preview Router", () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("test-site.preview.sonno.tech", method)
+      const req = createMockRequest("test-site.preview.test.local", method)
       const response = await handler(req)
       const data = await response.json()
 

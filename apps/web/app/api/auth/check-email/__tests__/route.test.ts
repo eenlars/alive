@@ -37,7 +37,7 @@ function createMockRequest(body: Record<string, unknown> | string): NextRequest 
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      origin: "https://test.sonno.tech",
+      origin: "https://test.test.local",
       "x-forwarded-for": "192.168.1.100",
     },
     body: isString ? body : JSON.stringify(body),
@@ -274,7 +274,7 @@ describe("OPTIONS /api/auth/check-email", () => {
     const req = new NextRequest("http://localhost/api/auth/check-email", {
       method: "OPTIONS",
       headers: {
-        origin: "https://test.sonno.tech",
+        origin: "https://test.test.local",
       },
     })
 

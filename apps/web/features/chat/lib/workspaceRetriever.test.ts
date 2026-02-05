@@ -59,7 +59,7 @@ describe("Workspace Resolution", () => {
     it.skipIf(!hasWorkspaces)("resolves demo-goalive-nl workspace correctly (legacy hyphenated format)", async () => {
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "demo.sonno.tech" }, // User sends with dots
+        body: { workspace: "demo.test.local" }, // User sends with dots
         requestId: "test-int-001",
       })
 
@@ -73,7 +73,7 @@ describe("Workspace Resolution", () => {
     it.skipIf(!hasWorkspaces)("path always ends with /user", async () => {
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "demo.sonno.tech" },
+        body: { workspace: "demo.test.local" },
         requestId: "test-int-002",
       })
 
@@ -86,7 +86,7 @@ describe("Workspace Resolution", () => {
     it.skipIf(!hasWorkspaces)("path always contains /webalive/sites/", async () => {
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "demo.sonno.tech" },
+        body: { workspace: "demo.test.local" },
         requestId: "test-int-003",
       })
 
@@ -101,7 +101,7 @@ describe("Workspace Resolution", () => {
     /**
      * Critical regression test for workspace naming conventions.
      * This test prevents the bug where new sites with dots in directory names
-     * (e.g., evermore.sonno.tech) couldn't be found because the code
+     * (e.g., evermore.test.local) couldn't be found because the code
      * was converting them to hyphens (evermore-alive-best).
      *
      * The system should support BOTH:
@@ -109,25 +109,25 @@ describe("Workspace Resolution", () => {
      * 2. Legacy sites: domain.com → /srv/webalive/sites/domain-com/user
      */
     it.skipIf(!hasWorkspaces)("finds workspace with dots in directory name (new convention)", async () => {
-      // Test case: New sites like evermore.sonno.tech use dots in filesystem
+      // Test case: New sites like evermore.test.local use dots in filesystem
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "evermore.sonno.tech" },
+        body: { workspace: "evermore.test.local" },
         requestId: "test-naming-001",
       })
 
       expect(result.success).toBe(true)
       if (result.success) {
-        // Should find /srv/webalive/sites/evermore.sonno.tech/user (with dots)
-        expect(result.workspace).toBe("/srv/webalive/sites/evermore.sonno.tech/user")
+        // Should find /srv/webalive/sites/evermore.test.local/user (with dots)
+        expect(result.workspace).toBe("/srv/webalive/sites/evermore.test.local/user")
       }
     })
 
     it.skipIf(!hasWorkspaces)("falls back to hyphens when dots directory doesn't exist (legacy)", async () => {
-      // Test case: Legacy sites like demo.sonno.tech use hyphens in filesystem
+      // Test case: Legacy sites like demo.test.local use hyphens in filesystem
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "demo.sonno.tech" },
+        body: { workspace: "demo.test.local" },
         requestId: "test-naming-002",
       })
 
@@ -163,14 +163,14 @@ describe("Workspace Resolution", () => {
       // This test documents the preference order
       const result = await getWorkspace({
         host: DOMAINS.STREAM_DEV_HOST,
-        body: { workspace: "evermore.sonno.tech" },
+        body: { workspace: "evermore.test.local" },
         requestId: "test-naming-004",
       })
 
       expect(result.success).toBe(true)
       if (result.success) {
         // Should prefer the dotted version (new convention)
-        expect(result.workspace).toContain("evermore.sonno.tech")
+        expect(result.workspace).toContain("evermore.test.local")
         expect(result.workspace).not.toContain("evermore-alive-best")
       }
     })

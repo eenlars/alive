@@ -10,10 +10,10 @@
  *
  * Requirements:
  * - Supabase credentials in env (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
- * - Test domain exists in database: atomic-test.sonno.tech
+ * - Test domain exists in database: atomic-test.test.local
  * - SQL function iam.deduct_credits() deployed
  *
- * Setup: Create test domain with `INSERT INTO iam.orgs (hostname, credits) VALUES ('atomic-test.sonno.tech', 100);`
+ * Setup: Create test domain with `INSERT INTO iam.orgs (hostname, credits) VALUES ('atomic-test.test.local', 100);`
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -22,7 +22,7 @@ import { chargeTokensFromCredits, getOrgCredits, updateOrgCredits } from "../sup
 
 assertSupabaseServiceEnv()
 
-const TEST_DOMAIN = "atomic-test.sonno.tech"
+const TEST_DOMAIN = "atomic-test.test.local"
 describe("Atomic Credit Deduction - Integration", () => {
   let originalBalance: number | null = null
   let testInfrastructureReady = false

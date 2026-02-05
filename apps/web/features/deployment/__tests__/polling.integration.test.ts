@@ -10,7 +10,7 @@ describe("Domain Polling Integration", () => {
   })
 
   test("can fetch deployed domain via GET", async () => {
-    const domain = "test-poll.sonno.tech"
+    const domain = "test-poll.test.local"
 
     // Mock fetch to simulate a successful response
     global.fetch = vi.fn().mockResolvedValue({
@@ -29,7 +29,7 @@ describe("Domain Polling Integration", () => {
   })
 
   test("fetch fails for non-existent domain", async () => {
-    const domain = "nonexistent-test-12345.sonno.tech"
+    const domain = "nonexistent-test-12345.test.local"
 
     // Mock fetch to simulate a network error
     global.fetch = vi.fn().mockRejectedValue(new Error("Domain not found")) as any
@@ -49,7 +49,7 @@ describe("Domain Polling Integration", () => {
   })
 
   test("polling detects when domain becomes live", async () => {
-    const domain = "test-poll.sonno.tech"
+    const domain = "test-poll.test.local"
     let attempts = 0
     let success = false
 

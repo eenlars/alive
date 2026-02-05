@@ -24,7 +24,7 @@ describe("sendReferralInvite", () => {
         sendReferralInvite({
           to: "test@example.com",
           senderName: "John",
-          inviteLink: "https://sonno.tech/invite/ABC123",
+          inviteLink: "https://test.local/invite/ABC123",
         }),
       ).rejects.toThrow("LOOPS_API_KEY not configured")
     })
@@ -36,7 +36,7 @@ describe("sendReferralInvite", () => {
         sendReferralInvite({
           to: "test@example.com",
           senderName: "John",
-          inviteLink: "https://sonno.tech/invite/ABC123",
+          inviteLink: "https://test.local/invite/ABC123",
         }),
       ).rejects.toThrow("LOOPS_API_KEY not configured")
     })
@@ -55,7 +55,7 @@ describe("sendReferralInvite", () => {
       const result = await sendReferralInvite({
         to: "recipient@example.com",
         senderName: "Alice",
-        inviteLink: "https://sonno.tech/invite/XYZ789",
+        inviteLink: "https://test.local/invite/XYZ789",
       })
 
       expect(fetchSpy).toHaveBeenCalledTimes(1)
@@ -78,7 +78,7 @@ describe("sendReferralInvite", () => {
         email: "recipient@example.com",
         dataVariables: {
           senderName: "Alice",
-          inviteLink: "https://sonno.tech/invite/XYZ789",
+          inviteLink: "https://test.local/invite/XYZ789",
         },
       })
 
@@ -273,7 +273,7 @@ describe("sendReferralInvite", () => {
     it("should handle long invite links", async () => {
       process.env.LOOPS_API_KEY = "test_key"
 
-      const longLink = `https://sonno.tech/invite/${"A".repeat(1000)}`
+      const longLink = `https://test.local/invite/${"A".repeat(1000)}`
 
       const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({
         ok: true,

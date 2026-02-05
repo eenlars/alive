@@ -1,12 +1,12 @@
 /**
  * Test script to verify automation can access a workspace
- * Run: bun scripts/test-automation-access.ts zomaar.sonno.tech
+ * Run: bun scripts/test-automation-access.ts zomaar.test.local
  */
 
 import { statSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 
-const workspace = process.argv[2] || "zomaar.sonno.tech"
+const workspace = process.argv[2] || "zomaar.test.local"
 const basePath = `/srv/webalive/sites/${workspace}`
 const userPath = join(basePath, "user")
 

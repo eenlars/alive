@@ -4,7 +4,7 @@
  * This module provides functions to clean up test data from the database
  * after E2E tests run. It identifies test data by:
  * - Users with is_test_env = true
- * - Domains matching test patterns (tc*.sonno.tech, test-*.sonno.tech, etc.)
+ * - Domains matching test patterns (tc*.test.local, test-*.test.local, etc.)
  * - Organizations belonging to test users
  */
 

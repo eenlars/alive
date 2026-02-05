@@ -1,7 +1,7 @@
 /**
  * CRITICAL REGRESSION TEST
  *
- * This test reproduces the actual bug that broke evermore.sonno.tech.
+ * This test reproduces the actual bug that broke evermore.test.local.
  * It verifies that workspace resolution tries DOTS first, then HYPHENS.
  *
  * If this test fails, someone broke the naming convention support.
@@ -28,25 +28,25 @@ function skipIfMissing(ctx: TestContext, path: string, extraMessage?: string): v
 
 describe("Workspace Naming Bug - Regression Test", () => {
   /**
-   * THE BUG: Code was converting evermore.sonno.tech → evermore-alive-best
+   * THE BUG: Code was converting evermore.test.local → evermore-alive-best
    * THE FIX: Try both, dots first
    *
    * This test fails if someone reverts to the old behavior.
    */
-  it("CRITICAL: finds evermore.sonno.tech with DOTS in directory name", async ctx => {
+  it("CRITICAL: finds evermore.test.local with DOTS in directory name", async ctx => {
     // Verify the actual directory exists with DOTS
-    const dotsPath = "/srv/webalive/sites/evermore.sonno.tech/user"
+    const dotsPath = "/srv/webalive/sites/evermore.test.local/user"
     const hyphensPath = "/srv/webalive/sites/evermore-alive-best/user"
 
-    skipIfMissing(ctx, dotsPath, "This test requires evermore.sonno.tech to exist")
+    skipIfMissing(ctx, dotsPath, "This test requires evermore.test.local to exist")
 
     // Validate path is within workspace
-    const validation = resolveAndValidatePath("evermore.sonno.tech/user", "/srv/webalive/sites")
+    const validation = resolveAndValidatePath("evermore.test.local/user", "/srv/webalive/sites")
     expect(validation.valid).toBe(true)
 
     const result = await getWorkspace({
       host: DOMAINS.STREAM_DEV_HOST,
-      body: { workspace: "evermore.sonno.tech" },
+      body: { workspace: "evermore.test.local" },
       requestId: "regression-test",
     })
 
@@ -71,7 +71,7 @@ describe("Workspace Naming Bug - Regression Test", () => {
 
     const result = await getWorkspace({
       host: DOMAINS.STREAM_DEV_HOST,
-      body: { workspace: "demo.sonno.tech" }, // User provides dots
+      body: { workspace: "demo.test.local" }, // User provides dots
       requestId: "legacy-test",
     })
 

@@ -6,9 +6,9 @@ import { expect, test } from "./fixtures"
 // Test domains - using short names to avoid Linux username length limits (32 chars)
 // IMPORTANT: Emails MUST use INTERNAL test domains (@alive-playwright.internal)
 const TEST_SITES = [
-  { slug: "tc1", domain: "tc1.sonno.tech", email: "tc1@alive-playwright.internal" },
-  { slug: "tc2", domain: "tc2.sonno.tech", email: "tc2@alive-playwright.internal" },
-  { slug: "tc3", domain: "tc3.sonno.tech", email: "tc3@alive-playwright.internal" },
+  { slug: "tc1", domain: "tc1.test.local", email: "tc1@alive-playwright.internal" },
+  { slug: "tc2", domain: "tc2.test.local", email: "tc2@alive-playwright.internal" },
+  { slug: "tc3", domain: "tc3.test.local", email: "tc3@alive-playwright.internal" },
 ]
 
 const TEST_PASSWORD = "testpass123"

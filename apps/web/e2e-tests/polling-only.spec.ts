@@ -8,7 +8,7 @@ import { TEST_TIMEOUTS } from "./fixtures/test-data"
  *
  * **Architecture Decision:**
  * The production code polls deployed sites via cross-origin fetch (e.g., from
- * sonno.tech to newsite.sonno.tech). However, E2E tests can't reliably
+ * test.local to newsite.test.local). However, E2E tests can't reliably
  * test this due to:
  * 1. CORS restrictions (deployed sites don't have CORS headers)
  * 2. Dependency on external infrastructure
@@ -133,7 +133,7 @@ test.describe("Browser Polling Mechanism", () => {
     const result = await page.evaluate(async (): Promise<FetchTestResult> => {
       try {
         // This will fail with network error (CORS or DNS failure)
-        const response = await fetch("https://definitely-does-not-exist-12345.sonno.tech", {
+        const response = await fetch("https://definitely-does-not-exist-12345.test.local", {
           method: "GET",
           cache: "no-store",
         })
@@ -185,7 +185,7 @@ test.describe("Browser Polling Mechanism", () => {
  *    - Network errors and retries
  *
  * 2. **Test Fixture Site**
- *    Deploy a dedicated test-cors.sonno.tech with CORS headers enabled
+ *    Deploy a dedicated test-cors.test.local with CORS headers enabled
  *    specifically for E2E testing. Would allow real cross-origin tests.
  *
  * 3. **Integration with deploy.spec.ts**
