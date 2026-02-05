@@ -1,111 +1,150 @@
-// lib/api/client.ts DO NOT CHANGE THIS FILE.
 "use client"
 
+import { ApiError, createClient } from "@alive-brug/alrighty"
 import { ZodError } from "zod"
-import type { ApiInit, PathOverride } from "./api.types"
-import { endpointPath } from "./api.types"
-import type { Endpoint, Req, Res } from "./schemas"
-import { apiSchemas } from "./schemas"
+import { apiSchemas, type Endpoint, type Req, type Res } from "./schemas"
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status?: number,
-    public code?: string,
-    public details?: unknown,
-  ) {
-    super(message)
-    this.name = "ApiError"
+// Re-export ApiError for backwards compatibility
+export { ApiError }
+
+// Create the typed client
+const client = createClient(apiSchemas)
+
+// Type for path override (for dynamic routes like /api/manager/templates)
+type PathOverride = string | undefined
+
+/**
+ * Internal fetch with path override support.
+ * Used when the actual API path differs from the endpoint name.
+ */
+async function fetchWithOverride<E extends Endpoint>(
+  endpoint: E,
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  body: unknown,
+  init: Omit<RequestInit, "body" | "method"> | undefined,
+  pathOverride: PathOverride,
+): Promise<Res<E>> {
+  // If no path override, use the standard client
+  if (!pathOverride) {
+    switch (method) {
+      case "GET":
+        return client.getty(endpoint as Parameters<typeof client.getty>[0], init) as Promise<Res<E>>
+      case "POST":
+        return client.postty(
+          endpoint as Parameters<typeof client.postty>[0],
+          body as Parameters<typeof client.postty>[1],
+          init,
+        ) as Promise<Res<E>>
+      case "PUT":
+        return client.putty(
+          endpoint as Parameters<typeof client.putty>[0],
+          body as Parameters<typeof client.putty>[1],
+          init,
+        ) as Promise<Res<E>>
+      case "PATCH":
+        return client.patchy(
+          endpoint as Parameters<typeof client.patchy>[0],
+          body as Parameters<typeof client.patchy>[1],
+          init,
+        ) as Promise<Res<E>>
+      case "DELETE":
+        return client.deletty(endpoint as Parameters<typeof client.deletty>[0], init) as Promise<Res<E>>
+    }
   }
-}
 
-async function api<E extends Endpoint>(endpoint: E, init?: ApiInit<E>, pathOverride?: PathOverride): Promise<Res<E>> {
-  const defaultPath = endpointPath(endpoint)
-  const path = pathOverride ?? defaultPath
-  const url = path // keep relative; Next handles envs
-
-  const method = init?.method ?? "GET"
+  // Path override: manual fetch with validation
   const hasBody = method !== "GET" && method !== "DELETE"
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...init?.headers,
+
+  // Validate request body if schema exists
+  if (hasBody && body !== undefined) {
+    const schema = apiSchemas[endpoint]
+    if ("req" in schema && schema.req) {
+      try {
+        schema.req.parse(body)
+      } catch (e) {
+        if (e instanceof ZodError) {
+          throw new ApiError("Request validation failed", undefined, "REQUEST_VALIDATION_ERROR", e.issues)
+        }
+        throw new ApiError("Request validation failed", undefined, "REQUEST_VALIDATION_ERROR", e)
+      }
+    }
   }
 
   let res: Response
   try {
-    res = await fetch(url, {
+    res = await fetch(pathOverride, {
       ...init,
       method,
-      headers,
       credentials: "include",
-      body: hasBody && init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+      body: hasBody && body !== undefined ? JSON.stringify(body) : undefined,
     })
   } catch (e) {
-    throw new ApiError("Network error while fetching", undefined, "NETWORK_ERROR", e)
+    throw new ApiError("Network error", undefined, "NETWORK_ERROR", e)
   }
 
   let json: unknown
   try {
     json = await res.json()
   } catch {
-    throw new ApiError("Non-JSON response from server", res.status, "NON_JSON_RESPONSE")
+    throw new ApiError("Non-JSON response", res.status, "NON_JSON_RESPONSE")
   }
 
   if (!res.ok) {
-    const err = (json ?? {}) as { error?: { message?: string; code?: string } }
-    throw new ApiError(err.error?.message ?? `HTTP ${res.status}`, res.status, err.error?.code ?? "HTTP_ERROR", json)
+    const err = json as Record<string, unknown>
+    const nested = err?.error as Record<string, unknown> | string | undefined
+    const message = (typeof nested === "object" ? nested?.message : nested) ?? err?.message ?? `HTTP ${res.status}`
+    const code = (typeof nested === "object" ? nested?.code : undefined) ?? err?.code ?? "HTTP_ERROR"
+    throw new ApiError(String(message), res.status, String(code), json)
   }
 
   try {
     return apiSchemas[endpoint].res.parse(json) as Res<E>
   } catch (e) {
     if (e instanceof ZodError) {
-      throw new ApiError("Response validation failed", res.status, "RESPONSE_VALIDATION_ERROR", e.issues)
+      throw new ApiError("Response validation failed", res.status, "VALIDATION_ERROR", e.issues)
     }
-    throw e
+    throw new ApiError("Response parsing failed", res.status, "PARSE_ERROR", e)
   }
 }
 
-// ----- typed wrappers with the simple override -----
+// ----- typed wrappers with pathOverride for backwards compatibility -----
+
 export const getty = <E extends Endpoint>(
   endpoint: E,
-  init?: Omit<ApiInit<E>, "method" | "body">,
-  pathOverride?: PathOverride, //DO NOT CHANGE THIS.
-) => api<E>(endpoint, { ...init, method: "GET" }, pathOverride)
+  init?: Omit<RequestInit, "body" | "method">,
+  pathOverride?: PathOverride,
+) => fetchWithOverride<E>(endpoint, "GET", undefined, init, pathOverride)
 
 export const postty = <E extends Endpoint>(
   endpoint: E,
   body: Req<E>,
-  init?: Omit<ApiInit<E>, "method" | "body">,
-  pathOverride?: PathOverride, //DO NOT CHANGE THIS.
-) => api<E>(endpoint, { ...init, method: "POST", body }, pathOverride)
+  init?: Omit<RequestInit, "body" | "method">,
+  pathOverride?: PathOverride,
+) => fetchWithOverride<E>(endpoint, "POST", body, init, pathOverride)
 
 export const putty = <E extends Endpoint>(
   endpoint: E,
   body: Req<E>,
-  init?: Omit<ApiInit<E>, "method" | "body">,
-  pathOverride?: PathOverride, //DO NOT CHANGE THIS.
-) => api<E>(endpoint, { ...init, method: "PUT", body }, pathOverride)
+  init?: Omit<RequestInit, "body" | "method">,
+  pathOverride?: PathOverride,
+) => fetchWithOverride<E>(endpoint, "PUT", body, init, pathOverride)
 
 export const patchy = <E extends Endpoint>(
   endpoint: E,
   body: Req<E>,
-  init?: Omit<ApiInit<E>, "method" | "body">,
-  pathOverride?: PathOverride, //DO NOT CHANGE THIS.
-) => api<E>(endpoint, { ...init, method: "PATCH", body }, pathOverride)
+  init?: Omit<RequestInit, "body" | "method">,
+  pathOverride?: PathOverride,
+) => fetchWithOverride<E>(endpoint, "PATCH", body, init, pathOverride)
 
 export const delly = <E extends Endpoint>(
   endpoint: E,
-  init?: Omit<ApiInit<E>, "method" | "body">,
-  pathOverride?: PathOverride, //DO NOT CHANGE THIS.
-) => api<E>(endpoint, { ...init, method: "DELETE" }, pathOverride)
+  init?: Omit<RequestInit, "body" | "method">,
+  pathOverride?: PathOverride,
+) => fetchWithOverride<E>(endpoint, "DELETE", undefined, init, pathOverride)
 
-// Example of a typed helper that uses a schema-backed endpoint
-// export const checkApiHealth = async (): Promise<boolean> => {
-//   try {
-//     const data = await getty("health" as const)
-//     return data.status === "healthy"
-//   } catch {
-//     return false
-//   }
-// }
+// Alias for consistency with new package naming
+export const deletty = delly
