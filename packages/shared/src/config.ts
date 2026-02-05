@@ -18,8 +18,6 @@
  * - SECURITY: Security-related constants
  */
 
-import { existsSync, readFileSync } from "node:fs"
-
 // =============================================================================
 // Server Config Loading (server-side only)
 // =============================================================================
@@ -56,6 +54,11 @@ const CONFIG_PATH = "/var/lib/claude-stream/server-config.json"
  * If config file exists, load it (works in tests too)
  * Browser: returns empty object
  * Server without config: throws FATAL error
+ *
+ * Uses require("node:fs") because:
+ * - Static `import from "node:fs"` breaks Turbopack client bundles
+ * - Dynamic require works in Bun ESM (production) and Node CJS (tests)
+ * - Wrapped in try/catch for strict Node ESM (Playwright) where require is unavailable
  */
 function loadServerConfig(): ServerConfigFile {
   // Browser can't read filesystem
@@ -63,7 +66,18 @@ function loadServerConfig(): ServerConfigFile {
     return {}
   }
 
-  if (!existsSync(CONFIG_PATH)) {
+  // biome-ignore lint/suspicious/noImplicitAnyLet: fs type depends on runtime
+  let fs
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    fs = require("node:fs")
+  } catch {
+    // Strict Node ESM (e.g., Playwright) where require() is not available.
+    // These environments don't need server config - return empty.
+    return {}
+  }
+
+  if (!fs.existsSync(CONFIG_PATH)) {
     // In CI/test without config file, return empty (tests will skip config-dependent assertions)
     if (process.env.CI === "true" || process.env.VITEST === "true") {
       return {}
@@ -72,7 +86,7 @@ function loadServerConfig(): ServerConfigFile {
   }
 
   try {
-    const raw = readFileSync(CONFIG_PATH, "utf8")
+    const raw = fs.readFileSync(CONFIG_PATH, "utf8")
     return JSON.parse(raw) as ServerConfigFile
   } catch (err) {
     throw new Error(`FATAL: Failed to parse ${CONFIG_PATH}: ${err instanceof Error ? err.message : err}`)
