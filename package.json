@@ -63,6 +63,10 @@
       "biome format --write"
     ]
   },
+  "overrides": {
+    "vitest": "4.0.17",
+    "@vitest/coverage-v8": "4.0.17"
+  },
   "devDependencies": {
     "@biomejs/biome": "2.3.13",
     "@playwright/test": "^1.56.1",
