@@ -29,8 +29,24 @@ export function getJobQueue(): PgBoss {
     throw new Error("[JobQueue] DATABASE_URL environment variable is required")
   }
 
+  // Inject DATABASE_PASSWORD into the connection string if password is missing
+  // Production env has DATABASE_URL without password and DATABASE_PASSWORD separately
+  let fullConnectionString = connectionString
+  const dbPassword = process.env.DATABASE_PASSWORD
+  if (dbPassword) {
+    try {
+      const url = new URL(connectionString)
+      if (!url.password) {
+        url.password = dbPassword
+        fullConnectionString = url.toString()
+      }
+    } catch {
+      // Not a valid URL, use as-is
+    }
+  }
+
   boss = new PgBoss({
-    connectionString,
+    connectionString: fullConnectionString,
     schema: "pgboss",
     migrate: true, // auto-creates/updates pgboss tables
     // Use polling (reliable with Bun + Supabase pooler)
