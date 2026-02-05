@@ -118,7 +118,7 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
     // and used by many API routes. The standalone-workspace module is lightweight
     // and only loaded in standalone mode.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getStandaloneWorkspacePath, standaloneWorkspaceExists } =
+    const { getStandaloneWorkspacePath, getStandaloneWorkspaceBase, standaloneWorkspaceExists } =
       require("@/features/workspace/lib/standalone-workspace") as typeof import("@/features/workspace/lib/standalone-workspace")
 
     if (standaloneWorkspaceExists(customWorkspace)) {
@@ -140,7 +140,7 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
           message: `Standalone workspace not found: ${customWorkspace}`,
           details: {
             workspace: customWorkspace,
-            suggestion: `Create workspace with: mkdir -p ~/.claude-bridge/workspaces/${customWorkspace}/user`,
+            suggestion: `Create workspace with: mkdir -p ${getStandaloneWorkspaceBase()}/${customWorkspace}/user`,
           },
         },
         { status: 404 },

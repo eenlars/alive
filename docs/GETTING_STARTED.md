@@ -153,9 +153,6 @@ Open `http://localhost:8999`
 | Test User | `test@alive.local` / `test` |
 | Hot Reload | Changes reflect immediately |
 
-<<<<<<< HEAD
----
-=======
 ### Standalone Mode
 
 | Variable | Required | Description | Example |
@@ -172,7 +169,6 @@ Open `http://localhost:8999`
 | `LOCAL_TEMPLATE_PATH` | Yes | Absolute path to workspace | `/Users/you/claude-bridge/.alive/template` |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key | `sk-ant-...` |
 | `BRIDGE_PASSCODE` | No | Bridge passcode (any works if unset) | `your-password` |
->>>>>>> 426f8ace (Fix standalone mode review issues)
 
 ## Common Commands
 

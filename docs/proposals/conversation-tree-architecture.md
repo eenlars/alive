@@ -1,7 +1,7 @@
 # Proposal: Conversation Tree Architecture
 
 **Source**: Extracted from `zukofrontend` (reverse-engineered ChatGPT frontend)
-**File**: `/Users/here/CODE_FOLDER/mini-projects/zukofrontend/src/lib/conversation/tree.ts`
+**File**: `src/lib/conversation/tree.ts` (from zukofrontend)
 **Value**: Enables branching conversations, message editing, regeneration, and variant navigation
 
 ---
@@ -398,4 +398,4 @@ This is not a feature - it's a **foundational data structure** that unlocks mult
 
 The code is production-proven (it's what ChatGPT uses), pure functional, and portable.
 
-**Recommendation**: Adopt this as the core conversation model for alive-brug.
+**Recommendation**: Adopt this as the core conversation model for Alive.

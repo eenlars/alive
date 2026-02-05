@@ -37,6 +37,9 @@ export function getStandaloneWorkspaces(): string[] {
  * @param name - Workspace name (directory name under base)
  */
 export function getStandaloneWorkspacePath(name: string): string {
+  if (!name || name.includes("..") || name.includes("/") || name.includes("\\")) {
+    throw new Error(`Invalid workspace name: ${name}`)
+  }
   const base = getStandaloneWorkspaceBase()
   return join(base, name, "user")
 }
