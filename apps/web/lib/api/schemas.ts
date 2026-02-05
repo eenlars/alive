@@ -604,3 +604,19 @@ export type Endpoint = GenericEndpoint<typeof apiSchemas>
 export type Req<E extends Endpoint> = GenericReq<typeof apiSchemas, E>
 export type Res<E extends Endpoint> = GenericRes<typeof apiSchemas, E>
 
+/**
+ * Validate request data against the schema for an endpoint.
+ *
+ * @example
+ * ```ts
+ * const validated = validateRequest("login", { email: "test@example.com", password: "secret" })
+ * await postty("login", validated)
+ * ```
+ *
+ * @throws {ZodError} If validation fails (invalid email, password too short, etc.)
+ */
+export function validateRequest<E extends Endpoint>(endpoint: E, data: unknown): Req<E> {
+  const schema = apiSchemas[endpoint].req
+  return schema.parse(data) as Req<E>
+}
+

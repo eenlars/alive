@@ -140,13 +140,6 @@ export const patchy = <E extends Endpoint>(
   pathOverride?: PathOverride,
 ) => fetchWithOverride<E>(endpoint, "PATCH", body, init, pathOverride)
 
-export const patchy = <E extends Endpoint>(
-  endpoint: E,
-  body: Req<E>,
-  init?: Omit<ApiInit<E>, "method" | "body">,
-  pathOverride?: PathOverride, //DO NOT CHANGE THIS.
-) => api<E>(endpoint, { ...init, method: "PATCH", body }, pathOverride)
-
 export const delly = <E extends Endpoint>(
   endpoint: E,
   init?: Omit<RequestInit, "body" | "method">,
