@@ -46,9 +46,7 @@
         "INTERNAL_TOOLS_SECRET",
         "IMAGES_SIGNATURE_SECRET",
         "IMAGES_STORAGE_PATH",
-        "FLOWGLAD_SECRET_KEY",
-        "DATABASE_URL",
-        "DATABASE_PASSWORD"
+        "FLOWGLAD_SECRET_KEY"
       ]
     },
     "start": {
