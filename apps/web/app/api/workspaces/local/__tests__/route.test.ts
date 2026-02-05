@@ -261,7 +261,7 @@ describe("POST /api/workspaces/local", () => {
 
       const req = createMockRequest({ name: "../../../etc" })
       const response = await POST(req)
-      const data = await response.json()
+      await response.json()
 
       // Should fail validation (regex doesn't allow dots or slashes)
       expect(response.status).toBe(400)
@@ -272,7 +272,7 @@ describe("POST /api/workspaces/local", () => {
 
       const req = createMockRequest({ name: "foo/bar" })
       const response = await POST(req)
-      const data = await response.json()
+      await response.json()
 
       expect(response.status).toBe(400)
     })
