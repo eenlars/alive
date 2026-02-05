@@ -14,7 +14,7 @@ import { createIamClient } from "@/lib/supabase/iam"
 export function createFlowgladServer(customerExternalId: string): FlowgladServer {
   const apiKey = getFlowgladSecretKey()
   if (!apiKey) {
-    throw new Error("Flowglad is not configured. Set FLOWGLAD_SECRET_KEY or use STREAM_ENV=local.")
+    throw new Error("Flowglad is not configured. Set FLOWGLAD_SECRET_KEY to enable billing in this environment.")
   }
 
   return new FlowgladServer({

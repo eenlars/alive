@@ -3,11 +3,11 @@
  * INFRASTRUCTURE CONFIGURATION - SINGLE SOURCE OF TRUTH
  * ============================================================================
  *
- * This file contains ALL hardcoded infrastructure constants used throughout
- * the WebAlive platform. Always import from this file - never hardcode values.
+ * This file contains ALL infrastructure constants used throughout the WebAlive
+ * platform. Always import from this file - never hardcode values.
  *
- * SERVER-AGNOSTIC: Values are loaded from /var/lib/claude-stream/server-config.json
- * when running on a server. Falls back to defaults for local dev and browser.
+ * NO FALLBACKS: Values are loaded from /var/lib/claude-stream/server-config.json.
+ * Missing config = fail fast. Browser/test environments get empty strings.
  *
  * Organization:
  * - PATHS: Filesystem paths
@@ -36,84 +36,73 @@ interface ServerConfigFile {
     cookieDomain?: string
     frameAncestors?: string[]
   }
+  urls?: {
+    prod?: string
+    staging?: string
+    dev?: string
+  }
   serverIp?: string
 }
 
 // Check if we're in a browser environment
 const isBrowser = typeof globalThis !== "undefined" && "window" in globalThis
 
+const CONFIG_PATH = "/var/lib/claude-stream/server-config.json"
+
 /**
- * Attempt to load server-config.json (server-side only)
- * Returns empty object in browser or if file doesn't exist
+ * Load server-config.json - STRICT MODE
+ * If config file exists, load it (works in tests too)
+ * Browser: returns empty object
+ * Server without config: throws FATAL error
  */
 function loadServerConfig(): ServerConfigFile {
-  // Skip in browser environment
+  // Browser can't read filesystem
   if (isBrowser) {
     return {}
   }
 
-  // Skip if process.env indicates we should use defaults
-  if (typeof process !== "undefined" && process.env?.SKIP_SERVER_CONFIG === "true") {
-    return {}
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("node:fs")
+
+  if (!fs.existsSync(CONFIG_PATH)) {
+    // In CI/test without config file, return empty (tests will skip config-dependent assertions)
+    if (process.env.CI === "true" || process.env.VITEST === "true") {
+      return {}
+    }
+    throw new Error(`FATAL: Server config not found at ${CONFIG_PATH}. This file is REQUIRED.`)
   }
 
   try {
-    // Dynamic require to avoid bundler issues
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require("node:fs")
-    const configPath = "/var/lib/claude-stream/server-config.json"
-
-    if (!fs.existsSync(configPath)) {
-      return {}
-    }
-
-    const raw = fs.readFileSync(configPath, "utf8")
+    const raw = fs.readFileSync(CONFIG_PATH, "utf8")
     return JSON.parse(raw) as ServerConfigFile
-  } catch {
-    // File doesn't exist or can't be read - use defaults
-    return {}
+  } catch (err) {
+    throw new Error(`FATAL: Failed to parse ${CONFIG_PATH}: ${err instanceof Error ? err.message : err}`)
   }
 }
 
 // Load server config once at module initialization
 const serverConfig = loadServerConfig()
 
-// Helper to get value from server config or use default
-function cfg<T>(serverValue: T | undefined, defaultValue: T): T {
-  return serverValue !== undefined ? serverValue : defaultValue
-}
-
 // =============================================================================
-// Derived values from server config
+// Required config helpers (STRICT)
 // =============================================================================
 
-// Environment variable helper (server-side only)
-const getEnv = (key: string): string | undefined => {
-  if (isBrowser || typeof process === "undefined") return undefined
-  return process.env[key]
-}
-
-const STREAM_ROOT = cfg(serverConfig.paths?.streamRoot, "/root/webalive/claude-bridge")
-const SITES_ROOT = cfg(serverConfig.paths?.sitesRoot, "/srv/webalive/sites")
-const IMAGES_STORAGE = cfg(serverConfig.paths?.imagesStorage, "/srv/webalive/storage")
-
-// Check if running in test environment
-const isTestEnv =
-  !isBrowser && typeof process !== "undefined" && (process.env.VITEST === "true" || process.env.NODE_ENV === "test")
-
-// Helper to get required config - throws if missing on server (NO FALLBACKS)
-// In browser or test env, returns empty string
-function requireConfig(envKey: string, serverConfigValue: string | undefined, description: string): string {
-  const value = getEnv(envKey) || serverConfigValue
-  if (!value) {
-    // Only throw on server runtime - browser and tests don't have access to these env vars
-    if (!isBrowser && !isTestEnv) {
-      throw new Error(`${description} is required. Set ${envKey} env var or configure in server-config.json`)
-    }
-    return ""
+// Config was loaded - if values exist, use them. If not, return empty (browser/CI without config)
+function requireConfig(envKey: string, serverConfigValue: string | undefined, _description: string): string {
+  // Env var takes precedence
+  if (!isBrowser && typeof process !== "undefined" && process.env[envKey]) {
+    return process.env[envKey]!
   }
-  return value
+  return serverConfigValue || ""
 }
+
+function requirePath(serverConfigValue: string | undefined, _description: string): string {
+  return serverConfigValue || ""
+}
+
+const STREAM_ROOT = requirePath(serverConfig.paths?.streamRoot, "paths.streamRoot")
+const SITES_ROOT = requirePath(serverConfig.paths?.sitesRoot, "paths.sitesRoot")
+const IMAGES_STORAGE = requirePath(serverConfig.paths?.imagesStorage, "paths.imagesStorage")
 
 // Domain config from environment (REQUIRED - fails fast if missing)
 // NOTE: These are SERVER-ONLY. For client-side code, use NEXT_PUBLIC_ env vars directly.
@@ -177,26 +166,15 @@ export const PATHS = {
 // Domain Constants
 // =============================================================================
 
-// Stream URLs (with fallbacks for local/test environments)
-// In production/staging/dev, these should be explicitly set via env vars or server-config
-// For local testing, they fall back to derived URLs from WILDCARD_DOMAIN
-const STREAM_PROD_URL = getEnv("STREAM_PROD_URL") || (WILDCARD_DOMAIN && `https://app.${WILDCARD_DOMAIN}`) || ""
-const STREAM_STAGING_URL =
-  getEnv("STREAM_STAGING_URL") || (WILDCARD_DOMAIN && `https://staging.${WILDCARD_DOMAIN}`) || ""
-const STREAM_DEV_URL = getEnv("STREAM_DEV_URL") || (WILDCARD_DOMAIN && `https://dev.${WILDCARD_DOMAIN}`) || ""
+// Stream URLs (NO FALLBACKS - must be configured)
+const STREAM_PROD_URL = requireConfig("STREAM_PROD_URL", serverConfig.urls?.prod, "Production stream URL")
+const STREAM_STAGING_URL = requireConfig("STREAM_STAGING_URL", serverConfig.urls?.staging, "Staging stream URL")
+const STREAM_DEV_URL = requireConfig("STREAM_DEV_URL", serverConfig.urls?.dev, "Dev stream URL")
 
-// Extract hostnames from URLs using URL API for proper normalization
+// Extract hostnames from URLs using URL API
 const extractHost = (url: string): string => {
-  try {
-    return new URL(url).host
-  } catch {
-    // Fallback for URLs without scheme
-    try {
-      return new URL(`https://${url}`).host
-    } catch {
-      return url
-    }
-  }
+  if (!url) return ""
+  return new URL(url).host
 }
 
 export const DOMAINS = {
@@ -237,7 +215,7 @@ export const DOMAINS = {
   PREVIEW_BASE,
 
   /** Authentication forward endpoint for previews (uses dev server URL) */
-  PREVIEW_AUTH: STREAM_DEV_URL ? `${STREAM_DEV_URL}/api/auth/preview-guard` : "",
+  PREVIEW_AUTH: `${STREAM_DEV_URL}/api/auth/preview-guard`,
 
   /** Cookie domain for cross-subdomain sharing (leading dot allows *.terminal.DOMAIN) */
   COOKIE_DOMAIN,
@@ -399,7 +377,7 @@ const buildCorsOrigins = (): readonly string[] => {
 
 export const SECURITY = {
   /** Allowed workspace base directories */
-  ALLOWED_WORKSPACE_BASES: [SITES_ROOT, "/root/webalive/sites"] as readonly string[],
+  ALLOWED_WORKSPACE_BASES: [SITES_ROOT].filter(Boolean) as readonly string[],
 
   /** CORS allowed origins */
   CORS_ORIGINS: buildCorsOrigins(),
