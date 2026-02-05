@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       orgId,
       workspace,
       prompt,
-      timeoutSeconds: timeoutSeconds || 300,
+      timeoutSeconds: timeoutSeconds ?? 300,
       model,
       thinkingPrompt,
       skills,

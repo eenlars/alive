@@ -80,12 +80,12 @@ async function handleAutomationJob(job: JobData<RunAutomationPayload>, onEvent?:
         orgId,
         workspace,
         prompt,
-        timeoutSeconds: timeoutSeconds || 300,
+        timeoutSeconds: timeoutSeconds ?? 300,
         model,
         thinkingPrompt,
         skills,
       }),
-      signal: AbortSignal.timeout((timeoutSeconds || 300) * 1000 + 30_000), // job timeout + 30s buffer
+      signal: AbortSignal.timeout((timeoutSeconds ?? 300) * 1000 + 30_000), // job timeout + 30s buffer
     })
 
     const durationMs = Date.now() - startTime
