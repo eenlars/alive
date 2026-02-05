@@ -11,7 +11,8 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { scheduleResumption } from "@webalive/job-queue"
 import { tabKey, sessionStore } from "@/features/auth/lib/sessionStore"
-import { isWorkspaceAuthenticated, requireSessionUser } from "@/features/auth/lib/auth"
+import { createErrorResponse, isWorkspaceAuthenticated, requireSessionUser } from "@/features/auth/lib/auth"
+import { ErrorCodes } from "@/lib/error-codes"
 
 const ScheduleResumptionSchema = z.object({
   workspaceRoot: z.string().min(1),
@@ -31,10 +32,10 @@ export async function POST(req: Request) {
     const body = await req.json()
     const parseResult = ScheduleResumptionSchema.safeParse(body)
     if (!parseResult.success) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid request", details: parseResult.error.issues },
-        { status: 400 },
-      )
+      return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400, {
+        requestId,
+        details: parseResult.error.issues,
+      })
     }
 
     const { workspaceRoot, delayMinutes, reason, resumeMessage, tabId, tabGroupId } = parseResult.data
@@ -45,13 +46,13 @@ export async function POST(req: Request) {
     const workspace = workspaceMatch?.[1]
 
     if (!workspace) {
-      return NextResponse.json({ ok: false, error: "Could not determine workspace from path" }, { status: 400 })
+      return createErrorResponse(ErrorCodes.WORKSPACE_INVALID, 400, { requestId })
     }
 
     // Verify workspace access
     const hasAccess = await isWorkspaceAuthenticated(workspace)
     if (!hasAccess) {
-      return NextResponse.json({ ok: false, error: "Not authorized for this workspace" }, { status: 403 })
+      return createErrorResponse(ErrorCodes.FORBIDDEN, 403, { requestId })
     }
 
     // Build session key and verify session exists
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
 
     const existingSession = await sessionStore.get(sessionKey)
     if (!existingSession) {
-      return NextResponse.json({ ok: false, error: "No active session found for this conversation" }, { status: 404 })
+      return createErrorResponse(ErrorCodes.NO_SESSION, 404, { requestId })
     }
 
     const now = new Date()
@@ -96,12 +97,9 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401, { requestId })
     }
     console.error(`[ScheduleResumption ${requestId}] Error:`, error)
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 },
-    )
+    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }

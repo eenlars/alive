@@ -14,6 +14,8 @@
 
 import { NextResponse } from "next/server"
 import { sessionStore, tabKey } from "@/features/auth/lib/sessionStore"
+import { createErrorResponse } from "@/features/auth/lib/auth"
+import { ErrorCodes } from "@/lib/error-codes"
 
 export async function POST(req: Request) {
   // Authenticate internal call (shared secret, not session cookies — see docstring)
@@ -21,7 +23,7 @@ export async function POST(req: Request) {
   const providedSecret = req.headers.get("x-internal-auth")
 
   if (!internalSecret || providedSecret !== internalSecret) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
   }
 
   try {
@@ -29,7 +31,9 @@ export async function POST(req: Request) {
     const { userId, workspace, tabId, tabGroupId, message, reason } = body
 
     if (!userId || !workspace || !tabId || !tabGroupId || !message) {
-      return NextResponse.json({ ok: false, error: "Missing required fields" }, { status: 400 })
+      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
+        field: "userId, workspace, tabId, tabGroupId, message",
+      })
     }
 
     // Compute canonical session key from components (don't trust raw sessionKey from body)
@@ -39,10 +43,7 @@ export async function POST(req: Request) {
     const sdkSessionId = await sessionStore.get(sessionKey)
     if (!sdkSessionId) {
       console.warn(`[Internal/ResumeConversation] Session not found: ${sessionKey}`)
-      return NextResponse.json(
-        { ok: false, error: "Session not found — conversation may have been closed" },
-        { status: 404 },
-      )
+      return createErrorResponse(ErrorCodes.NO_SESSION, 404)
     }
 
     console.log(`[Internal/ResumeConversation] Resuming session ${sessionKey} (reason: ${reason})`)
@@ -82,10 +83,7 @@ export async function POST(req: Request) {
       console.error(
         `[Internal/ResumeConversation] Stream failed: ${streamResponse.status} - ${errorText.substring(0, 500)}`,
       )
-      return NextResponse.json(
-        { ok: false, error: `Stream failed: ${streamResponse.status}` },
-        { status: streamResponse.status },
-      )
+      return createErrorResponse(ErrorCodes.STREAM_ERROR, streamResponse.status)
     }
 
     // Consume the stream to let it complete
@@ -108,9 +106,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error("[Internal/ResumeConversation] Error:", error)
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 },
-    )
+    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 }

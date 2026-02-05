@@ -11,6 +11,8 @@
 
 import { NextResponse } from "next/server"
 import { runAutomationJob } from "@/lib/automation/executor"
+import { createErrorResponse } from "@/features/auth/lib/auth"
+import { ErrorCodes } from "@/lib/error-codes"
 
 export async function POST(req: Request) {
   // Authenticate internal call
@@ -18,7 +20,7 @@ export async function POST(req: Request) {
   const providedSecret = req.headers.get("x-internal-auth")
 
   if (!internalSecret || providedSecret !== internalSecret) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
   }
 
   try {
@@ -27,10 +29,9 @@ export async function POST(req: Request) {
     const { jobId, userId, orgId, workspace, prompt, timeoutSeconds, model, thinkingPrompt, skills } = body
 
     if (!jobId || !userId || !orgId || !workspace || !prompt) {
-      return NextResponse.json(
-        { ok: false, error: "Missing required fields: jobId, userId, orgId, workspace, prompt" },
-        { status: 400 },
-      )
+      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
+        field: "jobId, userId, orgId, workspace, prompt",
+      })
     }
 
     const result = await runAutomationJob({
@@ -53,9 +54,6 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error("[Internal/RunAutomation] Error:", error)
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 },
-    )
+    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 }
