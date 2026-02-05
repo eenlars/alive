@@ -1,9 +1,11 @@
+import { DOMAINS } from "@webalive/shared"
 import NextTopLoader from "nextjs-toploader"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
 import { AuthModal } from "@/components/modals/AuthModal"
 import { FlowgladProviderWrapper } from "@/components/providers/FlowgladProviderWrapper"
 import { PostHogProvider } from "@/components/providers/PostHogProvider"
 import { QueryClientProvider } from "@/lib/providers/QueryClientProvider"
+import { DomainConfigProvider } from "@/lib/providers/DomainConfigProvider"
 import { ThemeProvider } from "@/components/providers/theme-provider"
 import { SkillsStoreProvider } from "@/lib/providers/SkillsStoreProvider"
 import { UserStoreProvider } from "@/lib/providers/UserStoreProvider"
@@ -20,6 +22,13 @@ import "@/lib/env-validation"
 
 export const metadata = {
   title: "Alive",
+}
+
+// Server-side: read domain config from server-config.json (runtime, not build time)
+const domainConfig = {
+  wildcard: DOMAINS.WILDCARD,
+  main: DOMAINS.MAIN,
+  previewBase: DOMAINS.PREVIEW_BASE,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -40,16 +49,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <NextTopLoader color="#000" height={2} showSpinner={false} />
           <NuqsAdapter>
             <ThemeProvider>
-              <QueryClientProvider>
-                <FlowgladProviderWrapper>
-                  <UserStoreProvider>
-                    <SkillsStoreProvider>
-                      {children}
-                      <AuthModal />
-                    </SkillsStoreProvider>
-                  </UserStoreProvider>
-                </FlowgladProviderWrapper>
-              </QueryClientProvider>
+              <DomainConfigProvider config={domainConfig}>
+                <QueryClientProvider>
+                  <FlowgladProviderWrapper>
+                    <UserStoreProvider>
+                      <SkillsStoreProvider>
+                        {children}
+                        <AuthModal />
+                      </SkillsStoreProvider>
+                    </UserStoreProvider>
+                  </FlowgladProviderWrapper>
+                </QueryClientProvider>
+              </DomainConfigProvider>
             </ThemeProvider>
           </NuqsAdapter>
         </PostHogProvider>

@@ -14,7 +14,8 @@
 
 import { X } from "lucide-react"
 import { useState } from "react"
-import { DOMAINS, TEMPLATES } from "@webalive/shared"
+import { TEMPLATES } from "@webalive/shared"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import { WebsiteConfig, type WebsiteConfigResult } from "@/components/ai/WebsiteConfig"
 
 interface AddWebsiteModalProps {
@@ -23,6 +24,7 @@ interface AddWebsiteModalProps {
 }
 
 export function AddWebsiteModal({ onClose, onSuccess }: AddWebsiteModalProps) {
+  const { wildcard } = useDomainConfig()
   const [deploying, setDeploying] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState<{ domain: string } | null>(null)
@@ -32,13 +34,13 @@ export function AddWebsiteModal({ onClose, onSuccess }: AddWebsiteModalProps) {
     setDeploying(true)
 
     try {
-      const domain = `${result.slug}.${DOMAINS.WILDCARD}`
+      const domain = `${result.slug}.${wildcard}`
 
       const response = await fetch("/api/deploy-subdomain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          domain,
+          slug: result.slug,
           templateId: result.templateId,
           siteIdeas: result.siteIdeas,
         }),

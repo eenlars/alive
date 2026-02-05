@@ -11,7 +11,7 @@ import { z } from "zod"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
 import { checkSlugAvailability } from "@/features/deployment/lib/slug-api"
 import type { DeploySubdomainResponse } from "@/features/deployment/types/deploy-subdomain"
-import { WILDCARD_DOMAIN } from "@/lib/config.client"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import { useAuthModalActions } from "@/lib/stores/authModalStore"
 import { useOnboardingStore } from "@/lib/stores/onboardingStore"
 import { DeploymentStatus } from "./DeploymentStatus"
@@ -46,6 +46,7 @@ const itemVariants = {
 }
 
 export function SubdomainDeployForm() {
+  const { wildcard } = useDomainConfig()
   const searchParams = useSearchParams()
   const [isDeploying, setIsDeploying] = useState(false)
   const [deploymentStatus, setDeploymentStatus] = useState<DeploySubdomainResponse | null>(null)
@@ -166,7 +167,7 @@ export function SubdomainDeployForm() {
   const simulateSuccess = () => {
     setDeploymentStatus({
       ok: true,
-      domain: `${watchSlug || "test"}.${WILDCARD_DOMAIN}`,
+      domain: `${watchSlug || "test"}.${wildcard}`,
       message: "Site deployed successfully",
     })
   }
@@ -175,7 +176,7 @@ export function SubdomainDeployForm() {
   useEffect(() => {
     if (isDeploying && watchSlug) {
       setElapsedTime(0)
-      const domain = `${watchSlug}.${WILDCARD_DOMAIN}`
+      const domain = `${watchSlug}.${wildcard}`
       let cancelled = false
 
       // Track elapsed time (sync callback, setInterval is fine here)

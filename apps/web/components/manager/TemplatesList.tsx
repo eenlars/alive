@@ -1,14 +1,14 @@
 "use client"
 
 import type { AppDatabase } from "@webalive/database"
-import { DEFAULTS, DOMAINS, PATHS } from "@webalive/shared"
+import { DEFAULTS, PATHS } from "@webalive/shared"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import { useState } from "react"
 
 type Template = AppDatabase["app"]["Tables"]["templates"]["Row"]
 
 const TEMPLATE_PREFIX = DEFAULTS.TEMPLATE_ID_PREFIX
 const SITES_ROOT_PATH = `${PATHS.SITES_ROOT}/`
-const EXAMPLE_DOMAIN = `gallery.${DOMAINS.WILDCARD}`
 
 const INPUT_BASE_CLASSES =
   "w-full px-3 py-2 text-sm border border-slate-300 dark:border-white/10 bg-white dark:bg-[#1a1a1a] text-slate-900 dark:text-white rounded focus:outline-none focus:ring-2"
@@ -36,6 +36,8 @@ export function TemplatesList({
   saving,
   deleting,
 }: TemplatesListProps) {
+  const { wildcard } = useDomainConfig()
+  const EXAMPLE_DOMAIN = `gallery.${wildcard}`
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<Template>>({})
   const [showAddForm, setShowAddForm] = useState(false)
@@ -198,7 +200,7 @@ export function TemplatesList({
                 type="text"
                 value={addForm.source_path ?? ""}
                 onChange={e => setAddForm(prev => ({ ...prev, source_path: e.target.value }))}
-                placeholder={`${SITES_ROOT_PATH}example.${DOMAINS.WILDCARD}`}
+                placeholder={`${SITES_ROOT_PATH}example.${wildcard}`}
                 className={ADD_INPUT_CLASSES}
               />
             </div>
@@ -208,7 +210,7 @@ export function TemplatesList({
                 type="text"
                 value={addForm.preview_url ?? ""}
                 onChange={e => setAddForm(prev => ({ ...prev, preview_url: e.target.value }))}
-                placeholder={`https://example.${DOMAINS.WILDCARD}`}
+                placeholder={`https://example.${wildcard}`}
                 className={ADD_INPUT_CLASSES}
               />
             </label>

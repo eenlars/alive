@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { RESERVED_SLUGS } from "@/features/deployment/types/guards"
 import { OptionalWorktreeSchema, OptionalWorktreeSlugSchema } from "@/types/guards/worktree-schemas"
 
 // ============================================================================
@@ -362,19 +363,46 @@ export const apiSchemas = {
 
   /**
    * POST /api/deploy-subdomain
-   * Create a new website
+   * Create a new website deployment
+   *
+   * Supports both authenticated and anonymous users:
+   * - Authenticated: email from session, password optional
+   * - Anonymous: email and password required to create account
    */
   "deploy-subdomain": {
     req: z
       .object({
-        domain: z.string(),
-        org_id: z.string(),
-        template_id: z.string().optional(),
+        slug: z
+          .string()
+          .min(3, "Slug must be at least 3 characters")
+          .max(20, "Slug must be no more than 20 characters")
+          .regex(/^[a-z0-9]([a-z0-9-]{1,18}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
+          .refine(slug => !RESERVED_SLUGS.some(r => r === slug), {
+            message: "This slug is reserved and cannot be used. Please choose a different name.",
+          }),
+        email: z.string().email("Please enter a valid email address").optional(),
+        password: z.string().optional(),
+        orgId: z.string().min(1, "Organization ID cannot be empty").optional(),
+        siteIdeas: z
+          .string()
+          .max(5000, "Site ideas must be less than 5000 characters")
+          .transform(val => val || "")
+          .optional()
+          .default(""),
+        templateId: z
+          .string()
+          .refine(val => val.startsWith("tmpl_"), {
+            message: "Template ID must start with 'tmpl_'",
+          })
+          .optional(),
       })
       .brand<"DeploySubdomainRequest">(),
     res: z.object({
-      ok: z.boolean(),
+      ok: z.literal(true),
+      message: z.string(),
       domain: z.string(),
+      chatUrl: z.string(),
+      orgId: z.string().optional(),
     }),
   },
 
