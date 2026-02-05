@@ -20,6 +20,7 @@ import { expect, type Request } from "@playwright/test"
 import { test } from "./fixtures"
 import { TEST_API } from "./fixtures/test-constants"
 import { TEST_SELECTORS, TEST_TIMEOUTS } from "./fixtures/test-data"
+import { waitForChatReady } from "./helpers/assertions"
 import { handlers } from "./lib/handlers"
 import { ChatPage } from "./pages/ChatPage"
 
@@ -33,33 +34,6 @@ function getTabIdFromRequest(request: Request): string | null {
   } catch {
     return null
   }
-}
-
-/**
- * Wait for chat to be fully ready for sending messages.
- *
- * Strategy: Fill the message input and wait for the send button to become enabled.
- * This is the most reliable way to detect chat readiness because:
- * 1. The send button is disabled until `isReady` is true (Dexie session + tab initialized)
- * 2. It directly tests the condition needed before sending messages
- * 3. No race conditions with internal state initialization
- *
- * The test message is cleared after verification to avoid polluting the test.
- */
-async function waitForChatReady(page: import("@playwright/test").Page) {
-  const input = page.locator(TEST_SELECTORS.messageInput)
-  const sendButton = page.locator(TEST_SELECTORS.sendButton)
-
-  // Fill a test message to trigger enable check
-  await input.fill("test")
-
-  // Wait for send button to be enabled - this proves chat is ready
-  await expect(sendButton).toBeEnabled({
-    timeout: TEST_TIMEOUTS.max,
-  })
-
-  // Clear the test message
-  await input.fill("")
 }
 
 /**

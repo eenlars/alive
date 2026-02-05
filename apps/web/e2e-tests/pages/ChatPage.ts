@@ -56,8 +56,12 @@ export class ChatPage {
    * @param text Message to send
    */
   async sendMessage(text: string) {
+    // Ensure chat is ready before attempting to send (dexie session + tab initialized)
+    await expect(this.page.locator(TEST_SELECTORS.chatReady)).toBeAttached({
+      timeout: TEST_TIMEOUTS.max,
+    })
     await this.messageInput.fill(text)
-    await expect(this.sendButton).toBeEnabled({ timeout: TEST_TIMEOUTS.fast })
+    await expect(this.sendButton).toBeEnabled({ timeout: TEST_TIMEOUTS.medium })
     await this.sendButton.click()
   }
 

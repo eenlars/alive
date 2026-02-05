@@ -143,6 +143,18 @@ export async function expectWorkspaceReady(page: Page) {
 }
 
 /**
+ * Wait for chat to be fully ready for sending messages.
+ * - Hydration complete (app ready)
+ * - Workspace ready DOM marker present
+ * - Chat ready attribute set (dexie session + tab initialized)
+ */
+export async function waitForChatReady(page: Page) {
+  await waitForAppReady(page)
+  await expect(page.locator(TEST_SELECTORS.workspaceReady)).toBeAttached({ timeout: TEST_TIMEOUTS.medium })
+  await expect(page.locator(TEST_SELECTORS.chatReady)).toBeAttached({ timeout: TEST_TIMEOUTS.max })
+}
+
+/**
  * Expect a chat message to be visible
  * Uses .first() to handle message appearing in both sidebar and chat area
  */

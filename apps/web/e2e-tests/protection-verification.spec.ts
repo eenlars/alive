@@ -12,32 +12,11 @@
 
 import { SECURITY } from "@webalive/shared"
 import { expect, test } from "./fixtures"
-import { TEST_SELECTORS, TEST_TIMEOUTS } from "./fixtures/test-data"
+import { TEST_TIMEOUTS } from "./fixtures/test-data"
 import { login } from "./helpers"
-import { gotoChatFast } from "./helpers/assertions"
+import { gotoChatFast, waitForChatReady } from "./helpers/assertions"
 import { handlers } from "./lib/handlers"
 import { isLocalTestServer } from "./lib/test-env"
-import type { Page } from "@playwright/test"
-
-/**
- * Wait for chat to be fully ready for sending messages.
- * Fill message input and wait for send button to be enabled.
- */
-async function waitForChatReady(page: Page) {
-  const input = page.locator(TEST_SELECTORS.messageInput)
-  const sendButton = page.locator(TEST_SELECTORS.sendButton)
-
-  // Fill a test message to trigger enable check
-  await input.fill("test")
-
-  // Wait for send button to be enabled - this proves chat is ready
-  await expect(sendButton).toBeEnabled({
-    timeout: TEST_TIMEOUTS.max,
-  })
-
-  // Clear the test message
-  await input.fill("")
-}
 
 test.describe("Protection System Verification", () => {
   test("Layer 1: Catches unmocked calls at browser level", async ({ authenticatedPage, workerTenant }) => {
