@@ -11,6 +11,8 @@
 # - Zero-downtime: new build created before service restart
 # - Auto-rollback: if health check fails, previous build restored
 # - E2E tests: run against deployed server (skip with SKIP_E2E=1)
+# - Build promotion: PROMOTE_FROM=staging promotes staging's build artifact
+#   to production (skips deps, static checks, and build — all already validated)
 # =============================================================================
 
 set -euo pipefail
@@ -36,6 +38,13 @@ PORT=$(get_port "$ENV")
 SERVICE=$(get_service "$ENV")
 BUILDS_DIR="$PROJECT_ROOT/.builds/$ENV"
 MAX_WAIT=$( [ "$ENV" = "staging" ] && echo 60 || echo 30 )
+
+# PROMOTE_FROM: skip deps/static/build, promote artifact from another environment
+# When set, only 4 phases run: validate → promote → skills → deploy
+PROMOTE_FROM="${PROMOTE_FROM:-}"
+if [ -n "$PROMOTE_FROM" ]; then
+    _TOTAL_PHASES=4
+fi
 
 cd "$PROJECT_ROOT"
 timer_start
@@ -98,7 +107,7 @@ rollback() {
 }
 
 # =============================================================================
-# Phase 1: Validate Environment
+# Validate Environment
 # =============================================================================
 banner "Deploying: $ENV (port $PORT)"
 phase_start "Validating environment"
@@ -130,56 +139,39 @@ fi
 phase_end ok "Environment validated"
 
 # =============================================================================
-# Phase 2: Install Dependencies
+# Install Dependencies & Static Analysis (skipped when promoting)
 # =============================================================================
-phase_start "Installing dependencies"
+if [ -n "$PROMOTE_FROM" ]; then
+    log_step "Skipping checks (validated in $PROMOTE_FROM)"
+else
+    phase_start "Installing dependencies"
 
-set +e
-bun install 2>&1 | grep -E "(error|warn|installed)" || true
-BUN_EXIT=${PIPESTATUS[0]}
-set -e
+    set +e
+    bun install 2>&1 | grep -E "(error|warn|installed)" || true
+    BUN_EXIT=${PIPESTATUS[0]}
+    set -e
 
-[ $BUN_EXIT -ne 0 ] && { phase_end error "bun install failed"; exit 1; }
-phase_end ok "Dependencies installed"
+    [ $BUN_EXIT -ne 0 ] && { phase_end error "bun install failed"; exit 1; }
+    phase_end ok "Dependencies installed"
 
-# =============================================================================
-# Phase 3: Static Analysis
-# =============================================================================
-phase_start "Running static analysis"
+    # Static analysis includes unit tests via `bun run static-check`
+    phase_start "Running static analysis"
 
-set +e
-STATIC_OUT=$(make static-check 2>&1)
-STATIC_EXIT=$?
-set -e
+    set +e
+    STATIC_OUT=$(make static-check 2>&1)
+    STATIC_EXIT=$?
+    set -e
 
-if [ $STATIC_EXIT -ne 0 ]; then
-    phase_end error "Static checks failed"
-    echo "$STATIC_OUT" | tail -30
-    exit 1
+    if [ $STATIC_EXIT -ne 0 ]; then
+        phase_end error "Static checks failed"
+        echo "$STATIC_OUT" | tail -30
+        exit 1
+    fi
+    phase_end ok "Static checks passed"
 fi
-phase_end ok "Static checks passed"
 
 # =============================================================================
-# Phase 4: Unit Tests
-# =============================================================================
-phase_start "Running unit tests"
-
-set +e
-TEST_OUT=$(bun run unit 2>&1)
-TEST_EXIT=$?
-set -e
-
-echo "$TEST_OUT" | grep -E "Test Files|Tests " | tail -2 | while read line; do log_step "$line"; done
-
-if [ $TEST_EXIT -ne 0 ]; then
-    phase_end error "Tests failed"
-    echo "$TEST_OUT" | grep -E "FAIL|error:|Error:" | head -20
-    exit 1
-fi
-phase_end ok "Tests passed"
-
-# =============================================================================
-# Phase 5: Build
+# Build (or promote from another environment)
 # =============================================================================
 phase_start "Building application"
 
@@ -188,26 +180,57 @@ phase_start "Building application"
 # Remove circular symlinks from bun
 rm -f packages/*/template packages/*/images packages/*/tools 2>/dev/null || true
 
-BUILD_LOG="/tmp/claude-bridge-build-${ENV}.log"
-set +e
-"$SCRIPT_DIR/build-atomic.sh" "$ENV" 2>&1 | tee "$BUILD_LOG"
-BUILD_EXIT=${PIPESTATUS[0]}
-set -e
+if [ -n "$PROMOTE_FROM" ]; then
+    # Promote build artifact from another environment
+    SOURCE_DIR="$PROJECT_ROOT/.builds/$PROMOTE_FROM"
+    SOURCE_BUILD=$(readlink "$SOURCE_DIR/current" 2>/dev/null || echo "")
 
-if [ $BUILD_EXIT -ne 0 ]; then
-    phase_end error "Build failed"
-    log_error "Full build log: $BUILD_LOG"
-    echo ""
-    grep -E "Error:|error TS|error:|failed" "$BUILD_LOG" | head -30
-    exit 1
+    if [ -z "$SOURCE_BUILD" ] || [ ! -d "$SOURCE_DIR/$SOURCE_BUILD" ]; then
+        phase_end error "No build found in $PROMOTE_FROM to promote"
+        exit 1
+    fi
+
+    log_step "Promoting from $PROMOTE_FROM: $SOURCE_BUILD"
+    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    DEST="$BUILDS_DIR/dist.$TIMESTAMP"
+    mkdir -p "$BUILDS_DIR"
+
+    # Hard-link copy: instant, zero extra disk usage.
+    # Clean target before fallback to prevent nested-directory bugs.
+    if ! cp -al "$SOURCE_DIR/$SOURCE_BUILD" "$DEST" 2>/dev/null; then
+        rm -rf "$DEST" 2>/dev/null || true
+        cp -a "$SOURCE_DIR/$SOURCE_BUILD" "$DEST"
+    fi
+
+    cd "$BUILDS_DIR"
+    ln -sfn "dist.$TIMESTAMP" "current"
+    cd "$PROJECT_ROOT"
+
+    NEW_BUILD="dist.$TIMESTAMP"
+    log_step "Promoted: $NEW_BUILD"
+    phase_end ok "Build promoted"
+else
+    BUILD_LOG="/tmp/claude-bridge-build-${ENV}.log"
+    set +e
+    "$SCRIPT_DIR/build-atomic.sh" "$ENV" 2>&1 | tee "$BUILD_LOG"
+    BUILD_EXIT=${PIPESTATUS[0]}
+    set -e
+
+    if [ $BUILD_EXIT -ne 0 ]; then
+        phase_end error "Build failed"
+        log_error "Full build log: $BUILD_LOG"
+        echo ""
+        grep -E "Error:|error TS|error:|failed" "$BUILD_LOG" | head -30
+        exit 1
+    fi
+
+    NEW_BUILD=$(readlink "$BUILDS_DIR/current")
+    log_step "New: $NEW_BUILD"
+    phase_end ok "Build complete"
 fi
 
-NEW_BUILD=$(readlink "$BUILDS_DIR/current")
-log_step "New: $NEW_BUILD"
-phase_end ok "Build complete"
-
 # =============================================================================
-# Phase 6: Sync Skills
+# Sync Skills
 # =============================================================================
 phase_start "Syncing skills"
 
@@ -222,7 +245,7 @@ fi
 phase_end ok "Skills synced"
 
 # =============================================================================
-# Phase 7: Deploy & Health Check
+# Deploy & Health Check
 # =============================================================================
 phase_start "Deploying"
 
@@ -249,7 +272,7 @@ sleep 3  # Warmup
 phase_end ok "Server healthy"
 
 # =============================================================================
-# Phase 8: E2E Tests (optional)
+# E2E Tests (optional)
 # =============================================================================
 if [ "${SKIP_E2E:-0}" = "1" ]; then
     log_step "Skipping E2E tests"
