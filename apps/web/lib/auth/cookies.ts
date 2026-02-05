@@ -8,6 +8,7 @@
  * allowing the app to work on any domain without hardcoding.
  */
 
+import { env } from "@webalive/env/server"
 import { COOKIE_NAMES, SESSION_MAX_AGE } from "@webalive/shared"
 
 // Re-export for backward compatibility
@@ -25,12 +26,12 @@ type CookieOptions = {
 
 /**
  * Check if running on a deployed server (dev/staging/production)
- * Local development uses BRIDGE_ENV=local
+ * Local development uses STREAM_ENV=local
  */
 function isDeployedServer(): boolean {
-  // BRIDGE_ENV=local means local development (localhost)
+  // STREAM_ENV=local means local development (localhost)
   // All other environments (dev, staging, production) are deployed servers
-  return process.env.BRIDGE_ENV !== "local"
+  return env.STREAM_ENV !== "local"
 }
 
 /**
@@ -38,10 +39,9 @@ function isDeployedServer(): boolean {
  * Returns the domain with a leading dot for subdomain sharing.
  *
  * Examples:
- * - "app.sonnno.tech" -> ".sonnno.tech"
- * - "terminal.goalive.nl" -> ".goalive.nl"
- * - "dev.terminal.goalive.nl" -> ".goalive.nl"
- * - "alive.best" -> ".alive.best"
+ * - "app.example.com" -> ".example.com"
+ * - "app.alive.best" -> ".alive.best"
+ * - "dev.app.alive.best" -> ".alive.best"
  * - "localhost:3000" -> undefined (no domain for localhost)
  *
  * @param host - The request host (e.g., "app.example.com" or "app.example.com:3000")

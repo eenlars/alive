@@ -38,7 +38,7 @@ function log(level: "log" | "error" | "warn", requestId: string, message: string
  * Examples:
  * - /srv/webalive/sites/example.com/user → example.com
  * - /srv/webalive/sites/two.goalive.nl/user → two.goalive.nl
- * - /root/webalive/sites/test/user → test
+ * - /srv/webalive/sites/test/user → test
  *
  * @param workspaceRoot - Absolute path to workspace root
  * @returns Domain name or null if path doesn't follow expected pattern
@@ -70,7 +70,7 @@ export function extractDomainFromWorkspace(workspaceRoot: string): string | null
   // Extract the part after /sites/ and before /user
   // Valid patterns:
   // - /srv/webalive/sites/example.com/user
-  // - /root/webalive/sites/example.com/user
+  // - /srv/webalive/sites/example.com/user
   const sitesMatch = normalized.match(/^(\/\w+)?\/webalive\/sites\/([^/]+)\/user$/)
   if (!sitesMatch || !sitesMatch[2]) {
     return null

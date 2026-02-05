@@ -183,13 +183,33 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     })
 
     // Inject all storage entries in a single init script
+    // Supports both localStorage (default) and sessionStorage
     await context.addInitScript(entries => {
-      for (const { key, value } of entries) {
-        localStorage.setItem(key, value)
+      for (const { key, value, storage } of entries) {
+        if (storage === "sessionStorage") {
+          sessionStorage.setItem(key, value)
+        } else {
+          localStorage.setItem(key, value)
+        }
       }
       // Set test mode flag for E2E instrumentation
       ;(window as any).PLAYWRIGHT_TEST = true
     }, storageEntries)
+
+    // Mock the all-workspaces API to include the test workspace
+    // Without this, the workspace store validates against real workspaces on disk
+    // and clears our injected test workspace to null
+    await page.route("**/api/auth/all-workspaces", async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          workspaces: {
+            [workerStorageState.orgId]: [workerStorageState.workspace],
+          },
+        }),
+      })
+    })
 
     await use(page)
   },

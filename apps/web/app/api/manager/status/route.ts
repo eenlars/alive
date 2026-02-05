@@ -4,7 +4,8 @@ import { promisify } from "node:util"
 import { DEFAULTS, PATHS, TIMEOUTS } from "@webalive/shared"
 import type { NextRequest } from "next/server"
 import { requireManagerAuth } from "@/features/manager/lib/api-helpers"
-import { createCorsSuccessResponse } from "@/lib/api/responses"
+import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
+import { ErrorCodes } from "@/lib/error-codes"
 import { getAllDomains } from "@/lib/deployment/domain-registry"
 import type { DomainStatus } from "@/types/domain"
 
@@ -257,6 +258,11 @@ export async function GET(req: NextRequest) {
   const statuses: DomainStatus[] = []
   const serverConfig = await loadServerConfig()
   const serverIp = serverConfig?.serverIp || DEFAULTS.SERVER_IP
+  if (!serverIp) {
+    return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
+      details: { reason: "SERVER_IP not configured" },
+    })
+  }
 
   const checks = domains.map(async domainInfo => {
     const domain = domainInfo.hostname

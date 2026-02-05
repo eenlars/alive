@@ -1,7 +1,8 @@
 import { DEFAULTS } from "@webalive/shared"
 import type { NextRequest } from "next/server"
 import { requireManagerAuth } from "@/features/manager/lib/api-helpers"
-import { createCorsSuccessResponse } from "@/lib/api/responses"
+import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
+import { ErrorCodes } from "@/lib/error-codes"
 import {
   fetchCaddySources,
   fetchDnsSources,
@@ -12,8 +13,6 @@ import {
 } from "@/lib/manager/source-fetchers"
 import { fetchSourceSafely } from "@/lib/manager/source-utils"
 import type { SourceData } from "@/types/sources"
-
-const SERVER_IP = DEFAULTS.SERVER_IP
 
 /**
  * Source fetcher registry for parallel execution
@@ -43,8 +42,14 @@ export async function GET(req: NextRequest) {
   // Fetch all sources in parallel (except DNS which depends on having domains)
   await Promise.all(SOURCE_FETCHERS.map(({ name, fetcher }) => fetchSourceSafely(name, () => fetcher(results))))
 
-  // DNS checks run after we have all domains
-  await fetchSourceSafely("dns", () => fetchDnsSources(results, SERVER_IP))
+  // DNS checks run after we have all domains (requires SERVER_IP to be configured)
+  const serverIp = DEFAULTS.SERVER_IP
+  if (!serverIp) {
+    return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
+      details: { reason: "SERVER_IP not configured" },
+    })
+  }
+  await fetchSourceSafely("dns", () => fetchDnsSources(results, serverIp))
 
   return createCorsSuccessResponse(origin, {
     sources: Array.from(results.values()).sort((a, b) => a.domain.localeCompare(b.domain)),

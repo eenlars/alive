@@ -112,11 +112,16 @@ function mockMemberships(memberships: { org_id: string }[] | null) {
 }
 
 // Helper to set up domains query mock
-function mockDomains(domains: { hostname: string; org_id: string }[] | null) {
+// Supports both superadmin path (direct select) and regular user path (select + in)
+function mockDomains(domains: { hostname: string; org_id: string | null }[] | null) {
+  const selectResult = {
+    in: vi.fn().mockResolvedValue({ data: domains, error: null }),
+    // Support direct await for superadmin path (intentionally Promise-like)
+    // biome-ignore lint/suspicious/noThenProperty: Mocking Supabase's thenable query builder
+    then: (resolve: (value: { data: typeof domains; error: null }) => void) => resolve({ data: domains, error: null }),
+  }
   mockAppFrom.mockReturnValue({
-    select: vi.fn().mockReturnValue({
-      in: vi.fn().mockResolvedValue({ data: domains, error: null }),
-    }),
+    select: vi.fn().mockReturnValue(selectResult),
   })
 }
 

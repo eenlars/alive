@@ -12,7 +12,7 @@
  *   - Direct access: environments.dev.port, environments.production.processName
  */
 
-import { PATHS } from "./config.js"
+import { DOMAINS, PATHS } from "./config.js"
 
 export type EnvironmentKey = "production" | "staging" | "dev"
 
@@ -60,7 +60,7 @@ export const environments: Record<EnvironmentKey, Environment> = {
     displayName: "Production",
     prefix: "production",
     port: 9000,
-    domain: "terminal.goalive.nl",
+    domain: DOMAINS.STREAM_PROD_HOST,
     processName: "alive-production",
     serviceType: "systemd",
     systemdService: "alive-production.service",
@@ -78,7 +78,7 @@ export const environments: Record<EnvironmentKey, Environment> = {
     displayName: "Staging",
     prefix: "staging",
     port: 8998,
-    domain: "staging.terminal.goalive.nl",
+    domain: DOMAINS.STREAM_STAGING_HOST,
     processName: "alive-staging",
     serviceType: "systemd",
     systemdService: "alive-staging.service",
@@ -96,7 +96,7 @@ export const environments: Record<EnvironmentKey, Environment> = {
     displayName: "Development",
     prefix: "dev",
     port: 8997,
-    domain: "dev.terminal.goalive.nl",
+    domain: DOMAINS.STREAM_DEV_HOST,
     processName: "alive-dev",
     serviceType: "systemd",
     systemdService: "alive-dev.service",

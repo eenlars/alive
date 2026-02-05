@@ -11,7 +11,7 @@ if [ -f .env.production ]; then
   echo "[Genuine Test Server] Loaded environment from .env.production"
 fi
 
-export BRIDGE_ENV=local
+export STREAM_ENV=local
 
 # Important: Explicitly UNSET PLAYWRIGHT_TEST
 # Playwright runner sets this automatically, but we need to clear it

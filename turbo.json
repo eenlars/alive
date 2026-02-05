@@ -21,6 +21,18 @@
         "SUPABASE_SERVICE_ROLE_KEY",
         "NEXT_PUBLIC_SUPABASE_URL",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_PREVIEW_BASE",
+        "NEXT_PUBLIC_APP_URL",
+        "NEXT_PUBLIC_POSTHOG_KEY",
+        "NEXT_PUBLIC_POSTHOG_HOST",
+        "MAIN_DOMAIN",
+        "WILDCARD_DOMAIN",
+        "PREVIEW_BASE",
+        "COOKIE_DOMAIN",
+        "STREAM_PROD_URL",
+        "STREAM_STAGING_URL",
+        "STREAM_DEV_URL",
+        "SERVER_IP",
         "CLAUDE_MODEL",
         "WORKSPACE_BASE",
         "ALIVE_PASSCODE",
@@ -33,7 +45,8 @@
         "JWT_ES256_PRIVATE_KEY",
         "INTERNAL_TOOLS_SECRET",
         "IMAGES_SIGNATURE_SECRET",
-        "IMAGES_STORAGE_PATH"
+        "IMAGES_STORAGE_PATH",
+        "FLOWGLAD_SECRET_KEY"
       ]
     },
     "start": {

@@ -5,7 +5,7 @@
  * Env loading happens in load-env.ts (imported first in playwright configs).
  *
  * Environment values:
- * - "local"      → Local test server (PLAYWRIGHT_TEST=true, BRIDGE_ENV=local)
+ * - "local"      → Local test server (PLAYWRIGHT_TEST=true, STREAM_ENV=local)
  * - "staging"    → Staging (staging.terminal.goalive.nl)
  * - "production" → Production (terminal.goalive.nl)
  */
@@ -38,7 +38,7 @@ export const TEST_ENV = getTestEnv()
  *
  * Local test server has:
  * - PLAYWRIGHT_TEST=true (blocks real API calls)
- * - BRIDGE_ENV=local (enables test credentials)
+ * - STREAM_ENV=local (enables test credentials)
  * - Test database with isolated worker tenants
  *
  * Use this for tests that REQUIRE local server features.
@@ -50,7 +50,7 @@ export const isLocalTestServer = TEST_ENV === "local"
  *
  * Remote environments (staging, production, etc.) do NOT have:
  * - PLAYWRIGHT_TEST=true
- * - BRIDGE_ENV=local
+ * - STREAM_ENV=local
  * - Test credentials (test@alive.local)
  *
  * This is the inverse of isLocalTestServer - if a new environment

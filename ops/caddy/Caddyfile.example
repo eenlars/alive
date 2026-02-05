@@ -1,5 +1,6 @@
-# Example Caddyfile for Claude Bridge
-# Copy to ops/caddy/Caddyfile and customize for your domains
+# Legacy example Caddyfile for Claude Bridge
+# Prefer generated routing via /var/lib/claude-bridge/generated/Caddyfile.sites
+# See: ops/caddy/etc/Caddyfile.example
 
 (common_headers) {
     header {

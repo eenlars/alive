@@ -48,9 +48,9 @@ Create $ENV_SOURCE with required variables:
   ANTHROPIC_API_KEY=your_api_key
 
 Optional for local dev mode:
-  BRIDGE_ENV=local
+  STREAM_ENV=local
   LOCAL_TEMPLATE_PATH=<auto-set-per-workspace>
-  BRIDGE_PASSCODE=your_passcode
+  ALIVE_PASSCODE=your_passcode
   CLAUDE_MODEL=claude-sonnet-4-5
 EOF
     exit 1
@@ -63,7 +63,7 @@ cp "$ENV_SOURCE" "$ENV_DEST" || {
 }
 
 # If running in local mode, update LOCAL_TEMPLATE_PATH to workspace-specific path
-if grep -q "^BRIDGE_ENV=local" "$ENV_DEST"; then
+if grep -q "^STREAM_ENV=local" "$ENV_DEST"; then
     if grep -q "^LOCAL_TEMPLATE_PATH=" "$ENV_DEST"; then
         sed -i.bak "s|^LOCAL_TEMPLATE_PATH=.*|LOCAL_TEMPLATE_PATH=$TEMPLATE_PATH|" "$ENV_DEST" && rm -f "$ENV_DEST.bak"
     else

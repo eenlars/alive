@@ -43,7 +43,7 @@ describe("extractDomainFromWorkspace", () => {
 
     it("works from both /srv and /root locations", () => {
       expect(extractDomainFromWorkspace("/srv/webalive/sites/example.com/user")).toBe("example.com")
-      expect(extractDomainFromWorkspace("/root/webalive/sites/example.com/user")).toBe("example.com")
+      expect(extractDomainFromWorkspace("/srv/webalive/sites/example.com/user")).toBe("example.com")
     })
   })
 

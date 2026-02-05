@@ -25,6 +25,22 @@ export const anthropicApiKey = z
   .min(1)
   .refine(key => key.startsWith("sk-ant-"), "Must be valid Anthropic API key")
 
+export const flowgladSecretKey = z
+  .string()
+  .min(1)
+  .refine(
+    key => key.startsWith("sk_test_") || key.startsWith("sk_live_"),
+    "Must be valid Flowglad secret key (sk_test_* or sk_live_*)",
+  )
+
+/**
+ * Custom validators for domain configuration
+ */
+export const domainName = z
+  .string()
+  .min(1)
+  .regex(/^[a-z0-9.-]+$/i, "Must be a valid domain name")
+
 /**
  * Server-side environment variables schema
  * These are NEVER exposed to the client
@@ -41,10 +57,21 @@ export const serverSchema = {
   SUPABASE_ACCESS_TOKEN: z.string().optional(),
   SUPABASE_PROJECT_ID: z.string().optional(),
 
-  // Bridge configuration
+  // Domain Configuration (REQUIRED - no fallbacks, fails fast at startup)
+  MAIN_DOMAIN: domainName,
+  WILDCARD_DOMAIN: domainName,
+  PREVIEW_BASE: domainName,
+  COOKIE_DOMAIN: domainName,
+
+  // Stream URLs (REQUIRED - no fallbacks, fails fast at startup)
+  STREAM_PROD_URL: httpsUrl,
+  STREAM_STAGING_URL: httpsUrl,
+  STREAM_DEV_URL: httpsUrl,
+
+  // Stream configuration
   WORKSPACE_BASE: z.string().default("/srv/webalive/sites"),
-  BRIDGE_PASSCODE: z.string().optional(),
-  BRIDGE_ENV: z.enum(["local", "dev", "staging", "production"]).optional(),
+  ALIVE_PASSCODE: z.string().optional(),
+  STREAM_ENV: z.enum(["local", "dev", "staging", "production"]).optional(),
   LOCAL_TEMPLATE_PATH: z.string().optional(),
   SHELL_PASSWORD: z.string().optional(),
   HOSTED_ENV: z.string().optional(),
@@ -61,7 +88,10 @@ export const serverSchema = {
   STRIPE_CLIENT_ID: z.string().optional(), // Stripe Connect Client ID (ca_xxx)
   STRIPE_CLIENT_SECRET: z.string().optional(), // Platform API secret key
   STRIPE_REDIRECT_URI: z.string().optional(), // Optional, derived from baseUrl
-  FLOWGLAD_SECRET_KEY: z.string().optional(), // Flowglad billing/payment integration
+  // Flowglad billing/payment integration
+  // REQUIRED in production/staging, optional in local dev (STREAM_ENV=local)
+  // Validated at runtime by getFlowgladSecretKey() helper
+  FLOWGLAD_SECRET_KEY: flowgladSecretKey.optional(),
   LINEAR_CLIENT_ID: z.string().optional(),
   LINEAR_CLIENT_SECRET: z.string().optional(),
   LINEAR_REDIRECT_URI: z.string().optional(),
@@ -91,7 +121,7 @@ export const serverSchema = {
   SUPERADMIN_EMAILS: z.string().optional(),
 
   // Redis configuration
-  // REQUIRED in production/staging, optional in local dev (BRIDGE_ENV=local)
+  // REQUIRED in production/staging, optional in local dev (STREAM_ENV=local)
   // Validated at runtime by getRedisUrl() helper
   REDIS_URL: z
     .string()
@@ -103,6 +133,10 @@ export const serverSchema = {
 
   // Node environment
   NODE_ENV: z.enum(["development", "test", "production"]).default("production"),
+
+  // E2E Testing (optional - only needed for E2E tests)
+  E2E_TEST_SECRET: z.string().optional(),
+  E2E_RUN_ID: z.string().optional(),
 } as const
 
 /**
@@ -113,6 +147,7 @@ export const clientSchema = {
   NEXT_PUBLIC_SUPABASE_URL: httpsUrl,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: jwt,
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  NEXT_PUBLIC_PREVIEW_BASE: z.string().min(1, "NEXT_PUBLIC_PREVIEW_BASE is required"),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
 } as const
@@ -130,9 +165,16 @@ export const runtimeEnv = {
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   SUPABASE_ACCESS_TOKEN: process.env.SUPABASE_ACCESS_TOKEN,
   SUPABASE_PROJECT_ID: process.env.SUPABASE_PROJECT_ID,
+  MAIN_DOMAIN: process.env.MAIN_DOMAIN,
+  WILDCARD_DOMAIN: process.env.WILDCARD_DOMAIN,
+  PREVIEW_BASE: process.env.PREVIEW_BASE,
+  COOKIE_DOMAIN: process.env.COOKIE_DOMAIN,
+  STREAM_PROD_URL: process.env.STREAM_PROD_URL,
+  STREAM_STAGING_URL: process.env.STREAM_STAGING_URL,
+  STREAM_DEV_URL: process.env.STREAM_DEV_URL,
   WORKSPACE_BASE: process.env.WORKSPACE_BASE,
-  BRIDGE_PASSCODE: process.env.BRIDGE_PASSCODE,
-  BRIDGE_ENV: process.env.BRIDGE_ENV,
+  ALIVE_PASSCODE: process.env.ALIVE_PASSCODE,
+  STREAM_ENV: process.env.STREAM_ENV,
   LOCAL_TEMPLATE_PATH: process.env.LOCAL_TEMPLATE_PATH,
   SHELL_PASSWORD: process.env.SHELL_PASSWORD,
   HOSTED_ENV: process.env.HOSTED_ENV,
@@ -164,11 +206,21 @@ export const runtimeEnv = {
   SUPERADMIN_EMAILS: process.env.SUPERADMIN_EMAILS,
   REDIS_URL: process.env.REDIS_URL,
   NODE_ENV: process.env.NODE_ENV,
+  E2E_TEST_SECRET: process.env.E2E_TEST_SECRET,
+  E2E_RUN_ID: process.env.E2E_RUN_ID,
 
   // Client
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  NEXT_PUBLIC_PREVIEW_BASE: process.env.NEXT_PUBLIC_PREVIEW_BASE,
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 } as const
+
+/**
+ * Export schema keys for validation tooling
+ * Used by scripts/validation/validate-turbo-env.ts to ensure turbo.json is in sync
+ */
+export const CLIENT_ENV_KEYS = Object.keys(clientSchema) as (keyof typeof clientSchema)[]
+export const SERVER_ENV_KEYS = Object.keys(serverSchema) as (keyof typeof serverSchema)[]

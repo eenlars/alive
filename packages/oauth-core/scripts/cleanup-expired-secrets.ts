@@ -10,7 +10,7 @@
  *   bun run cleanup-expired-secrets.ts [--dry-run] [--verbose]
  *
  * Environment:
- *   BRIDGE_ENV - Environment to run in (local|dev|staging|prod)
+ *   STREAM_ENV - Environment to run in (local|dev|staging|prod)
  *   Defaults to 'dev' if not set
  */
 
@@ -57,7 +57,7 @@ Options:
 Environment Variables:
   SUPABASE_URL              Supabase project URL (required)
   SUPABASE_SERVICE_KEY      Service role key for database access (required)
-  BRIDGE_ENV                Environment (local|dev|staging|prod) - defaults to 'dev'
+  STREAM_ENV                Environment (local|dev|staging|prod) - defaults to 'dev'
 
 Examples:
   # Dry run to see what would be deleted
@@ -67,14 +67,14 @@ Examples:
   bun run cleanup-expired-secrets.ts
 
   # Run in production
-  BRIDGE_ENV=prod bun run cleanup-expired-secrets.ts
+  STREAM_ENV=prod bun run cleanup-expired-secrets.ts
 `)
   process.exit(0)
 }
 
 const isDryRun = values["dry-run"]
 const isVerbose = values.verbose
-const environment = process.env.BRIDGE_ENV || "dev"
+const environment = process.env.STREAM_ENV || "dev"
 
 // Safety check - require explicit confirmation for production
 if (environment === "prod" && !isDryRun) {

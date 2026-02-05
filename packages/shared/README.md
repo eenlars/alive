@@ -20,7 +20,7 @@ const sessionCookie = COOKIE_NAMES.SESSION // "auth_session"
 const managerCookie = COOKIE_NAMES.MANAGER_SESSION // "manager_session"
 
 // Environment variables
-const envVar = ENV_VARS.BRIDGE_SESSION_COOKIE // "BRIDGE_SESSION_COOKIE"
+const envVar = ENV_VARS.STREAM_SESSION_COOKIE // "STREAM_SESSION_COOKIE"
 
 // Session config
 const maxAge = SESSION_MAX_AGE // 2592000 (30 days in seconds)

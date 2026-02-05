@@ -49,7 +49,7 @@ export {
   DEFAULTS,
   SECURITY,
   SUPERADMIN,
-  BRIDGE_ENV,
+  STREAM_ENV,
   type StreamEnv,
   getServiceName,
   getSiteUser,

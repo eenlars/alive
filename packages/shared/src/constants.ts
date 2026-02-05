@@ -309,7 +309,12 @@ export type FeatureFlagKey = keyof typeof FEATURE_FLAGS
 export const STORE_STORAGE_KEYS = {
   WORKSPACE: "workspace-storage",
   MESSAGE: "claude-messages-v4",
+  /** @deprecated Use TAB_DATA and TAB_VIEW instead */
   TAB: "claude-tabs-v1",
+  /** Tab data store (localStorage) - shared tab history */
+  TAB_DATA: "claude-tab-data",
+  /** Tab view store (sessionStorage) - per-browser-tab UI state */
+  TAB_VIEW: "claude-tab-view",
   LLM: "alive-llm-settings-v2",
   DEBUG: "alive-debug-view-v6",
   FEATURE_FLAG: "feature-flag-overrides-v1",
@@ -361,6 +366,8 @@ export interface TestStorageStateOptions {
 export interface StorageEntry {
   key: string
   value: string
+  /** Storage type: localStorage (default) or sessionStorage */
+  storage?: "localStorage" | "sessionStorage"
 }
 
 /**
@@ -443,7 +450,49 @@ export function createTestStorageState(options: TestStorageStateOptions): Storag
 
   // LLM store - use defaults (apiKey empty, model default)
   // Message store - don't inject (conversation-specific)
-  // Tab store - don't inject (workspace-specific)
+
+  // Tab data store - inject a default tab for the workspace
+  // This is CRITICAL for E2E tests - without a tab, sessionReady is false
+  // and data-chat-ready will never become "true"
+  const tabId = crypto.randomUUID()
+  const tabGroupId = crypto.randomUUID()
+  entries.push({
+    key: STORE_STORAGE_KEYS.TAB_DATA,
+    value: JSON.stringify({
+      state: {
+        tabsByWorkspace: {
+          [options.workspace]: [
+            {
+              id: tabId,
+              tabGroupId: tabGroupId,
+              name: "Tab 1",
+              tabNumber: 1,
+              createdAt: Date.now(),
+            },
+          ],
+        },
+      },
+      version: 1,
+    }),
+  })
+
+  // Tab view store - set the active tab for this workspace
+  // Uses sessionStorage for per-browser-tab isolation
+  entries.push({
+    key: STORE_STORAGE_KEYS.TAB_VIEW,
+    value: JSON.stringify({
+      state: {
+        activeTabByWorkspace: {
+          [options.workspace]: tabId,
+        },
+        tabsExpandedByWorkspace: {
+          [options.workspace]: true,
+        },
+      },
+      version: 1,
+    }),
+    storage: "sessionStorage",
+  })
 
   return entries
 }

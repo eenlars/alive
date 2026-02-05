@@ -1,6 +1,6 @@
 const Index = () => {
   const currentDomain = window.location.hostname
-  const terminalUrl = `https://terminal.goalive.nl?domain=${currentDomain}`
+  const terminalUrl = `https://alive.best?domain=${currentDomain}`
 
   return (
     <div className="min-h-screen bg-white">

@@ -14,7 +14,7 @@
 │  └─ Example: User has 20 credits = $2.00 balance            │
 │                                                              │
 │  MODEL PRICING (Anthropic per MTok)                          │
-│  ├─ Opus 4.5:   $5 input,  $25 output                       │
+│  ├─ Opus 4.6:   $5 input,  $25 output                       │
 │  ├─ Sonnet 4.5: $3 input,  $15 output (≤200K tokens)        │
 │  │              $6 input,  $22.50 output (>200K tokens)     │
 │  └─ Haiku 4.5:  $1 input,  $5 output                        │
@@ -81,7 +81,7 @@
 
 | Model | Input | Output | Notes |
 |-------|-------|--------|-------|
-| **Opus 4.5** | $5 | $25 | Most intelligent |
+| **Opus 4.6** | $5 | $25 | Most intelligent |
 | **Sonnet 4.5** | $3 / $6 | $15 / $22.50 | Tiered at 200K tokens |
 | **Haiku 4.5** | $1 | $5 | Fastest, cheapest |
 
@@ -247,7 +247,7 @@ const credits = calculateCreditsToCharge(
 export const CREDITS_PER_USD = 10  // 1 USD = 10 credits
 
 export const MODEL_PRICING = {
-  "claude-opus-4-5-20250514": {
+  "claude-opus-4-6-20250514": {
     inputPerMTok: 5,
     outputPerMTok: 25,
   },

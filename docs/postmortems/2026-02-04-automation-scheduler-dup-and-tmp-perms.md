@@ -46,15 +46,15 @@ Earlier on Feb 2-3, the same automation also failed with a request-scope cookies
 
 ## Resolution (Implemented)
 1. **CronService production-only gate**
-   - Updated instrumentation to start CronService only when `BRIDGE_ENV=production`.
+   - Updated instrumentation to start CronService only when `STREAM_ENV=production`.
 
 2. **Workspace-owned temp directory**
    - Set `TMPDIR/TMP/TEMP` inside worker and child runner to a workspace-owned path.
    - This avoids `/tmp` permission issues and ensures temp files are owned by the site user.
 
 ## Follow-ups
-- Ensure systemd services set `BRIDGE_ENV=production` (prod) and `BRIDGE_ENV=staging` (staging).
-- Add a safety guard: disable scheduler unless `BRIDGE_ENV=production` is explicitly set.
+- Ensure systemd services set `STREAM_ENV=production` (prod) and `STREAM_ENV=staging` (staging).
+- Add a safety guard: disable scheduler unless `STREAM_ENV=production` is explicitly set.
 - Make automation inserts idempotent or detect duplicates.
 - Add monitoring for duplicate job execution (same jobId and runAtMs in close succession).
 - Audit background jobs for request-scoped `cookies()` usage.
