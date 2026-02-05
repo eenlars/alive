@@ -76,12 +76,12 @@ export async function getWorkspace({ host, body, requestId }: GetWorkspaceParams
         success: false,
         response: createErrorResponse(ErrorCodes.WORKTREE_INVALID_SLUG, 400, {
           requestId,
-          details: { reason: "Worktrees are not supported for the Bridge workspace." },
+          details: { reason: "Worktrees are not supported for the Alive workspace." },
         }),
       }
     }
 
-    console.log(`[Workspace ${requestId}] Resolving superadmin Bridge workspace path: ${SUPERADMIN.WORKSPACE_PATH}`)
+    console.log(`[Workspace ${requestId}] Resolving superadmin Alive workspace path: ${SUPERADMIN.WORKSPACE_PATH}`)
     return {
       success: true,
       workspace: SUPERADMIN.WORKSPACE_PATH,

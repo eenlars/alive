@@ -365,10 +365,10 @@ export async function POST(req: NextRequest) {
     logger.log("User isAdmin:", user.isAdmin)
     logger.log("User isSuperadmin:", user.isSuperadmin)
 
-    // Check if this is a superadmin accessing the Bridge workspace
+    // Check if this is a superadmin accessing the Alive workspace
     const isSuperadminWorkspace = resolvedWorkspaceName === SUPERADMIN.WORKSPACE_NAME && user.isSuperadmin
     if (isSuperadminWorkspace) {
-      logger.log("🔓 SUPERADMIN MODE: Bridge workspace access granted")
+      logger.log("🔓 SUPERADMIN MODE: Alive workspace access granted")
     }
 
     // Admins (and superadmins who inherit admin) get 2x maxTurns

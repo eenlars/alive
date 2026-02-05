@@ -530,7 +530,7 @@ function ChatPageContent() {
       return
     }
     if (isSuperadminWorkspace) {
-      toast.error("Worktrees are not available in the Bridge workspace.")
+      toast.error("Worktrees are not available in the Alive workspace.")
       return
     }
     setWorktreeModalOpen(true)
