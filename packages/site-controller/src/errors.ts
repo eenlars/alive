@@ -1,4 +1,5 @@
 export type DeploymentErrorCode =
+  | "CONFIGURATION_MISSING"
   | "DNS_VALIDATION_FAILED"
   | "INVALID_DOMAIN"
   | "PATH_TRAVERSAL"
@@ -21,6 +22,10 @@ export class DeploymentError extends Error {
     this.name = "DeploymentError"
     this.code = code
     this.statusCode = statusCode
+  }
+
+  static configurationMissing(message: string): DeploymentError {
+    return new DeploymentError("CONFIGURATION_MISSING", message, 500)
   }
 
   static dnsValidationFailed(message: string): DeploymentError {

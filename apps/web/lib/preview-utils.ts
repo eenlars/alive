@@ -2,9 +2,12 @@
  * Shared utilities for workspace URL generation
  */
 
-import { DOMAINS } from "@webalive/shared"
+// Use NEXT_PUBLIC_ env var for client-side access
+const PREVIEW_BASE = process.env.NEXT_PUBLIC_PREVIEW_BASE
 
-const PREVIEW_BASE = DOMAINS.PREVIEW_BASE
+if (!PREVIEW_BASE) {
+  throw new Error("NEXT_PUBLIC_PREVIEW_BASE environment variable is required")
+}
 
 /**
  * Convert workspace domain to preview subdomain label

@@ -10,10 +10,10 @@ export interface DeployConfig {
   templatePath: string
   /** Whether to rollback on failure (default: true) */
   rollbackOnFailure?: boolean
-  /** Server IP for DNS validation */
-  serverIp?: string
-  /** Wildcard domain to skip DNS validation */
-  wildcardDomain?: string
+  /** Server IP for DNS validation (required) */
+  serverIp: string
+  /** Wildcard domain for DNS validation (required) */
+  wildcardDomain: string
 }
 
 /**

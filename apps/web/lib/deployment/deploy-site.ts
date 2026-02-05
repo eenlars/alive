@@ -19,6 +19,16 @@ export async function deploySite(options: DeploySiteOptions): Promise<DeploySite
   const domain = options.domain.toLowerCase() // Always lowercase domain
   const templatePath = options.templatePath || PATHS.TEMPLATE_PATH
 
+  // Require serverIp and wildcardDomain - fail fast if not configured
+  const serverIp = DEFAULTS.SERVER_IP
+  const wildcardDomain = DEFAULTS.WILDCARD_DOMAIN
+  if (!serverIp) {
+    throw new Error("SERVER_IP not configured in server-config.json or environment")
+  }
+  if (!wildcardDomain) {
+    throw new Error("WILDCARD_DOMAIN not configured in server-config.json or environment")
+  }
+
   console.log(`[Deploy] Deploying: ${domain}`)
   console.log(`[Deploy] Email: ${options.email || "(none - will create new account)"}`)
   console.log(`[Deploy] Template: ${templatePath}`)
@@ -32,8 +42,8 @@ export async function deploySite(options: DeploySiteOptions): Promise<DeploySite
       domain,
       slug,
       templatePath,
-      serverIp: DEFAULTS.SERVER_IP,
-      wildcardDomain: DEFAULTS.WILDCARD_DOMAIN,
+      serverIp,
+      wildcardDomain,
       rollbackOnFailure: true, // Automatic rollback on failure
     })
 

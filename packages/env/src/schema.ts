@@ -113,6 +113,7 @@ export const clientSchema = {
   NEXT_PUBLIC_SUPABASE_URL: httpsUrl,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: jwt,
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  NEXT_PUBLIC_PREVIEW_BASE: z.string().min(1, "NEXT_PUBLIC_PREVIEW_BASE is required"),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
 } as const
@@ -169,6 +170,7 @@ export const runtimeEnv = {
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  NEXT_PUBLIC_PREVIEW_BASE: process.env.NEXT_PUBLIC_PREVIEW_BASE,
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 } as const

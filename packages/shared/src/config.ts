@@ -98,14 +98,15 @@ const SITES_ROOT = cfg(serverConfig.paths?.sitesRoot, "/srv/webalive/sites")
 const IMAGES_STORAGE = cfg(serverConfig.paths?.imagesStorage, "/srv/webalive/storage")
 
 // Domain config from environment (required)
-const MAIN_DOMAIN = getEnv("MAIN_DOMAIN") || serverConfig.domains?.main || ""
-const WILDCARD_DOMAIN = getEnv("WILDCARD_DOMAIN") || serverConfig.domains?.wildcard || ""
-const PREVIEW_BASE = getEnv("PREVIEW_BASE") || serverConfig.domains?.previewBase || `preview.terminal.${MAIN_DOMAIN}`
-const COOKIE_DOMAIN = getEnv("COOKIE_DOMAIN") || serverConfig.domains?.cookieDomain || `.terminal.${MAIN_DOMAIN}`
+// NOTE: These are SERVER-ONLY. For client-side code, use NEXT_PUBLIC_ env vars directly.
+// No fallbacks - these MUST be configured via env var or server-config.json
+const MAIN_DOMAIN = getEnv("MAIN_DOMAIN") || serverConfig.domains?.main
+const WILDCARD_DOMAIN = getEnv("WILDCARD_DOMAIN") || serverConfig.domains?.wildcard
+const PREVIEW_BASE = getEnv("PREVIEW_BASE") || serverConfig.domains?.previewBase
+const COOKIE_DOMAIN = getEnv("COOKIE_DOMAIN") || serverConfig.domains?.cookieDomain
 
-// Server IP: from env var, then server config, then empty (must be configured)
-const SERVER_IP_ENV = getEnv("SERVER_IP")
-const SERVER_IP = SERVER_IP_ENV || cfg(serverConfig.serverIp, "")
+// Server IP: from env var or server config - no fallback
+const SERVER_IP = getEnv("SERVER_IP") || serverConfig.serverIp
 
 // =============================================================================
 // Path Constants
