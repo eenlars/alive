@@ -196,6 +196,21 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       ;(window as any).PLAYWRIGHT_TEST = true
     }, storageEntries)
 
+    // Mock the all-workspaces API to include the test workspace
+    // Without this, the workspace store validates against real workspaces on disk
+    // and clears our injected test workspace to null
+    await page.route("**/api/auth/all-workspaces", async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          workspaces: {
+            [workerStorageState.orgId]: [workerStorageState.workspace],
+          },
+        }),
+      })
+    })
+
     await use(page)
   },
 })
