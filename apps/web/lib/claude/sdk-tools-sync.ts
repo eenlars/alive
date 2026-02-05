@@ -12,7 +12,8 @@ import type {
   AgentInput,
   AskUserQuestionInput,
   BashInput,
-  BashOutputInput,
+  ConfigInput,
+  TaskOutputInput,
   ExitPlanModeInput,
   FileEditInput,
   FileReadInput,
@@ -57,7 +58,8 @@ export const ALWAYS_DISALLOWED_SDK_TOOLS = STREAM_ALWAYS_DISALLOWED_SDK_TOOLS
 type SDKToolMap = {
   AgentInput: "Task"
   BashInput: "Bash"
-  BashOutputInput: "BashOutput"
+  ConfigInput: "Config"
+  TaskOutputInput: "TaskOutput"
   ExitPlanModeInput: "ExitPlanMode"
   FileEditInput: "Edit"
   FileReadInput: "Read"
@@ -81,7 +83,8 @@ type SDKToolMap = {
  */
 type _ValidateAgentInput = AgentInput extends ToolInputSchemas ? true : never
 type _ValidateBashInput = BashInput extends ToolInputSchemas ? true : never
-type _ValidateBashOutputInput = BashOutputInput extends ToolInputSchemas ? true : never
+type _ValidateConfigInput = ConfigInput extends ToolInputSchemas ? true : never
+type _ValidateTaskOutputInput = TaskOutputInput extends ToolInputSchemas ? true : never
 type _ValidateExitPlanModeInput = ExitPlanModeInput extends ToolInputSchemas ? true : never
 type _ValidateFileEditInput = FileEditInput extends ToolInputSchemas ? true : never
 type _ValidateFileReadInput = FileReadInput extends ToolInputSchemas ? true : never
@@ -101,7 +104,8 @@ type _ValidateAskUserQuestionInput = AskUserQuestionInput extends ToolInputSchem
 const _assertAllTypesExist: true = true as
   | _ValidateAgentInput
   | _ValidateBashInput
-  | _ValidateBashOutputInput
+  | _ValidateConfigInput
+  | _ValidateTaskOutputInput
   | _ValidateExitPlanModeInput
   | _ValidateFileEditInput
   | _ValidateFileReadInput
@@ -129,7 +133,8 @@ export type SDKToolName = SDKToolMap[keyof SDKToolMap]
 export const SDK_TOOL_NAMES = [
   "Task",
   "Bash",
-  "BashOutput",
+  "Config",
+  "TaskOutput",
   "ExitPlanMode",
   "Edit",
   "Read",

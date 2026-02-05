@@ -93,9 +93,9 @@ describe("SDK Tools Sync", () => {
       expect(isAllowed("Grep")).toBe(true)
     })
 
-    it("should allow shell execution tools (Bash/BashOutput)", () => {
+    it("should allow shell execution tools (Bash/TaskOutput)", () => {
       expect(isAllowed("Bash")).toBe(true)
-      expect(isAllowed("BashOutput")).toBe(true)
+      expect(isAllowed("TaskOutput")).toBe(true)
     })
 
     it("should disallow KillShell (admin-only)", () => {
