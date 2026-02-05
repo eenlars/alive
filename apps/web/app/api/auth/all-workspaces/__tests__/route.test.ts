@@ -5,6 +5,10 @@
  * - Authentication required
  * - Superadmin workspace filtered for non-superadmins
  * - Server-agnostic: only returns domains that exist on THIS server's filesystem
+ *
+ * NOTE: These are HTTP layer tests that mock internal dependencies.
+ * TODO: Consider adding integration tests with real Supabase test clients
+ * for end-to-end coverage of auth/CORS/database behavior.
  */
 
 import { SECURITY, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"

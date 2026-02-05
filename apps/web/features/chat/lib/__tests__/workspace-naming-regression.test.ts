@@ -10,18 +10,20 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { DOMAINS } from "@webalive/shared"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, type TestContext } from "vitest"
 import { resolveAndValidatePath } from "@/lib/utils/path-security"
 import { getWorkspace } from "../workspaceRetriever"
 
 /**
- * Helper to check if a test site exists and optionally skip the test
+ * Helper to skip test if fixture path doesn't exist.
+ * Uses Vitest's ctx.skip() for proper reporting (shows as "skipped" not "passed").
  */
-function skipIfMissing(path: string, extraMessage?: string): boolean {
-  if (existsSync(path)) return false
-  console.warn(`⚠️  Test site missing: ${path}`)
-  if (extraMessage) console.warn(extraMessage)
-  return true
+function skipIfMissing(ctx: TestContext, path: string, extraMessage?: string): void {
+  if (!existsSync(path)) {
+    console.warn(`⚠️  Test site missing: ${path}`)
+    if (extraMessage) console.warn(extraMessage)
+    ctx.skip()
+  }
 }
 
 describe("Workspace Naming Bug - Regression Test", () => {
@@ -31,12 +33,12 @@ describe("Workspace Naming Bug - Regression Test", () => {
    *
    * This test fails if someone reverts to the old behavior.
    */
-  it("CRITICAL: finds evermore.alive.best with DOTS in directory name", async () => {
+  it("CRITICAL: finds evermore.alive.best with DOTS in directory name", async ctx => {
     // Verify the actual directory exists with DOTS
     const dotsPath = "/srv/webalive/sites/evermore.alive.best/user"
     const hyphensPath = "/srv/webalive/sites/evermore-alive-best/user"
 
-    if (skipIfMissing(dotsPath, "This test requires evermore.alive.best to exist")) return
+    skipIfMissing(ctx, dotsPath, "This test requires evermore.alive.best to exist")
 
     // Validate path is within workspace
     const validation = resolveAndValidatePath("evermore.alive.best/user", "/srv/webalive/sites")
@@ -58,10 +60,10 @@ describe("Workspace Naming Bug - Regression Test", () => {
     }
   })
 
-  it("CRITICAL: still supports legacy sites with HYPHENS", async () => {
+  it("CRITICAL: still supports legacy sites with HYPHENS", async ctx => {
     const hyphensPath = "/srv/webalive/sites/demo-goalive-nl/user"
 
-    if (skipIfMissing(hyphensPath)) return
+    skipIfMissing(ctx, hyphensPath)
 
     // Validate path is within workspace
     const validation = resolveAndValidatePath("demo-goalive-nl/user", "/srv/webalive/sites")

@@ -152,7 +152,8 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
     const candidateFullPath = path.join("/srv", normalized)
 
     // Validate path is within workspace
-    const validation = resolveAndValidatePath(normalized, "/srv/webalive/sites")
+    // Use candidate + "/user" (not normalized which includes "webalive/sites/" prefix)
+    const validation = resolveAndValidatePath(candidate + "/user", "/srv/webalive/sites")
     if (!validation.valid) {
       console.warn(`[Workspace ${requestId}] Invalid path validation: ${validation.error}`)
       continue
