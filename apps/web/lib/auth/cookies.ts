@@ -39,10 +39,9 @@ function isDeployedServer(): boolean {
  * Returns the domain with a leading dot for subdomain sharing.
  *
  * Examples:
- * - "app.sonnno.tech" -> ".sonnno.tech"
- * - "terminal.goalive.nl" -> ".goalive.nl"
- * - "dev.terminal.goalive.nl" -> ".goalive.nl"
- * - "alive.best" -> ".alive.best"
+ * - "app.example.com" -> ".example.com"
+ * - "app.alive.best" -> ".alive.best"
+ * - "dev.app.alive.best" -> ".alive.best"
  * - "localhost:3000" -> undefined (no domain for localhost)
  *
  * @param host - The request host (e.g., "app.example.com" or "app.example.com:3000")

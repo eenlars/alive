@@ -26,6 +26,14 @@ export const anthropicApiKey = z
   .refine(key => key.startsWith("sk-ant-"), "Must be valid Anthropic API key")
 
 /**
+ * Custom validators for domain configuration
+ */
+export const domainName = z
+  .string()
+  .min(1)
+  .regex(/^[a-z0-9.-]+$/i, "Must be a valid domain name")
+
+/**
  * Server-side environment variables schema
  * These are NEVER exposed to the client
  */
@@ -40,6 +48,17 @@ export const serverSchema = {
   SUPABASE_SERVICE_ROLE_KEY: jwt.optional(),
   SUPABASE_ACCESS_TOKEN: z.string().optional(),
   SUPABASE_PROJECT_ID: z.string().optional(),
+
+  // Domain Configuration (REQUIRED - no fallbacks, fails fast at startup)
+  MAIN_DOMAIN: domainName,
+  WILDCARD_DOMAIN: domainName,
+  PREVIEW_BASE: domainName,
+  COOKIE_DOMAIN: domainName,
+
+  // Stream URLs (REQUIRED - no fallbacks, fails fast at startup)
+  STREAM_PROD_URL: httpsUrl,
+  STREAM_STAGING_URL: httpsUrl,
+  STREAM_DEV_URL: httpsUrl,
 
   // Stream configuration
   WORKSPACE_BASE: z.string().default("/srv/webalive/sites"),
@@ -135,6 +154,13 @@ export const runtimeEnv = {
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   SUPABASE_ACCESS_TOKEN: process.env.SUPABASE_ACCESS_TOKEN,
   SUPABASE_PROJECT_ID: process.env.SUPABASE_PROJECT_ID,
+  MAIN_DOMAIN: process.env.MAIN_DOMAIN,
+  WILDCARD_DOMAIN: process.env.WILDCARD_DOMAIN,
+  PREVIEW_BASE: process.env.PREVIEW_BASE,
+  COOKIE_DOMAIN: process.env.COOKIE_DOMAIN,
+  STREAM_PROD_URL: process.env.STREAM_PROD_URL,
+  STREAM_STAGING_URL: process.env.STREAM_STAGING_URL,
+  STREAM_DEV_URL: process.env.STREAM_DEV_URL,
   WORKSPACE_BASE: process.env.WORKSPACE_BASE,
   ALIVE_PASSCODE: process.env.ALIVE_PASSCODE,
   STREAM_ENV: process.env.STREAM_ENV,

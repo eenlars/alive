@@ -121,6 +121,11 @@ export async function isWorkspaceAuthenticated(workspace: string): Promise<boole
     return true
   }
 
+  // Superadmins can access any workspace
+  if (user.isSuperadmin) {
+    return true
+  }
+
   // Get user's org memberships
   const iam = await createIamClient("service")
   const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", user.id)
@@ -273,6 +278,12 @@ export async function verifyWorkspaceAccess(
       return null
     }
     console.log(`${logPrefix} ✅ Superadmin access granted: ${user.email}`)
+    return workspace
+  }
+
+  // Superadmins can access ANY workspace (for support/debugging)
+  if (user.isSuperadmin) {
+    console.log(`${logPrefix} ✅ Superadmin accessing workspace: ${workspace} (user: ${user.email})`)
     return workspace
   }
 

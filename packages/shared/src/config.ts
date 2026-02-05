@@ -97,16 +97,33 @@ const STREAM_ROOT = cfg(serverConfig.paths?.streamRoot, "/root/webalive/claude-b
 const SITES_ROOT = cfg(serverConfig.paths?.sitesRoot, "/srv/webalive/sites")
 const IMAGES_STORAGE = cfg(serverConfig.paths?.imagesStorage, "/srv/webalive/storage")
 
-// Domain config from environment (required)
-// NOTE: These are SERVER-ONLY. For client-side code, use NEXT_PUBLIC_ env vars directly.
-// No fallbacks - these MUST be configured via env var or server-config.json
-const MAIN_DOMAIN = getEnv("MAIN_DOMAIN") || serverConfig.domains?.main
-const WILDCARD_DOMAIN = getEnv("WILDCARD_DOMAIN") || serverConfig.domains?.wildcard
-const PREVIEW_BASE = getEnv("PREVIEW_BASE") || serverConfig.domains?.previewBase
-const COOKIE_DOMAIN = getEnv("COOKIE_DOMAIN") || serverConfig.domains?.cookieDomain
+// Check if running in test environment
+const isTestEnv =
+  !isBrowser && typeof process !== "undefined" && (process.env.VITEST === "true" || process.env.NODE_ENV === "test")
 
-// Server IP: from env var or server config - no fallback
-const SERVER_IP = getEnv("SERVER_IP") || serverConfig.serverIp
+// Helper to get required config - throws if missing on server (NO FALLBACKS)
+// In browser or test env, returns empty string
+function requireConfig(envKey: string, serverConfigValue: string | undefined, description: string): string {
+  const value = getEnv(envKey) || serverConfigValue
+  if (!value) {
+    // Only throw on server runtime - browser and tests don't have access to these env vars
+    if (!isBrowser && !isTestEnv) {
+      throw new Error(`${description} is required. Set ${envKey} env var or configure in server-config.json`)
+    }
+    return ""
+  }
+  return value
+}
+
+// Domain config from environment (REQUIRED - fails fast if missing)
+// NOTE: These are SERVER-ONLY. For client-side code, use NEXT_PUBLIC_ env vars directly.
+const MAIN_DOMAIN = requireConfig("MAIN_DOMAIN", serverConfig.domains?.main, "Main domain")
+const WILDCARD_DOMAIN = requireConfig("WILDCARD_DOMAIN", serverConfig.domains?.wildcard, "Wildcard domain")
+const PREVIEW_BASE = requireConfig("PREVIEW_BASE", serverConfig.domains?.previewBase, "Preview base domain")
+const COOKIE_DOMAIN = requireConfig("COOKIE_DOMAIN", serverConfig.domains?.cookieDomain, "Cookie domain")
+
+// Server IP: from env var or server config (REQUIRED)
+const SERVER_IP = requireConfig("SERVER_IP", serverConfig.serverIp, "Server IP")
 
 // =============================================================================
 // Path Constants
@@ -160,10 +177,13 @@ export const PATHS = {
 // Domain Constants
 // =============================================================================
 
-// Allow explicit URL overrides for environments that don't match the pattern
-const STREAM_PROD_URL = getEnv("STREAM_PROD_URL") || `https://app.${WILDCARD_DOMAIN}`
-const STREAM_STAGING_URL = getEnv("STREAM_STAGING_URL") || `https://staging.${WILDCARD_DOMAIN}`
-const STREAM_DEV_URL = getEnv("STREAM_DEV_URL") || `https://dev.${WILDCARD_DOMAIN}`
+// Stream URLs (with fallbacks for local/test environments)
+// In production/staging/dev, these should be explicitly set via env vars or server-config
+// For local testing, they fall back to derived URLs from WILDCARD_DOMAIN
+const STREAM_PROD_URL = getEnv("STREAM_PROD_URL") || (WILDCARD_DOMAIN && `https://app.${WILDCARD_DOMAIN}`) || ""
+const STREAM_STAGING_URL =
+  getEnv("STREAM_STAGING_URL") || (WILDCARD_DOMAIN && `https://staging.${WILDCARD_DOMAIN}`) || ""
+const STREAM_DEV_URL = getEnv("STREAM_DEV_URL") || (WILDCARD_DOMAIN && `https://dev.${WILDCARD_DOMAIN}`) || ""
 
 // Extract hostnames from URLs using URL API for proper normalization
 const extractHost = (url: string): string => {
@@ -213,11 +233,11 @@ export const DOMAINS = {
   /** Dev domain suffix */
   DEV_SUFFIX: `.dev.${MAIN_DOMAIN}`,
 
-  /** Preview subdomain base (e.g., windowsxp-alive-best.preview.terminal.goalive.nl) */
+  /** Preview subdomain base (e.g., workspace-label.preview.alive.best) */
   PREVIEW_BASE,
 
-  /** Authentication forward endpoint for previews */
-  PREVIEW_AUTH: `https://dev.terminal.${MAIN_DOMAIN}/api/auth/preview-guard`,
+  /** Authentication forward endpoint for previews (uses dev server URL) */
+  PREVIEW_AUTH: STREAM_DEV_URL ? `${STREAM_DEV_URL}/api/auth/preview-guard` : "",
 
   /** Cookie domain for cross-subdomain sharing (leading dot allows *.terminal.DOMAIN) */
   COOKIE_DOMAIN,

@@ -34,6 +34,33 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    const app = await createAppClient("service")
+
+    // Superadmins see ALL workspaces on this server (for support/debugging)
+    if (user.isSuperadmin) {
+      const { data: allDomains } = await app.from("domains").select("hostname,org_id")
+      const workspacesByOrg: Record<string, string[]> = {}
+
+      if (allDomains) {
+        for (const domain of allDomains) {
+          if (!domain.hostname) continue
+
+          // Only include domains that exist on this server
+          if (!domainExistsOnThisServer(domain.hostname)) continue
+
+          const orgKey = domain.org_id || "__unassigned__"
+          if (!workspacesByOrg[orgKey]) {
+            workspacesByOrg[orgKey] = []
+          }
+          workspacesByOrg[orgKey].push(domain.hostname)
+        }
+      }
+
+      return createCorsSuccessResponse(origin, {
+        workspaces: workspacesByOrg,
+      })
+    }
+
     // Get user's org memberships
     const iam = await createIamClient("service")
     const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", user.id)
@@ -47,7 +74,6 @@ export async function GET(req: NextRequest) {
     const orgIds = memberships.map(m => m.org_id)
 
     // Get all domains for these orgs
-    const app = await createAppClient("service")
     const { data: domains } = await app.from("domains").select("hostname,org_id").in("org_id", orgIds)
 
     // Group workspaces by org_id

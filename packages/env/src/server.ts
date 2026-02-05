@@ -157,5 +157,134 @@ export function getSuperadminEmails(): readonly string[] {
     .filter(Boolean)
 }
 
+/**
+ * Get validated main domain
+ *
+ * - Required in all environments (no fallback)
+ * - Throws on startup if misconfigured
+ *
+ * @throws Error if MAIN_DOMAIN is not configured
+ */
+export function getMainDomain(): string {
+  const domain = env.MAIN_DOMAIN
+
+  if (!domain) {
+    throw new Error("MAIN_DOMAIN is required. Set the MAIN_DOMAIN environment variable.")
+  }
+
+  return domain
+}
+
+/**
+ * Get validated wildcard domain
+ *
+ * - Required in all environments (no fallback)
+ * - Throws on startup if misconfigured
+ *
+ * @throws Error if WILDCARD_DOMAIN is not configured
+ */
+export function getWildcardDomain(): string {
+  const domain = env.WILDCARD_DOMAIN
+
+  if (!domain) {
+    throw new Error("WILDCARD_DOMAIN is required. Set the WILDCARD_DOMAIN environment variable.")
+  }
+
+  return domain
+}
+
+/**
+ * Get validated preview base domain
+ *
+ * - Required in all environments (no fallback)
+ * - Throws on startup if misconfigured
+ *
+ * @throws Error if PREVIEW_BASE is not configured
+ */
+export function getPreviewBase(): string {
+  const domain = env.PREVIEW_BASE
+
+  if (!domain) {
+    throw new Error("PREVIEW_BASE is required. Set the PREVIEW_BASE environment variable.")
+  }
+
+  return domain
+}
+
+/**
+ * Get validated cookie domain
+ *
+ * - Required in all environments (no fallback)
+ * - Throws on startup if misconfigured
+ *
+ * @throws Error if COOKIE_DOMAIN is not configured
+ */
+export function getCookieDomain(): string {
+  const domain = env.COOKIE_DOMAIN
+
+  if (!domain) {
+    throw new Error("COOKIE_DOMAIN is required. Set the COOKIE_DOMAIN environment variable.")
+  }
+
+  return domain
+}
+
+/**
+ * Get validated production stream URL
+ *
+ * - Required in all environments (no fallback)
+ * - Must be HTTPS
+ * - Throws on startup if misconfigured
+ *
+ * @throws Error if STREAM_PROD_URL is not configured
+ */
+export function getStreamProdUrl(): string {
+  const url = env.STREAM_PROD_URL
+
+  if (!url) {
+    throw new Error("STREAM_PROD_URL is required. Set the STREAM_PROD_URL environment variable.")
+  }
+
+  return url
+}
+
+/**
+ * Get validated staging stream URL
+ *
+ * - Required in all environments (no fallback)
+ * - Must be HTTPS
+ * - Throws on startup if misconfigured
+ *
+ * @throws Error if STREAM_STAGING_URL is not configured
+ */
+export function getStreamStagingUrl(): string {
+  const url = env.STREAM_STAGING_URL
+
+  if (!url) {
+    throw new Error("STREAM_STAGING_URL is required. Set the STREAM_STAGING_URL environment variable.")
+  }
+
+  return url
+}
+
+/**
+ * Get validated development stream URL
+ *
+ * - Required in all environments (no fallback)
+ * - Must be HTTPS
+ * - Throws on startup if misconfigured
+ *
+ * @throws Error if STREAM_DEV_URL is not configured
+ */
+export function getStreamDevUrl(): string {
+  const url = env.STREAM_DEV_URL
+
+  if (!url) {
+    throw new Error("STREAM_DEV_URL is required. Set the STREAM_DEV_URL environment variable.")
+  }
+
+  return url
+}
+
 // Re-export schema types for convenience
 export type { serverSchema, clientSchema } from "./schema"

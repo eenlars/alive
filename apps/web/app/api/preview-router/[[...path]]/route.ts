@@ -1,7 +1,7 @@
 /**
  * Preview Router - Dynamic proxy for preview subdomains
  *
- * Handles all requests to *.preview.terminal.goalive.nl by:
+ * Handles all requests to *.PREVIEW_BASE (e.g., *.preview.alive.best) by:
  * 1. Extracting the subdomain (e.g., windowsxp-alive-best)
  * 2. Converting to hostname (e.g., windowsxp.alive.best)
  * 3. Looking up port from Supabase app.domains table
@@ -9,6 +9,7 @@
  *
  * This enables any new site to work with preview immediately,
  * without requiring manual Caddy configuration per site.
+ * PREVIEW_BASE is dynamically configured via server-config.json.
  */
 
 import { DOMAINS, PREVIEW_MESSAGES } from "@webalive/shared"

@@ -3,10 +3,10 @@ import { join } from "node:path"
 import tsconfigPaths from "vite-tsconfig-paths"
 import { defineConfig, type Plugin, type ViteUserConfig } from "vitest/config"
 
-// Load .env file manually for tests
+// Load .env.test file manually for tests
 function loadEnvFile() {
   try {
-    const envPath = join(process.cwd(), ".env")
+    const envPath = join(process.cwd(), ".env.test")
     const envContent = readFileSync(envPath, "utf-8")
     const envVars: Record<string, string> = {}
 

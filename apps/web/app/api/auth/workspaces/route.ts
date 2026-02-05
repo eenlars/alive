@@ -31,6 +31,20 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    const app = await createAppClient("service")
+
+    // Superadmins see ALL workspaces on this server (for support/debugging)
+    if (user.isSuperadmin) {
+      const { data: allDomains } = await app.from("domains").select("hostname, is_test_env")
+      const realDomains = allDomains?.filter(d => !d.is_test_env).map(d => d.hostname) || []
+      const testDomains = allDomains?.filter(d => d.is_test_env).map(d => d.hostname) || []
+      const workspaces = [...filterLocalDomains(realDomains), ...testDomains]
+
+      return createCorsSuccessResponse(origin, {
+        workspaces,
+      })
+    }
+
     // Get user's org memberships
     const iam = await createIamClient("service")
     const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", user.id)
@@ -52,7 +66,6 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all domains for these orgs (include is_test_env to handle test domains)
-    const app = await createAppClient("service")
     const { data: domains } = await app.from("domains").select("hostname, is_test_env").in("org_id", orgIds)
 
     // Filter to only include domains that exist on THIS server

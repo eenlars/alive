@@ -44,9 +44,9 @@ export function getSiteUrl(workspace: string, path = "/"): string {
  * Get the preview URL (for iframe embedding with auth bypass)
  *
  * @example
- * getPreviewUrl("protino.alive.best") // "https://protino-alive-best.preview.terminal.goalive.nl/"
- * getPreviewUrl("protino.alive.best", { path: "/about" }) // "https://protino-alive-best.preview.../about"
- * getPreviewUrl("protino.alive.best", { path: "/", token: "abc" }) // "https://protino-alive-best.preview.../?preview_token=abc"
+ * getPreviewUrl("protino.alive.best") // "https://protino-alive-best.preview.alive.best/"
+ * getPreviewUrl("protino.alive.best", { path: "/about" }) // "https://protino-alive-best.preview.alive.best/about"
+ * getPreviewUrl("protino.alive.best", { path: "/", token: "abc" }) // "https://protino-alive-best.preview.alive.best/?preview_token=abc"
  */
 export function getPreviewUrl(workspace: string, options?: { path?: string; token?: string }): string {
   const label = domainToPreviewLabel(workspace)

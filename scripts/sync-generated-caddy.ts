@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
+import { isPathWithinWorkspace } from "@webalive/shared"
 
 const REPO_ROOT = "/root/webalive/claude-bridge"
 const ALLOWED_SRC_DIRS = ["/var/lib/claude-bridge", "/var/lib/claude-stream"]
@@ -8,13 +9,12 @@ const SRC = process.env.CADDY_SITES_SRC || "/var/lib/claude-bridge/generated/Cad
 const DEST = process.env.CADDY_SITES_DEST || resolve(REPO_ROOT, "ops/caddy/generated/Caddyfile.sites")
 const ENV_PATH = resolve(REPO_ROOT, "packages/shared/environments.json")
 
-// Validate paths to prevent path traversal
-function validatePath(path: string, allowedPrefixes: string[], label: string): void {
+// Validate paths using shared security helper to prevent path traversal
+function validatePath(path: string, allowedRoots: string[], label: string): void {
   const resolved = resolve(path)
-  const isAllowed = allowedPrefixes.some(prefix => resolved.startsWith(prefix))
+  const isAllowed = allowedRoots.some((root) => isPathWithinWorkspace(resolved, root))
   if (!isAllowed) {
-    console.error(`Error: ${label} path "${resolved}" is not within allowed directories: ${allowedPrefixes.join(", ")}`)
-    process.exit(1)
+    throw new Error(`${label} path "${resolved}" is outside allowed directories: ${allowedRoots.join(", ")}`)
   }
 }
 
