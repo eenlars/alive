@@ -5,6 +5,7 @@
       "name": "claude-bridge-mono",
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.1.53",
+        "@flowglad/nextjs": "^0.18.0",
         "@tanstack/react-query": "^5.90.20",
         "@tanstack/react-query-devtools": "^5.91.3",
         "@types/better-sqlite3": "^7.6.13",
@@ -102,7 +103,7 @@
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.1.25",
         "@anthropic-ai/sdk": "^0.67.0",
-        "@flowglad/nextjs": "^0.15.1",
+        "@flowglad/nextjs": "^0.18.0",
         "@googleapis/gmail": "^16.1.1",
         "@hookform/resolvers": "^3.3.4",
         "@radix-ui/react-dialog": "^1.1.15",
@@ -458,15 +459,15 @@
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.10", "", {}, "sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ=="],
 
-    "@flowglad/nextjs": ["@flowglad/nextjs@0.15.1", "", { "dependencies": { "@flowglad/node": "0.24.0", "@flowglad/react": "0.15.1", "@flowglad/server": "0.15.1", "@flowglad/shared": "0.15.1", "@vercel/mcp-adapter": "0.11.1", "zod": "4.1.5" }, "peerDependencies": { "next": "^14.0.3 || ^15.0.0 || ^16.0.0", "react": "^19.0.0 || ^18.0.0" } }, "sha512-4iMFirheM6CaINtSm9hDlZu02AclZcQdJsZIv2Vq+oVFDFMIHZaFG5IZVVrmm2qyfDrPbNujQQBrw09onfIqng=="],
+    "@flowglad/nextjs": ["@flowglad/nextjs@0.18.0", "", { "dependencies": { "@flowglad/node": "0.29.0", "@flowglad/react": "0.18.0", "@flowglad/server": "0.18.0", "@flowglad/shared": "0.18.0", "@vercel/mcp-adapter": "0.11.1", "zod": "4.1.5" }, "peerDependencies": { "better-auth": "^1.3.17", "next": "^14.0.3 || ^15.0.0 || ^16.0.0", "react": "^19.0.0 || ^18.0.0" }, "optionalPeers": ["better-auth"] }, "sha512-FjXj7K8U1IHtbj27AUR94KspERLoaPb2Y/5ufE0x6CdbfncyVMHPMYy5L6RCgcFAFG8GkfgaieQAMbL4PO33hg=="],
 
-    "@flowglad/node": ["@flowglad/node@0.24.0", "", {}, "sha512-P5UhUaYNAGuCT9hLTQC34o+az4hsfMSuSGpYzg9bPQIrRnTkWvJfmyOmE+cGSlaGZCdLNnEwxCwDQr+lVeOyRw=="],
+    "@flowglad/node": ["@flowglad/node@0.29.0", "", {}, "sha512-kQcOOUHGDLm3UX/GMBlknjUzLMlJuwupE63xDOzQYZmEWRgDWMPqIt14sm1BXzWFTXwkO+TXgZ2qOZandNHA2A=="],
 
-    "@flowglad/react": ["@flowglad/react@0.15.1", "", { "dependencies": { "@flowglad/node": "0.24.0", "@flowglad/shared": "0.15.1", "@tanstack/react-query": "5.66.0", "clsx": "2.1.1", "date-fns": "4.1.0", "tailwind-merge": "3.0.2", "zod": "4.1.5" }, "peerDependencies": { "react": "^19.0.0 || ^18.0.0" } }, "sha512-g5FAdtnl9q2bepcXfme3rV8xf6dnQRWVEPjcrZBOhF7fqkGxe2J2KS7I9JJwllSenW7NSiPK5n/efoTGYYPAxg=="],
+    "@flowglad/react": ["@flowglad/react@0.18.0", "", { "dependencies": { "@flowglad/node": "0.29.0", "@flowglad/shared": "0.18.0", "@tanstack/react-query": "5.66.0", "clsx": "2.1.1", "date-fns": "4.1.0", "tailwind-merge": "3.0.2", "zod": "4.1.5" }, "peerDependencies": { "react": "^19.0.0 || ^18.0.0" } }, "sha512-TomAcxjRXePMIiqtG+I3aLldVCWPqMVrVEZVP5Cc7NzA+sARb7XRETVuZ47FD5AG/s/VHzWAJZyjttdGHEx7HA=="],
 
-    "@flowglad/server": ["@flowglad/server@0.15.1", "", { "dependencies": { "@flowglad/node": "0.24.0", "@flowglad/shared": "0.15.1", "zod": "4.1.5" } }, "sha512-WPM19f49bl43b959jT+oESBRt6zC50OnVQz5vNXMIpS20FbHPEeMd2i1xHQHfukVEyhETetj/z8RyWPDWZrxQg=="],
+    "@flowglad/server": ["@flowglad/server@0.18.0", "", { "dependencies": { "@flowglad/node": "0.29.0", "@flowglad/shared": "0.18.0", "nanoid": "^3.3.11", "zod": "4.1.5" }, "peerDependencies": { "better-auth": "^1.3.17", "express": "^4.0.0" }, "optionalPeers": ["better-auth", "express"] }, "sha512-LmYiK3B26Tqp68D/MUlDZFxjh2EjCs7Uu3o297TlUa+csUQrKPcnqZmJx1SFbaL1BFRTk2ol2PVys02xGRSJqw=="],
 
-    "@flowglad/shared": ["@flowglad/shared@0.15.1", "", { "dependencies": { "@flowglad/node": "0.24.0", "date-fns": "4.1.0", "zod": "4.1.5" } }, "sha512-P4qG++5VG37tXEvNP5k6AeTLM4RgPuDE22OQsXqxyKhzO1uPZU7DTkWE1gW4jtt8X/Fqfa5eVorEgn6VfJMedw=="],
+    "@flowglad/shared": ["@flowglad/shared@0.18.0", "", { "dependencies": { "@flowglad/node": "0.29.0", "date-fns": "4.1.0", "zod": "4.1.5" } }, "sha512-DDRYfiRuUTEKFB/7OEnq6GXYJIvQyCV8X6KPMkm6W4h+Lk6bdiuZ0Dbuky8+2HXZ78GsjbCSLBAevfcxGsE0mw=="],
 
     "@googleapis/gmail": ["@googleapis/gmail@16.1.1", "", { "dependencies": { "googleapis-common": "^8.0.0" } }, "sha512-XFMMJvhpEoKzwBOHYrcbBu/jHS+8Aer5YmbMUsrZeJgXAbTD6K7K6+/1RJczXIqDoBzVDdECm4WtjAcvEHPLVg=="],
 

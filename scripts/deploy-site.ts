@@ -122,8 +122,8 @@ async function main() {
   let domain = domainArg
 
   if (!domain.includes(".")) {
-    // Simple subdomain: mysite → mysite.alive.best
-    domain = `${domain}.alive.best`
+    // Simple subdomain: mysite → mysite.${DEFAULTS.WILDCARD_DOMAIN}
+    domain = `${domain}.${DEFAULTS.WILDCARD_DOMAIN}`
   }
 
   // Slug is domain with dots replaced by dashes (e.g., mysite-alive-best)

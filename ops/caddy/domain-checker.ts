@@ -1,8 +1,18 @@
 // Simple domain checker for Caddy on-demand TLS
-// Returns 200 for *.alive.best domains, 403 otherwise
+// Returns 200 for domains matching configured patterns, 403 otherwise
 // Run with: bun run /root/alive/ops/caddy/domain-checker.ts
 
-const ALLOWED_PATTERNS = [/\.alive\.best$/, /\.goalive\.nl$/]
+import { DOMAINS } from "@webalive/shared"
+
+// Build allowed patterns from config
+const ALLOWED_PATTERNS: RegExp[] = []
+
+if (DOMAINS.WILDCARD) {
+  ALLOWED_PATTERNS.push(new RegExp(`\\.${DOMAINS.WILDCARD.replace(/\./g, "\\.")}$`))
+}
+if (DOMAINS.MAIN) {
+  ALLOWED_PATTERNS.push(new RegExp(`\\.${DOMAINS.MAIN.replace(/\./g, "\\.")}$`))
+}
 
 const server = Bun.serve({
   port: 9999,
@@ -27,3 +37,4 @@ const server = Bun.serve({
 })
 
 console.log(`Domain checker running on port ${server.port}`)
+console.log(`Allowed patterns: ${ALLOWED_PATTERNS.map(p => p.source).join(", ")}`)

@@ -8,6 +8,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
+import { DOMAINS } from "@webalive/shared"
 import { WebsiteConfig, type WebsiteConfigData, type WebsiteConfigResult } from "@/components/ai/WebsiteConfig"
 import type { ToolResultRendererProps } from "@/lib/tools/tool-registry"
 
@@ -53,7 +54,7 @@ export function validateWebsiteConfig(data: unknown): data is WebsiteConfigToolD
  */
 function formatResultForSubmission(result: WebsiteConfigResult): string {
   const lines: string[] = ["Here's my website configuration:", ""]
-  lines.push(`**Domain:** ${result.slug}.alive.best`)
+  lines.push(`**Domain:** ${result.slug}.${DOMAINS.WILDCARD}`)
   lines.push(`**Template:** ${result.templateId}`)
   if (result.siteIdeas) {
     lines.push(`**Description:** ${result.siteIdeas}`)
@@ -103,7 +104,9 @@ export function WebsiteConfigOutput({ data, onSubmitAnswer }: WebsiteConfigOutpu
           <div className="mt-2 space-y-1">
             <div className="text-xs">
               <span className="text-black/40 dark:text-white/40">Domain: </span>
-              <span className="text-black/70 dark:text-white/70">{submittedResult.slug}.alive.best</span>
+              <span className="text-black/70 dark:text-white/70">
+                {submittedResult.slug}.${DOMAINS.WILDCARD}
+              </span>
             </div>
             <div className="text-xs">
               <span className="text-black/40 dark:text-white/40">Template: </span>

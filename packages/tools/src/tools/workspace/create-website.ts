@@ -56,7 +56,7 @@ export const createWebsiteParamsSchema = {
       message: "This slug is reserved. Please choose a different name.",
     })
     .describe(
-      "The subdomain name for the website (e.g., 'my-bakery' creates my-bakery.alive.best). Must be 3-20 characters, lowercase letters, numbers, and hyphens only.",
+      "`The subdomain name for the website (e.g., 'my-bakery' creates my-bakery.${DEFAULTS.WILDCARD_DOMAIN}). Must be 3-20 characters, lowercase letters, numbers, and hyphens only.`",
     ),
   siteIdeas: z
     .string()
@@ -122,7 +122,7 @@ export async function createWebsite(params: CreateWebsiteParams): Promise<ToolRe
 
     // Enhance success message with useful info
     if (!result.isError) {
-      const domain = `${slug}.alive.best`
+      const domain = `${slug}.${DEFAULTS.WILDCARD_DOMAIN}`
       return {
         content: [
           {
@@ -150,7 +150,7 @@ The site is now live and ready to edit. You can start customizing it right away.
 const TOOL_DESCRIPTION = `Create a new website with automatic deployment.
 
 Creates a fully configured website with:
-- Custom subdomain (e.g., my-site.alive.best)
+- Custom subdomain (e.g., my-site.${DEFAULTS.WILDCARD_DOMAIN})
 - SSL certificate (automatic HTTPS)
 - Dev server with hot reload
 - Production build capability

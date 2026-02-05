@@ -74,12 +74,19 @@ else
 
     # Read environments from environments.json
     ENV_CONFIG_PATH="${BRIDGE_ROOT}/packages/shared/environments.json"
+    SERVER_CONFIG_PATH="/var/lib/alive/server-config.json"
+
     if [[ -f "$ENV_CONFIG_PATH" ]] && command -v jq &> /dev/null; then
         log_info "Reading environments from: $ENV_CONFIG_PATH"
         # Extract environments as JSON array: [{"key":"production","port":9000,"previewBase":"preview.terminal.goalive.nl","domain":"terminal.goalive.nl"},...]
         ENVIRONMENTS=$(jq -c '[.environments | to_entries[] | {key: .value.key, port: .value.port, previewBase: .value.previewBase, domain: .value.domain}]' "$ENV_CONFIG_PATH")
-        # Build frame ancestors from all environment domains
-        FRAME_ANCESTORS=$(jq -r '[.environments[].domain] | map("https://" + .) | join(" ")' "$ENV_CONFIG_PATH")" https://app.alive.best"
+
+        # Build frame ancestors: prefer server-config.json, fallback to environments.json domains
+        if [[ -f "$SERVER_CONFIG_PATH" ]]; then
+            FRAME_ANCESTORS=$(jq -r '.domains.frameAncestors | join(" ")' "$SERVER_CONFIG_PATH")
+        else
+            FRAME_ANCESTORS=$(jq -r '[.environments[].domain] | map("https://" + .) | join(" ")' "$ENV_CONFIG_PATH")
+        fi
     else
         # jq is required for parsing environments - check if it's available
         if ! command -v jq &> /dev/null; then
@@ -94,7 +101,12 @@ else
 [{"key":"default","port":${AUTH_PORT},"previewBase":"${PREVIEW_BASE}","domain":"terminal.goalive.nl"}]
 EOF
 )
-        FRAME_ANCESTORS="${FRAME_ANCESTORS:-https://dev.terminal.goalive.nl https://staging.terminal.goalive.nl https://terminal.goalive.nl https://app.alive.best}"
+        # Read from server config or use env var
+        if [[ -f "$SERVER_CONFIG_PATH" ]]; then
+            FRAME_ANCESTORS=$(jq -r '.domains.frameAncestors | join(" ")' "$SERVER_CONFIG_PATH")
+        else
+            FRAME_ANCESTORS="${FRAME_ANCESTORS:-}"
+        fi
     fi
 
     log_info "Frame ancestors: $FRAME_ANCESTORS"

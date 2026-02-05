@@ -17,16 +17,17 @@ function hasCookie(name: string): boolean {
 /**
  * FlowGlad provider wrapper for billing functionality.
  *
- * Only loads billing when the user has a session cookie. This avoids
- * unnecessary API calls and errors for unauthenticated users.
+ * Only renders the FlowgladProvider when the user has a session cookie.
+ * This avoids unnecessary API calls and errors for unauthenticated users.
  */
 export function FlowgladProviderWrapper({ children }: FlowgladProviderWrapperProps) {
   // Only load billing if user has a session cookie
   const hasSession = hasCookie(COOKIE_NAMES.SESSION)
 
-  return (
-    <FlowgladProvider loadBilling={hasSession} serverRoute="/api/flowglad">
-      {children}
-    </FlowgladProvider>
-  )
+  // Don't render FlowgladProvider for unauthenticated users
+  if (!hasSession) {
+    return <>{children}</>
+  }
+
+  return <FlowgladProvider baseURL="/api/flowglad">{children}</FlowgladProvider>
 }

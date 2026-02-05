@@ -28,17 +28,14 @@ vi.mock("@/lib/supabase/iam", () => ({
   createIamClient: vi.fn(),
 }))
 
-// Mock generateInviteCode - only mock the function we need
-vi.mock("@webalive/shared", () => ({
-  generateInviteCode: vi.fn(() => "TEST123ABC"),
-  // Re-export REFERRAL constant (not mocked, just passed through)
-  REFERRAL: {
-    CREDITS: 500,
-    EXPIRY_DAYS: 30,
-    EMAIL_DAILY_LIMIT: 10,
-    ACCOUNT_AGE_LIMIT_MS: 24 * 60 * 60 * 1000,
-  },
-}))
+// Mock generateInviteCode - only mock the function we need, keep real exports
+vi.mock("@webalive/shared", async importOriginal => {
+  const actual = await importOriginal<typeof import("@webalive/shared")>()
+  return {
+    ...actual,
+    generateInviteCode: vi.fn(() => "TEST123ABC"),
+  }
+})
 
 // Import after mocking
 const { GET } = await import("../route")

@@ -56,10 +56,11 @@ export function isOriginGoaliveNLDomain(origin: string): boolean {
 }
 
 /**
- * Check if an origin matches the alive.best domain pattern
+ * Check if an origin matches the wildcard domain pattern
  */
-export function isOriginAliveBestDomain(origin: string): boolean {
-  return origin.endsWith(".alive.best") || origin === "https://alive.best"
+export function isOriginWildcardDomain(origin: string): boolean {
+  if (!DOMAINS.WILDCARD) return false
+  return origin.endsWith(`.${DOMAINS.WILDCARD}`) || origin === `https://${DOMAINS.WILDCARD}`
 }
 
 /**
@@ -88,7 +89,7 @@ export function isOriginAllowed(origin: string): boolean {
   return (
     isOriginInAllowedDomains(origin) ||
     isOriginGoaliveNLDomain(origin) ||
-    isOriginAliveBestDomain(origin) ||
+    isOriginWildcardDomain(origin) ||
     isValidHttpsOrigin(origin) ||
     isLocalhostOrigin(origin)
   )

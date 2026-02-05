@@ -15,11 +15,12 @@ import {
   type AutomationConfigResult,
 } from "@/components/ai/AutomationConfig"
 
+// Sample data for preview - these are fake examples
 const SAMPLE_DATA: AutomationConfigData = {
   sites: [
-    { id: "site-1", hostname: "my-bakery.alive.best" },
-    { id: "site-2", hostname: "portfolio.alive.best" },
-    { id: "site-3", hostname: "blog.alive.best" },
+    { id: "site-1", hostname: "my-bakery.example.com" },
+    { id: "site-2", hostname: "portfolio.example.com" },
+    { id: "site-3", hostname: "blog.example.com" },
   ],
   context: "Let's set up a scheduled task for your website!",
 }

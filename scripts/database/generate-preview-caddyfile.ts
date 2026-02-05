@@ -16,6 +16,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { DOMAINS } from "@webalive/shared"
 
 // Get script directory and repo root
 const __filename = fileURLToPath(import.meta.url)
@@ -59,8 +60,8 @@ if (environments.length === 0) {
   process.exit(1)
 }
 
-// Build frame-ancestors from all environment domains
-const frameAncestors = environments.map((e) => `https://${e.domain}`).join(" ") + " https://app.alive.best"
+// Build frame-ancestors from all environment domains (+ production URL)
+const frameAncestors = environments.map((e) => `https://${e.domain}`).join(" ") + ` ${DOMAINS.STREAM_PROD}`
 
 /**
  * Parse Caddyfile to extract domain→port mappings

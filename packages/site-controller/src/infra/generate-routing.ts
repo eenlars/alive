@@ -15,6 +15,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { createClient } from "@supabase/supabase-js"
+import { DOMAINS } from "@webalive/shared"
 
 // =============================================================================
 // Types
@@ -172,8 +173,8 @@ function renderCaddySites(
     "",
   ].join("\n")
 
-  // Build frame-ancestors from all environment domains
-  const frameAncestors = environments.map(e => `https://${e.domain}`).join(" ") + " https://app.alive.best"
+  // Build frame-ancestors from all environment domains (+ production URL)
+  const frameAncestors = environments.map(e => `https://${e.domain}`).join(" ") + ` ${DOMAINS.STREAM_PROD}`
 
   // Generate site blocks
   const siteBlocks = domains

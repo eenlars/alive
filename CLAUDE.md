@@ -21,6 +21,7 @@ AI assistant guidelines for working on Claude Bridge.
 13. **ONE DEPLOYMENT AT A TIME** - Before starting any deployment, check if one is already running: `make deploy-status`. If a deployment is running, WAIT. Do not start another. Stacked deployments cause memory exhaustion and production outages.
 14. **CLEAN BEFORE DEPLOY** - Before ANY deployment, check for orphaned processes: `ps aux | grep -E "make|ship|turbo|next build" | grep -v grep`. If you see old ones, kill them: `pkill -9 -f "ship.sh|build-and-serve|turbo|next build"` and remove stale lock: `rm -f /tmp/alive-deploy.lock`. Only then deploy.
 15. **DEBUG STREAM ERRORS** - When users report "error while streaming", find root cause: `journalctl -u alive-staging | grep "STREAM_ERROR:<error-id>"`. See [docs/troubleshooting/stream-errors.md](./docs/troubleshooting/stream-errors.md).
+16. **NEXT.JS MODULE CACHING** - If config changes aren't picked up, clear cache: `rm -rf apps/web/.next/cache && systemctl restart [environment]`. Modules load config at initialization time.
 
 ## Learn from OpenClaw (IMPORTANT)
 

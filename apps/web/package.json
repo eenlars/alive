@@ -41,7 +41,7 @@
     "@webalive/tools": "workspace:*",
     "@anthropic-ai/claude-agent-sdk": "^0.1.25",
     "@anthropic-ai/sdk": "^0.67.0",
-    "@flowglad/nextjs": "^0.15.1",
+    "@flowglad/nextjs": "^0.18.0",
     "@googleapis/gmail": "^16.1.1",
     "@hookform/resolvers": "^3.3.4",
     "@radix-ui/react-dialog": "^1.1.15",
