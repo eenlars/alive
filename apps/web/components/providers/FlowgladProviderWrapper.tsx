@@ -29,5 +29,9 @@ export function FlowgladProviderWrapper({ children }: FlowgladProviderWrapperPro
     return <>{children}</>
   }
 
-  return <FlowgladProvider baseURL="/api/flowglad">{children}</FlowgladProvider>
+  return (
+    <FlowgladProvider loadBilling={true} serverRoute="/api/flowglad">
+      {children}
+    </FlowgladProvider>
+  )
 }

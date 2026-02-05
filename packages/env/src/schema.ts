@@ -110,9 +110,6 @@ export const serverSchema = {
   IMAGES_STORAGE_PATH: z.string().optional(),
 
   // Infrastructure
-  // WILDCARD_DOMAIN: The base domain for subdomain deployments (e.g., "alive.best")
-  // Can be set via env var OR server-config.json - validated at runtime
-  WILDCARD_DOMAIN: z.string().optional(),
   WILDCARD_TLD: z.string().optional(), // Deprecated: use WILDCARD_DOMAIN
 
   // Server identity
@@ -203,7 +200,6 @@ export const runtimeEnv = {
   INTERNAL_TOOLS_SECRET: process.env.INTERNAL_TOOLS_SECRET,
   IMAGES_SIGNATURE_SECRET: process.env.IMAGES_SIGNATURE_SECRET,
   IMAGES_STORAGE_PATH: process.env.IMAGES_STORAGE_PATH,
-  WILDCARD_DOMAIN: process.env.WILDCARD_DOMAIN,
   WILDCARD_TLD: process.env.WILDCARD_TLD,
   SERVER_IP: process.env.SERVER_IP,
   ADMIN_EMAILS: process.env.ADMIN_EMAILS,
