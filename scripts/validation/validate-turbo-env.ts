@@ -18,8 +18,8 @@ import { fileURLToPath } from "node:url"
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, "../..")
 
-// Import client schema keys from @webalive/env
-import { CLIENT_ENV_KEYS } from "@webalive/env"
+// Import client schema keys (use relative path - bun workspace resolution doesn't work from root scripts)
+import { CLIENT_ENV_KEYS } from "../../packages/env/src/schema"
 
 // Read turbo.json
 const turboPath = resolve(ROOT, "turbo.json")

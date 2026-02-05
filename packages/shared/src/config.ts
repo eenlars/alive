@@ -36,11 +36,8 @@ interface ServerConfigFile {
     cookieDomain?: string
     frameAncestors?: string[]
   }
-  urls?: {
-    prod?: string
-    staging?: string
-    dev?: string
-  }
+  // NOTE: urls section removed - URLs are now derived from domains.main
+  // Pattern: app.{main} (prod), staging.{main} (staging), dev.{main} (dev)
   serverIp?: string
 }
 
@@ -179,10 +176,23 @@ export const PATHS = {
 // Domain Constants
 // =============================================================================
 
-// Stream URLs (NO FALLBACKS - must be configured)
-const STREAM_PROD_URL = requireConfig("STREAM_PROD_URL", serverConfig.urls?.prod, "Production stream URL")
-const STREAM_STAGING_URL = requireConfig("STREAM_STAGING_URL", serverConfig.urls?.staging, "Staging stream URL")
-const STREAM_DEV_URL = requireConfig("STREAM_DEV_URL", serverConfig.urls?.dev, "Dev stream URL")
+// Stream URLs - derived from MAIN_DOMAIN (pattern: {subdomain}.{MAIN_DOMAIN})
+// Can be overridden via env vars for special cases
+const STREAM_PROD_URL = requireConfig(
+  "STREAM_PROD_URL",
+  MAIN_DOMAIN ? `https://app.${MAIN_DOMAIN}` : undefined,
+  "Production stream URL",
+)
+const STREAM_STAGING_URL = requireConfig(
+  "STREAM_STAGING_URL",
+  MAIN_DOMAIN ? `https://staging.${MAIN_DOMAIN}` : undefined,
+  "Staging stream URL",
+)
+const STREAM_DEV_URL = requireConfig(
+  "STREAM_DEV_URL",
+  MAIN_DOMAIN ? `https://dev.${MAIN_DOMAIN}` : undefined,
+  "Dev stream URL",
+)
 
 // Extract hostnames from URLs using URL API
 const extractHost = (url: string): string => {

@@ -29,9 +29,8 @@ interface ServerConfig {
     imagesStorage: string
   }
   domains: {
+    main: string // Base domain - all env domains derived from this
     cookieDomain: string
-    previewBase: string // Legacy - now read from environments.json
-    frameAncestors: string[] // Legacy - now built from environments.json
   }
   shell: {
     domains: string[]
@@ -44,6 +43,12 @@ interface ServerConfig {
     caddyShell: string
     nginxMap: string
   }
+}
+
+interface EnvironmentConfigRaw {
+  key: string
+  subdomain: string
+  port: number
 }
 
 interface EnvironmentConfig {
@@ -86,32 +91,36 @@ async function loadServerConfig(): Promise<ServerConfig> {
   const raw = await readFile(SERVER_CONFIG_PATH, "utf8")
   const cfg = JSON.parse(raw) as ServerConfig
   must(cfg.serverId, "server-config.json missing serverId")
+  must(cfg.domains?.main, "server-config.json missing domains.main")
   must(cfg.generated?.dir, "server-config.json missing generated.dir")
   return cfg
 }
 
-async function loadEnvironments(aliveRoot: string): Promise<EnvironmentConfig[]> {
+async function loadEnvironments(aliveRoot: string, mainDomain: string): Promise<EnvironmentConfig[]> {
   const envPath = path.join(aliveRoot, "packages/shared/environments.json")
   const raw = await readFile(envPath, "utf8")
   const envConfigRaw = JSON.parse(raw)
 
-  const environments: EnvironmentConfig[] = Object.values(envConfigRaw.environments || {}).filter(
-    (env: unknown): env is EnvironmentConfig => {
+  const rawEnvs: EnvironmentConfigRaw[] = Object.values(envConfigRaw.environments || {}).filter(
+    (env: unknown): env is EnvironmentConfigRaw => {
       const e = env as Record<string, unknown>
-      return (
-        typeof e.key === "string" &&
-        typeof e.port === "number" &&
-        typeof e.previewBase === "string" &&
-        typeof e.domain === "string"
-      )
+      return typeof e.key === "string" && typeof e.port === "number" && typeof e.subdomain === "string"
     },
   )
 
-  if (environments.length === 0) {
-    throw new Error(`No valid environments found in ${envPath}. Each needs: key, port, domain, previewBase`)
+  if (rawEnvs.length === 0) {
+    throw new Error(`No valid environments found in ${envPath}. Each needs: key, port, subdomain`)
   }
 
-  return environments
+  // Derive full domains from mainDomain
+  // Pattern: {subdomain}.{mainDomain} (e.g., app.sonno.tech, staging.sonno.tech)
+  // PreviewBase: preview.{subdomain}.{mainDomain} (e.g., preview.app.sonno.tech)
+  return rawEnvs.map(env => ({
+    key: env.key,
+    port: env.port,
+    domain: `${env.subdomain}.${mainDomain}`,
+    previewBase: `preview.${env.subdomain}.${mainDomain}`,
+  }))
 }
 
 async function loadSnippet(aliveRoot: string, rel: string): Promise<string> {
@@ -313,11 +322,12 @@ async function run() {
   const cfg = await loadServerConfig()
   console.log(`  serverId: ${cfg.serverId}`)
   console.log(`  aliveRoot: ${cfg.paths.aliveRoot}`)
+  console.log(`  mainDomain: ${cfg.domains.main}`)
 
-  console.log("\nLoading environments...")
-  const environments = await loadEnvironments(cfg.paths.aliveRoot)
+  console.log("\nLoading environments (domains derived from server config)...")
+  const environments = await loadEnvironments(cfg.paths.aliveRoot, cfg.domains.main)
   for (const env of environments) {
-    console.log(`  - ${env.key}: ${env.previewBase} → localhost:${env.port}`)
+    console.log(`  - ${env.key}: ${env.domain} (preview: ${env.previewBase}) → localhost:${env.port}`)
   }
 
   console.log("\nLoading snippets...")
@@ -390,7 +400,10 @@ run().catch(e => {
     console.error("     Required: common_headers.caddy, image_serving.caddy\n")
   } else if (msg.includes("environments")) {
     console.error("\x1b[33mFix:\x1b[0m Ensure packages/shared/environments.json exists")
-    console.error("     Each environment needs: key, port, domain, previewBase\n")
+    console.error("     Each environment needs: key, port, subdomain\n")
+  } else if (msg.includes("domains.main")) {
+    console.error("\x1b[33mFix:\x1b[0m Add domains.main to server-config.json")
+    console.error('     Example: "domains": { "main": "sonno.tech" }\n')
   }
 
   console.error("Run \x1b[36mbun run --cwd packages/site-controller setup:validate\x1b[0m for full diagnostics.\n")

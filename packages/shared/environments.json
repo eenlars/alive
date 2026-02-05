@@ -1,12 +1,11 @@
 {
+  "_comment": "Domains are derived from server-config.json's domains.main. Only structure here.",
   "environments": {
     "production": {
       "key": "production",
       "displayName": "Production",
-      "prefix": "production",
+      "subdomain": "app",
       "port": 9000,
-      "domain": "terminal.goalive.nl",
-      "previewBase": "preview.terminal.goalive.nl",
       "processName": "alive-production",
       "serviceType": "systemd",
       "systemdService": "alive-production.service",
@@ -22,10 +21,8 @@
     "staging": {
       "key": "staging",
       "displayName": "Staging",
-      "prefix": "staging",
+      "subdomain": "staging",
       "port": 8998,
-      "domain": "staging.terminal.goalive.nl",
-      "previewBase": "preview.staging.terminal.goalive.nl",
       "processName": "alive-staging",
       "serviceType": "systemd",
       "systemdService": "alive-staging.service",
@@ -41,10 +38,8 @@
     "dev": {
       "key": "dev",
       "displayName": "Development",
-      "prefix": "dev",
+      "subdomain": "dev",
       "port": 8997,
-      "domain": "dev.terminal.goalive.nl",
-      "previewBase": "preview.dev.terminal.goalive.nl",
       "processName": "alive-dev",
       "serviceType": "systemd",
       "systemdService": "alive-dev.service",
