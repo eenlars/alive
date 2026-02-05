@@ -465,7 +465,7 @@ export function createTestStorageState(options: TestStorageStateOptions): Storag
             {
               id: tabId,
               tabGroupId: tabGroupId,
-              name: "Chat",
+              name: "Tab 1",
               tabNumber: 1,
               createdAt: Date.now(),
             },
