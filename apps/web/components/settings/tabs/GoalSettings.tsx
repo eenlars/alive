@@ -13,15 +13,18 @@ export function GoalSettings() {
   return (
     <SettingsTabLayout
       title="Project Context"
-      description="Help the Agent Manager understand your project to give better suggestions"
+      description="Tell the AI what you're working on so it can give relevant suggestions and stay focused"
     >
       <div className="space-y-4 sm:space-y-5">
         {/* PR Goal */}
         <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-50">
-          <label htmlFor="pr-goal" className={`block ${text.label} mb-1`}>
+          <label htmlFor="pr-goal" className={`block ${text.label} mb-0.5`}>
             PR Goal
           </label>
-          <p className={`${text.description} mb-2`}>What should the agent accomplish this session?</p>
+          <p className={`${text.muted} mb-2`}>
+            What should the AI focus on right now? This keeps the assistant on track and prevents it from going off
+            course.
+          </p>
           <textarea
             id="pr-goal"
             value={goal}
@@ -34,10 +37,12 @@ export function GoalSettings() {
 
         {/* What we're building */}
         <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-100">
-          <label htmlFor="building" className={`block ${text.label} mb-1`}>
+          <label htmlFor="building" className={`block ${text.label} mb-0.5`}>
             What are you building?
           </label>
-          <p className={`${text.description} mb-2`}>Describe the business/project in one sentence</p>
+          <p className={`${text.muted} mb-2`}>
+            A short description of the project. Helps the AI understand the bigger picture behind individual requests.
+          </p>
           <input
             id="building"
             type="text"
@@ -50,10 +55,13 @@ export function GoalSettings() {
 
         {/* Target Users */}
         <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-150">
-          <label htmlFor="target-users" className={`block ${text.label} mb-1`}>
+          <label htmlFor="target-users" className={`block ${text.label} mb-0.5`}>
             Who are the target users?
           </label>
-          <p className={`${text.description} mb-2`}>Who will visit this site? Be specific.</p>
+          <p className={`${text.muted} mb-2`}>
+            Who will actually use this? The AI uses this to write better copy, pick the right tone, and prioritize
+            features.
+          </p>
           <input
             id="target-users"
             type="text"

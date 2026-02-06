@@ -20,6 +20,8 @@ import { useDexieArchivedConversations, useDexieConversations, useDexieSession }
 import type { DbConversation } from "@/lib/db/messageDb"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
 import { useStreamingStore } from "@/lib/stores/streamingStore"
+import { ConversationStatusPill } from "./ui/ConversationStatusPill"
+import { useConversationStatus } from "../hooks/useConversationStatus"
 
 // Shared style constants for DRY code
 const styles = {
@@ -168,19 +170,8 @@ export function ConversationSidebar({
   const sidebarRef = useRef<HTMLDivElement>(null)
   const [archiveConfirmingId, setArchiveConfirmingId] = useState<string | null>(null)
   const [archivedExpanded, setArchivedExpanded] = useState(false)
-  const didInitRef = useRef(false)
-
-  // On first client mount, open sidebar for desktop without causing SSR mismatch.
-  useEffect(() => {
-    if (didInitRef.current) return
-    didInitRef.current = true
-    if (typeof window !== "undefined" && window.innerWidth >= 768) {
-      openSidebar()
-    }
-  }, [openSidebar])
-
-  // Get streaming state for all tabs to show activity indicator
-  const streamingTabs = useStreamingStore(state => state.tabs)
+  // Sidebar defaults to closed for a clean, professional initial view.
+  // Users can open it manually via the toggle button.
 
   // Memoized handlers
   const handleTabGroupClick = useCallback(
@@ -224,18 +215,6 @@ export function ConversationSidebar({
     return () => document.removeEventListener("keydown", handleEscape)
   }, [isOpen, closeSidebar])
 
-  // Check if any tab in a conversation is streaming
-  const isConversationStreaming = useCallback(
-    (conversationId: string) => {
-      // Check if any tab that belongs to this conversation is actively streaming
-      return Object.entries(streamingTabs).some(([tabId, tabState]) => {
-        // Tab IDs include the conversation ID, check if streaming
-        return tabId.includes(conversationId) && tabState.isStreamActive
-      })
-    },
-    [streamingTabs],
-  )
-
   // Shared sidebar content - rendered in both desktop and mobile
   const renderContent = (isMobile: boolean) => (
     <div className={`flex flex-col h-full ${isMobile ? "w-screen" : "w-[280px]"}`}>
@@ -275,7 +254,6 @@ export function ConversationSidebar({
                     key={conversation.id}
                     conversation={conversation}
                     isActive={conversation.id === activeTabGroupId}
-                    isStreaming={isConversationStreaming(conversation.id)}
                     isConfirming={archiveConfirmingId === conversation.id}
                     onClick={() => handleTabGroupClick(conversation.id)}
                     onArchive={handleArchiveClick}
@@ -414,21 +392,10 @@ function FooterActions({
   )
 }
 
-// Streaming indicator dot
-function StreamingDot() {
-  return (
-    <span className="relative flex size-2">
-      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-      <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
-    </span>
-  )
-}
-
 // Conversation item component - refined with clarity and intention
 function ConversationItem({
   conversation,
   isActive,
-  isStreaming,
   isConfirming,
   onClick,
   onArchive,
@@ -437,13 +404,13 @@ function ConversationItem({
 }: {
   conversation: DbConversation
   isActive: boolean
-  isStreaming: boolean
   isConfirming: boolean
   onClick: () => void
   onArchive: (e: React.MouseEvent, conversation: DbConversation) => void
   onCancelArchive: (e: React.MouseEvent) => void
   onRename: (id: string, title: string) => void
 }) {
+  const conversationStatus = useConversationStatus(conversation.id)
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(conversation.title)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -515,9 +482,12 @@ function ConversationItem({
               `}
             />
           ) : (
-            <div className={`text-sm font-medium ${styles.textPrimary} line-clamp-2 flex items-center gap-2`}>
-              {isStreaming && <StreamingDot />}
+            <div className={`text-sm font-medium ${styles.textPrimary} flex items-center gap-1.5`}>
               <span className="flex-1 min-w-0 truncate">{conversation.title}</span>
+              <ConversationStatusPill
+                isStreaming={conversationStatus.isStreaming}
+                hasPendingTools={conversationStatus.hasPendingTools}
+              />
             </div>
           )}
           <div className={`text-xs ${styles.textMuted} mt-1 flex items-center gap-1.5`}>

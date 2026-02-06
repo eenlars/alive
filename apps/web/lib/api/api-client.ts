@@ -96,7 +96,17 @@ async function fetchWithOverride<E extends Endpoint>(
   if (!res.ok) {
     const err = json as Record<string, unknown>
     const nested = err?.error as Record<string, unknown> | string | undefined
-    const message = (typeof nested === "object" ? nested?.message : nested) ?? err?.message ?? `HTTP ${res.status}`
+
+    // Extract human-readable message:
+    // - { error: { message: "..." } }  → nested object message
+    // - { error: "CODE", message: "..." } → top-level message (our standard format)
+    // - { error: "raw message" }        → error string as fallback
+    const message =
+      (typeof nested === "object" ? nested?.message : undefined) ??
+      (err?.message as string | undefined) ??
+      (typeof nested === "string" ? nested : undefined) ??
+      `HTTP ${res.status}`
+
     const code = (typeof nested === "object" ? nested?.code : undefined) ?? err?.code ?? "HTTP_ERROR"
     throw new ApiError(String(message), res.status, String(code), json)
   }
