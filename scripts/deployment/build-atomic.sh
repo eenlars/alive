@@ -152,10 +152,32 @@ fi
 STANDALONE_DIR="$TEMP_BUILD_DIR/standalone/apps/web"
 
 mkdir -p "$STANDALONE_DIR/.next"
-[ -d "$TEMP_BUILD_DIR/static" ] && cp -r "$TEMP_BUILD_DIR/static" "$STANDALONE_DIR/.next/static"
-[ -d "$TEMP_BUILD_DIR/server" ] && cp -r "$TEMP_BUILD_DIR/server" "$STANDALONE_DIR/.next/server"
+# Use rsync with trailing slashes to MERGE contents (cp -r creates nested dirs if target exists)
+[ -d "$TEMP_BUILD_DIR/static" ] && rsync -a "$TEMP_BUILD_DIR/static/" "$STANDALONE_DIR/.next/static/"
+[ -d "$TEMP_BUILD_DIR/server" ] && rsync -a "$TEMP_BUILD_DIR/server/" "$STANDALONE_DIR/.next/server/"
 
 [ -d "$WEB_DIR/public" ] && cp -r "$WEB_DIR/public" "$STANDALONE_DIR/public"
+
+# =============================================================================
+# Phase 7b: Verify Chunk References
+# =============================================================================
+log_step "Verifying chunk references..."
+CHUNKS_DIR="$STANDALONE_DIR/.next/server/chunks"
+MISSING=0
+while IFS= read -r route_file; do
+    while IFS= read -r chunk; do
+        if [ ! -f "$STANDALONE_DIR/.next/$chunk" ]; then
+            log_error "Missing chunk: $chunk (referenced by $route_file)"
+            MISSING=$((MISSING + 1))
+        fi
+    done < <(grep -oP '"server/chunks/[^"]*\.js"' "$route_file" 2>/dev/null | tr -d '"')
+done < <(find "$STANDALONE_DIR/.next/server/app" -name "route.js" -o -name "page.js" 2>/dev/null)
+
+if [ $MISSING -gt 0 ]; then
+    log_error "$MISSING missing chunk(s) detected — build artifact is corrupt"
+    exit 1
+fi
+log_step "All chunk references verified"
 
 # =============================================================================
 # Phase 8: Copy Workspace Packages
@@ -226,7 +248,7 @@ mv "$TEMP_BUILD_DIR" "$TIMESTAMPED_DIR"
 
 log_step "Atomic symlink swap..."
 cd "$BUILDS_DIR"
-ln -sfn "dist.$TIMESTAMP" "current"
+ln -sfn "dist.$TIMESTAMP" "current.tmp" && mv -T "current.tmp" "current"
 cd "$PROJECT_ROOT"
 
 # Verify
