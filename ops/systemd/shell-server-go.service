@@ -6,12 +6,12 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/root/webalive/claude-bridge/apps/shell-server-go
-EnvironmentFile=/root/webalive/claude-bridge/apps/shell-server-go/.env.production
+WorkingDirectory=/root/webalive/alive/apps/shell-server-go
+EnvironmentFile=/root/webalive/alive/apps/shell-server-go/.env.production
 
 # Binary name matches module name in go.mod (shell-server-go)
 # Built by: cd apps/shell-server-go && make build
-ExecStart=/root/webalive/claude-bridge/apps/shell-server-go/shell-server-go
+ExecStart=/root/webalive/alive/apps/shell-server-go/shell-server-go
 
 # Automatic restart on failure
 Restart=always

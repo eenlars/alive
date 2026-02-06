@@ -18,13 +18,13 @@
 **Full Integration Test**:
 ```bash
 # 1. Login and get session cookie
-SESSION=$(curl -s -c - http://localhost:8999/api/login \
+SESSION=$(curl -s -c - http://localhost:8997/api/login \
   -H "Content-Type: application/json" \
   -d '{"workspace":"test","passcode":"test"}' \
   | grep session | awk '{print $7}')
 
 # 2. Send message to install package
-curl -N http://localhost:8999/api/claude/stream \
+curl -N http://localhost:8997/api/claude/stream \
   -H "Cookie: session=$SESSION" \
   -H "Content-Type: application/json" \
   -d '{"message":"install lodash","workspace":"test"}' \
@@ -77,7 +77,7 @@ echo "✅ Full workflow test passed"
 test("blocks path traversal in API routes", async () => {
   const token = createSessionToken(["attacker.com"])
 
-  const response = await fetch("http://localhost:8999/api/restart-workspace", {
+  const response = await fetch("http://localhost:8997/api/restart-workspace", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -117,7 +117,7 @@ test("rejects tampered JWT tokens", async () => {
   const tamperedPayload = btoa(JSON.stringify(decoded))
   const tamperedToken = `${header}.${tamperedPayload}.${signature}`
 
-  const response = await fetch("http://localhost:8999/api/restart-workspace", {
+  const response = await fetch("http://localhost:8997/api/restart-workspace", {
     headers: { "Cookie": `session=${tamperedToken}` }
   })
 
@@ -141,7 +141,7 @@ test("rejects tampered JWT tokens", async () => {
 ```typescript
 test("session cookie flows from parent to MCP tool", async () => {
   // 1. Login to get session cookie
-  const loginRes = await fetch("http://localhost:8999/api/login", {
+  const loginRes = await fetch("http://localhost:8997/api/login", {
     method: "POST",
     body: JSON.stringify({ workspace: "test", passcode: "test" })
   })
@@ -149,7 +149,7 @@ test("session cookie flows from parent to MCP tool", async () => {
   const sessionCookie = cookies.match(/session=([^;]+)/)[1]
 
   // 2. Send message that triggers restart_dev_server
-  const streamRes = await fetch("http://localhost:8999/api/claude/stream", {
+  const streamRes = await fetch("http://localhost:8997/api/claude/stream", {
     method: "POST",
     headers: { "Cookie": `session=${sessionCookie}` },
     body: JSON.stringify({
@@ -321,7 +321,7 @@ bun run test auth.test.ts
 bun run test:e2e critical-paths.spec.ts
 
 # Manual verification
-curl -X POST http://localhost:8999/api/restart-workspace \
+curl -X POST http://localhost:8997/api/restart-workspace \
   -H "Cookie: session=<token>" \
   -d '{"workspaceRoot":"/srv/webalive/sites/attacker/../victim/user"}'
 # Must return 403
