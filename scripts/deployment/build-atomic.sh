@@ -151,10 +151,9 @@ fi
 # =============================================================================
 STANDALONE_DIR="$TEMP_BUILD_DIR/standalone/apps/web"
 
-[ -d "$TEMP_BUILD_DIR/static" ] && {
-    mkdir -p "$STANDALONE_DIR/.next"
-    cp -r "$TEMP_BUILD_DIR/static" "$STANDALONE_DIR/.next/static"
-}
+mkdir -p "$STANDALONE_DIR/.next"
+[ -d "$TEMP_BUILD_DIR/static" ] && cp -r "$TEMP_BUILD_DIR/static" "$STANDALONE_DIR/.next/static"
+[ -d "$TEMP_BUILD_DIR/server" ] && cp -r "$TEMP_BUILD_DIR/server" "$STANDALONE_DIR/.next/server"
 
 [ -d "$WEB_DIR/public" ] && cp -r "$WEB_DIR/public" "$STANDALONE_DIR/public"
 
