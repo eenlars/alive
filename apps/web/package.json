@@ -39,6 +39,7 @@
   "dependencies": {
     "@alive-brug/alrighty": "workspace:*",
     "@webalive/images": "workspace:*",
+    "@webalive/job-queue": "workspace:*",
     "@webalive/redis": "workspace:*",
     "@webalive/tools": "workspace:*",
     "@anthropic-ai/claude-agent-sdk": "^0.1.25",

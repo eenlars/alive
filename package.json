@@ -72,6 +72,9 @@
     "vitest": "4.0.17",
     "@vitest/coverage-v8": "4.0.17"
   },
+  "resolutions": {
+    "@tanstack/react-query": "5.90.20"
+  },
   "devDependencies": {
     "@biomejs/biome": "2.3.13",
     "@playwright/test": "^1.56.1",

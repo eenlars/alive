@@ -25,20 +25,18 @@ function hasCookie(name: string): boolean {
 /**
  * FlowGlad provider wrapper for billing functionality.
  *
- * Only renders the FlowgladProvider when the user has a session cookie.
- * This avoids unnecessary API calls and errors for unauthenticated users.
+ * ALWAYS renders FlowgladProvider because it sets up its own internal
+ * QueryClientProvider (from @flowglad/react's bundled react-query).
+ * Without it, useBilling() crashes with "No QueryClient set".
+ *
+ * loadBilling is only enabled when the user has a session cookie,
+ * avoiding unnecessary API calls for unauthenticated users.
  */
 export function FlowgladProviderWrapper({ children }: FlowgladProviderWrapperProps) {
-  // Only load billing if user has a session cookie
   const hasSession = hasCookie(COOKIE_NAMES.SESSION)
 
-  // Don't render FlowgladProvider for unauthenticated users
-  if (!hasSession) {
-    return <>{children}</>
-  }
-
   return (
-    <LoadedFlowgladProvider loadBilling={true} serverRoute="/api/flowglad">
+    <LoadedFlowgladProvider loadBilling={hasSession} serverRoute="/api/flowglad">
       {children}
     </LoadedFlowgladProvider>
   )

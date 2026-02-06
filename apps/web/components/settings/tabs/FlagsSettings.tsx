@@ -69,7 +69,7 @@ export function FlagsSettings() {
   return (
     <SettingsTabLayout
       title="Feature Flags"
-      description="Toggle experimental features. Overrides persist in your browser."
+      description="Turn experimental features on or off. Changes are saved in your browser and only affect you."
     >
       <div className="space-y-4">
         {/* Clear all button */}

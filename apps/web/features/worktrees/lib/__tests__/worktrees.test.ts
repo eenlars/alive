@@ -18,11 +18,20 @@ vi.mock("@/lib/workspace-execution/command-runner", () => ({
     workspaceRoot: string
     timeout?: number
   }) => {
+    // Husky hooks can export GIT_DIR/GIT_WORK_TREE. If we leak those into
+    // a temp repo, `git` thinks it is operating on the parent repo and fails
+    // with: "fatal: this operation must be run in a work tree".
+    const env = { ...process.env }
+    delete env.GIT_DIR
+    delete env.GIT_WORK_TREE
+    delete env.GIT_INDEX_FILE
+
     // In tests, just run the command directly without privilege dropping
     const result = spawnSync(command, args, {
       cwd: workspaceRoot,
       encoding: "utf8",
       timeout: timeout ?? 60000,
+      env,
     })
     return {
       success: result.status === 0,
@@ -39,7 +48,13 @@ interface TestRepo {
 }
 
 function runGit(cwd: string, args: string[]) {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8" })
+  // Ensure hook-provided git env vars don't break the temp repo.
+  const env = { ...process.env }
+  delete env.GIT_DIR
+  delete env.GIT_WORK_TREE
+  delete env.GIT_INDEX_FILE
+
+  const result = spawnSync("git", args, { cwd, encoding: "utf8", env })
   if (result.status !== 0) {
     throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`)
   }

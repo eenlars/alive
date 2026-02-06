@@ -49,7 +49,10 @@ export function UserPromptsSettings() {
   }
 
   return (
-    <SettingsTabLayout title="Skills" description="Global skills from the system and your custom skills">
+    <SettingsTabLayout
+      title="Skills"
+      description="Skills are reusable instructions that tell the AI how to handle specific tasks. Think of them as saved expertise."
+    >
       <div className="space-y-6">
         {/* Global Skills Section */}
         <div>
@@ -58,6 +61,9 @@ export function UserPromptsSettings() {
             <h3 className="text-sm font-semibold text-black/80 dark:text-white/80">Global Skills</h3>
             {isLoading && <span className="text-xs text-black/40 dark:text-white/40">Loading...</span>}
           </div>
+          <p className="text-xs text-black/40 dark:text-white/40 mb-3">
+            Built-in skills that are always available. These are maintained by the system and cannot be edited.
+          </p>
 
           {globalSkills.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -90,6 +96,10 @@ export function UserPromptsSettings() {
             <Sparkles className="size-4 text-purple-600 dark:text-purple-400" />
             <h3 className="text-sm font-semibold text-black/80 dark:text-white/80">Your Custom Skills</h3>
           </div>
+          <p className="text-xs text-black/40 dark:text-white/40 mb-3">
+            Create your own skills with custom instructions. Use these to teach the AI your preferred patterns or
+            workflows.
+          </p>
 
           {/* Add New Skill Button */}
           <button

@@ -8,8 +8,9 @@ import { DOMAINS, getServiceName, getSiteHome, getSiteUser, PATHS } from "@webal
 import { describe, expect, it } from "vitest"
 import { domainToSlug, isValidDomain, normalizeDomain } from "@/features/manager/lib/domain-utils"
 
-// In CI, server-config.json doesn't exist so PATHS/DOMAINS return empty strings
-const hasServerConfig = !process.env.CI
+// server-config.json isn't guaranteed to exist in local dev or CI; gate these tests
+// on the actual presence of configured paths/domains instead of env heuristics.
+const hasServerConfig = Boolean(PATHS.SITES_ROOT) && PATHS.SITES_ROOT.length > 0
 
 describe("Domain normalization", () => {
   it("normalizes domains correctly", () => {

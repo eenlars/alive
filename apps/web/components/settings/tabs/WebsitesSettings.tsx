@@ -224,7 +224,7 @@ export function WebsitesSettings() {
   const description =
     showAllWebsites && allWebsitesData
       ? `All ${allWebsitesData.total} websites across all users`
-      : `All your websites across ${organizations.length} organization${organizations.length !== 1 ? "s" : ""}`
+      : "Every website you have access to. Click one to switch to it and start chatting with the AI about that site."
 
   return (
     <SettingsTabLayout title="Websites" description={description}>

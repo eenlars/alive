@@ -9,7 +9,7 @@
  */
 
 /** Muted text for secondary information */
-export const mutedText = "text-black/40 dark:text-white/40"
+export const mutedText = "text-black/50 dark:text-white/50"
 
 /** Semi-visible text for debug/system info */
 export const semiVisibleText = "text-black/60 dark:text-white/60"
@@ -27,7 +27,7 @@ export const errorText = "text-red-600 dark:text-red-400"
 export const errorInteractiveText = "text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
 
 /** Tool indicator button base styles */
-export const toolIndicatorButton = "flex items-center gap-1.5 text-xs font-normal transition-colors"
+export const toolIndicatorButton = "flex items-center gap-1.5 text-sm md:text-xs font-normal transition-colors"
 
 /** Muted icon opacity */
 export const mutedIcon = "opacity-60"
@@ -44,6 +44,6 @@ export const filledBg = "bg-black/[0.04] dark:bg-white/[0.06]"
 /** Standard rounding for containers */
 export const roundedContainer = "rounded-xl"
 
-/** Code block styling - minimal, no border */
+/** Code block styling - minimal, no border - responsive sizing */
 export const codeBlock =
-  "text-xs text-black/50 dark:text-white/50 font-diatype-mono leading-relaxed overflow-auto max-h-60 p-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04]"
+  "text-sm md:text-xs text-black/50 dark:text-white/50 font-diatype-mono leading-relaxed overflow-auto max-h-60 p-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04]"

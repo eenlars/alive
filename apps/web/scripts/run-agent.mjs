@@ -116,7 +116,7 @@ async function readStdinJson() {
 
     // Get base allowed tools (SDK + internal MCP tools)
     // OAuth MCP tools are allowed dynamically in canUseTool
-    // Admin users get Bash, BashOutput, KillShell tools
+    // Admin users get Bash, TaskOutput, KillShell tools
     // Superadmin users get ALL tools (Task, WebSearch included)
     const baseAllowedTools = getAllowedTools(targetCwd || process.cwd(), isAdmin, isSuperadmin)
     const disallowedTools = getDisallowedTools(isAdmin, isSuperadmin)
