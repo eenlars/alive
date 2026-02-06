@@ -12,7 +12,6 @@ import type {
   AgentInput,
   AskUserQuestionInput,
   BashInput,
-  TaskOutputInput,
   ExitPlanModeInput,
   FileEditInput,
   FileReadInput,
@@ -81,7 +80,6 @@ type SDKToolMap = {
  */
 type _ValidateAgentInput = AgentInput extends ToolInputSchemas ? true : never
 type _ValidateBashInput = BashInput extends ToolInputSchemas ? true : never
-type _ValidateTaskOutputInput = TaskOutputInput extends ToolInputSchemas ? true : never
 type _ValidateExitPlanModeInput = ExitPlanModeInput extends ToolInputSchemas ? true : never
 type _ValidateFileEditInput = FileEditInput extends ToolInputSchemas ? true : never
 type _ValidateFileReadInput = FileReadInput extends ToolInputSchemas ? true : never
@@ -101,7 +99,6 @@ type _ValidateAskUserQuestionInput = AskUserQuestionInput extends ToolInputSchem
 const _assertAllTypesExist: true = true as
   | _ValidateAgentInput
   | _ValidateBashInput
-  | _ValidateTaskOutputInput
   | _ValidateExitPlanModeInput
   | _ValidateFileEditInput
   | _ValidateFileReadInput
