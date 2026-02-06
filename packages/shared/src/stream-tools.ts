@@ -121,6 +121,8 @@ export const PLAN_MODE_BLOCKED_TOOLS = [
   "mcp__alive-workspace__restart_dev_server",
   "mcp__alive-workspace__switch_serve_mode",
   "mcp__alive-workspace__create_website",
+  // TODO: Enable once resume-conversation flow is tested end-to-end
+  // "mcp__alive-workspace__schedule_resumption",
 ] as const
 export type PlanModeBlockedTool = (typeof PLAN_MODE_BLOCKED_TOOLS)[number]
 

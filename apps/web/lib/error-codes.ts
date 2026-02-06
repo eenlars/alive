@@ -129,6 +129,7 @@ export const ErrorCodes = {
   AUTOMATION_JOB_NOT_FOUND: "AUTOMATION_JOB_NOT_FOUND",
   AUTOMATION_JOB_DISABLED: "AUTOMATION_JOB_DISABLED",
   AUTOMATION_ALREADY_RUNNING: "AUTOMATION_ALREADY_RUNNING",
+  ENQUEUE_FAILED: "ENQUEUE_FAILED",
 
   // General errors
   INTERNAL_ERROR: "INTERNAL_ERROR",
@@ -509,6 +510,9 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
 
     case ErrorCodes.AUTOMATION_ALREADY_RUNNING:
       return "This automation is already running. Please wait for it to complete."
+
+    case ErrorCodes.ENQUEUE_FAILED:
+      return "I couldn't schedule this yet. Please try again, and contact support if the problem continues."
 
     case ErrorCodes.INTERNAL_ERROR:
       return "Something went wrong on my end. This is usually temporary - please try again in a moment."

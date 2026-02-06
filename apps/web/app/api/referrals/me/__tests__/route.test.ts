@@ -83,12 +83,22 @@ function createDetailedIamMock(options: {
 }
 
 describe("GET /api/referrals/me", () => {
+  let prevAppUrl: string | undefined
+
   beforeEach(() => {
     vi.clearAllMocks()
+    prevAppUrl = process.env.NEXT_PUBLIC_APP_URL
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.test"
   })
 
   afterEach(() => {
     vi.clearAllMocks()
+    if (prevAppUrl === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete process.env.NEXT_PUBLIC_APP_URL
+    } else {
+      process.env.NEXT_PUBLIC_APP_URL = prevAppUrl
+    }
   })
 
   describe("Authentication", () => {

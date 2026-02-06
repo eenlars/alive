@@ -19,6 +19,8 @@ import { createWebsiteTool } from "./tools/workspace/create-website.js"
 import { deleteFileTool } from "./tools/workspace/delete-file.js"
 import { installPackageTool } from "./tools/workspace/install-package.js"
 import { restartServerTool } from "./tools/workspace/restart-server.js"
+// TODO: Enable schedule_resumption tool once resume-conversation flow is tested end-to-end
+// import { scheduleResumptionTool } from "./tools/workspace/schedule-resumption.js"
 import { switchServeModeTool } from "./tools/workspace/switch-serve-mode.js"
 
 /**
@@ -89,6 +91,8 @@ export const workspaceInternalMcp = createSdkMcpServer({
     switchServeModeTool,
     copySharedAssetTool,
     createWebsiteTool,
+    // TODO: Enable once resume-conversation flow is tested end-to-end
+    // scheduleResumptionTool,
   ],
 })
 
