@@ -19,7 +19,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useDexieArchivedConversations, useDexieConversations, useDexieSession } from "@/lib/db/dexieMessageStore"
 import type { DbConversation } from "@/lib/db/messageDb"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
-import { useStreamingStore } from "@/lib/stores/streamingStore"
 import { ConversationStatusPill } from "./ui/ConversationStatusPill"
 import { useConversationStatus } from "../hooks/useConversationStatus"
 
@@ -162,7 +161,7 @@ export function ConversationSidebar({
   onOpenInvite,
 }: ConversationSidebarProps) {
   const isOpen = useSidebarOpen()
-  const { closeSidebar, openSidebar } = useSidebarActions()
+  const { closeSidebar } = useSidebarActions()
   const session = useDexieSession()
   const allConversations = useDexieConversations(workspace || "", session)
   const conversations = workspace ? allConversations : []
