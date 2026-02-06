@@ -4,6 +4,7 @@ import { ChevronDown, RefreshCcw } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Modal } from "@/components/ui/Modal"
 import { ApiError, delly, getty, postty } from "@/lib/api/api-client"
+import { type ErrorCode, getErrorHelp } from "@/lib/error-codes"
 import { validateRequest } from "@/lib/api/schemas"
 import { buildWorkspaceKey, validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 
@@ -22,6 +23,16 @@ interface WorktreeListItem {
   head: string | null
 }
 
+function WorktreeErrorDisplay({ error }: { error: { message: string; code?: string } }) {
+  const help = error.code ? getErrorHelp(error.code as ErrorCode) : null
+  return (
+    <div className="rounded-lg border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/5 px-3 py-2 space-y-1">
+      <div className="text-xs text-red-600 dark:text-red-400">{error.message}</div>
+      {help && <div className="text-[11px] text-red-500/70 dark:text-red-400/60">{help}</div>}
+    </div>
+  )
+}
+
 export function WorktreeSwitcher({
   workspace,
   currentWorktree,
@@ -32,14 +43,14 @@ export function WorktreeSwitcher({
   const [internalOpen, setInternalOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [worktrees, setWorktrees] = useState<WorktreeListItem[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [removeError, setRemoveError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; code?: string } | null>(null)
+  const [removeError, setRemoveError] = useState<{ message: string; code?: string } | null>(null)
   const [removingSlug, setRemovingSlug] = useState<string | null>(null)
 
   const [slug, setSlug] = useState("")
   const [branch, setBranch] = useState("")
   const [from, setFrom] = useState("")
-  const [createError, setCreateError] = useState<string | null>(null)
+  const [createError, setCreateError] = useState<{ message: string; code?: string } | null>(null)
   const [creating, setCreating] = useState(false)
 
   const isControlled = typeof isOpen === "boolean"
@@ -67,9 +78,9 @@ export function WorktreeSwitcher({
       setWorktrees(data.worktrees)
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message)
+        setError({ message: err.message, code: err.code })
       } else {
-        setError("Failed to load worktrees.")
+        setError({ message: "Could not load worktrees. Try refreshing." })
       }
     } finally {
       setLoading(false)
@@ -108,9 +119,9 @@ export function WorktreeSwitcher({
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        setRemoveError(err.message)
+        setRemoveError({ message: err.message, code: err.code })
       } else {
-        setRemoveError("Failed to remove worktree.")
+        setRemoveError({ message: "Could not remove worktree. Try again." })
       }
     } finally {
       setRemovingSlug(null)
@@ -126,7 +137,7 @@ export function WorktreeSwitcher({
     if (trimmedSlug.length > 0) {
       const validation = validateWorktreeSlug(trimmedSlug)
       if (!validation.valid) {
-        setCreateError(validation.reason)
+        setCreateError({ message: validation.reason, code: "WORKTREE_INVALID_SLUG" })
         return
       }
       normalizedSlug = validation.slug
@@ -164,9 +175,9 @@ export function WorktreeSwitcher({
       setModalOpen(false)
     } catch (err) {
       if (err instanceof ApiError) {
-        setCreateError(err.message)
+        setCreateError({ message: err.message, code: err.code })
       } else {
-        setCreateError("Failed to create worktree.")
+        setCreateError({ message: "Could not create worktree. Try again." })
       }
     } finally {
       setCreating(false)
@@ -216,8 +227,8 @@ export function WorktreeSwitcher({
             </button>
 
             {loading && <div className="text-xs text-black/40 dark:text-white/40 px-3 py-2">Loading worktrees…</div>}
-            {error && <div className="text-xs text-red-500 px-3 py-2">{error}</div>}
-            {removeError && <div className="text-xs text-red-500 px-3 py-2">{removeError}</div>}
+            {error && <WorktreeErrorDisplay error={error} />}
+            {removeError && <WorktreeErrorDisplay error={removeError} />}
 
             {!loading &&
               worktrees.map(item => {
@@ -260,7 +271,7 @@ export function WorktreeSwitcher({
             <div className="space-y-2">
               <input
                 type="text"
-                placeholder="slug (optional, e.g. feature-branch)"
+                placeholder="name (optional, e.g. my-feature)"
                 value={slug}
                 onChange={e => setSlug(e.target.value)}
                 aria-label="Worktree slug"
@@ -276,13 +287,13 @@ export function WorktreeSwitcher({
               />
               <input
                 type="text"
-                placeholder="from (optional, e.g. main)"
+                placeholder="start from (optional, e.g. main)"
                 value={from}
                 onChange={e => setFrom(e.target.value)}
-                aria-label="Base ref (optional)"
+                aria-label="Starting branch (optional)"
                 className="w-full rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-transparent px-3 py-2 text-sm"
               />
-              {createError && <div className="text-xs text-red-500">{createError}</div>}
+              {createError && <WorktreeErrorDisplay error={createError} />}
               <button
                 type="button"
                 disabled={creating}

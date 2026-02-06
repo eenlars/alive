@@ -95,7 +95,7 @@ export function CodeViewer({ workspace, worktree, filePath, onClose }: CodeViewe
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="h-9 px-3 flex items-center gap-2 border-b border-white/[0.04] bg-neutral-900/30 shrink-0">
+      <div className="h-9 px-3 flex items-center gap-2 border-b border-black/[0.08] dark:border-white/[0.04] bg-neutral-100/50 dark:bg-neutral-900/30 shrink-0">
         <span className={`${getFileColor(filename)}`}>
           <svg
             width="14"
@@ -111,13 +111,13 @@ export function CodeViewer({ workspace, worktree, filePath, onClose }: CodeViewe
             <polyline points="14 2 14 8 20 8" />
           </svg>
         </span>
-        <span className="text-[13px] text-neutral-300 truncate flex-1">{filename}</span>
+        <span className="text-[13px] text-neutral-700 dark:text-neutral-300 truncate flex-1">{filename}</span>
 
         <button
           type="button"
           onClick={handleCopy}
           disabled={!file?.content}
-          className="p-1 text-neutral-600 hover:text-neutral-300 rounded transition-colors disabled:opacity-30"
+          className="p-1 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 rounded transition-colors disabled:opacity-30"
           title={copied ? "Copied!" : "Copy"}
         >
           {copied ? (
@@ -130,7 +130,7 @@ export function CodeViewer({ workspace, worktree, filePath, onClose }: CodeViewe
         <button
           type="button"
           onClick={onClose}
-          className="p-1 text-neutral-600 hover:text-neutral-300 rounded transition-colors"
+          className="p-1 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 rounded transition-colors"
           title="Close (Esc)"
         >
           <X size={14} strokeWidth={1.5} />
@@ -194,9 +194,9 @@ interface CodeLineProps {
 // Memoize individual lines to prevent re-renders
 const CodeLine = memo(function CodeLine({ lineNumber, tokens, lineNumberWidth, originalLine }: CodeLineProps) {
   return (
-    <tr className="hover:bg-white/[0.02]">
+    <tr className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
       <td
-        className="px-3 text-right text-neutral-700 select-none align-top sticky left-0 bg-[#0d0d0d]"
+        className="px-3 text-right text-neutral-400 dark:text-neutral-700 select-none align-top sticky left-0 bg-white dark:bg-[#0d0d0d]"
         style={{ width: `${lineNumberWidth + 2}ch`, minWidth: `${lineNumberWidth + 2}ch` }}
       >
         {lineNumber}

@@ -175,48 +175,58 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
         : "I cannot access this file - it's outside my allowed workspace. I can only access files within your project directory."
 
     case ErrorCodes.WORKTREE_NOT_GIT:
-      return "This workspace does not appear to be a git repository."
+      return "Worktrees require a git repository. This site doesn't use git yet."
 
     case ErrorCodes.WORKTREE_NOT_FOUND:
-      return details?.slug ? `I cannot find the worktree '${details.slug}'.` : "I cannot find that worktree."
+      return details?.slug
+        ? `The worktree '${details.slug}' doesn't exist. It may have been removed already.`
+        : "That worktree doesn't exist. It may have been removed already."
 
     case ErrorCodes.WORKTREE_EXISTS:
-      return details?.slug ? `The worktree '${details.slug}' already exists.` : "That worktree already exists."
+      return details?.slug
+        ? `A worktree named '${details.slug}' already exists. Pick a different name.`
+        : "A worktree with that name already exists. Pick a different name."
 
     case ErrorCodes.WORKTREE_INVALID_SLUG:
-      return "The worktree slug is invalid. Use lowercase letters, numbers, and hyphens."
+      return "Invalid worktree name. Use only lowercase letters, numbers, and hyphens (e.g. 'my-feature')."
 
     case ErrorCodes.WORKTREE_INVALID_BRANCH:
-      return "The branch name is invalid."
+      return "Invalid branch name. Branch names can't contain spaces or special characters like ~ ^ : \\ ?"
 
     case ErrorCodes.WORKTREE_INVALID_FROM:
-      return "The base ref does not exist."
+      return details?.from
+        ? `The starting point '${details.from}' doesn't exist. Check the branch or commit name.`
+        : "The starting point doesn't exist. Check the branch or commit name in the 'from' field."
 
     case ErrorCodes.WORKTREE_BASE_INVALID:
-      return "This path is not a git repository root. Use the base workspace."
+      return "Worktrees can only be created from the main workspace, not from inside another worktree."
 
     case ErrorCodes.WORKTREE_BRANCH_IN_USE:
-      return "That branch is already checked out by another worktree."
+      return details?.branch
+        ? `The branch '${details.branch}' is already in use by another worktree. Pick a different branch name.`
+        : "That branch is already in use by another worktree. Pick a different branch name."
 
     case ErrorCodes.WORKTREE_PATH_EXISTS:
-      return "That worktree path already exists on disk."
+      return "A folder with that worktree name already exists. Pick a different name or remove the existing one first."
 
     case ErrorCodes.WORKTREE_BRANCH_UNKNOWN:
-      return "Cannot delete the branch for a detached worktree."
+      return "This worktree isn't on a named branch, so its branch can't be deleted automatically."
 
     case ErrorCodes.WORKTREE_DELETE_BRANCH_BLOCKED:
-      return "Refusing to delete the base workspace branch."
+      return details?.branch
+        ? `Can't delete the '${details.branch}' branch because it's the main workspace branch.`
+        : "Can't delete this branch because it's the main workspace branch."
 
     case ErrorCodes.WORKTREE_LOCKED:
-      return "A worktree operation is already in progress. Please retry in a moment."
+      return "Another worktree operation is already running. Wait a moment and try again."
 
     case ErrorCodes.WORKTREE_DIRTY:
-      return "The worktree has uncommitted changes. Commit or clean it before removing."
+      return "This worktree has unsaved changes. Commit or discard your changes before removing it."
 
     case ErrorCodes.WORKTREE_GIT_FAILED:
       return details?.message
-        ? `A git command failed: ${details.message}`
-        : "A git command failed unexpectedly. Please try again."
+        ? `Git operation failed: ${details.message}`
+        : "A git operation failed unexpectedly. Please try again."
 
     case ErrorCodes.NO_SESSION:
     case ErrorCodes.AUTH_REQUIRED:
@@ -538,17 +548,47 @@ export function getErrorHelp(code: ErrorCode, details?: Record<string, any>): st
         ? `I can only work with files in: ${details.workspacePath}`
         : "For security, I can only access files within your project workspace."
 
+    case ErrorCodes.WORKTREE_NOT_GIT:
+      return "Initialize git in your workspace first, or use the base workspace without worktrees."
+
+    case ErrorCodes.WORKTREE_NOT_FOUND:
+      return "Refresh the worktree list to see current worktrees."
+
+    case ErrorCodes.WORKTREE_EXISTS:
+      return "Switch to the existing worktree, or choose a different name."
+
+    case ErrorCodes.WORKTREE_INVALID_SLUG:
+      return "Examples: 'my-feature', 'bugfix-123', 'redesign'. No spaces or special characters."
+
+    case ErrorCodes.WORKTREE_INVALID_BRANCH:
+      return "Use simple names like 'feature/my-change' or 'fix-login-bug'."
+
+    case ErrorCodes.WORKTREE_INVALID_FROM:
+      return "Common starting points: 'main', 'master', or a branch name that exists in the repository."
+
+    case ErrorCodes.WORKTREE_BASE_INVALID:
+      return "Switch back to the base workspace first, then create the worktree from there."
+
     case ErrorCodes.WORKTREE_BRANCH_IN_USE:
-      return "Pick a different branch or remove the existing worktree using that branch."
+      return "Remove the other worktree using that branch first, or choose a different branch name."
 
     case ErrorCodes.WORKTREE_PATH_EXISTS:
-      return "Choose a different slug or delete the existing folder under /worktrees."
+      return "Choose a different name for the worktree."
+
+    case ErrorCodes.WORKTREE_BRANCH_UNKNOWN:
+      return "You can still remove the worktree without deleting the branch."
 
     case ErrorCodes.WORKTREE_DELETE_BRANCH_BLOCKED:
-      return "Switch the base workspace to another branch before deleting this one."
+      return "This branch is protected. Remove the worktree without deleting the branch."
+
+    case ErrorCodes.WORKTREE_LOCKED:
+      return "If this persists, try refreshing the page."
+
+    case ErrorCodes.WORKTREE_DIRTY:
+      return "Use git to commit or stash your changes, then try removing again."
 
     case ErrorCodes.WORKTREE_GIT_FAILED:
-      return "This may be a transient issue. Check your network connection and try again. If the problem persists, check the server logs for details."
+      return "This may be a temporary issue. Try again, and contact support if it persists."
 
     case ErrorCodes.ERROR_MAX_TURNS:
       return "Click 'New Conversation' to start fresh and continue working."

@@ -47,13 +47,19 @@ export function AccountSettings() {
     <SettingsTabLayout title="Profile" description="Your account information and preferences">
       <div className="space-y-4 sm:space-y-6">
         <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-75">
-          <p className={`${text.label} mb-2`}>Email Address</p>
+          <p className={`${text.label} mb-0.5`}>Email Address</p>
+          <p className={`${text.muted} mb-2`}>
+            The email you signed up with. This is used for login and notifications.
+          </p>
           <div className={readOnlyField}>{user?.email || "—"}</div>
         </div>
 
         {/* Theme Section */}
         <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-175`}>
-          <p className={`${text.label} mb-3`}>Theme</p>
+          <p className={`${text.label} mb-0.5`}>Theme</p>
+          <p className={`${text.muted} mb-3`}>
+            Controls how the interface looks. System follows your device's setting.
+          </p>
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <button
               type="button"
@@ -87,6 +93,7 @@ export function AccountSettings() {
 
         {/* Logout Section */}
         <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-200`}>
+          <p className={`${text.muted} mb-3`}>Signs you out of this session. Your data and websites are kept safe.</p>
           <button type="button" onClick={handleLogout} className={`${dangerButton} gap-2`} data-testid="logout-button">
             <LogOut size={16} strokeWidth={1.75} />
             Log out
