@@ -161,6 +161,6 @@ const _assertAllCategorized: _MissingTools extends never ? true : never = true
  * Compile-time check: Ensure no extra tools beyond SDK.
  * Note: "Skill" is a Stream-specific tool (loaded from .claude/skills/) not in SDK's ToolInputSchemas.
  */
-type _StreamOnlyTools = "Skill"
+type _StreamOnlyTools = "Skill" | "BashOutput"
 type _ExtraTools = Exclude<_AllCategorized, SDKToolName | _StreamOnlyTools>
 const _assertNoExtraTools: _ExtraTools extends never ? true : never = true
