@@ -195,6 +195,49 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       nextRunsDisplay = formatNextRuns(cronCheck.nextRuns)
     }
 
+    // Sync pg-boss schedule when cron automation changes
+    if (data.trigger_type === "cron") {
+      try {
+        const { scheduleAutomation, unscheduleAutomation } = await import("@webalive/job-queue")
+        const scheduleName = `automation-${id}`
+
+        if (data.is_active && data.cron_schedule && data.action_prompt) {
+          // Get hostname for the payload
+          const { data: domain } = await supabase
+            .from("domains")
+            .select("hostname")
+            .eq("domain_id", data.site_id)
+            .single()
+
+          if (domain?.hostname) {
+            await scheduleAutomation(
+              scheduleName,
+              data.cron_schedule,
+              {
+                jobId: data.id,
+                userId: data.user_id,
+                orgId: data.org_id,
+                workspace: domain.hostname,
+                prompt: data.action_prompt,
+                timeoutSeconds: data.action_timeout_seconds || 300,
+                model: data.action_model || undefined,
+                thinkingPrompt: data.action_thinking || undefined,
+                skills: data.skills || undefined,
+                cronSchedule: data.cron_schedule,
+                cronTimezone: data.cron_timezone || "UTC",
+              },
+              { tz: data.cron_timezone || "UTC" },
+            )
+          }
+        } else {
+          // Deactivated or missing schedule — remove from pg-boss
+          await unscheduleAutomation(scheduleName)
+        }
+      } catch (err) {
+        console.error("[Automations API] Failed to sync pg-boss schedule on update:", err)
+      }
+    }
+
     return NextResponse.json({ automation: data, nextRunsPreview: nextRunsDisplay })
   } catch (error) {
     console.error("[Automations API] PATCH error:", error)
@@ -232,6 +275,15 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     if (error) {
       console.error("[Automations API] Delete error:", error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+    }
+
+    // Remove pg-boss schedule if it was a cron automation
+    try {
+      const { unscheduleAutomation } = await import("@webalive/job-queue")
+      await unscheduleAutomation(`automation-${id}`)
+    } catch (err) {
+      // Schedule might not exist (e.g., one-time trigger), that's fine
+      console.debug("[Automations API] pg-boss unschedule on delete:", err)
     }
 
     return NextResponse.json({ ok: true })

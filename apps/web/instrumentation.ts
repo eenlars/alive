@@ -33,33 +33,30 @@ export async function register() {
     const bridgeEnv = process.env.STREAM_ENV
     const isProduction = bridgeEnv ? bridgeEnv === "production" : process.env.NODE_ENV === "production"
 
-    // Start the CronService for automation scheduling
+    // Start the pg-boss job queue (replaces CronService for scheduling)
+    // Handles: automation execution, conversation resumption
     try {
-      const { startCronService } = await import("@/lib/automation/cron-service")
-
       if (isProduction) {
-        await startCronService({
-          enabled: isProduction,
-          maxConcurrent: 3,
-          maxRetries: 3,
-          retryBaseDelayMs: 60_000,
-          onEvent: event => {
-            // Log events for debugging
-            console.log(`[CronService Event] ${event.action}:`, {
-              jobId: event.jobId,
-              status: event.status,
-              durationMs: event.durationMs,
-              error: event.error,
-            })
-          },
+        const { startJobQueue } = await import("@webalive/job-queue")
+        await startJobQueue(event => {
+          console.log(`[JobQueue Event] ${event.queue}/${event.action}:`, {
+            jobId: event.jobId,
+            durationMs: event.durationMs,
+            error: event.error,
+          })
         })
-        console.log(`[Instrumentation] CronService started (STREAM_ENV=${bridgeEnv ?? "unset"})`)
+        console.log(`[Instrumentation] JobQueue started (STREAM_ENV=${bridgeEnv ?? "unset"})`)
+
+        // Sync existing automation schedules from Supabase to pg-boss
+        const { syncAutomationSchedules } = await import("@/lib/automation/sync-schedules")
+        await syncAutomationSchedules()
+        console.log("[Instrumentation] Automation schedules synced to pg-boss")
       } else {
-        console.log(`[Instrumentation] CronService disabled (STREAM_ENV=${bridgeEnv ?? "unset"})`)
+        console.log(`[Instrumentation] JobQueue disabled (STREAM_ENV=${bridgeEnv ?? "unset"})`)
       }
     } catch (error) {
-      console.error("[Instrumentation] Failed to start CronService:", error)
-      // Don't crash the server if CronService fails to start
+      console.error("[Instrumentation] Failed to start JobQueue:", error)
+      // Don't crash the server if JobQueue fails to start
     }
 
     console.log("[Instrumentation] Server-side services initialized")

@@ -524,6 +524,8 @@ export async function POST(req: NextRequest) {
                 userEnvKeys, // User-defined environment keys for MCP servers
                 agentConfig,
                 sessionCookie, // Required for MCP tools to authenticate API calls
+                tabId, // Required for schedule_resumption MCP tool
+                tabGroupId, // Required for schedule_resumption MCP tool
               },
               onMessage: (msg: WorkerToParentMessage) => {
                 // Track first message timing
