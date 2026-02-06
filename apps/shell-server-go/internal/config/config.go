@@ -52,10 +52,10 @@ type AppConfig struct {
 
 // Common configuration errors
 var (
-	ErrMissingPassword    = errors.New("SHELL_PASSWORD environment variable is required")
-	ErrInvalidPort        = errors.New("port must be between 1 and 65535")
-	ErrMissingConfigFile  = errors.New("config.json not found")
-	ErrInvalidConfig      = errors.New("invalid configuration")
+	ErrMissingPassword   = errors.New("SHELL_PASSWORD environment variable is required")
+	ErrInvalidPort       = errors.New("port must be between 1 and 65535")
+	ErrMissingConfigFile = errors.New("config.json not found")
+	ErrInvalidConfig     = errors.New("invalid configuration")
 )
 
 // ValidationError contains details about a configuration validation failure

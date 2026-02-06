@@ -31,11 +31,11 @@ func TestPathResolver_ResolveSafePath(t *testing.T) {
 	resolver := NewPathResolver(cfg)
 
 	tests := []struct {
-		name      string
-		basePath  string
-		userPath  string
-		wantErr   error
-		wantPath  string // expected suffix of resolved path
+		name     string
+		basePath string
+		userPath string
+		wantErr  error
+		wantPath string // expected suffix of resolved path
 	}{
 		{
 			name:     "simple file",
@@ -213,7 +213,7 @@ func TestContainsTraversalPattern(t *testing.T) {
 		{"subdir/file.txt", false},
 		{"../file.txt", true},
 		{"subdir/../file.txt", true},
-		{"...", false},      // three dots is not traversal
+		{"...", false}, // three dots is not traversal
 		{".hidden", false},
 		{"a..b", false},     // double dot in filename is OK (not a path component)
 		{"foo/a..b", false}, // double dot in filename is OK
