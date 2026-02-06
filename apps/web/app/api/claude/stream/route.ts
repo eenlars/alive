@@ -21,7 +21,7 @@ import { isInputSafe } from "@/features/chat/lib/formatMessage"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { ensureWorkspaceSchema } from "@/features/workspace/lib/ensure-workspace-schema"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
-import { getAccessTokenReadOnly, hasOAuthCredentials } from "@/lib/anthropic-oauth"
+import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import {
   STREAM_TYPES,
@@ -201,14 +201,17 @@ export async function POST(req: NextRequest) {
         // OAuth: Don't pass token as API key - SDK reads credentials file directly
         // Workers have CLAUDE_CONFIG_DIR=/root/.claude and file has 644 permissions
         logger.log("Using OAuth credentials (SDK reads from CLAUDE_CONFIG_DIR)")
-        const oauthResult = getAccessTokenReadOnly()
-        if (oauthResult?.isExpired) {
-          logger.log("OAuth token expired - user needs to run /login")
+        const oauthResult = await getValidAccessToken()
+        if (!oauthResult) {
+          logger.log("OAuth token refresh failed - no valid token available")
           return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {
             workspace: resolvedWorkspaceName,
             requestId,
-            message: "OAuth token expired. Please run /login in Claude Code CLI to refresh.",
+            message: "OAuth token expired and refresh failed. Please run /login in Claude Code CLI.",
           })
+        }
+        if (oauthResult.refreshed) {
+          logger.log("OAuth token was expired - refreshed successfully")
         }
         // effectiveApiKey stays undefined - worker will use OAuth
       } else {
