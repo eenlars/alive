@@ -39,7 +39,7 @@ export const STREAM_ALLOWED_SDK_TOOLS: string[] = [
   "Grep",
   // Shell execution (available to all users)
   "Bash",
-  "BashOutput",
+  "TaskOutput",
   // Planning & workflow
   // NOTE: ExitPlanMode is intentionally NOT here - it requires user approval
   // When Claude tries to use it, canUseTool() denies with a message asking user to approve
@@ -63,7 +63,7 @@ export type StreamAllowedSDKTool =
   | "Glob"
   | "Grep"
   | "Bash"
-  | "BashOutput"
+  | "TaskOutput"
   // ExitPlanMode intentionally omitted - requires user approval
   | "TodoWrite"
   | "ListMcpResources"
@@ -77,7 +77,7 @@ export type StreamAllowedSDKTool =
 /**
  * Admin-only SDK tools.
  * KillShell is admin-only because it can terminate long-running processes.
- * Bash/BashOutput are in STREAM_ALLOWED_SDK_TOOLS (available to all users).
+ * Bash/TaskOutput are in STREAM_ALLOWED_SDK_TOOLS (available to all users).
  */
 export const STREAM_ADMIN_ONLY_SDK_TOOLS = ["KillShell"] as const
 export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number]
