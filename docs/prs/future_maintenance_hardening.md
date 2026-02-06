@@ -150,14 +150,76 @@ Acceptance:
 - Deploy scripts no longer hardcode env ports/services.
 - `make status`, `make logs-*`, deploy scripts all resolve from contract.
 
+Validation and rollback (required before merge):
+- Pre-deployment checks:
+  - Source contract helpers and verify reads for each env (`dev`, `staging`, `production`) return non-empty values.
+  - Verify missing keys fail loudly (`contract_require`) with non-zero exit status.
+- Acceptance commands:
+  - `make status` returns service names/ports from contract values.
+  - `make logs-dev` and `make logs-staging` resolve service names via contract, not literals.
+  - `scripts/deployment/deploy-dev.sh` completes with contract-driven values.
+- Migration safety checks:
+  - `rg -n "get_port\\(|get_service\\(|8997|8998|9000|claude-bridge-" scripts/deployment Makefile`
+  - Allowlist only source-of-truth files; fail PR if hardcoded values remain in active deploy paths.
+- Rollback procedure:
+  - Revert PR 2 commit(s) and redeploy previous scripts.
+  - Restart affected services (`alive-dev`, `alive-staging`, `alive-production`, `alive-broker`).
+  - Confirm `make status` and health checks match pre-change values.
+- Final gate:
+  - Run full static checks and deployment smoke checks before merge.
+
 ## PR 3: Naming and Path Convergence (alive-only)
 - Standardize on `alive-*` for service naming and `/var/lib/alive/*` for config/runtime files.
 - Remove remaining `claude-bridge-*` and `claude-stream` references from deployment/runtime code.
-- Keep compatibility shim for one rollout if needed (optional symlink/alias), then remove.
+- Keep compatibility shim for one rollout (mandatory symlink/alias), then remove.
 
 Acceptance:
 - Zero `claude-bridge-*` service references in active deployment scripts.
 - Zero `/var/lib/claude-stream/*` in runtime config code.
+
+PR 3 execution runbook (required):
+- Phase 3a: introduce new paths and shims
+  - Create `/var/lib/alive/*` as canonical runtime root.
+  - Add mandatory shims from legacy roots (`/var/lib/claude-stream/*`, `/var/lib/claude-bridge/*`) to `/var/lib/alive/*`.
+  - Do not remove legacy roots in this phase.
+- Phase 3b: switch all readers/writers to alive-only references
+  - Update deployment scripts, service generators, and ops scripts to consume only `alive-*` units and `/var/lib/alive/*`.
+  - Regenerate unit files and routing artifacts.
+- Phase 3c: remove shims after validation window
+  - Remove shims only after explicit removal criteria are met (below).
+
+Systemd migration sequence:
+1. Freeze deployments and capture current status (`make status`, `systemctl list-units | rg "alive|claude-bridge"`).
+2. Install/generate new `alive-*` units and run `systemctl daemon-reload`.
+3. Start new units in order with health checks after each step:
+   - `alive-broker`
+   - `alive-dev`, `alive-staging`, `alive-production`
+   - reload `caddy`
+4. Validate new units are healthy and serving expected endpoints.
+5. Stop/disable legacy `claude-bridge-*` units only after alive units are healthy.
+6. Remove legacy unit files after one full validation cycle.
+
+Path migration verification before deleting legacy paths:
+- `rg -n "/var/lib/(claude-stream|claude-bridge)" scripts packages ops docs`
+- Verify all running units reference `/var/lib/alive/*` in environment/files.
+- Confirm generated artifacts and server config are written/read from `/var/lib/alive/*`.
+
+Restart order:
+1. Unit/config generators
+2. `alive-broker`
+3. `alive-dev`, `alive-staging`, `alive-production`
+4. `caddy` reload
+
+Rollback plan:
+- Re-enable and restart legacy `claude-bridge-*` units.
+- Repoint shims to previous known-good paths if required.
+- Revert PR 3 commit set and redeploy previous generation scripts.
+- Validate health endpoints and `make status` return to pre-migration values.
+
+Shim removal criteria (must all pass):
+- Two consecutive successful deploy cycles (staging and production) using alive-only paths.
+- No legacy path references in active deployment/runtime scripts.
+- No runtime logs indicating reads from legacy roots for 7 days.
 
 ## PR 4: Fast Path Deployment Contract
 - Enforce "build once, promote many":
