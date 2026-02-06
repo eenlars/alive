@@ -7,24 +7,22 @@ AI assistant guidelines for working on Claude Bridge.
 ## Core Rules
 
 1. **SHORTEST FEEDBACK LOOP** - The best way to test something is by creating a feedback loop that is as short as possible. The easiest way for testing functionality is creating something for yourself to be able to OBSERVE something quickly if working on it. For example, directly calling an API, or creating some flow/script to quickly grasp the workings. Be relentlessly resourceful.
-2. **NEVER COMMIT** - Never create commits
-3. **ALWAYS USE BUN** - Runtime and package manager
-4. **GIT HOOKS** - Pre-push hooks run automatically; if they fail, fix the issues (don't force-push)
-5. **NO RANDOM ENV VARS** - Don't add environment variables unless absolutely necessary. Use existing config, constants, or code-level defaults instead. Adding .env variables creates deployment complexity and hidden dependencies.
-6. **NO EXPLORE AGENT** - Never use `Task(subagent_type=Explore)`. Use Glob and Grep directly instead - they're faster and more precise for this codebase.
-7. **USE THE BRAIN** - Query `use_this_to_remember.db` for past decisions, insights, and context before starting work. Store important learnings when you're done.
-8. **CADDYFILE IS LARGE** - The generated sites file at `/root/webalive/claude-bridge/ops/caddy/generated/Caddyfile.sites` (synced from `/var/lib/claude-bridge/generated/Caddyfile.sites`) is too large to read in one go. Use `Read` with `offset` and `limit` parameters, or use `Grep` to find specific domain configurations.
-9. **OWN YOUR CHANGES** - When deploying or committing, NEVER say "these unrelated changes are not mine" or refuse to include changes in the working directory. If changes exist, they are part of the current work. Take responsibility and include them.
-10. **SEEMINGLY UNRELATED ISSUES ARE OFTEN RELATED** - When you see multiple errors or issues, assume they share a common cause until proven otherwise. Type errors in test files often stem from the same interface change. Build failures across packages usually have one root cause. Don't treat each error as isolated - find the pattern first.
-11. **INVESTIGATE BEFORE FIXING** - When something is "broken", first understand what it IS. Not all `*.goalive.nl` domains are Vite websites. Check nginx config, caddy-shell config, and existing services before creating anything new.
-12. **DEPLOYMENTS REQUIRE NOHUP** - When deploying staging/production, ALWAYS use `nohup make staging > /tmp/staging-deploy.log 2>&1 &` (never bare `make staging`). If your chat session disconnects or you cancel, bare commands leave orphaned build processes that stack up and crash production. Check `tail -f /tmp/staging-deploy.log` for progress. NEVER run deployment commands multiple times - wait for the first to complete.
-13. **ONE DEPLOYMENT AT A TIME** - Before starting any deployment, check if one is already running: `make deploy-status`. If a deployment is running, WAIT. Do not start another. Stacked deployments cause memory exhaustion and production outages.
-14. **CLEAN BEFORE DEPLOY** - Before ANY deployment, check for orphaned processes: `ps aux | grep -E "make|ship|turbo|next build" | grep -v grep`. If you see old ones, kill them: `pkill -9 -f "ship.sh|build-and-serve|turbo|next build"` and remove stale lock: `rm -f /tmp/alive-deploy.lock`. Only then deploy.
-15. **DEBUG STREAM ERRORS** - When users report "error while streaming", find root cause: `journalctl -u alive-staging | grep "STREAM_ERROR:<error-id>"`. See [docs/troubleshooting/stream-errors.md](./docs/troubleshooting/stream-errors.md).
-16. **NEXT.JS MODULE CACHING** - If config changes aren't picked up, clear cache: `rm -rf apps/web/.next/cache && systemctl restart [environment]`. Modules load config at initialization time.
-17. **NO FALLBACKS** - Never write `value || fallback` or `value ?? default` for configuration. If a value is required, throw when it's missing. Silent fallbacks hide bugs and create confusing behavior. Fail fast, fail loud.
-18. **NO `as` OR `any`** - Never use `as` type assertions or `any`. Fix the types properly. If TypeScript complains, the types are wrong — fix them at the source, don't silence the compiler.
-19. **NO HARDCODED DOMAINS** - Domain configuration comes from `server-config.json` at runtime. Never bake domains into env files, source code, or build artifacts. The same build must work on any server.
+2. **ALWAYS USE BUN** - Runtime and package manager
+3. **GIT HOOKS** - Pre-push hooks run automatically; if they fail, fix the issues (don't force-push)
+4. **NO RANDOM ENV VARS** - Don't add environment variables unless absolutely necessary. Use existing config, constants, or code-level defaults instead. Adding .env variables creates deployment complexity and hidden dependencies.
+5. **NO EXPLORE AGENT** - Never use `Task(subagent_type=Explore)`. Use Glob and Grep directly instead - they're faster and more precise for this codebase.
+6. **CADDYFILE IS LARGE** - The generated sites file at `/root/webalive/alive/ops/caddy/generated/Caddyfile.sites` (synced from `/var/lib/alive/generated/Caddyfile.sites`) is too large to read in one go. Use `Read` with `offset` and `limit` parameters, or use `Grep` to find specific domain configurations.
+7. **OWN YOUR CHANGES** - When deploying or committing, NEVER say "these unrelated changes are not mine" or refuse to include changes in the working directory. If changes exist, they are part of the current work. Take responsibility and include them.
+8. **SEEMINGLY UNRELATED ISSUES ARE OFTEN RELATED** - When you see multiple errors or issues, assume they share a common cause until proven otherwise. Type errors in test files often stem from the same interface change. Build failures across packages usually have one root cause. Don't treat each error as isolated - find the pattern first.
+9. **INVESTIGATE BEFORE FIXING** - When something is "broken", first understand what it IS. Not all `*.goalive.nl` domains are Vite websites. Check nginx config, caddy-shell config, and existing services before creating anything new.
+10. **DEPLOYMENTS REQUIRE NOHUP** - When deploying staging/production, ALWAYS use `nohup make staging > /tmp/staging-deploy.log 2>&1 &` (never bare `make staging`). If your chat session disconnects or you cancel, bare commands leave orphaned build processes that stack up and crash production. Check `tail -f /tmp/staging-deploy.log` for progress. NEVER run deployment commands multiple times - wait for the first to complete.
+11. **ONE DEPLOYMENT AT A TIME** - Before starting any deployment, check if one is already running: `make deploy-status`. If a deployment is running, WAIT. Do not start another. Stacked deployments cause memory exhaustion and production outages.
+12. **CLEAN BEFORE DEPLOY** - Before ANY deployment, check for orphaned processes: `ps aux | grep -E "make|ship|turbo|next build" | grep -v grep`. If you see old ones, kill them: `pkill -9 -f "ship.sh|build-and-serve|turbo|next build"` and remove stale lock: `rm -f /tmp/alive-deploy.lock`. Only then deploy.
+13. **DEBUG STREAM ERRORS** - When users report "error while streaming", find root cause: `journalctl -u alive-staging | grep "STREAM_ERROR:<error-id>"`. See [docs/troubleshooting/stream-errors.md](./docs/troubleshooting/stream-errors.md).
+14. **NEXT.JS MODULE CACHING** - If config changes aren't picked up, clear cache: `rm -rf apps/web/.next/cache && systemctl restart [environment]`. Modules load config at initialization time.
+15. **NO FALLBACKS** - Never write `value || fallback` or `value ?? default` for configuration. If a value is required, throw when it's missing. Silent fallbacks hide bugs and create confusing behavior. Fail fast, fail loud.
+16. **NO `as` OR `any`** - Never use `as` type assertions or `any`. Fix the types properly. If TypeScript complains, the types are wrong — fix them at the source, don't silence the compiler.
+17. **NO HARDCODED DOMAINS** - Domain configuration comes from `server-config.json` at runtime. Never bake domains into env files, source code, or build artifacts. The same build must work on any server.
 
 ## Learn from OpenClaw (IMPORTANT)
 
@@ -87,48 +85,6 @@ These domains are **NOT** Vite website templates. Do not deploy them as sites:
 
    If you spot the anti-patterns, say: **"⚠️ Architecture smell: [pattern]. Does this help agents do exactly what they promise, or does it add ways to fail?"**
 
-## Agent Memory (IMPORTANT)
-
-**`use_this_to_remember.db`** - SQLite database at project root containing persistent knowledge across conversations.
-
-**ALWAYS check this first** when working on unfamiliar areas:
-```bash
-sqlite3 use_this_to_remember.db "SELECT topic, content FROM memories WHERE topic LIKE '%your-topic%'"
-```
-
-**Store important learnings** when you discover something:
-```bash
-sqlite3 use_this_to_remember.db "INSERT INTO memories (id, type, topic, content, context, tags) VALUES (lower(hex(randomblob(16))), 'insight', 'topic-name', 'what you learned', 'why it matters', '[\"tag1\",\"tag2\"]')"
-```
-
-**Memory types:** `decision` | `insight` | `pattern` | `todo` | `question` | `context` | `preference`
-
-**Quick queries:**
-```bash
-# All decisions
-sqlite3 use_this_to_remember.db "SELECT topic, content FROM memories WHERE type='decision'"
-
-# Search everything
-sqlite3 use_this_to_remember.db "SELECT * FROM memories WHERE content LIKE '%keyword%'"
-
-# Recent memories
-sqlite3 use_this_to_remember.db "SELECT topic, type, substr(content,1,100) FROM memories ORDER BY created_at DESC LIMIT 10"
-```
-
-**User shortcut:** When the user says `usemem`, query recent memories to recall what we were working on:
-```bash
-sqlite3 use_this_to_remember.db "SELECT type, topic, content, context FROM memories ORDER BY created_at DESC LIMIT 10"
-```
-
-**Conversation summaries:** Store summaries of completed sessions for continuity:
-```bash
-# Read recent conversation summaries
-sqlite3 use_this_to_remember.db "SELECT title, summary, next_steps FROM conversations ORDER BY created_at DESC LIMIT 5"
-
-# Store a conversation summary when ending a session
-sqlite3 use_this_to_remember.db "INSERT INTO conversations (id, title, summary, key_decisions, next_steps) VALUES (lower(hex(randomblob(16))), 'Brief title', 'What we accomplished', 'Key decisions made', 'What to do next')"
-```
-
 ## Project Overview
 
 Claude Bridge is a **multi-tenant development platform** that enables Claude AI to assist with website development through controlled file system access. Key characteristics:
@@ -138,7 +94,7 @@ Claude Bridge is a **multi-tenant development platform** that enables Claude AI 
 - **TURBOREPO Next.js 16 + React 19**: Modern App Router architecture using **Turborepo** for building and deploying the project.
 - **SSE streaming**: Real-time Claude responses via Server-Sent Events
 - **Tool-based interaction**: Limited to safe file operations (Read, Write, Edit, Glob, Grep)
-- **Superadmin access**: Users in `SUPERADMIN_EMAILS` env var can edit this repo via the frontend (workspace: `claude-bridge`, runs as root, all tools enabled)
+- **Superadmin access**: Users in `SUPERADMIN_EMAILS` env var can edit this repo via the frontend (workspace: `alive`, runs as root, all tools enabled)
 
 ## Monorepo Structure
 
@@ -159,22 +115,22 @@ Claude Bridge is a **multi-tenant development platform** that enables Claude AI 
 |---------|---------|
 | `@webalive/shared` | Constants, environment definitions, database types. Almost everything depends on this. |
 | `@webalive/database` | Auto-generated Supabase types (`iam.*`, `app.*` schemas) |
-| `@alive-brug/tools` | Claude's workspace tools (Read, Write, Edit, Glob, Grep) + MCP server |
+| `@webalive/tools` | Claude's workspace tools (Read, Write, Edit, Glob, Grep) + MCP server |
 | `@webalive/site-controller` | Shell-Operator deployment: TS orchestrates, bash executes systemd/caddy/users |
 | `@webalive/oauth-core` | Multi-tenant OAuth with AES-256-GCM encrypted token storage |
-| `@alive-brug/redis` | ioredis wrapper with Docker setup for sessions/caching |
+| `@webalive/redis` | ioredis wrapper with Docker setup for sessions/caching |
 | `@webalive/env` | Zod-validated env vars via @t3-oss/env-nextjs |
 | `@webalive/worker-pool` | Unix socket IPC for warm Claude SDK workers |
-| `@alive-brug/images` | Native image processing via @napi-rs/image |
+| `@webalive/images` | Native image processing via @napi-rs/image |
 | `@alive-game/alive-tagger` | Vite plugin: injects source locations so Claude knows file:line from UI clicks |
-| `@webalive/bridge-types` | TypeScript types for SSE streaming protocol |
+| `@webalive/stream-types` | TypeScript types for SSE streaming protocol |
 
 ### Request Flow (Claude Chat)
 
 ```text
 Browser → /api/claude/stream → Claude Agent SDK → tool callbacks
                                                        ↓
-                                              @alive-brug/tools
+                                              @webalive/tools
                                                        ↓
                                               workspace sandbox
                                               /srv/webalive/sites/[domain]/
@@ -399,7 +355,7 @@ bun run unit
 1. ✅ Document the migration plan
 2. ✅ Search for ALL references: `grep -r "old-file" .`
 3. ✅ Validate before deleting: `./scripts/validate-no-deleted-refs.sh old-file`
-4. ✅ Test service restarts: `systemctl restart claude-bridge-dev && journalctl -u claude-bridge-dev -n 20`
+4. ✅ Test service restarts: `systemctl restart alive-dev && journalctl -u alive-dev -n 20`
 5. ✅ Run full test suite: `bun run test && bun run test:e2e`
 
 **Never**:
@@ -457,14 +413,14 @@ if (result.success) {
 
 #### Updating Caddy Configuration
 
-**Location (generated)**: `/root/webalive/claude-bridge/ops/caddy/generated/Caddyfile.sites`
+**Location (generated)**: `/root/webalive/alive/ops/caddy/generated/Caddyfile.sites`
 
 ```bash
-# 1. Regenerate routing from DB (creates /var/lib/claude-bridge/generated/Caddyfile.sites)
+# 1. Regenerate routing from DB (creates /var/lib/alive/generated/Caddyfile.sites)
 bun run --cwd packages/site-controller routing:generate
 
 # 2. Sync filtered file used by main Caddy import
-bun /root/webalive/claude-bridge/scripts/sync-generated-caddy.ts
+bun /root/webalive/alive/scripts/sync-generated-caddy.ts
 
 # 3. Reload (zero-downtime, preserves active connections)
 systemctl reload caddy
@@ -473,7 +429,7 @@ systemctl reload caddy
 systemctl status caddy
 ```
 
-**Auto-sync architecture**: Main `/etc/caddy/Caddyfile` imports `/root/webalive/claude-bridge/ops/caddy/Caddyfile`, which in turn imports the generated routing file.
+**Auto-sync architecture**: Main `/etc/caddy/Caddyfile` imports `/root/webalive/alive/ops/caddy/Caddyfile`, which in turn imports the generated routing file.
 
 ## Testing Guidelines
 
@@ -637,7 +593,7 @@ curl -X POST https://terminal.goalive.nl/api/deploy-subdomain \
 - **@webalive/database**: Supabase schema types - `iam` schema (users, orgs, org_memberships, sessions), `app` schema (domains, user_quotas, feedback, templates)
 - **@webalive/site-controller**: Site deployment orchestration (Shell-Operator Pattern)
 - **@webalive/oauth-core**: Multi-tenant OAuth with AES-256-GCM encryption
-- **@alive-brug/redis**: Redis client with automatic retry and error handling
+- **@webalive/redis**: Redis client with automatic retry and error handling
 - **@webalive/template**: Template for new site deployments
 
 ### Legacy (Deprecated)
@@ -817,7 +773,7 @@ We have a custom in-process automation scheduler (NOT n8n). Jobs are stored in S
 **Debugging:**
 ```bash
 # Check if cron service is running (look for "[CronService]" logs)
-journalctl -u claude-bridge-staging | grep CronService | tail -20
+journalctl -u alive-staging | grep CronService | tail -20
 
 # Check app.automation_jobs in Supabase (use the Supabase SQL editor or psql)
 # Example (psql):

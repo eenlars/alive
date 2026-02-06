@@ -252,6 +252,9 @@ ${COLORS.dim}━━━━━━━━━━━━━━━━━━━━━━�
 Install:  cp ${generatedDir}/alive-*.service /etc/systemd/system/
           systemctl daemon-reload
 
+Install:  cp ${generatedDir}/alive-*.service /etc/systemd/system/
+          systemctl daemon-reload
+
 Start:    systemctl start alive-dev
 Enable:   systemctl enable alive-dev
 

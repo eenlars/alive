@@ -113,7 +113,7 @@ for pkg in packages/*/; do rm -f "$pkg/$(basename "$pkg")" 2>/dev/null || true; 
 log_step "Building web app..."
 BUILD_START=$(date +%s)
 
-BUILD_OUTPUT_LOG="/tmp/claude-bridge-nextjs-build-${ENV}.log"
+BUILD_OUTPUT_LOG="/tmp/alive-nextjs-build-${ENV}.log"
 if ! bun run build --filter=web --force 2>&1 | tee "$BUILD_OUTPUT_LOG"; then
     log_error "Build failed. Errors:"
     echo ""

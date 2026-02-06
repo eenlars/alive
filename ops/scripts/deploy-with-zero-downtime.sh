@@ -13,7 +13,7 @@ HEALTH_CHECK_DELAY=3
 
 if [ -z "$SERVICE" ] || [ -z "$NEW_BUILD" ] || [ -z "$PORT" ]; then
   echo "Usage: $0 <service-name> <new-build-path> <port>"
-  echo "Example: $0 claude-bridge-production /path/to/dist.xyz 9000"
+  echo "Example: $0 alive-production /path/to/dist.xyz 9000"
   exit 1
 fi
 

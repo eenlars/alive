@@ -27,10 +27,10 @@ type TemplateHandler struct {
 
 // NewTemplateHandler creates a new template handler
 func NewTemplateHandler(cfg *config.AppConfig) *TemplateHandler {
-	// Templates are in packages/tools/supertemplate/templates relative to claude-bridge root
+	// Templates are in packages/tools/supertemplate/templates relative to alive repo root
 	// Find the path based on common deployment patterns
 	possiblePaths := []string{
-		"/root/webalive/claude-bridge/packages/tools/supertemplate/templates",
+		"/root/webalive/alive/packages/tools/supertemplate/templates",
 		filepath.Join(cfg.WorkspaceBase, "../packages/tools/supertemplate/templates"),
 	}
 

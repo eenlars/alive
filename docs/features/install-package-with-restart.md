@@ -172,7 +172,7 @@ To test the feature:
 
 1. Install a missing package in a site workspace:
    ```bash
-   curl -X POST http://localhost:8999/api/install-package \
+   curl -X POST http://localhost:8997/api/install-package \
      -H "Content-Type: application/json" \
      -d '{
        "workspaceRoot": "/srv/webalive/sites/startup.alive.best/user",

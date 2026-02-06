@@ -4,20 +4,20 @@
 
 // Export common types from public schema (if available) or lockbox as fallback
 export {
+  CompositeTypes,
+  Enums,
   Json,
   Tables,
   TablesInsert,
   TablesUpdate,
-  Enums,
-  CompositeTypes,
 } from "./public.generated"
 
+import type { Database as AppDatabase } from "./app.generated"
+import type { Database as IamDatabase } from "./iam.generated"
+import type { Database as IntegrationsDatabase } from "./integrations.generated"
 // Import Database types for renaming
 import type { Database as LockboxDatabase } from "./lockbox.generated"
-import type { Database as IntegrationsDatabase } from "./integrations.generated"
-import type { Database as IamDatabase } from "./iam.generated"
 import type { Database as PublicDatabase } from "./public.generated"
-import type { Database as AppDatabase } from "./app.generated"
 
 // Re-export with schema-specific names
 export type { LockboxDatabase }

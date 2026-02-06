@@ -2057,7 +2057,7 @@ When connecting to your auth provider's email verification webhook:
 
 ```bash
 # Check server logs for referral events
-journalctl -u alive-dev -f | grep "\[Referral\]"
+journalctl -u alive-dev -f | grep "\\[Referral\\]"
 
 # Query database for referral status
 supabase db run "SELECT * FROM iam.referrals WHERE referred_id = 'user_123'"

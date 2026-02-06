@@ -16,8 +16,8 @@
  * ```
  */
 
-import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres"
-import { Pool, PoolConfig } from "pg"
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres"
+import { Pool, type PoolConfig } from "pg"
 import * as schema from "./schema"
 
 // ============================================================================
@@ -137,38 +137,37 @@ export async function closeConnection(): Promise<void> {
 // Re-exports
 // ============================================================================
 
-// Re-export schema for convenience
-export * as schema from "./schema"
-
 // Re-export Drizzle operators for queries
 export {
+  and,
+  asc,
+  avg,
+  between,
+  count,
+  desc,
   eq,
-  ne,
+  exists,
   gt,
   gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  like,
   lt,
   lte,
-  isNull,
-  isNotNull,
-  inArray,
-  notInArray,
-  exists,
-  notExists,
-  between,
-  notBetween,
-  like,
-  ilike,
-  notLike,
-  notIlike,
-  and,
-  or,
-  not,
-  asc,
-  desc,
-  sql,
-  count,
-  sum,
-  avg,
-  min,
   max,
+  min,
+  ne,
+  not,
+  notBetween,
+  notExists,
+  notIlike,
+  notInArray,
+  notLike,
+  or,
+  sql,
+  sum,
 } from "drizzle-orm"
+// Re-export schema for convenience
+export * as schema from "./schema"

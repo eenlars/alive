@@ -14,7 +14,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { resolve, dirname } from "node:path"
+import { dirname, resolve } from "node:path"
 
 // Load environment variables from apps/web/.env
 const scriptDir = dirname(new URL(import.meta.url).pathname)

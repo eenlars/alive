@@ -11,7 +11,7 @@ PREVIOUS_HASH=$(cat "$HASH_FILE" 2>/dev/null)
 
 if [ "$CURRENT_HASH" != "$PREVIOUS_HASH" ]; then
     echo "[sync-credentials] Credentials changed, restarting production..."
-    systemctl restart claude-bridge-production
+    systemctl restart alive-production
     echo "$CURRENT_HASH" > "$HASH_FILE"
     echo "[sync-credentials] Done"
 else

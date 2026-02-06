@@ -675,7 +675,7 @@ Test after Next.js updates, update tests if needed.
 - Mysterious 409 errors
 
 **Causes:**
-- Production (8999) somehow using test port
+- Production (9000) somehow using test port
 - Shared session store between prod and test
 - File system conflicts
 

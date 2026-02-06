@@ -5,8 +5,8 @@
 ⚠️ **Production deployment is restricted.** Contact devops for production deploys.
 
 **Domain:** `terminal.goalive.nl`
-**Port:** `8999`
-**Process:** `alive`
+**Port:** `9000`
+**Process:** `alive-production`
 **Mode:** Standalone Next.js server
 
 ## Staging
@@ -52,7 +52,7 @@ systemctl restart alive-dev     # restart
 ```
 Internet → Caddy (80/443)
   ↓
-terminal.goalive.nl → localhost:8999 (production - restricted)
+terminal.goalive.nl → localhost:9000 (production - restricted)
 staging.terminal.goalive.nl → localhost:8998 (staging - accessible)
 dev.terminal.goalive.nl → localhost:8997 (dev - accessible)
 ```
@@ -63,7 +63,7 @@ dev.terminal.goalive.nl → localhost:8997 (dev - accessible)
 
 ```caddy
 terminal.goalive.nl {
-    reverse_proxy localhost:8999
+    reverse_proxy localhost:9000
 }
 
 staging.terminal.goalive.nl {
@@ -109,9 +109,9 @@ After deployment:
 ## Troubleshooting
 
 **Port already in use:**
-- `lsof -i :8999` - find process
-- `systemctl stop alive` - stop the service
-- `fuser -k 8999/tcp` - kill the port if still in use
+- `lsof -i :9000` - find process
+- `systemctl stop alive-production` - stop the service
+- `fuser -k 9000/tcp` - kill the port if still in use
 
 **Build fails atomically:**
 - Old version still running (safe)

@@ -1,5 +1,5 @@
 # Legacy example Caddyfile for Claude Bridge
-# Prefer generated routing via /var/lib/claude-bridge/generated/Caddyfile.sites
+# Prefer generated routing via /var/lib/alive/generated/Caddyfile.sites
 # See: ops/caddy/etc/Caddyfile.example
 
 (common_headers) {

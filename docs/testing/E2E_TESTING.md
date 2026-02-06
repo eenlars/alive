@@ -196,7 +196,7 @@ End-to-end (E2E) tests simulate real user interactions in a browser. They:
 // apps/web/playwright.config.ts
 import { defineConfig } from "@playwright/test"
 
-const TEST_PORT = "9547"  // Different from production (8999)
+const TEST_PORT = "9547"  // Different from production (9000)
 const BASE_URL = `http://localhost:${TEST_PORT}`
 
 export default defineConfig({

@@ -24,12 +24,12 @@ var log = logger.WithComponent("SESSION")
 
 // Session represents a user session with metadata
 type Session struct {
-	Token       string `json:"token"`
-	CreatedAt   int64  `json:"createdAt"`
-	LastAccess  int64  `json:"lastAccess"`
-	ExpiresAt   int64  `json:"expiresAt"`
-	UserAgent   string `json:"userAgent,omitempty"`
-	RemoteAddr  string `json:"remoteAddr,omitempty"`
+	Token      string `json:"token"`
+	CreatedAt  int64  `json:"createdAt"`
+	LastAccess int64  `json:"lastAccess"`
+	ExpiresAt  int64  `json:"expiresAt"`
+	UserAgent  string `json:"userAgent,omitempty"`
+	RemoteAddr string `json:"remoteAddr,omitempty"`
 }
 
 // StoreConfig holds configuration for the session store
