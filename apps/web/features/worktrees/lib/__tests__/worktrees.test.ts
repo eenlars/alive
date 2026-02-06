@@ -23,6 +23,7 @@ vi.mock("@/lib/workspace-execution/command-runner", () => ({
       cwd: workspaceRoot,
       encoding: "utf8",
       timeout: timeout ?? 60000,
+      env: sanitizedGitEnv(),
     })
     return {
       success: result.status === 0,
@@ -38,8 +39,17 @@ interface TestRepo {
   baseWorkspacePath: string
 }
 
+function sanitizedGitEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env }
+  delete env.GIT_DIR
+  delete env.GIT_WORK_TREE
+  delete env.GIT_COMMON_DIR
+  delete env.GIT_INDEX_FILE
+  return env
+}
+
 function runGit(cwd: string, args: string[]) {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8" })
+  const result = spawnSync("git", args, { cwd, encoding: "utf8", env: sanitizedGitEnv() })
   if (result.status !== 0) {
     throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`)
   }
@@ -159,7 +169,7 @@ describe("worktrees service", () => {
     const branchCheck = spawnSync(
       "git",
       ["-C", repo.baseWorkspacePath, "rev-parse", "--verify", "refs/heads/worktree/cleanup-branch"],
-      { encoding: "utf8" },
+      { encoding: "utf8", env: sanitizedGitEnv() },
     )
 
     expect(branchCheck.status).not.toBe(0)
