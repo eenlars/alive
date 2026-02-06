@@ -272,7 +272,7 @@ export function ConversationSidebar({
                 <button
                   type="button"
                   onClick={() => setArchivedExpanded(prev => !prev)}
-                  className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-medium ${styles.textMuted} hover:text-black/60 dark:hover:text-white/60 ${styles.hoverFill} ${styles.transition}`}
+                  className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm md:text-xs font-medium ${styles.textMuted} hover:text-black/60 dark:hover:text-white/60 ${styles.hoverFill} ${styles.transition}`}
                 >
                   <ChevronRight
                     size={14}
@@ -371,7 +371,7 @@ function FooterActions({
             />
             <div className="flex-1 min-w-0 text-left">
               <div className={`text-sm ${styles.textPrimary} truncate`}>Share Alive</div>
-              <div className={`text-xs ${styles.textMuted} truncate`}>with someone you love</div>
+              <div className={`text-sm md:text-xs ${styles.textMuted} truncate`}>with someone you love</div>
             </div>
             <ChevronRight size={14} className={`shrink-0 ${styles.textSubtle}`} />
           </button>
@@ -489,7 +489,7 @@ function ConversationItem({
               />
             </div>
           )}
-          <div className={`text-xs ${styles.textMuted} mt-1 flex items-center gap-1.5`}>
+          <div className={`text-sm md:text-xs ${styles.textMuted} mt-1 flex items-center gap-1.5`}>
             <span>{formatTimestamp(conversation.updatedAt)}</span>
             <span className={styles.textSubtle}>·</span>
             <span>{conversation.messageCount ?? 0} messages</span>
@@ -596,7 +596,7 @@ function ArchivedConversationItem({
       >
         <div className="flex-1 min-w-0 opacity-50 group-hover:opacity-70 transition-opacity">
           <div className={`text-sm ${styles.textPrimary} truncate`}>{conversation.title}</div>
-          <div className={`text-xs ${styles.textMuted} mt-0.5`}>
+          <div className={`text-sm md:text-xs ${styles.textMuted} mt-0.5`}>
             Archived {formatTimestamp(conversation.archivedAt ?? conversation.updatedAt)}
           </div>
         </div>
