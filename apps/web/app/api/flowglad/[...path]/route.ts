@@ -5,6 +5,7 @@ import { cookies } from "next/headers"
 import { verifySessionToken } from "@/features/auth/lib/jwt"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { createFlowgladServer } from "@/lib/flowglad/server"
+import { createIamClient } from "@/lib/supabase/iam"
 
 /**
  * FlowGlad API route handler.
@@ -15,6 +16,7 @@ import { createFlowgladServer } from "@/lib/flowglad/server"
  * - etc.
  *
  * Authentication: Uses our JWT session cookie to identify the user.
+ * Test accounts (is_test_env=true) are blocked from creating Flowglad customers.
  */
 export const { GET, POST } = nextRouteHandler({
   getCustomerExternalId: async () => {
@@ -35,6 +37,14 @@ export const { GET, POST } = nextRouteHandler({
 
     if (!payload?.userId) {
       throw new Error("Invalid session")
+    }
+
+    // Block test accounts from creating Flowglad customers
+    const iam = await createIamClient("service")
+    const { data: user } = await iam.from("users").select("is_test_env").eq("user_id", payload.userId).single()
+
+    if (user?.is_test_env) {
+      throw new Error("Test accounts are not eligible for billing")
     }
 
     return payload.userId

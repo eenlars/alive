@@ -97,7 +97,7 @@ function ChatPageContent() {
     },
     [dexieSession, ensureTabGroupWithTab],
   )
-  const { toggleSidebar } = useSidebarActions()
+  const { toggleSidebar, openSidebar } = useSidebarActions()
   const isSidebarOpen = useSidebarOpen()
   const isHydrated = useAppHydrated()
   const [subdomainInitialized, setSubdomainInitialized] = useState(false)
@@ -143,7 +143,7 @@ function ChatPageContent() {
   const showTabs = true
   const chatInputRef = useRef<ChatInputHandle | null>(null)
   const photoButtonRef = useRef<HTMLButtonElement>(null)
-  const { setSSETerminal, setSSETerminalMinimized, setSandbox, setSandboxMinimized } = useDebugActions()
+  const { setSSETerminal, setSSETerminalMinimized } = useDebugActions()
   const showSSETerminal = useSSETerminal()
   const showSandboxRaw = useSandbox()
   const isDebugMode = useDebugVisible()
@@ -484,12 +484,9 @@ function ChatPageContent() {
       setSSETerminal(true)
       setSSETerminalMinimized(true)
     }
-    // Only auto-open sandbox on large screens (desktops), not tablets
-    if (window.innerWidth >= 1280) {
-      setSandbox(true)
-      setSandboxMinimized(false)
-    }
-  }, [setSSETerminal, setSSETerminalMinimized, setSandbox, setSandboxMinimized])
+    // Open conversations sidebar by default
+    openSidebar()
+  }, [setSSETerminal, setSSETerminalMinimized, openSidebar])
 
   // Calculate total domain count from organizations
   const totalDomainCount = organizations.reduce((sum, org) => sum + (org.workspace_count || 0), 0)
