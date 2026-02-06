@@ -2,10 +2,19 @@
 
 import { type ClipboardEvent, useEffect, useRef } from "react"
 import { useChatInput } from "./ChatInputContext"
+import { useSkillMention } from "./hooks/useSkillMention"
+import { SkillMentionPopup } from "./SkillMentionPopup"
 
 export function InputArea() {
-  const { message, setMessage, onSubmit, config, registerTextareaRef } = useChatInput()
+  const { message, setMessage, onSubmit, config, registerTextareaRef, onAddSkill } = useChatInput()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const mention = useSkillMention({
+    message,
+    setMessage,
+    onAddSkill,
+    textareaRef,
+  })
 
   // Register textarea ref with parent ChatInput for focus management
   useEffect(() => {
@@ -51,22 +60,47 @@ export function InputArea() {
   }, [message, config.minHeight, config.maxHeight])
 
   return (
-    <textarea
-      ref={textareaRef}
-      value={message}
-      onChange={e => setMessage(e.target.value)}
-      onPaste={handlePaste}
-      onKeyDown={e => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault()
-          onSubmit()
-        }
-      }}
-      placeholder={config.placeholder}
-      className="w-full resize-none border-0 bg-transparent text-base leading-relaxed font-normal focus:outline-none py-3 px-4 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 no-scrollbar"
-      rows={1}
-      data-testid="message-input"
-      aria-label="Message input"
-    />
+    <div className="relative">
+      {/* @Skill mention autocomplete */}
+      {mention.isOpen && (
+        <SkillMentionPopup
+          filteredSkills={mention.filteredSkills}
+          selectedIndex={mention.selectedIndex}
+          onSelect={mention.selectSkill}
+          onDismiss={mention.dismiss}
+          onHover={mention.setSelectedIndex}
+          query={mention.query}
+        />
+      )}
+
+      <textarea
+        ref={textareaRef}
+        value={message}
+        onChange={e => {
+          setMessage(e.target.value)
+          mention.handleChange(e.target.value, e.target)
+        }}
+        onPaste={handlePaste}
+        onKeyDown={e => {
+          // Mention popup takes priority when open
+          if (mention.handleKeyDown(e)) {
+            return
+          }
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault()
+            onSubmit()
+          }
+        }}
+        placeholder={config.placeholder}
+        className="w-full resize-none border-0 bg-transparent text-base leading-relaxed font-normal focus:outline-none py-3 px-4 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 no-scrollbar"
+        rows={1}
+        data-testid="message-input"
+        aria-label="Message input"
+        aria-expanded={mention.isOpen}
+        aria-haspopup="listbox"
+        aria-autocomplete="list"
+        role="combobox"
+      />
+    </div>
   )
 }

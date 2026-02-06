@@ -161,6 +161,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Omit<ChatInputProps, "child
       onStop,
       config,
       registerTextareaRef,
+      onAddSkill: addSkill,
     }),
     [
       message,
@@ -176,6 +177,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Omit<ChatInputProps, "child
       onStop,
       config,
       registerTextareaRef,
+      addSkill,
     ],
   )
 
