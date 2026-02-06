@@ -14,7 +14,7 @@
  */
 
 import { existsSync, readFileSync } from "node:fs"
-import { dirname, resolve } from "node:path"
+import { resolve, dirname } from "node:path"
 
 const scriptDir = dirname(new URL(import.meta.url).pathname)
 const migrationPath = resolve(scriptDir, "../migrations/0001_init.sql")

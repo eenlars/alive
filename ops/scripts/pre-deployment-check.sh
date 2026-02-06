@@ -14,11 +14,11 @@ fi
 
 case "$ENVIRONMENT" in
   staging)
-    SERVICE="alive-staging"
+    SERVICE="claude-bridge-staging"
     PORT=8998
     ;;
   production)
-    SERVICE="alive-production"
+    SERVICE="claude-bridge-production"
     PORT=9000
     ;;
 esac

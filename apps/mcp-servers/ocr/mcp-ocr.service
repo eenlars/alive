@@ -7,7 +7,7 @@ Requires=docker.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/root/webalive/alive/apps/mcp-servers/ocr
+WorkingDirectory=/root/webalive/claude-bridge/apps/mcp-servers/ocr
 
 # Stop existing container, rebuild, and start
 ExecStartPre=/usr/bin/docker stop mcp-ocr || true

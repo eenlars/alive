@@ -10,10 +10,11 @@ if ! ./scripts/validation/check-no-env-files.sh; then
     exit 1
 fi
 
-# Run comprehensive checks (no file rewrites):
+# Run comprehensive checks:
 # - Type checking (Turbo cached)
-# - CI checks (Turbo cached): lint + format validation (no --write)
-# - Core unit tests (web + tools)
+# - Linting (Turbo cached)
+# - Format checking (Turbo cached)
+# - Unit tests
 if ! bun run static-check; then
     echo ""
     echo "❌ Pre-push check failed. Fix the issues above before pushing."

@@ -4,8 +4,8 @@
 # Copy to /etc/caddy/Caddyfile on each server.
 #
 # Prerequisites:
-# 1. Create /var/lib/alive/server-config.json with server identity
-# 2. Run: bun run -C /path/to/alive/packages/site-controller routing:generate
+# 1. Create /var/lib/claude-bridge/server-config.json with server identity
+# 2. Run: bun run -C /path/to/claude-bridge/packages/site-controller routing:generate
 # 3. Validate: caddy validate --config /etc/caddy/Caddyfile
 # 4. Reload: systemctl reload caddy
 
@@ -20,7 +20,7 @@
 }
 
 # Shared snippets (common_headers, image_serving, preview_auth)
-import /root/webalive/alive/ops/caddy/Caddyfile.snippets
+import /root/webalive/claude-bridge/ops/caddy/Caddyfile.snippets
 
 # Production domains (edit manually, rarely changes)
 import /etc/caddy/Caddyfile.prod
@@ -29,4 +29,4 @@ import /etc/caddy/Caddyfile.prod
 import /etc/caddy/Caddyfile.staging
 
 # Generated site routing (regenerate with routing:generate)
-import /var/lib/alive/generated/Caddyfile.sites
+import /var/lib/claude-bridge/generated/Caddyfile.sites

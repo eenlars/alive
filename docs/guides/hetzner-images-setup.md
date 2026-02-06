@@ -72,7 +72,7 @@ terminal.goalive.nl {
         file_server
     }
     handle {
-        reverse_proxy localhost:9000
+        reverse_proxy localhost:8999
     }
 }
 ```

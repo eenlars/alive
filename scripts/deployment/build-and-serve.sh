@@ -203,14 +203,14 @@ if [ -n "$PROMOTE_FROM" ]; then
     fi
 
     cd "$BUILDS_DIR"
-    ln -sfn "dist.$TIMESTAMP" "current"
+    ln -sfn "dist.$TIMESTAMP" "current.tmp" && mv -T "current.tmp" "current"
     cd "$PROJECT_ROOT"
 
     NEW_BUILD="dist.$TIMESTAMP"
     log_step "Promoted: $NEW_BUILD"
     phase_end ok "Build promoted"
 else
-    BUILD_LOG="/tmp/alive-build-${ENV}.log"
+    BUILD_LOG="/tmp/claude-bridge-build-${ENV}.log"
     set +e
     "$SCRIPT_DIR/build-atomic.sh" "$ENV" 2>&1 | tee "$BUILD_LOG"
     BUILD_EXIT=${PIPESTATUS[0]}
@@ -269,6 +269,16 @@ if ! health_check "http://localhost:$PORT/" "$MAX_WAIT" 1; then
 fi
 
 sleep 3  # Warmup
+
+# Verify stream endpoint loads without ChunkLoadError (401 = auth required = route works)
+STREAM_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/api/claude/stream" 2>/dev/null || echo "000")
+if [ "$STREAM_STATUS" = "500" ] || [ "$STREAM_STATUS" = "000" ]; then
+    phase_end error "Stream endpoint returned $STREAM_STATUS (likely missing chunks)"
+    rollback "critical endpoint broken"
+    exit 1
+fi
+log_step "Stream endpoint OK (HTTP $STREAM_STATUS)"
+
 phase_end ok "Server healthy"
 
 # =============================================================================

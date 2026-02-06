@@ -1,17 +1,13 @@
 {
   "$schema": "https://v2-8-2.turborepo.dev/schema.json",
   "ui": "stream",
-  "globalDependencies": ["tsconfig.json", "tsconfig.base.json", "biome.json"],
+  "globalDependencies": ["tsconfig.json"],
   "globalEnv": ["CI", "NODE_ENV", "VERCEL", "VERCEL_ENV", "VERCEL_URL"],
   "tasks": {
     "dev": {
       "cache": false,
       "persistent": true,
       "env": ["ANTHROPIC_API_KEY", "ANTH_API_SECRET", "ALIVE_ENV", "LOCAL_TEMPLATE_PATH", "PLAYWRIGHT_TEST"]
-    },
-    "ci": {
-      "inputs": ["$TURBO_DEFAULT$", "biome.json"],
-      "outputs": []
     },
     "build": {
       "dependsOn": ["^build"],

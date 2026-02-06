@@ -1,4 +1,4 @@
-# Claude Bridge
+# Alive
 
 AI-powered website development. Claude edits your files directly, in isolated sandboxes.
 
@@ -8,7 +8,7 @@ AI-powered website development. Claude edits your files directly, in isolated sa
 
 ## What is this?
 
-Claude Bridge gives Claude AI controlled access to your website files. Each site gets its own isolated workspace where Claude can read, write, and edit files safely.
+Alive gives Claude AI controlled access to your website files. Each site gets its own isolated workspace where Claude can read, write, and edit files safely.
 
 ```
 You: "Update the hero section to be more engaging"
@@ -47,7 +47,7 @@ bun run dev
 
 ### 5. Open the app
 
-Visit `http://localhost:8997` and log in:
+Visit `http://localhost:3000` and log in:
 - **Email**: `test@alive.local`
 - **Password**: `test`
 
@@ -56,10 +56,10 @@ Visit `http://localhost:8997` and log in:
 ## 🏗️ How It Works
 
 ```
-Browser → Claude Bridge → Claude SDK → Your Files
-                              ↓
-                    Workspace Sandbox
-                    /srv/webalive/sites/[domain]/
+Browser → Alive → Claude SDK → Your Files
+              ↓
+    Workspace Sandbox
+    /srv/webalive/sites/[domain]/
 ```
 
 **Key concepts:**
@@ -76,7 +76,7 @@ Browser → Claude Bridge → Claude SDK → Your Files
 apps/
 ├── web/              # Main Next.js app (chat UI, Claude API, auth)
 ├── broker/           # Message broker for streaming
-└── shell-server-go/  # Web terminal + file editor (Go)
+└── shell-server/     # Web terminal + file editor
 
 packages/
 ├── tools/            # Claude's workspace tools

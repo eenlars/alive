@@ -233,9 +233,63 @@ export interface Label {
 }
 
 // Helper functions
+
+/**
+ * Decode RFC 2047 MIME encoded-words in email headers.
+ * Handles =?charset?B?base64?= and =?charset?Q?quoted-printable?= formats.
+ * Also detects and fixes double-encoded UTF-8 (mojibake).
+ */
+function decodeMimeHeader(value: string): string {
+  // RFC 2047 encoded-word pattern: =?charset?encoding?text?=
+  const encodedWordPattern = /=\?([^?]+)\?(B|Q)\?([^?]*)\?=/gi
+
+  let decoded = value.replace(encodedWordPattern, (_match, charset: string, encoding: string, text: string) => {
+    const cs = charset.toLowerCase()
+    const enc = encoding.toUpperCase()
+
+    let bytes: Buffer
+    if (enc === "B") {
+      bytes = Buffer.from(text, "base64")
+    } else {
+      // Q encoding: underscores are spaces, =XX is hex
+      const qDecoded = text
+        .replace(/_/g, " ")
+        .replace(/=([0-9A-Fa-f]{2})/g, (_m, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)))
+      bytes = Buffer.from(qDecoded, "binary")
+    }
+
+    if (cs === "utf-8" || cs === "utf8") {
+      return bytes.toString("utf-8")
+    }
+    // For other charsets (iso-8859-1, windows-1252, etc.), latin1 is close enough
+    return bytes.toString("latin1")
+  })
+
+  // Remove whitespace between adjacent encoded-words (RFC 2047 §6.2)
+  decoded = decoded.replace(/\?=\s+=\?/g, "?==?")
+
+  // Detect and fix double-encoded UTF-8 (mojibake)
+  // Pattern: characters like Ã¢, Ã©, etc. that are UTF-8 bytes misread as Latin-1
+  if (/[\xC0-\xDF][\x80-\xBF]|[\xE0-\xEF][\x80-\xBF]{2}/.test(decoded)) {
+    try {
+      const latin1Bytes = Buffer.from(decoded, "latin1")
+      const reDecoded = latin1Bytes.toString("utf-8")
+      // Verify it decoded cleanly (no replacement characters) and is shorter
+      if (!reDecoded.includes("\uFFFD") && reDecoded.length < decoded.length) {
+        return reDecoded
+      }
+    } catch {
+      // Not double-encoded, return as-is
+    }
+  }
+
+  return decoded
+}
+
 function getHeader(headers: gmail_v1.Schema$MessagePartHeader[], name: string): string {
   const header = headers.find(h => h.name?.toLowerCase() === name.toLowerCase())
-  return header?.value || ""
+  if (!header?.value) return ""
+  return decodeMimeHeader(header.value)
 }
 
 function extractBody(payload: gmail_v1.Schema$MessagePart | undefined): string {
@@ -291,12 +345,22 @@ function extractAttachmentInfo(payload: gmail_v1.Schema$MessagePart | undefined)
   return attachments
 }
 
+/**
+ * RFC 2047 encode a header value if it contains non-ASCII characters.
+ * Uses Base64 encoding with UTF-8 charset.
+ */
+function encodeMimeHeader(value: string): string {
+  // Check if the string contains non-ASCII characters
+  if (/^[\x20-\x7E]*$/.test(value)) return value
+  return `=?UTF-8?B?${Buffer.from(value, "utf-8").toString("base64")}?=`
+}
+
 function createMimeMessage(to: string, subject: string, body: string, cc?: string, bcc?: string): string {
   const lines = [
     `To: ${to}`,
     cc ? `Cc: ${cc}` : null,
     bcc ? `Bcc: ${bcc}` : null,
-    `Subject: ${subject}`,
+    `Subject: ${encodeMimeHeader(subject)}`,
     "Content-Type: text/plain; charset=utf-8",
     "",
     body,

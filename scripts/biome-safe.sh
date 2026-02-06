@@ -2,7 +2,7 @@
 # Wrapper for biome that prevents concurrent runs using flock
 # This prevents OOM issues when multiple Claude sessions run lint simultaneously
 
-LOCK_FILE="/tmp/biome-alive.lock"
+LOCK_FILE="/tmp/biome-claude-bridge.lock"
 TIMEOUT=120  # Wait up to 2 minutes for lock
 
 # Use flock to serialize biome runs

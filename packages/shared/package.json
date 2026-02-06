@@ -28,7 +28,6 @@
     "type-check": "tsc --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "ci": "biome ci .",
     "generate-json": "node dist/generate-environments-json.js",
     "gen:types": "bun scripts/generate-database-types.ts"
   },

@@ -75,7 +75,7 @@ bun run dev
 
 ### 4. Login with Test Credentials
 
-Navigate to `http://localhost:8997` and log in:
+Navigate to `http://localhost:8999` and log in:
 
 - **Workspace**: `test`
 - **Passcode**: `test`
@@ -430,3 +430,4 @@ This document outlines all edge cases handled by the local development setup.
 - [ ] Test runtime with file instead of directory
 - [ ] Verify .alive/ is gitignored
 - [ ] Verify test credentials only work when ALIVE_ENV=local
+

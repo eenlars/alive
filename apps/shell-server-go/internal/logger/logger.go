@@ -38,11 +38,11 @@ func (l Level) String() string {
 
 // Colors for terminal output
 const (
-	colorReset = "\033[0m"
-	colorDebug = "\033[36m" // Cyan
-	colorInfo  = "\033[32m" // Green
-	colorWarn  = "\033[33m" // Yellow
-	colorError = "\033[31m" // Red
+	colorReset  = "\033[0m"
+	colorDebug  = "\033[36m" // Cyan
+	colorInfo   = "\033[32m" // Green
+	colorWarn   = "\033[33m" // Yellow
+	colorError  = "\033[31m" // Red
 )
 
 func (l Level) Color() string {
@@ -72,9 +72,9 @@ type Logger struct {
 
 // Config for creating a new logger
 type Config struct {
-	Output   io.Writer
-	MinLevel Level
-	UseColor bool
+	Output    io.Writer
+	MinLevel  Level
+	UseColor  bool
 }
 
 var (

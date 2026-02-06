@@ -22,7 +22,7 @@ User=root
 Group=root
 
 # Working directory
-WorkingDirectory=/root/webalive/alive
+WorkingDirectory=/root/webalive/claude-bridge
 
 # Start command - uses Bun for performance
 ExecStart=/root/.bun/bin/bun apps/broker/src/server.ts
@@ -33,7 +33,7 @@ Environment=BROKER_PORT=3001
 Environment=BROKER_HOST=127.0.0.1
 
 # Load secrets from environment file
-EnvironmentFile=/root/webalive/alive/.env.broker
+EnvironmentFile=/root/webalive/claude-bridge/.env.broker
 
 # Restart policy
 Restart=always

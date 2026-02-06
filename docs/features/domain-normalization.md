@@ -70,7 +70,7 @@ To verify lowercase transformation:
 
 ```bash
 # Test deploy with uppercase domain
-curl -X POST http://localhost:9000/api/deploy \
+curl -X POST http://localhost:8999/api/deploy \
   -H "Content-Type: application/json" \
   -d '{"domain":"EXAMPLE.COM","password":"test123"}'
 

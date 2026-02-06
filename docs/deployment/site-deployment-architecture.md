@@ -24,8 +24,8 @@ The WebAlive infrastructure provides **secure, isolated, multi-tenant website de
 - **Features**: User isolation, resource limits, security hardening
 
 ### 4. **Reverse Proxy: Caddy**
-- **Generated Sites**: `/var/lib/alive/generated/Caddyfile.sites`
-- **Shim Import**: `/root/webalive/alive/ops/caddy/Caddyfile` (imports generated routing)
+- **Generated Sites**: `/var/lib/claude-bridge/generated/Caddyfile.sites`
+- **Shim Import**: `/root/webalive/claude-bridge/ops/caddy/Caddyfile` (imports generated routing)
 - **System Config**: `/etc/caddy/Caddyfile` (imports shim + prod/staging)
 - **Features**: Automatic HTTPS, zero-downtime reloads
 
@@ -35,7 +35,7 @@ The WebAlive infrastructure provides **secure, isolated, multi-tenant website de
 - **Workspace Access**: Users linked to domains they own
 
 ### 6. **Port Registry**
-- **Location**: `/var/lib/alive/domain-passwords.json`
+- **Location**: `/var/lib/claude-bridge/domain-passwords.json`
 - **Format**: JSON with domain → port/password mappings
 - **Auto-increment**: Starts at 3333, increments for each new site
 
@@ -95,7 +95,7 @@ Set permissions: chmod -R 755 (readable/executable by all, writable by owner)
 ### **Phase 4: Port Assignment**
 
 ```
-Load registry: /var/lib/alive/domain-passwords.json
+Load registry: /var/lib/claude-bridge/domain-passwords.json
   ↓
 Check if domain exists:
   - YES → Reuse existing port
@@ -160,7 +160,7 @@ Generate routing:
 bun run --cwd packages/site-controller routing:generate
   ↓
 Sync filtered sites file:
-bun /root/webalive/alive/scripts/sync-generated-caddy.ts
+bun /root/webalive/claude-bridge/scripts/sync-generated-caddy.ts
   ↓
 Reload Caddy (zero-downtime):
 systemctl reload caddy
@@ -174,9 +174,9 @@ Caddy handles:
 
 **Two-Tier Caddy Setup:**
 - **Main Config**: `/etc/caddy/Caddyfile` (system-wide, imports shim + prod/staging)
-- **Shim**: `/root/webalive/alive/ops/caddy/Caddyfile` (imports generated routing)
-- **Generated Sites**: `/var/lib/alive/generated/Caddyfile.sites`
-- **Sync**: Filtered copy at `/root/webalive/alive/ops/caddy/generated/Caddyfile.sites`
+- **Shim**: `/root/webalive/claude-bridge/ops/caddy/Caddyfile` (imports generated routing)
+- **Generated Sites**: `/var/lib/claude-bridge/generated/Caddyfile.sites`
+- **Sync**: Filtered copy at `/root/webalive/claude-bridge/ops/caddy/generated/Caddyfile.sites`
 
 ### **Phase 7: User Account Creation (Supabase)**
 
@@ -325,10 +325,10 @@ See: **[CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md)**
 | **Workspace** | `/srv/webalive/sites/{domain}/` | Site files (new secure location) |
 | **Legacy Workspace** | `/root/webalive/sites/{domain}/` | Old PM2 sites (migrate to systemd) |
 | **Systemd Unit** | `/etc/systemd/system/site@.service` | Service template |
-| **Caddy Routing** | `/var/lib/alive/generated/Caddyfile.sites` | Generated site routing |
-| **Caddy Shim** | `/root/webalive/alive/ops/caddy/Caddyfile` | Imports generated routing |
+| **Caddy Routing** | `/var/lib/claude-bridge/generated/Caddyfile.sites` | Generated site routing |
+| **Caddy Shim** | `/root/webalive/claude-bridge/ops/caddy/Caddyfile` | Imports generated routing |
 | **Caddy System** | `/etc/caddy/Caddyfile` | System config + imports |
-| **Port Registry** | `/var/lib/alive/domain-passwords.json` | Port assignments |
+| **Port Registry** | `/var/lib/claude-bridge/domain-passwords.json` | Port assignments |
 | **DNS Verification** | `{domain}/.well-known/bridge-verify.txt` | IP verification (YOUR_SERVER_IP) |
 
 ---
@@ -412,7 +412,7 @@ sudo systemctl start site@example-com.service
 
 # 6. Update Caddy
 bun run --cwd packages/site-controller routing:generate
-bun /root/webalive/alive/scripts/sync-generated-caddy.ts
+bun /root/webalive/claude-bridge/scripts/sync-generated-caddy.ts
 sudo systemctl reload caddy
 
 # 7. Verify

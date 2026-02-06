@@ -3,12 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "python3 -m compileall .",
     "dev": "uvicorn main:app --reload --host 0.0.0.0 --port 5012",
-    "type-check": "python3 -m compileall .",
-    "lint": "python3 -m compileall .",
-    "format": "echo \"(apps/image-processor) no formatter configured\"",
-    "ci": "python3 -m compileall .",
     "start": "uvicorn main:app --host 0.0.0.0 --port 5012",
     "docker:build": "docker build -t image-processor .",
     "docker:run": "docker run -p 5012:5012 image-processor"

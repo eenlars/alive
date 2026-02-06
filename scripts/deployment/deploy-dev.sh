@@ -10,8 +10,8 @@ ENV_CONFIG="$PROJECT_ROOT/packages/shared/environments.json"
 
 # Auto-detect environment if not set
 if [ -z "$HOSTED_ENV" ]; then
-    # Check if systemd is available and alive services exist
-    if systemctl list-unit-files alive-dev.service &> /dev/null; then
+    # Check if systemd is available and claude-bridge services exist
+    if systemctl list-unit-files claude-bridge-dev.service &> /dev/null; then
         HOSTED_ENV="server"
         echo "🔍 Auto-detected: server environment (systemd services available)"
     else
@@ -50,7 +50,7 @@ fi
 echo "🖥️  Server environment detected (HOSTED_ENV=server)"
 
 # Systemd service name for dev
-DEV_SERVICE="alive-dev"
+DEV_SERVICE="claude-bridge-dev"
 DEV_PORT=8997
 
 echo "🔄 Rebuilding packages and restarting dev environment..."

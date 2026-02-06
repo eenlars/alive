@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/root/webalive/alive/scripts/backup-websites.sh
-WorkingDirectory=/root/webalive/alive
+ExecStart=/root/webalive/claude-bridge/scripts/backup-websites.sh
+WorkingDirectory=/root/webalive/claude-bridge
 Environment=PATH=/root/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 StandardOutput=journal
 StandardError=journal

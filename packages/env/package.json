@@ -22,12 +22,9 @@
     }
   },
   "scripts": {
-    "build": "tsc --noEmit",
-    "dev": "tsc --watch --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "type-check": "tsc --noEmit",
-    "ci": "biome ci ."
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@t3-oss/env-nextjs": "^0.11.1",

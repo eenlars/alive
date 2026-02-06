@@ -105,6 +105,30 @@ function ChatPageContent() {
   const [_showCompletionDots, setShowCompletionDots] = useState(false)
   const modals = useModals()
 
+  // Persist settings overlay across refresh: if settingsTab is in URL, auto-open settings
+  const [settingsTabParam, setSettingsTabParam] = useQueryState(QUERY_KEYS.settingsTab)
+  const settingsRestoredRef = useRef(false)
+  useEffect(() => {
+    if (settingsRestoredRef.current) return
+    settingsRestoredRef.current = true
+    if (settingsTabParam) {
+      modals.openSettings("manual")
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- intentionally run once on mount
+
+  // When settings opens without a URL param, write the default so refresh works
+  useEffect(() => {
+    if (modals.settings && !settingsTabParam) {
+      void setSettingsTabParam(modals.settings === "websites" ? "websites" : "account")
+    }
+  }, [modals.settings, settingsTabParam, setSettingsTabParam])
+
+  // When settings overlay closes, clear settingsTab from URL
+  const handleCloseSettings = useCallback(() => {
+    modals.closeSettings()
+    void setSettingsTabParam(null)
+  }, [modals.closeSettings, setSettingsTabParam]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Smart scroll using Intersection Observer
   const { containerRef, anchorRef, isScrolledAway, scrollToBottom, forceScrollToBottom } = useChatScroll({
     threshold: 100,
@@ -895,7 +919,7 @@ function ChatPageContent() {
       )}
       {modals.settings && (
         <SettingsOverlay
-          onClose={modals.closeSettings}
+          onClose={handleCloseSettings}
           initialTab={modals.settings === "websites" ? "websites" : undefined}
         />
       )}

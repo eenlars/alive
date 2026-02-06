@@ -15,19 +15,17 @@
     "web": "cd apps/web && bun run dev",
     "format": "turbo run format --concurrency=1",
     "lint": "turbo run lint --concurrency=1",
-    "ci": "turbo run ci --concurrency=1",
     "type-check": "turbo run type-check",
-    "check:quick": "turbo run type-check ci --concurrency=1",
-    "check:pre-push": "bun run validate:turbo-env && turbo run type-check && turbo run ci --concurrency=1 && bun run test:core",
+    "check:quick": "turbo run type-check lint --concurrency=1",
+    "check:pre-push": "turbo run type-check && turbo run lint format --concurrency=1 && bun run unit",
     "check:comprehensive": "./scripts/validation/run-static-checks.sh",
     "check:all": "bun run check:quick && bun run test && bun run check:comprehensive",
     "validate:turbo-env": "bun scripts/validation/validate-turbo-env.ts",
-    "static-check": "bun run validate:turbo-env && turbo run type-check && turbo run ci --concurrency=1 && bun run test:core",
+    "static-check": "bun run validate:turbo-env && turbo run type-check && turbo run lint format --concurrency=1 && bun run unit",
     "knip": "knip --no-progress",
     "depcruise": "depcruise apps/web --config .dependency-cruiser.json",
-    "test": "turbo run test",
-    "test:core": "cd packages/tools && bun run test && cd ../.. && cd apps/web && bun run test",
-    "unit": "bun run test:core",
+    "test": "cd packages/tools && bun run test --run && cd ../.. && cd apps/web && bun run test",
+    "unit": "cd packages/tools && bun run test --run && cd ../.. && cd apps/web && bun run test",
     "e2e": "cd apps/web && bun run test:e2e",
     "gates": "cd apps/web && bun run test:gates",
     "postinstall": "bun run prepare:repo",
@@ -55,7 +53,7 @@
     "redis:logs": "bun --filter @webalive/redis logs",
     "redis:cli": "bun --filter @webalive/redis cli",
     "redis:health": "bun --filter @webalive/redis health",
-    "redis:test": "bun --filter @webalive/redis test:integration",
+    "redis:test": "bun --filter @webalive/redis test",
     "see": "journalctl -u alive-production -n 1000 -f",
     "see:dev": "journalctl -u alive-dev -n 1000 -f",
     "shell-server": "cd apps/shell-server-go && make build && systemctl restart shell-server",
@@ -71,6 +69,9 @@
   "overrides": {
     "vitest": "4.0.17",
     "@vitest/coverage-v8": "4.0.17"
+  },
+  "resolutions": {
+    "@tanstack/react-query": "5.90.20"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.13",

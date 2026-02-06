@@ -23,8 +23,7 @@
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "lint": "biome lint .",
-    "format": "biome format --write .",
-    "ci": "biome ci ."
+    "format": "biome format --write ."
   },
   "dependencies": {
     "croner": "^9.0.0"

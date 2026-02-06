@@ -24,7 +24,7 @@ SOURCE_TEMPLATE="$PROJECT_ROOT/templates/site-template/user"
 ENV_FILE="$PROJECT_ROOT/apps/web/.env.local"
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BLUE}  Alive - Local Development Setup${NC}"
+echo -e "${BLUE}  Claude Bridge - Local Development Setup${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
@@ -35,8 +35,8 @@ if [ ! -f "$PROJECT_ROOT/package.json" ]; then
     exit 1
 fi
 
-if ! grep -q '"name": "alive-mono"' "$PROJECT_ROOT/package.json" 2>/dev/null; then
-    echo -e "${YELLOW}⚠ Warning: This doesn't appear to be the alive-mono project${NC}"
+if ! grep -q '"name": "claude-bridge-mono"' "$PROJECT_ROOT/package.json" 2>/dev/null; then
+    echo -e "${YELLOW}⚠ Warning: This doesn't appear to be the claude-bridge-mono project${NC}"
     echo -e "  Continuing anyway..."
     echo ""
 fi

@@ -89,7 +89,7 @@ cat <<EOF
 ✓ Workspace setup complete ($MODE_INFO)
 
 Next steps:
-  bun run dev  # Start dev server at http://localhost:8997
+  bun run dev  # Start dev server at http://localhost:8999
 
 $LOGIN_INFO
 EOF

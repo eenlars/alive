@@ -6,7 +6,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js"
-import type { AppDatabase, IamDatabase, IntegrationsDatabase, LockboxDatabase, PublicDatabase } from "./index"
+import type { IamDatabase, AppDatabase, IntegrationsDatabase, LockboxDatabase, PublicDatabase } from "./index"
 
 interface ClientConfig {
   url: string

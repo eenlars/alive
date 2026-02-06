@@ -26,12 +26,12 @@ fi
 
 case "$ENVIRONMENT" in
   staging)
-    SERVICE="alive-staging"
+    SERVICE="claude-bridge-staging"
     PORT=8998
     BUILD_DIR="/root/alive/.builds/staging"
     ;;
   production)
-    SERVICE="alive-production"
+    SERVICE="claude-bridge-production"
     PORT=9000
     BUILD_DIR="/root/alive/.builds/production"
     ;;

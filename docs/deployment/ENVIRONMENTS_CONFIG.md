@@ -33,18 +33,18 @@ export const environments: Record<EnvironmentKey, Environment> = {
     key: "staging",
     displayName: "Staging",
     prefix: "staging",
-	    port: 8997,
-	    domain: "your-staging-domain.goalive.nl",
-	    processName: "alive-staging",
-	    serverScript: "node_modules/.bin/next",
-	    workspacePath: "/srv/webalive/sites",
-	    isProduction: false,
-	    hasHotReload: true,
-	    deployCommand: "make staging",
-	    logsCommand: "make logs-staging",
-	    restartCommand: "systemctl restart alive-staging"
-	  }
-	}
+    port: 8997,
+    domain: "your-staging-domain.goalive.nl",
+    processName: "alive-staging",
+    serverScript: "node_modules/.bin/next",
+    workspacePath: "/srv/webalive/sites",
+    isProduction: false,
+    hasHotReload: true,
+    deployCommand: "make staging",
+    logsCommand: "make logs-staging",
+    restartCommand: "pm2 restart alive-staging"
+  }
+}
 ```
 
 ### 2. Update TypeScript type (optional)
@@ -77,8 +77,8 @@ console.log(devEnv.processName) // alive-dev
 
 // Helper functions
 const env = getEnvironment('production')
-const byPort = getEnvironmentByPort(9000)
-const byProcess = getEnvironmentByProcessName('alive-production')
+const byPort = getEnvironmentByPort(8999)
+const byProcess = getEnvironmentByProcessName('alive')
 ```
 
 ### Bash Scripts
@@ -96,15 +96,15 @@ PROD_PROCESS=$(jq -r '.environments.production.processName' "$ENV_CONFIG")
 # Use in commands
 echo "Dev port: $DEV_PORT"
 echo "Prod process: $PROD_PROCESS"
-journalctl -u "$(jq -r '.environments.dev.systemdService' "$ENV_CONFIG")" -n 1000 -f
+pm2 logs "$(jq -r '.environments.dev.processName' "$ENV_CONFIG")" --lines 1000
 ```
 
 ### Node.js (CommonJS)
 
 ```javascript
-const config = require("./alive.config.js")
+const config = require('./alive.config.js')
 console.log(config.ports.dev)     // 8998
-console.log(config.appName.prod)  // alive-production
+console.log(config.appName.prod)  // alive
 ```
 
 ## Validation
@@ -136,8 +136,8 @@ packages/shared/src/environments.ts:
   staging: { port: 8998, processName: 'alive-staging', ... }
 
 scripts/*.sh:
-  journalctl -u alive-staging -n 100 -f
-  systemctl restart alive-staging
+  pm2 logs alive-staging
+  pm2 restart alive-staging
 ```
 
 **After:**
@@ -147,7 +147,7 @@ packages/shared/src/environments.ts:
 
 scripts/*.sh:
   DEV_PROCESS=$(jq -r '.environments.dev.processName' "$ENV_CONFIG")
-  journalctl -u "$DEV_PROCESS" -n 100 -f
+  pm2 logs "$DEV_PROCESS"
 ```
 
 ## Benefits

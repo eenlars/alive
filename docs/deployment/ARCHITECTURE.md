@@ -257,7 +257,7 @@ const nextConfig = {
   script: '.builds/current/standalone/apps/web/server.js',
   interpreter: 'bun',
   cwd: '/root/alive',
-  env: { PORT: '9000', NODE_ENV: 'production' }
+  env: { PORT: '8999', NODE_ENV: 'production' }
 }
 ```
 

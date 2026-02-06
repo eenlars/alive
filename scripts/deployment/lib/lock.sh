@@ -13,7 +13,7 @@
 # Lock file format: PID|TIMESTAMP|TARGET|PHASE
 # =============================================================================
 
-LOCK_FILE="/tmp/alive-deploy.lock"
+LOCK_FILE="/tmp/claude-bridge-deploy.lock"
 
 # Colors (if not already defined)
 : "${RED:=\033[0;31m}"
@@ -61,7 +61,7 @@ lock_acquire() {
             # Kill any orphaned deployment processes from the dead parent
             # These are child processes that survived SIGKILL of the parent
             local orphans
-            orphans=$(pgrep -f "ship.sh|build-and-serve.sh|build-atomic.sh|turbo.*build|turbo.*type-check|next build" 2>/dev/null || true)
+            orphans=$(pgrep -f "ship.sh|build-and-serve.sh|build-atomic.sh|turbo.*build|turbo.*type-check|next build" 2>/dev/null | grep -v "^$$\$" || true)
             if [ -n "$orphans" ]; then
                 echo -e "${YELLOW}Killing orphaned deployment processes...${NC}"
                 echo "$orphans" | xargs -r kill -9 2>/dev/null || true
@@ -129,9 +129,9 @@ lock_status() {
         return 0
     else
         echo "Stale lock found (PID $pid not running) - auto-cleaning..."
-        # Kill any orphaned deployment processes
+        # Kill any orphaned deployment processes (exclude self)
         local orphans
-        orphans=$(pgrep -f "ship.sh|build-and-serve.sh|build-atomic.sh|turbo.*build|turbo.*type-check|next build" 2>/dev/null || true)
+        orphans=$(pgrep -f "ship.sh|build-and-serve.sh|build-atomic.sh|turbo.*build|turbo.*type-check|next build" 2>/dev/null | grep -v "^$$\$" || true)
         if [ -n "$orphans" ]; then
             echo "Killing orphaned processes..."
             echo "$orphans" | xargs -r kill -9 2>/dev/null || true

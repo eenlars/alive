@@ -514,6 +514,36 @@ const INTERNAL_TOOL_REGISTRY: ToolMetadata[] = [
     ],
   },
 
+  // TODO: Enable once resume-conversation flow is tested end-to-end
+  // {
+  //   name: "schedule_resumption",
+  //   category: "workspace",
+  //   description:
+  //     "Schedule this conversation to be resumed after a delay. Use when waiting for deploys, builds, DNS propagation, or any process that takes time. The conversation automatically resumes with your specified message.",
+  //   contextCost: "low",
+  //   enabled: true,
+  //   parameters: [
+  //     {
+  //       name: "delay_minutes",
+  //       type: "number",
+  //       required: true,
+  //       description: "Minutes to wait before resuming (1-1440, max 24 hours)",
+  //     },
+  //     {
+  //       name: "reason",
+  //       type: "string",
+  //       required: true,
+  //       description: "Why you are scheduling this resumption (shown to user)",
+  //     },
+  //     {
+  //       name: "resume_message",
+  //       type: "string",
+  //       required: false,
+  //       description: "Message to inject when conversation resumes",
+  //     },
+  //   ],
+  // },
+
   // External MCP entries are auto-generated below from shared registries
 ]
 

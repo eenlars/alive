@@ -8,7 +8,7 @@ This directory contains all scripts for managing the Claude Bridge multi-tenant 
 Scripts for building, deploying, and managing the three Claude Bridge environments (production, staging, dev).
 
 **Key Scripts:**
-- `deploy-prod.sh` - Deploy to production (port 9000)
+- `deploy-prod.sh` - Deploy to production (port 8999)
 - `deploy-staging.sh` - Deploy to staging (port 8998)
 - `deploy-dev.sh` - Restart dev environment with hot-reload (port 8997)
 - `build-and-serve.sh` - Core build and deployment script (production/staging)
@@ -123,7 +123,7 @@ Important documentation about scripts and operations.
 
 | Environment | Port | Type | Domain | Build Directory | Command |
 |-------------|------|------|--------|-----------------|---------|
-| **Production** | 9000 | Standalone | terminal.goalive.nl | `.builds/prod/current/` | Restricted - contact devops |
+| **Production** | 8999 | Standalone | terminal.goalive.nl | `.builds/prod/current/` | Restricted - contact devops |
 | **Staging** | 8998 | Standalone | staging.terminal.goalive.nl | `.builds/staging/current/` | `make staging` |
 | **Dev** | 8997 | Hot-reload | dev.terminal.goalive.nl | `node_modules/.bin/next dev` | `make dev` |
 

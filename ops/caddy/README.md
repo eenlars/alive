@@ -15,7 +15,7 @@ nginx (443) → SNI routing → caddy-shell (8443) or caddy-main (8444)
 | File | Location | Purpose |
 |------|----------|---------|
 | `Caddyfile` | This folder | Snippets + import of generated routing (imported by main Caddyfile) |
-| `generated/Caddyfile.sites` | This folder | Filtered copy of generated routing (synced from `/var/lib/alive/generated/Caddyfile.sites`) |
+| `generated/Caddyfile.sites` | This folder | Filtered copy of generated routing (synced from `/var/lib/claude-bridge/generated/Caddyfile.sites`) |
 | `Caddyfile.main` | `/etc/caddy/Caddyfile` | Main Caddy config (ports 8081/8444) |
 | `Caddyfile.shell` | `/etc/caddy/Caddyfile.shell` | Shell-only Caddy config (port 8443) |
 | `Caddyfile.bak` | Backup | Previous version backup |
@@ -26,9 +26,9 @@ nginx (443) → SNI routing → caddy-shell (8443) or caddy-main (8444)
 /etc/caddy/Caddyfile (Caddyfile.main)
 ├── import /etc/caddy/Caddyfile.prod
 ├── import /etc/caddy/Caddyfile.staging
-└── import /root/webalive/alive/ops/caddy/Caddyfile
-    └── import /root/webalive/alive/ops/caddy/generated/Caddyfile.sites
-        └── synced from /var/lib/alive/generated/Caddyfile.sites
+└── import /root/webalive/claude-bridge/ops/caddy/Caddyfile
+    └── import /root/webalive/claude-bridge/ops/caddy/generated/Caddyfile.sites
+        └── synced from /var/lib/claude-bridge/generated/Caddyfile.sites
 
 /etc/caddy/Caddyfile.shell (Caddyfile.shell)
 └── go.goalive.nl
@@ -60,7 +60,7 @@ New sites are added via the routing generator and sync script:
 bun run --cwd packages/site-controller routing:generate
 
 # Sync filtered file used by main import
-bun /root/webalive/alive/scripts/sync-generated-caddy.ts
+bun /root/webalive/claude-bridge/scripts/sync-generated-caddy.ts
 
 # Reload
 caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy

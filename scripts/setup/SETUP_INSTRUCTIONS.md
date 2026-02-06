@@ -95,13 +95,13 @@ ls -la .alive/template/
 bun run web
 ```
 
-Server starts at `http://localhost:8997`
+Server starts at `http://localhost:8999`
 
 ---
 
 ## Step 6: Test Login
 
-Open `http://localhost:8997` and log in with:
+Open `http://localhost:8999` and log in with:
 - **Email**: `test@alive.local`
 - **Password**: `test`
 
@@ -126,11 +126,11 @@ Run `bun run setup` to create it.
 
 The web app needs `ANTH_API_SECRET` in `.env.local`. Copy your API key there.
 
-### Port 8997 already in use
+### Port 8999 already in use
 
 Another process is using the port. Find and kill it:
 ```bash
-lsof -i :8997
+lsof -i :8999
 kill -9 <PID>
 ```
 
@@ -152,7 +152,7 @@ See `docs/database/SETUP.md` for:
 |---------|---------|
 | `bun install` | Install all dependencies |
 | `bun run setup` | Create local workspace |
-| `bun run web` | Start dev server (port 8997) |
+| `bun run web` | Start dev server (port 8999) |
 | `bun run dev` | Full dev environment (all services) |
 | `bun run test` | Run unit tests |
 | `bun run format` | Format code |
@@ -163,7 +163,7 @@ See `docs/database/SETUP.md` for:
 ## What's Next?
 
 After setup:
-1. Open `http://localhost:8997`
+1. Open `http://localhost:8999`
 2. Log in with `test@alive.local` / `test`
 3. Start chatting with Claude in the stream interface
 4. Your files are in `.alive/template/`

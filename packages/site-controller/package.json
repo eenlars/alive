@@ -11,12 +11,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "type-check": "tsc --noEmit",
-    "typecheck": "bun run type-check",
-    "lint": "biome lint .",
-    "format": "biome format --write .",
-    "ci": "biome ci .",
+    "typecheck": "tsc --noEmit",
     "test": "bun test",
     "clean": "rm -rf dist",
     "setup:validate": "bun run src/infra/validate-setup.ts",
