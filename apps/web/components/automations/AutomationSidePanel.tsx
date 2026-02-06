@@ -274,6 +274,7 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                           type="button"
                           onClick={() => setSkills(skills.filter(s => s !== skillId))}
                           className="hover:text-black dark:hover:text-white transition-colors"
+                          aria-label={`Remove skill ${skill?.displayName ?? skillId}`}
                         >
                           <X size={12} />
                         </button>

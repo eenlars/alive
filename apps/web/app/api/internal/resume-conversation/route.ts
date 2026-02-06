@@ -13,9 +13,19 @@
  */
 
 import { NextResponse } from "next/server"
+import { z } from "zod"
 import { sessionStore, tabKey } from "@/features/auth/lib/sessionStore"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
+
+const ResumeConversationSchema = z.object({
+  userId: z.string().min(1),
+  workspace: z.string().min(1),
+  tabId: z.string().min(1),
+  tabGroupId: z.string().min(1),
+  message: z.string().min(1),
+  reason: z.string().min(1).optional(),
+})
 
 export async function POST(req: Request) {
   // Authenticate internal call (shared secret, not session cookies — see docstring)
@@ -27,14 +37,21 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json()
-    const { userId, workspace, tabId, tabGroupId, message, reason } = body as Record<string, string>
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
+    }
 
-    if (!userId || !workspace || !tabId || !tabGroupId || !message) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        field: "userId, workspace, tabId, tabGroupId, message",
+    const parseResult = ResumeConversationSchema.safeParse(body)
+    if (!parseResult.success) {
+      return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400, {
+        details: parseResult.error.issues,
       })
     }
+
+    const { userId, workspace, tabId, tabGroupId, message, reason } = parseResult.data
 
     // Compute canonical session key from components (don't trust raw sessionKey from body)
     const sessionKey = tabKey({ userId, workspace, tabGroupId, tabId })
@@ -42,20 +59,31 @@ export async function POST(req: Request) {
     // Verify the session still exists
     const sdkSessionId = await sessionStore.get(sessionKey)
     if (!sdkSessionId) {
-      console.warn(`[Internal/ResumeConversation] Session not found: ${sessionKey}`)
+      console.warn("[Internal/ResumeConversation] Session not found", {
+        userId,
+        workspace,
+        tabId,
+        tabGroupId,
+      })
       return createErrorResponse(ErrorCodes.NO_SESSION, 404)
     }
 
-    console.log(`[Internal/ResumeConversation] Resuming session ${sessionKey} (reason: ${reason})`)
+    console.log("[Internal/ResumeConversation] Resuming session", {
+      userId,
+      workspace,
+      tabId,
+      tabGroupId,
+      reason,
+    })
 
     // Forward to the stream endpoint internally.
     // We call localhost to reuse ALL the existing stream logic
     // (session lookup, locking, worker pool, credits, OAuth, etc.)
-    const port = process.env.PORT || "9000"
-    const streamUrl = `http://localhost:${port}/api/claude/stream`
+    const streamUrl = new URL("/api/claude/stream", req.url).toString()
 
     // Build the message with context about the resumption
-    const resumeMessage = `[Scheduled resumption: ${reason}]\n\n${message}`
+    const resumeReason = reason ?? "scheduled"
+    const resumeMessage = `[Scheduled resumption: ${resumeReason}]\n\n${message}`
 
     const streamResponse = await fetch(streamUrl, {
       method: "POST",
@@ -101,13 +129,15 @@ export async function POST(req: Request) {
       }
     }
 
-    console.log(`[Internal/ResumeConversation] Session ${sessionKey} resumed successfully`)
+    console.log("[Internal/ResumeConversation] Session resumed successfully", {
+      userId,
+      workspace,
+      tabId,
+      tabGroupId,
+    })
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    if (error instanceof SyntaxError) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400)
-    }
     console.error("[Internal/ResumeConversation] Error:", error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }

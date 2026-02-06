@@ -15,51 +15,35 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { ErrorCodes } from "@/lib/error-codes"
 
 // ─── Mocks ───
 
 const mockRequireSessionUser = vi.fn()
 const mockIsWorkspaceAuthenticated = vi.fn()
 
-vi.mock("@/features/auth/lib/auth", () => ({
-  requireSessionUser: (...args: unknown[]) => mockRequireSessionUser(...args),
-  isWorkspaceAuthenticated: (...args: unknown[]) => mockIsWorkspaceAuthenticated(...args),
-  createErrorResponse: (error: string, status: number, fields?: Record<string, unknown>) => {
-    return new Response(JSON.stringify({ ok: false, error, message: `Error: ${error}`, ...fields }), {
-      status,
-      headers: { "Content-Type": "application/json" },
-    })
-  },
-}))
-
-vi.mock("@/lib/error-codes", () => ({
-  ErrorCodes: {
-    UNAUTHORIZED: "UNAUTHORIZED",
-    VALIDATION_ERROR: "VALIDATION_ERROR",
-    WORKSPACE_INVALID: "WORKSPACE_INVALID",
-    FORBIDDEN: "FORBIDDEN",
-    NO_SESSION: "NO_SESSION",
-    INTERNAL_ERROR: "INTERNAL_ERROR",
-  },
-}))
+vi.mock("@/features/auth/lib/auth", async () => {
+  const actual = await vi.importActual<typeof import("@/features/auth/lib/auth")>("@/features/auth/lib/auth")
+  return {
+    ...actual,
+    requireSessionUser: (...args: unknown[]) => mockRequireSessionUser(...args),
+    isWorkspaceAuthenticated: (...args: unknown[]) => mockIsWorkspaceAuthenticated(...args),
+  }
+})
 
 const mockSessionGet = vi.fn()
-vi.mock("@/features/auth/lib/sessionStore", () => ({
-  sessionStore: {
-    get: (...args: unknown[]) => mockSessionGet(...args),
-  },
-  tabKey: ({
-    userId,
-    workspace,
-    tabGroupId,
-    tabId,
-  }: {
-    userId: string
-    workspace: string
-    tabGroupId: string
-    tabId: string
-  }) => `${userId}::${workspace}::${tabGroupId}::${tabId}`,
-}))
+vi.mock("@/features/auth/lib/sessionStore", async () => {
+  const actual = await vi.importActual<typeof import("@/features/auth/lib/sessionStore")>(
+    "@/features/auth/lib/sessionStore",
+  )
+  return {
+    ...actual,
+    sessionStore: {
+      ...actual.sessionStore,
+      get: (...args: unknown[]) => mockSessionGet(...args),
+    },
+  }
+})
 
 const mockScheduleResumption = vi.fn()
 vi.mock("@webalive/job-queue", () => ({
@@ -68,6 +52,7 @@ vi.mock("@webalive/job-queue", () => ({
 
 // Import after mocks
 const { POST } = await import("../route")
+const { AuthenticationError } = await import("@/features/auth/lib/auth")
 
 // ─── Helpers ───
 
@@ -108,14 +93,14 @@ describe("POST /api/schedule-resumption", () => {
 
   describe("Authentication", () => {
     it("should return 401 when requireSessionUser throws", async () => {
-      mockRequireSessionUser.mockRejectedValue(new Error("Unauthorized"))
+      mockRequireSessionUser.mockRejectedValue(new AuthenticationError())
 
       const req = createRequest(validBody())
       const res = await POST(req)
 
       expect(res.status).toBe(401)
       const data = await res.json()
-      expect(data.error).toBe("UNAUTHORIZED")
+      expect(data.error).toBe(ErrorCodes.NO_SESSION)
     })
   })
 
@@ -128,7 +113,7 @@ describe("POST /api/schedule-resumption", () => {
 
       expect(res.status).toBe(400)
       const data = await res.json()
-      expect(data.error).toBe("VALIDATION_ERROR")
+      expect(data.error).toBe(ErrorCodes.VALIDATION_ERROR)
     })
 
     it("should return 400 when delayMinutes is missing", async () => {
@@ -183,7 +168,7 @@ describe("POST /api/schedule-resumption", () => {
 
       expect(res.status).toBe(400)
       const data = await res.json()
-      expect(data.error).toBe("VALIDATION_ERROR")
+      expect(data.error).toBe(ErrorCodes.VALIDATION_ERROR)
       expect(data.details).toBeDefined()
       expect(data.details[0].message).toBe("Malformed JSON body")
     })
@@ -194,7 +179,7 @@ describe("POST /api/schedule-resumption", () => {
 
       expect(res.status).toBe(400)
       const data = await res.json()
-      expect(data.error).toBe("WORKSPACE_INVALID")
+      expect(data.error).toBe(ErrorCodes.WORKSPACE_INVALID)
     })
   })
 
@@ -209,7 +194,7 @@ describe("POST /api/schedule-resumption", () => {
 
       expect(res.status).toBe(403)
       const data = await res.json()
-      expect(data.error).toBe("FORBIDDEN")
+      expect(data.error).toBe(ErrorCodes.FORBIDDEN)
     })
   })
 
@@ -224,7 +209,7 @@ describe("POST /api/schedule-resumption", () => {
 
       expect(res.status).toBe(404)
       const data = await res.json()
-      expect(data.error).toBe("NO_SESSION")
+      expect(data.error).toBe(ErrorCodes.NO_SESSION)
     })
 
     it("should look up session using computed tabKey", async () => {
@@ -249,7 +234,7 @@ describe("POST /api/schedule-resumption", () => {
       expect(res.status).toBe(500)
       const data = await res.json()
       expect(data.ok).toBe(false)
-      expect(data.error).toBe("ENQUEUE_FAILED")
+      expect(data.error).toBe(ErrorCodes.ENQUEUE_FAILED)
     })
   })
 

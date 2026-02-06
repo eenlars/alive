@@ -9,25 +9,28 @@
  */
 
 import { createClient } from "@supabase/supabase-js"
-import { scheduleAutomation, unscheduleAutomation, getJobQueue } from "@webalive/job-queue"
+import { scheduleAutomation } from "@webalive/job-queue"
+import { z } from "zod"
 import { getSupabaseCredentials } from "@/lib/env/server"
 
-interface AutomationJobRow {
-  id: string
-  site_id: string
-  user_id: string
-  org_id: string
-  trigger_type: "cron" | "webhook" | "one-time"
-  cron_schedule: string | null
-  cron_timezone: string | null
-  action_prompt: string | null
-  action_timeout_seconds: number | null
-  action_model: string | null
-  action_thinking: string | null
-  skills: string[] | null
-  is_active: boolean
-  domains: { hostname: string } | null
-}
+const AutomationJobRowSchema = z.object({
+  id: z.string(),
+  site_id: z.string(),
+  user_id: z.string(),
+  org_id: z.string(),
+  trigger_type: z.enum(["cron", "webhook", "one-time"]),
+  cron_schedule: z.string().nullable(),
+  cron_timezone: z.string().nullable(),
+  action_prompt: z.string().nullable(),
+  action_timeout_seconds: z.number().nullable(),
+  action_model: z.string().nullable(),
+  action_thinking: z.string().nullable(),
+  skills: z.array(z.string()).nullable(),
+  is_active: z.boolean(),
+  domains: z.object({ hostname: z.string() }).nullable(),
+})
+
+type AutomationJobRow = z.infer<typeof AutomationJobRowSchema>
 
 /**
  * Sync all active cron automations from Supabase to pg-boss schedules.
@@ -59,10 +62,16 @@ export async function syncAutomationSchedules(): Promise<void> {
     return
   }
 
+  const parsedJobs = AutomationJobRowSchema.array().safeParse(jobs)
+  if (!parsedJobs.success) {
+    console.error("[SyncSchedules] Invalid automation_jobs response shape:", parsedJobs.error)
+    return
+  }
+
   let synced = 0
   let skipped = 0
 
-  for (const job of jobs as unknown as AutomationJobRow[]) {
+  for (const job of parsedJobs.data satisfies AutomationJobRow[]) {
     if (!job.cron_schedule || !job.action_prompt) {
       skipped++
       continue

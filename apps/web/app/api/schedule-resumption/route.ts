@@ -11,7 +11,12 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { scheduleResumption } from "@webalive/job-queue"
 import { tabKey, sessionStore } from "@/features/auth/lib/sessionStore"
-import { createErrorResponse, isWorkspaceAuthenticated, requireSessionUser } from "@/features/auth/lib/auth"
+import {
+  AuthenticationError,
+  createErrorResponse,
+  isWorkspaceAuthenticated,
+  requireSessionUser,
+} from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
 
 const ScheduleResumptionSchema = z.object({
@@ -97,14 +102,11 @@ export async function POST(req: Request) {
 
     if (!jobId) {
       console.error(`[ScheduleResumption ${requestId}] Failed to enqueue job for ${workspace}`)
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "ENQUEUE_FAILED",
-          message: "Failed to schedule resumption. The job queue may be unavailable.",
-        },
-        { status: 500 },
-      )
+      return createErrorResponse(ErrorCodes.ENQUEUE_FAILED, 500, {
+        requestId,
+        workspace,
+        reason: "enqueue_failed",
+      })
     }
 
     console.log(`[ScheduleResumption ${requestId}] Scheduled for ${workspace} in ${delayMinutes}min (jobId: ${jobId})`)
@@ -117,8 +119,8 @@ export async function POST(req: Request) {
       jobId,
     })
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401, { requestId })
+    if (error instanceof AuthenticationError) {
+      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
     }
     console.error(`[ScheduleResumption ${requestId}] Error:`, error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, { requestId })

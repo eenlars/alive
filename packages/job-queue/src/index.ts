@@ -79,10 +79,9 @@ export async function startJobQueue(onEvent?: JobQueueEventHandler): Promise<voi
 
   try {
     // Create all queues with their configs (order matters: dead letter queues first)
-    for (const [queueName, config] of QUEUE_CONFIGS) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await instance.createQueue(queueName, config as any)
-      console.log(`[JobQueue] Queue created: ${queueName}`)
+    for (const queue of QUEUE_CONFIGS) {
+      await instance.createQueue(queue.name, queue)
+      console.log(`[JobQueue] Queue created: ${queue.name}`)
     }
 
     // Register workers (lazy import to avoid circular deps)
@@ -197,13 +196,11 @@ export async function unscheduleAutomation(name: string): Promise<void> {
   // Cancel any pending job with this singletonKey
   // pg-boss cancel by singletonKey: fetch the job ID from the table
   try {
-    const db = (instance as any).db
-    if (db) {
-      await db.executeSql(
-        `UPDATE pgboss.job SET state = 'cancelled' WHERE name = $1 AND singleton_key = $2 AND state IN ('created', 'retry')`,
-        [QUEUES.RUN_AUTOMATION, name],
-      )
-    }
+    const db = instance.getDb()
+    await db.executeSql(
+      `UPDATE pgboss.job SET state = 'cancelled' WHERE name = $1 AND singleton_key = $2 AND state IN ('created', 'retry')`,
+      [QUEUES.RUN_AUTOMATION, name],
+    )
     console.log(`[JobQueue] Unscheduled automation: ${name}`)
   } catch (err) {
     console.warn(`[JobQueue] Failed to unschedule "${name}":`, err)

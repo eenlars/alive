@@ -251,11 +251,11 @@ export async function validateWorkspace(hostname: string | undefined): Promise<{
 
   const stat = statSync(cwd, { throwIfNoEntry: false })
 
-  if (!stat) {
+  if (!stat || !stat.isDirectory()) {
     return {
       valid: false,
       error:
-        `Site "${hostname}" is not properly deployed. The workspace directory is missing: ${cwd}. ` +
+        `Site "${hostname}" is not properly deployed. The workspace directory is missing or invalid: ${cwd}. ` +
         "The site may need to be redeployed. Please contact support if this persists.",
     }
   }

@@ -17,50 +17,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // ─── Mocks ───
 
-// Mock sessionStore
 const mockSessionGet = vi.fn()
-vi.mock("@/features/auth/lib/sessionStore", () => ({
-  sessionStore: {
-    get: (...args: unknown[]) => mockSessionGet(...args),
-  },
-  tabKey: ({
-    userId,
-    workspace,
-    tabGroupId,
-    tabId,
-  }: {
-    userId: string
-    workspace: string
-    tabGroupId: string
-    tabId: string
-  }) => `${userId}::${workspace}::${tabGroupId}::${tabId}`,
-}))
-
-// Mock createErrorResponse
-vi.mock("@/features/auth/lib/auth", () => ({
-  createErrorResponse: (error: string, status: number, fields?: Record<string, unknown>) => {
-    return new Response(
-      JSON.stringify({
-        ok: false,
-        error,
-        message: `Error: ${error}`,
-        ...fields,
-      }),
-      { status, headers: { "Content-Type": "application/json" } },
-    )
-  },
-}))
-
-// Mock ErrorCodes
-vi.mock("@/lib/error-codes", () => ({
-  ErrorCodes: {
-    UNAUTHORIZED: "UNAUTHORIZED",
-    INVALID_REQUEST: "INVALID_REQUEST",
-    NO_SESSION: "NO_SESSION",
-    STREAM_ERROR: "STREAM_ERROR",
-    INTERNAL_ERROR: "INTERNAL_ERROR",
-  },
-}))
+vi.mock("@/features/auth/lib/sessionStore", async () => {
+  const actual = await vi.importActual<typeof import("@/features/auth/lib/sessionStore")>(
+    "@/features/auth/lib/sessionStore",
+  )
+  return {
+    ...actual,
+    sessionStore: {
+      ...actual.sessionStore,
+      get: (...args: unknown[]) => mockSessionGet(...args),
+    },
+  }
+})
 
 // Mock global fetch for internal stream call
 const mockFetch = vi.fn()
@@ -71,7 +40,7 @@ const { POST } = await import("../route")
 
 // ─── Helpers ───
 
-const TEST_SECRET = "test-internal-secret-xyz789"
+const TEST_SECRET = "test-secret"
 
 function createRequest(body: unknown, headers?: Record<string, string>): Request {
   return new Request("http://localhost:9000/api/internal/resume-conversation", {
@@ -170,6 +139,8 @@ describe("POST /api/internal/resume-conversation", () => {
       const req = createRequest({}, { "X-Internal-Auth": TEST_SECRET })
       const res = await POST(req)
       expect(res.status).toBe(400)
+      const data = await res.json()
+      expect(data.error).toBe("VALIDATION_ERROR")
     })
 
     it("should reject when userId is missing", async () => {
@@ -360,10 +331,11 @@ describe("POST /api/internal/resume-conversation", () => {
 
       const res = await POST(req)
       expect(res.status).toBe(400)
+      const data = await res.json()
+      expect(data.error).toBe("INVALID_JSON")
     })
 
-    it("should use PORT env var for stream URL", async () => {
-      process.env.PORT = "8998"
+    it("should call stream endpoint on the same origin as the request", async () => {
       mockSessionGet.mockResolvedValue("sdk-session-id-123")
       mockFetch.mockResolvedValue(new Response(createMockStream(), { status: 200 }))
 
@@ -373,10 +345,7 @@ describe("POST /api/internal/resume-conversation", () => {
       await POST(req)
 
       const fetchCall = mockFetch.mock.calls[0]
-      expect(fetchCall[0]).toContain("localhost:8998")
-
-      // Clean up
-      delete process.env.PORT
+      expect(fetchCall[0]).toBe("http://localhost:9000/api/claude/stream")
     })
   })
 })

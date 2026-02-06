@@ -161,9 +161,10 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       throw new Error("Path traversal attack detected")
     }
 
-    if (!statSync(cwd, { throwIfNoEntry: false })) {
+    const stat = statSync(cwd, { throwIfNoEntry: false })
+    if (!stat || !stat.isDirectory()) {
       throw new Error(
-        `Site "${workspace}" is not properly deployed. The workspace directory is missing: ${cwd}. ` +
+        `Site "${workspace}" is not properly deployed. The workspace directory is missing or invalid: ${cwd}. ` +
           "The site may need to be redeployed.",
       )
     }
