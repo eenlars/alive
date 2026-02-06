@@ -1,5 +1,5 @@
 /**
- * Session store - Supabase IAM backed
+ * Session store - Supabase IAM backed (or in-memory for standalone mode)
  * Stores Claude SDK session IDs for conversation persistence
  *
  * NOTE: Session keys use workspace domain (e.g., "demo.sonno.tech") for compatibility
@@ -15,6 +15,15 @@ import {
 } from "@/features/auth/types/session"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
+
+/**
+ * In-memory session store for standalone mode
+ * Sessions are lost on server restart (acceptable for local development)
+ *
+ * NOTE: This Map grows unbounded during the session lifetime. This is acceptable
+ * for local development where restarts are frequent. NOT production-ready.
+ */
+const standaloneSessionStore = new Map<string, string>()
 
 export type { TabSessionKey }
 
@@ -125,80 +134,112 @@ if (typeof setInterval !== "undefined" && typeof process !== "undefined" && !pro
   )
 }
 
+/**
+ * Create standalone (in-memory) session store
+ * No database dependency - sessions lost on restart
+ */
+function createStandaloneStore(): SessionStore {
+  return {
+    async get(key: TabSessionKey): Promise<string | null> {
+      return standaloneSessionStore.get(key) || null
+    },
+    async set(key: TabSessionKey, value: string): Promise<void> {
+      standaloneSessionStore.set(key, value)
+    },
+    async delete(key: TabSessionKey): Promise<void> {
+      standaloneSessionStore.delete(key)
+    },
+  }
+}
+
+/**
+ * Create Supabase-backed session store
+ * Used in production/staging/dev environments
+ */
+function createSupabaseStore(): SessionStore {
+  return {
+    async get(key: TabSessionKey): Promise<string | null> {
+      const { userId, workspaceDomain, tabId } = parseKey(key)
+
+      // Look up domain_id from hostname (cached)
+      const domainId = await getDomainId(workspaceDomain)
+
+      if (!domainId) {
+        console.warn(`[SessionStore] Domain not found: ${workspaceDomain}`)
+        return null
+      }
+
+      // Query session from IAM
+      const iam = await createIamClient("service")
+      const { data: session } = await iam
+        .from("sessions")
+        .select("sdk_session_id")
+        .eq("user_id", userId)
+        .eq("domain_id", domainId)
+        .eq("tab_id", tabId)
+        .single()
+
+      return session?.sdk_session_id || null
+    },
+
+    async set(key: TabSessionKey, value: string): Promise<void> {
+      const { userId, workspaceDomain, tabId } = parseKey(key)
+
+      // Look up domain_id from hostname (cached)
+      const domainId = await getDomainId(workspaceDomain)
+
+      if (!domainId) {
+        throw new Error(`Domain not found: ${workspaceDomain}`)
+      }
+
+      // Upsert session in IAM (updates if exists, inserts if not)
+      const iam = await createIamClient("service")
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+      await iam.from("sessions").upsert(
+        {
+          user_id: userId,
+          domain_id: domainId,
+          tab_id: tabId,
+          sdk_session_id: value,
+          last_activity: new Date().toISOString(),
+          expires_at: expiresAt.toISOString(),
+        },
+        {
+          onConflict: "user_id,domain_id,tab_id",
+        },
+      )
+    },
+
+    async delete(key: TabSessionKey): Promise<void> {
+      const { userId, workspaceDomain, tabId } = parseKey(key)
+
+      // Look up domain_id from hostname (cached)
+      const domainId = await getDomainId(workspaceDomain)
+
+      if (!domainId) {
+        // If domain doesn't exist, session doesn't either - silent success
+        return
+      }
+
+      // Delete session from IAM
+      const iam = await createIamClient("service")
+      await iam.from("sessions").delete().eq("user_id", userId).eq("domain_id", domainId).eq("tab_id", tabId)
+    },
+  }
+}
+
 // DB queries use (userId, domainId, tabId) — NOT tabGroupId.
 // tabGroupId exists in the key for in-memory lock uniqueness but the DB
 // doesn't need it because tabId is a UUID and already globally unique.
 // If tabId generation ever changes, add tab_group_id to iam.sessions.
-export const sessionStore: SessionStore = {
-  async get(key: TabSessionKey): Promise<string | null> {
-    const { userId, workspaceDomain, tabId } = parseKey(key)
 
-    // Look up domain_id from hostname (cached)
-    const domainId = await getDomainId(workspaceDomain)
-
-    if (!domainId) {
-      console.warn(`[SessionStore] Domain not found: ${workspaceDomain}`)
-      return null
-    }
-
-    // Query session from IAM
-    const iam = await createIamClient("service")
-    const { data: session } = await iam
-      .from("sessions")
-      .select("sdk_session_id")
-      .eq("user_id", userId)
-      .eq("domain_id", domainId)
-      .eq("tab_id", tabId)
-      .single()
-
-    return session?.sdk_session_id || null
-  },
-
-  async set(key: TabSessionKey, value: string): Promise<void> {
-    const { userId, workspaceDomain, tabId } = parseKey(key)
-
-    // Look up domain_id from hostname (cached)
-    const domainId = await getDomainId(workspaceDomain)
-
-    if (!domainId) {
-      throw new Error(`Domain not found: ${workspaceDomain}`)
-    }
-
-    // Upsert session in IAM (updates if exists, inserts if not)
-    const iam = await createIamClient("service")
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-
-    await iam.from("sessions").upsert(
-      {
-        user_id: userId,
-        domain_id: domainId,
-        tab_id: tabId,
-        sdk_session_id: value,
-        last_activity: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-      },
-      {
-        onConflict: "user_id,domain_id,tab_id",
-      },
-    )
-  },
-
-  async delete(key: TabSessionKey): Promise<void> {
-    const { userId, workspaceDomain, tabId } = parseKey(key)
-
-    // Look up domain_id from hostname (cached)
-    const domainId = await getDomainId(workspaceDomain)
-
-    if (!domainId) {
-      // If domain doesn't exist, session doesn't either - silent success
-      return
-    }
-
-    // Delete session from IAM
-    const iam = await createIamClient("service")
-    await iam.from("sessions").delete().eq("user_id", userId).eq("domain_id", domainId).eq("tab_id", tabId)
-  },
-}
+// Use in-memory store for standalone mode, Supabase for everything else
+// NOTE: Using process.env directly here because this runs at module initialization
+// time (before any async env validation). The env from @webalive/env requires
+// async loading which isn't available at module scope.
+export const sessionStore: SessionStore =
+  process.env.BRIDGE_ENV === "standalone" ? createStandaloneStore() : createSupabaseStore()
 
 // Primary key builder: Tab is now the primary entity for chat sessions
 // Used for BOTH Claude SDK session persistence AND concurrency locking

@@ -15,10 +15,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest"
 const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true"
 
 describe.skipIf(isCI)("Stream Buffer - Lua Script (GET_UNREAD_SCRIPT)", () => {
-  let redis: ReturnType<typeof createRedisClient>
+  let redis!: NonNullable<ReturnType<typeof createRedisClient>>
 
   beforeAll(() => {
-    redis = createRedisClient(getRedisUrl())
+    const client = createRedisClient(getRedisUrl())
+    if (!client) throw new Error("Redis client required for stream-buffer tests")
+    redis = client
   }, 15000)
 
   afterAll(async () => {

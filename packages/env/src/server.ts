@@ -111,10 +111,16 @@ const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
  *
  * - Production/Staging: REDIS_URL is REQUIRED (throws if missing)
  * - Local dev (STREAM_ENV=local): Falls back to default dev password
+ * - Standalone (BRIDGE_ENV=standalone): Returns null (Redis not required)
  *
  * This prevents auth mismatches in production while allowing easy local dev.
  */
-export function getRedisUrl(): string {
+export function getRedisUrl(): string | null {
+  // Standalone mode - Redis not available
+  if (env.BRIDGE_ENV === "standalone") {
+    return null
+  }
+
   const redisUrl = env.REDIS_URL
   const isLocalDev = env.STREAM_ENV === "local"
 

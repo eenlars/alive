@@ -64,14 +64,25 @@ const STALE_STREAM_THRESHOLD_MS = 5 * 60 * 1000
 // Singleton Redis Client
 // ============================================================================
 
+// In standalone mode, this will be null (Redis not available)
 let redisClient: ReturnType<typeof createRedisClient> | null = null
+let redisInitialized = false
 
 function getRedis() {
-  if (!redisClient) {
-    // getRedisUrl() validates REDIS_URL is set in production
+  if (!redisInitialized) {
+    // getRedisUrl() returns null in standalone mode
     redisClient = createRedisClient(getRedisUrl())
+    redisInitialized = true
   }
   return redisClient
+}
+
+/**
+ * Check if stream buffering is available
+ * Returns false in standalone mode where Redis is not available
+ */
+export function isStreamBufferingAvailable(): boolean {
+  return getRedis() !== null
 }
 
 // ============================================================================
@@ -88,6 +99,13 @@ export async function createStreamBuffer(
   tabId?: string,
 ): Promise<void> {
   const redis = getRedis()
+
+  // Standalone mode - no Redis, no buffering
+  if (!redis) {
+    console.log(`[StreamBuffer] Skipping buffer creation in standalone mode: ${requestId}`)
+    return
+  }
+
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
   const now = Date.now()
@@ -149,6 +167,8 @@ return 1
  */
 export async function appendToStreamBuffer(requestId: string, message: string, streamSeq: number): Promise<boolean> {
   const redis = getRedis()
+  if (!redis) return false // Standalone mode
+
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
   const result = await redis.eval(
@@ -183,6 +203,8 @@ export async function appendToStreamBuffer(requestId: string, message: string, s
  */
 export async function completeStreamBuffer(requestId: string): Promise<void> {
   const redis = getRedis()
+  if (!redis) return // Standalone mode
+
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
   const raw = await redis.get(key)
@@ -201,6 +223,8 @@ export async function completeStreamBuffer(requestId: string): Promise<void> {
  */
 export async function errorStreamBuffer(requestId: string, error: string): Promise<void> {
   const redis = getRedis()
+  if (!redis) return // Standalone mode
+
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
   const raw = await redis.get(key)
@@ -222,6 +246,8 @@ export async function errorStreamBuffer(requestId: string, error: string): Promi
  */
 export async function getStreamBuffer(requestId: string): Promise<StreamBufferEntry | null> {
   const redis = getRedis()
+  if (!redis) return null // Standalone mode
+
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
   const raw = await redis.get(key)
@@ -236,6 +262,8 @@ export async function getStreamBuffer(requestId: string): Promise<StreamBufferEn
  */
 export async function findStreamBufferByTab(tabKey: string): Promise<string | null> {
   const redis = getRedis()
+  if (!redis) return null // Standalone mode
+
   const lookupKey = `${BUFFER_KEY_PREFIX}tab:${tabKey}`
 
   return redis.get(lookupKey)
@@ -327,6 +355,8 @@ export async function getUnreadMessages(
   afterSeq?: number,
 ): Promise<{ messages: string[]; state: StreamBufferEntry["state"]; error?: string; lastReadSeq: number } | null> {
   const redis = getRedis()
+  if (!redis) return null // Standalone mode
+
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
   const result = await redis.eval(
@@ -394,6 +424,7 @@ export async function ackStreamCursor(
   lastSeenSeq: number,
 ): Promise<{ lastReadSeq: number } | null> {
   const redis = getRedis()
+  if (!redis) return null
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
   const result = await redis.eval(ACK_SCRIPT, 1, key, userId, lastSeenSeq.toString())
@@ -413,6 +444,8 @@ export async function ackStreamCursor(
  */
 export async function deleteStreamBuffer(requestId: string): Promise<void> {
   const redis = getRedis()
+  if (!redis) return // Standalone mode
+
   const key = `${BUFFER_KEY_PREFIX}${requestId}`
 
   // Get tab key before deletion for lookup cleanup

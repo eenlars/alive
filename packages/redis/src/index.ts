@@ -18,7 +18,8 @@ const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
  * which validates REDIS_URL is set. The fallback is only for local development.
  *
  * @param connectionUrl - Redis connection URL. Use getRedisUrl() from @webalive/env in production.
- * @returns Configured Redis client instance
+ *                        Pass null to explicitly indicate Redis is not available (standalone mode).
+ * @returns Configured Redis client instance, or null if connectionUrl is null
  *
  * @example Production usage (recommended)
  * ```typescript
@@ -26,6 +27,9 @@ const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
  * import { getRedisUrl } from '@webalive/env/server';
  *
  * const redis = createRedisClient(getRedisUrl());
+ * if (!redis) {
+ *   // Handle standalone mode - Redis not available
+ * }
  * ```
  *
  * @example Local development (auto-fallback)
@@ -33,7 +37,11 @@ const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
  * const redis = createRedisClient(); // Uses dev password
  * ```
  */
-export const createRedisClient = (connectionUrl?: string) => {
+export const createRedisClient = (connectionUrl?: string | null): Redis | null => {
+  // Explicit null means Redis is not available (standalone mode)
+  if (connectionUrl === null) {
+    return null
+  }
   const url = connectionUrl || process.env.REDIS_URL || LOCAL_DEV_REDIS_URL
   const isUsingFallback = !connectionUrl && !process.env.REDIS_URL
 

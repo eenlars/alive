@@ -1,5 +1,5 @@
 import { env } from "@webalive/env/server"
-import { SECURITY } from "@webalive/shared"
+import { SECURITY, STANDALONE } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createSessionToken } from "@/features/auth/lib/jwt"
@@ -40,6 +40,26 @@ export async function POST(req: NextRequest) {
   }
 
   const { email, password } = result.data
+
+  // Standalone mode - auto-login with any credentials (for local development)
+  if (process.env.BRIDGE_ENV === "standalone") {
+    // Import workspace utilities
+    const { getStandaloneWorkspaces, ensureDefaultWorkspace } = await import(
+      "@/features/workspace/lib/standalone-workspace"
+    )
+
+    // Ensure at least one workspace exists
+    ensureDefaultWorkspace()
+
+    const workspaces = getStandaloneWorkspaces()
+    const res = createCorsSuccessResponse(origin, {
+      userId: STANDALONE.TEST_USER.ID,
+      workspaces,
+    })
+    res.cookies.set(COOKIE_NAMES.SESSION, STANDALONE.SESSION_VALUE, getSessionCookieOptions(host))
+    console.log(`[Login] Standalone mode: auto-login for ${email} with ${workspaces.length} local workspaces`)
+    return res
+  }
 
   // Test mode
   if (env.STREAM_ENV === "local" && email === SECURITY.LOCAL_TEST.EMAIL && password === SECURITY.LOCAL_TEST.PASSWORD) {
