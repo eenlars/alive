@@ -4,8 +4,8 @@ import { dirname, resolve } from "node:path"
 import { PATHS } from "@webalive/shared"
 
 const SRC = PATHS.CADDYFILE_SITES
-const DEST = resolve(PATHS.STREAM_ROOT, "ops/caddy/generated/Caddyfile.sites")
-const ENV_PATH = resolve(PATHS.STREAM_ROOT, "packages/shared/environments.json")
+const DEST = resolve(PATHS.ALIVE_ROOT, "ops/caddy/generated/Caddyfile.sites")
+const ENV_PATH = resolve(PATHS.ALIVE_ROOT, "packages/shared/environments.json")
 
 function sanitizeLabel(domain: string): string {
   return domain.replace(/\./g, "-")
