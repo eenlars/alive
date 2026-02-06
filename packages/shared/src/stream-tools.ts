@@ -89,11 +89,10 @@ export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number
  * - Task: Subagent spawning - not supported in Stream architecture
  * - WebSearch: External web access - not needed, cost concerns
  * - ExitPlanMode: Requires user approval - Claude cannot approve its own plan
- * - Config: SDK settings tool - not applicable in Stream mode
  *
  * Note: Superadmins get ALL tools including these.
  */
-export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = ["Task", "WebSearch", "ExitPlanMode", "Config"] as const
+export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = ["Task", "WebSearch", "ExitPlanMode"] as const
 export type StreamAlwaysDisallowedSDKTool = (typeof STREAM_ALWAYS_DISALLOWED_SDK_TOOLS)[number]
 
 /**
@@ -122,8 +121,6 @@ export const PLAN_MODE_BLOCKED_TOOLS = [
   "mcp__alive-workspace__restart_dev_server",
   "mcp__alive-workspace__switch_serve_mode",
   "mcp__alive-workspace__create_website",
-  // TODO: Enable once resume-conversation flow is tested end-to-end
-  // "mcp__alive-workspace__schedule_resumption",
 ] as const
 export type PlanModeBlockedTool = (typeof PLAN_MODE_BLOCKED_TOOLS)[number]
 

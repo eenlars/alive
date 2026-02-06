@@ -1,4 +1,4 @@
-# Alive
+# Claude Bridge
 
 AI-powered website development. Claude edits your files directly, in isolated sandboxes.
 
@@ -8,7 +8,7 @@ AI-powered website development. Claude edits your files directly, in isolated sa
 
 ## What is this?
 
-Alive gives Claude AI controlled access to your website files. Each site gets its own isolated workspace where Claude can read, write, and edit files safely.
+Claude Bridge gives Claude AI controlled access to your website files. Each site gets its own isolated workspace where Claude can read, write, and edit files safely.
 
 ```
 You: "Update the hero section to be more engaging"
@@ -56,10 +56,10 @@ Visit `http://localhost:3000` and log in:
 ## 🏗️ How It Works
 
 ```
-Browser → Alive → Claude SDK → Your Files
-              ↓
-    Workspace Sandbox
-    /srv/webalive/sites/[domain]/
+Browser → Claude Bridge → Claude SDK → Your Files
+                              ↓
+                    Workspace Sandbox
+                    /srv/webalive/sites/[domain]/
 ```
 
 **Key concepts:**

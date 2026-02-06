@@ -18,6 +18,7 @@ import * as orgService from "@/features/manager/lib/services/orgService"
 import * as settingsService from "@/features/manager/lib/services/settingsService"
 import { executeHandler } from "@/features/manager/lib/utils/executeHandler"
 import { ApiError, delly, getty, postty, putty } from "@/lib/api/api-client"
+import { validateRequest } from "@/lib/api/schemas"
 import type { DomainConfigClient, DomainStatus } from "@/types/domain"
 import type { FeedbackEntry } from "@/types/feedback"
 import type { SourceData } from "@/types/sources"
@@ -793,7 +794,8 @@ export default function ManagerPage() {
   const handleSaveTemplate = async (template: Partial<Template> & { template_id: string }) => {
     setSavingTemplate(template.template_id)
     try {
-      const data = await putty("manager/templates/update", template, undefined, "/api/manager/templates")
+      const validated = validateRequest("manager/templates/update", template)
+      const data = await putty("manager/templates/update", validated, undefined, "/api/manager/templates")
       if (data.ok) {
         toast.success("Template saved")
         setTemplates(prev => prev.map(t => (t.template_id === template.template_id ? data.template : t)))
@@ -834,7 +836,8 @@ export default function ManagerPage() {
 
   const handleAddTemplate = async (template: Omit<Template, "template_id"> & { template_id?: string }) => {
     try {
-      const data = await postty("manager/templates/create", template, undefined, "/api/manager/templates")
+      const validated = validateRequest("manager/templates/create", template)
+      const data = await postty("manager/templates/create", validated, undefined, "/api/manager/templates")
       if (data.ok) {
         toast.success("Template added")
         setTemplates(prev => [...prev, data.template])

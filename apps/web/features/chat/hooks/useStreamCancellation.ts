@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react"
 import type { UIMessage } from "@/features/chat/lib/message-parser"
 import { postty } from "@/lib/api/api-client"
+import { validateRequest } from "@/lib/api/schemas"
 import { clearAbortController, getAbortController, useStreamingActions } from "@/lib/stores/streamingStore"
 
 interface UseStreamCancellationOptions {
@@ -136,22 +137,24 @@ export function useStreamCancellation({
           // Primary path: Cancel by requestId
           console.log("[useStreamCancellation] Sending cancel with requestId:", requestIdToCancel)
           console.log("[useStreamCancellation] Stack trace:", clientStack)
-          const response = await postty("claude/stream/cancel", {
+          const validatedRequest = validateRequest("claude/stream/cancel", {
             requestId: requestIdToCancel,
             clientStack, // Send stack for server-side debugging
           })
+          const response = await postty("claude/stream/cancel", validatedRequest)
           console.log("[useStreamCancellation] Cancel response:", JSON.stringify(response))
         } else if (tabId.length > 0 && tabGroupId && workspace) {
           // Fallback path: Cancel by tabId (super-early Stop)
           console.log("[useStreamCancellation] Sending cancel with tabId fallback:", tabId)
           console.log("[useStreamCancellation] Stack trace:", clientStack)
-          const response = await postty("claude/stream/cancel", {
+          const validatedRequest = validateRequest("claude/stream/cancel", {
             tabGroupId,
             tabId,
             workspace,
             worktree: worktree || undefined,
             clientStack, // Send stack for server-side debugging
           })
+          const response = await postty("claude/stream/cancel", validatedRequest)
           console.log("[useStreamCancellation] Cancel response (fallback):", JSON.stringify(response))
         } else {
           console.warn("[useStreamCancellation] No requestId or tabId available - relying on abort() only")

@@ -20,15 +20,15 @@ export interface Token {
 }
 
 export const TOKEN_COLORS: Record<TokenType, string> = {
-  keyword: "text-purple-600 dark:text-purple-400",
-  string: "text-emerald-600 dark:text-emerald-400",
-  comment: "text-neutral-400 dark:text-neutral-600",
-  number: "text-amber-600 dark:text-amber-400",
-  operator: "text-sky-600 dark:text-sky-300",
-  function: "text-sky-700 dark:text-sky-400",
-  property: "text-neutral-700 dark:text-neutral-300",
-  tag: "text-rose-600 dark:text-rose-400",
-  default: "text-neutral-600 dark:text-neutral-400",
+  keyword: "text-purple-400",
+  string: "text-emerald-400",
+  comment: "text-neutral-600",
+  number: "text-amber-400",
+  operator: "text-sky-300",
+  function: "text-sky-400",
+  property: "text-neutral-300",
+  tag: "text-rose-400",
+  default: "text-neutral-400",
 }
 
 // Token matchers in priority order

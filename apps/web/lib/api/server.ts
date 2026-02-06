@@ -47,8 +47,7 @@ export async function handleBody<E extends Endpoint>(endpoint: E, req: NextReque
     }
 
     // No req schema defined: treat as no body
-    const schema = apiSchemas[endpoint]
-    const reqSchema = ("req" in schema ? schema.req : undefined) as z.ZodTypeAny | undefined
+    const reqSchema = apiSchemas[endpoint]?.req as z.ZodTypeAny | undefined
     if (!reqSchema) {
       return NextResponse.json({ error: `No request schema defined for ${String(endpoint)}` }, { status: 500 })
     }

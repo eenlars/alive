@@ -22,30 +22,20 @@ interface SaveDraftRequest {
 
 interface CreateRawEmailParams extends SaveDraftRequest {
   from: string
-  fromName?: string
 }
 
-/**
- * RFC 2047 encode a header value if it contains non-ASCII characters.
- */
-function encodeMimeHeader(value: string): string {
-  if (/^[\x20-\x7E]*$/.test(value)) return value
-  return `=?UTF-8?B?${Buffer.from(value, "utf-8").toString("base64")}?=`
-}
-
-function formatFromAddress(email: string, displayName?: string): string {
-  if (!displayName) return `<${email}>`
-  return `${encodeMimeHeader(displayName)} <${email}>`
+function formatFromAddress(email: string): string {
+  return `<${email}>`
 }
 
 function createRawEmail(params: CreateRawEmailParams): string {
-  const { from, fromName, to, cc, subject, body } = params
+  const { from, to, cc, subject, body } = params
 
   const headers = [
-    `From: ${formatFromAddress(from, fromName)}`,
+    `From: ${formatFromAddress(from)}`,
     `To: ${to.join(", ")}`,
     cc?.length ? `Cc: ${cc.join(", ")}` : null,
-    `Subject: ${encodeMimeHeader(subject)}`,
+    `Subject: ${subject}`,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=utf-8",
     "",
@@ -91,7 +81,7 @@ export async function POST(req: NextRequest) {
     oauth2Client.setCredentials({ access_token: accessToken })
     const gmail = new gmail_v1.Gmail({ auth: oauth2Client })
 
-    // 5. Get sender's email and display name from Gmail sendAs settings
+    // 5. Get sender's email from Gmail profile
     const profileResponse = await gmail.users.getProfile({ userId: "me" })
     const senderEmail = profileResponse.data.emailAddress
     if (!senderEmail) {
@@ -100,18 +90,8 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Get display name from sendAs config (the name shown in "From:" field)
-    let senderName: string | undefined
-    try {
-      const sendAsResponse = await gmail.users.settings.sendAs.list({ userId: "me" })
-      const primarySendAs = sendAsResponse.data.sendAs?.find(s => s.isPrimary || s.sendAsEmail === senderEmail)
-      senderName = primarySendAs?.displayName || undefined
-    } catch {
-      console.warn("[Gmail Draft] Could not fetch sendAs settings for display name")
-    }
-
-    // 6. Create draft with proper From header (includes display name)
-    const raw = createRawEmail({ ...body, from: senderEmail, fromName: senderName })
+    // 6. Create draft
+    const raw = createRawEmail({ ...body, from: senderEmail })
     const response = await gmail.users.drafts.create({
       userId: "me",
       requestBody: {
