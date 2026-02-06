@@ -8,6 +8,7 @@ import { relations, sql } from "drizzle-orm"
 import {
   boolean,
   check,
+  customType,
   foreignKey,
   index,
   integer,
@@ -18,7 +19,6 @@ import {
   unique,
   uniqueIndex,
   uuid,
-  customType,
 } from "drizzle-orm/pg-core"
 
 // Import IAM schema for foreign keys
