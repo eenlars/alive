@@ -50,8 +50,6 @@ function getAdminEmails(): string[] {
 }
 
 function isAdminUser(email: string): boolean {
-  // Superadmins are implicitly admins
-  if (isSuperadminUser(email)) return true
   const adminEmails = getAdminEmails()
   return adminEmails.some(e => e.toLowerCase() === email.toLowerCase())
 }

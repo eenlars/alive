@@ -113,7 +113,7 @@ for pkg in packages/*/; do rm -f "$pkg/$(basename "$pkg")" 2>/dev/null || true; 
 log_step "Building web app..."
 BUILD_START=$(date +%s)
 
-BUILD_OUTPUT_LOG="/tmp/claude-bridge-nextjs-build-${ENV}.log"
+BUILD_OUTPUT_LOG="/tmp/alive-nextjs-build-${ENV}.log"
 if ! bun run build --filter=web --force 2>&1 | tee "$BUILD_OUTPUT_LOG"; then
     log_error "Build failed. Errors:"
     echo ""
@@ -151,9 +151,10 @@ fi
 # =============================================================================
 STANDALONE_DIR="$TEMP_BUILD_DIR/standalone/apps/web"
 
-mkdir -p "$STANDALONE_DIR/.next"
-[ -d "$TEMP_BUILD_DIR/static" ] && cp -r "$TEMP_BUILD_DIR/static" "$STANDALONE_DIR/.next/static"
-[ -d "$TEMP_BUILD_DIR/server" ] && cp -r "$TEMP_BUILD_DIR/server" "$STANDALONE_DIR/.next/server"
+[ -d "$TEMP_BUILD_DIR/static" ] && {
+    mkdir -p "$STANDALONE_DIR/.next"
+    cp -r "$TEMP_BUILD_DIR/static" "$STANDALONE_DIR/.next/static"
+}
 
 [ -d "$WEB_DIR/public" ] && cp -r "$WEB_DIR/public" "$STANDALONE_DIR/public"
 

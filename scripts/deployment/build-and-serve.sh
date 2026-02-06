@@ -210,7 +210,7 @@ if [ -n "$PROMOTE_FROM" ]; then
     log_step "Promoted: $NEW_BUILD"
     phase_end ok "Build promoted"
 else
-    BUILD_LOG="/tmp/claude-bridge-build-${ENV}.log"
+    BUILD_LOG="/tmp/alive-build-${ENV}.log"
     set +e
     "$SCRIPT_DIR/build-atomic.sh" "$ENV" 2>&1 | tee "$BUILD_LOG"
     BUILD_EXIT=${PIPESTATUS[0]}

@@ -185,10 +185,10 @@ import /etc/caddy/Caddyfile.prod
 import /etc/caddy/Caddyfile.staging
 
 # Shared snippets
-import /root/webalive/claude-bridge/ops/caddy/Caddyfile.snippets
+import /root/webalive/alive/ops/caddy/Caddyfile.snippets
 
 # WebAlive sites (auto-reload safe, generated)
-import /var/lib/claude-bridge/generated/Caddyfile.sites
+import /var/lib/alive/generated/Caddyfile.sites
 
 # ... other config
 ```

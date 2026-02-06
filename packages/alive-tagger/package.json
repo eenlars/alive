@@ -29,7 +29,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome lint ./src ./test",
-    "format": "biome format --write ./src ./test"
+    "format": "biome format --write ./src ./test",
+    "ci": "biome ci ./src ./test"
   },
   "keywords": [
     "vite",
