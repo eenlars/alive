@@ -1,20 +1,56 @@
 import { describe, expect, it } from "vitest"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
-const STREAM_ROUTE_PATH = new URL("../../../apps/web/app/api/claude/stream/route.ts", import.meta.url).pathname
-const AUTOMATION_EXECUTOR_PATH = new URL("../../../apps/web/lib/automation/executor.ts", import.meta.url).pathname
+const TEST_FILE_DIR = dirname(fileURLToPath(import.meta.url))
+
+function resolveRepoFile(...segments: string[]): string {
+  const candidateRoots = [resolve(TEST_FILE_DIR, "../../.."), process.cwd(), resolve(process.cwd(), "../..")]
+
+  for (const root of candidateRoots) {
+    const candidate = join(root, ...segments)
+    if (existsSync(candidate)) {
+      return candidate
+    }
+  }
+
+  throw new Error(`Unable to resolve repo file: ${segments.join("/")}`)
+}
+
+const STREAM_ROUTE_PATH = resolveRepoFile("apps", "web", "app", "api", "claude", "stream", "route.ts")
+const AUTOMATION_EXECUTOR_PATH = resolveRepoFile("apps", "web", "lib", "automation", "executor.ts")
 
 function extractPoolQueryBlock(code: string): string {
-  const start = code.indexOf("pool.query(credentials, {")
-  expect(start).toBeGreaterThanOrEqual(0)
+  const queryCallMatch = /pool\.query\(\s*[^,]+,\s*\{/.exec(code)
+  expect(queryCallMatch).not.toBeNull()
+  if (!queryCallMatch) {
+    throw new Error("pool.query call not found")
+  }
 
-  const signalIndex = code.indexOf("signal:", start)
-  expect(signalIndex).toBeGreaterThan(start)
+  const objectStart = queryCallMatch.index + queryCallMatch[0].length - 1
+  let depth = 0
 
-  const end = code.indexOf("})", signalIndex)
-  expect(end).toBeGreaterThan(signalIndex)
+  for (let i = objectStart; i < code.length; i++) {
+    const char = code[i]
+    if (char === "{") {
+      depth += 1
+      continue
+    }
+    if (char !== "}") continue
 
-  return code.slice(start, end + 2)
+    depth -= 1
+    if (depth !== 0) continue
+
+    let j = i + 1
+    while (j < code.length && /\s/.test(code[j])) {
+      j += 1
+    }
+    expect(code[j]).toBe(")")
+    return code.slice(queryCallMatch.index, j + 1)
+  }
+
+  throw new Error("pool.query options object was not balanced")
 }
 
 describe("Owner key contract", () => {

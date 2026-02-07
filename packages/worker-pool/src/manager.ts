@@ -199,6 +199,8 @@ export class WorkerPoolManager extends EventEmitter {
 
     const baseWorkspaceKey = credentials.workspaceKey
 
+    // Enforce per-owner/workspace concurrency before attempting ready-worker reuse.
+    // getOrCreateWorker also enforces these limits on spawn-paths for consistency.
     if (this.getActiveByOwner(ownerKey) >= this.config.maxWorkersPerUser) {
       return this.queueRequest(credentials, options, "USER_LIMIT")
     }
@@ -1022,10 +1024,7 @@ export class WorkerPoolManager extends EventEmitter {
           pending.cleanup()
           const errorMessage = "error" in msg && typeof msg.error === "string" ? msg.error : "Unknown error"
           const stderr = "stderr" in msg && typeof msg.stderr === "string" ? msg.stderr : undefined
-          const error = new Error(errorMessage)
-          if (stderr) {
-            ;(error as Error & { stderr?: string }).stderr = stderr
-          }
+          const error = stderr ? Object.assign(new Error(errorMessage), { stderr }) : new Error(errorMessage)
           pending.reject(error)
         }
         break
