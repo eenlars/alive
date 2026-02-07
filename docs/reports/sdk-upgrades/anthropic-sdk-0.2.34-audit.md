@@ -3,10 +3,10 @@
 ## 1) Version Baseline Capture
 - Baseline branch lockfile resolved SDK (pre-change): `@anthropic-ai/claude-agent-sdk@0.1.60` (from `HEAD:bun.lock`)
 - Baseline manifest ranges (pre-change):
-  - `/Users/here/.codex/worktrees/61f8/alive/package.json`: `^0.1.53`
-  - `/Users/here/.codex/worktrees/61f8/alive/apps/web/package.json`: `^0.1.53`
-  - `/Users/here/.codex/worktrees/61f8/alive/packages/tools/package.json`: `^0.1.53`
-  - `/Users/here/.codex/worktrees/61f8/alive/packages/worker-pool/package.json`: `^0.1.53`
+  - `package.json`: `^0.1.53`
+  - `apps/web/package.json`: `^0.1.53`
+  - `packages/tools/package.json`: `^0.1.53`
+  - `packages/worker-pool/package.json`: `^0.1.53`
 - Target: `0.2.34`
 - Current lockfile resolved SDK (post-change): `@anthropic-ai/claude-agent-sdk@0.2.34`
 - SDK peer dep shift confirmed: zod moved from `^3.24.1` to `^4.0.0`.
@@ -25,8 +25,8 @@ Low relevance / optional features:
 
 ## 3) API Surface Diff (Types)
 Artifacts:
-- Tool input diff CSV: `/Users/here/.codex/worktrees/61f8/alive/docs/reports/sdk-upgrades/anthropic-sdk-0.2.34-tool-input-diff.csv`
-- Impact matrix CSV: `/Users/here/.codex/worktrees/61f8/alive/docs/reports/sdk-upgrades/anthropic-sdk-0.2.34-impact-matrix.csv`
+- Tool input diff CSV: `docs/reports/sdk-upgrades/anthropic-sdk-0.2.34-tool-input-diff.csv`
+- Impact matrix CSV: `docs/reports/sdk-upgrades/anthropic-sdk-0.2.34-impact-matrix.csv`
 
 Observed critical type deltas that impact this repo:
 - Removed: `KillShellInput`
@@ -46,7 +46,7 @@ Gate status: **PASS**
 Executed:
 - `bun run type-check` ✅ pass
 - `bun run --filter @webalive/tools test` ✅ pass (139 tests)
-- `cd /Users/here/.codex/worktrees/61f8/alive/apps/web && bun run test -- sdk-tools-sync` ✅ pass (16 tests)
+- `cd apps/web && bun run test -- sdk-tools-sync` ✅ pass (16 tests)
 - `bun run --filter @webalive/worker-pool test` ⚠️ fails in this environment due Unix socket listen failures in cancellation/lifecycle integration suites (`Failed to listen at .../worker.sock`), not SDK type/API regression.
 - `CI=true bun run --filter @webalive/worker-pool test` ⚠️ same integration socket failures; manager/import-order/session-cookie/hardening suites pass.
 
