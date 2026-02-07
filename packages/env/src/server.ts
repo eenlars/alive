@@ -66,9 +66,9 @@ export const env = createEnv({
   /**
    * Custom error handling
    */
-  onValidationError: error => {
+  onValidationError: issues => {
     console.error("❌ Invalid environment variables:")
-    console.error(error.flatten().fieldErrors)
+    console.error(issues)
     throw new Error("Invalid environment variables")
   },
 
@@ -153,7 +153,7 @@ export function getSuperadminEmails(): readonly string[] {
 
   return emailsEnv
     .split(",")
-    .map(e => e.trim().toLowerCase())
+    .map((e: string) => e.trim().toLowerCase())
     .filter(Boolean)
 }
 

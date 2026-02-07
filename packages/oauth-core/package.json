@@ -42,7 +42,7 @@
     "@webalive/database": "workspace:*",
     "@webalive/shared": "workspace:*",
     "@supabase/supabase-js": "^2.81.1",
-    "zod": "^3.25.0"
+    "zod": "^4.1.5"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

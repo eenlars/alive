@@ -5,7 +5,7 @@ describe("API Request Validation Guards", () => {
   describe("BodySchema (Claude API request)", () => {
     // tabId is now required, conversationId is optional
     const validTabId = "660e8400-e29b-41d4-a716-446655440001"
-    const validTabGroupId = "11111111-1111-1111-1111-111111111111"
+    const validTabGroupId = "11111111-1111-4111-8111-111111111111"
     const validConversationId = "550e8400-e29b-41d4-a716-446655440000"
 
     it("should accept valid request body", () => {
@@ -173,7 +173,7 @@ describe("API Request Validation Guards", () => {
 
   describe("Request Sanitization", () => {
     const validTabId = "660e8400-e29b-41d4-a716-446655440001"
-    const validTabGroupId = "11111111-1111-1111-1111-111111111111"
+    const validTabGroupId = "11111111-1111-4111-8111-111111111111"
 
     it("should strip unexpected fields from valid requests", () => {
       const bodyWithExtra = {
@@ -219,7 +219,7 @@ describe("API Request Validation Guards", () => {
 
   describe("Performance & DoS Prevention", () => {
     const validTabId = "660e8400-e29b-41d4-a716-446655440001"
-    const validTabGroupId = "11111111-1111-1111-1111-111111111111"
+    const validTabGroupId = "11111111-1111-4111-8111-111111111111"
 
     it("should handle deeply nested objects without stack overflow", () => {
       interface DeepObject {

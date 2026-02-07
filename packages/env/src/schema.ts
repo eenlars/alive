@@ -113,7 +113,7 @@ export const serverSchema = {
   WILDCARD_TLD: z.string().optional(), // Deprecated: use WILDCARD_DOMAIN
 
   // Server identity
-  SERVER_IP: z.string().ip().optional(),
+  SERVER_IP: z.union([z.ipv4(), z.ipv6()]).optional(),
 
   // Admin configuration (comma-separated emails)
   ADMIN_EMAILS: z.string().optional(),

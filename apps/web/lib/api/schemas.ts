@@ -126,7 +126,7 @@ export const apiSchemas = {
         tabGroupId: z.string().optional(),
         tabId: z.string().optional(),
         workspace: z.string().optional(),
-        worktree: OptionalWorktreeSchema, // Validated to prevent session key corruption
+        worktree: OptionalWorktreeSchema.optional(), // Validated to prevent session key corruption
         clientStack: z.string().optional(), // Debug: client-side stack trace for tracking cancel origin
       })
       .refine(data => data.requestId || (data.tabGroupId && data.tabId && data.workspace), {
