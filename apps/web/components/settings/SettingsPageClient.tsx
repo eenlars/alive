@@ -286,10 +286,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
 
 function IntegrationsListWithHeader() {
   return (
-    <SettingsTabLayout
-      title="Integrations"
-      description="Connect services like GitHub or Linear so the AI can read and write to them on your behalf"
-    >
+    <SettingsTabLayout title="Integrations" description="Connect external services to enhance your workspace">
       <IntegrationsList />
     </SettingsTabLayout>
   )
@@ -297,10 +294,7 @@ function IntegrationsListWithHeader() {
 
 function UserEnvKeysWithHeader() {
   return (
-    <SettingsTabLayout
-      title="API Keys"
-      description="Store your own API keys so the AI can use external services that require authentication"
-    >
+    <SettingsTabLayout title="API Keys" description="Store custom API keys for MCP integrations">
       <UserEnvKeysSettings />
     </SettingsTabLayout>
   )

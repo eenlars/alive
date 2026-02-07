@@ -160,16 +160,6 @@ export interface AgentRequest {
    * Worker sets process.env.ALIVE_SESSION_COOKIE from this value.
    */
   sessionCookie?: string
-  /**
-   * Tab ID for schedule_resumption MCP tool.
-   * Worker sets process.env.ALIVE_TAB_ID from this value.
-   */
-  tabId?: string
-  /**
-   * Tab group ID for schedule_resumption MCP tool.
-   * Worker sets process.env.ALIVE_TAB_GROUP_ID from this value.
-   */
-  tabGroupId?: string
 }
 
 /** Workspace credentials for privilege dropping */

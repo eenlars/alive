@@ -26,7 +26,74 @@ Claude will:
 
 ---
 
-## Manual Setup
+## Choose Your Mode
+
+| Mode | Dependencies | Use Case |
+|------|--------------|----------|
+| **Standalone** | None (just Anthropic API) | Quick local testing, no persistence |
+| **Local** | Supabase, Redis | Full-featured local development |
+
+---
+
+## Standalone Mode (Recommended for Getting Started)
+
+The fastest way to run Claude Bridge locally - no external services required.
+
+### 1. Clone & Install
+
+```bash
+git clone <repository>
+cd alive
+bun install
+```
+
+### 2. Run Standalone Setup
+
+```bash
+bun run setup:standalone
+```
+
+This creates:
+- `~/.claude-bridge/workspaces/default/user` - Your local workspace
+- `apps/web/.env.local` - Pre-configured environment
+
+### 3. Add Your API Key
+
+Edit `apps/web/.env.local` and add your Anthropic API key:
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### 4. Start Development Server
+
+```bash
+bun run dev
+```
+
+### 5. Login
+
+- Open `http://localhost:8999`
+- Login with **any email/password** (auto-authenticated in standalone mode)
+
+### Creating Additional Workspaces
+
+```bash
+mkdir -p ~/.claude-bridge/workspaces/my-project/user
+```
+
+### Standalone Mode Limitations
+
+- Single user only (no authentication)
+- No conversation history persistence (in-memory, lost on restart)
+- No OAuth integrations (Linear, Stripe, etc.)
+- No site deployment (systemd, Caddy)
+
+---
+
+## Local Mode (Full Features)
+
+For full-featured development with persistence and all integrations.
 
 ### Prerequisites
 
@@ -86,7 +153,22 @@ Open `http://localhost:8999`
 | Test User | `test@alive.local` / `test` |
 | Hot Reload | Changes reflect immediately |
 
----
+### Standalone Mode
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `BRIDGE_ENV` | Yes | Set to standalone | `standalone` |
+| `ANTHROPIC_API_KEY` | Yes | Claude API key | `sk-ant-...` |
+| `WORKSPACE_BASE` | No | Custom workspace directory | `~/.claude-bridge/workspaces` |
+
+### Local Mode
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `BRIDGE_ENV` | Yes | Enable local dev mode | `local` |
+| `LOCAL_TEMPLATE_PATH` | Yes | Absolute path to workspace | `/Users/you/claude-bridge/.alive/template` |
+| `ANTHROPIC_API_KEY` | Yes | Claude API key | `sk-ant-...` |
+| `BRIDGE_PASSCODE` | No | Bridge passcode (any works if unset) | `your-password` |
 
 ## Common Commands
 

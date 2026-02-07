@@ -255,94 +255,6 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
               </div>
             </div>
 
-            {/* Skills */}
-            <div className="space-y-1.5">
-              <div className="text-xs font-medium text-black dark:text-white block">Skills</div>
-
-              {/* Selected skills chips */}
-              {skills.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {skills.map((skillId: string) => {
-                    const skill = availableSkills.find((s: SkillItem) => s.id === skillId)
-                    return (
-                      <span
-                        key={skillId}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-xl bg-black/[0.04] dark:bg-white/[0.06] text-black/70 dark:text-white/70"
-                      >
-                        {skill?.displayName || skillId}
-                        <button
-                          type="button"
-                          onClick={() => setSkills(skills.filter(s => s !== skillId))}
-                          className="hover:text-black dark:hover:text-white transition-colors"
-                          aria-label={`Remove skill ${skill?.displayName ?? skillId}`}
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    )
-                  })}
-                </div>
-              )}
-
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setSkillsDropdownOpen(!skillsDropdownOpen)}
-                  className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white flex items-center justify-between hover:bg-black/[0.07] dark:hover:bg-white/[0.09] transition-colors"
-                >
-                  <span>{skills.length > 0 ? `${skills.length} selected` : "Add skills..."}</span>
-                  <ChevronDown
-                    size={16}
-                    className={`text-black/40 dark:text-white/40 transition-transform ${
-                      skillsDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {skillsDropdownOpen && availableSkills.length > 0 && (
-                  <div className="absolute z-20 bottom-full left-0 right-0 mb-1.5 max-h-48 overflow-auto rounded-2xl bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08] shadow-xl ring-1 ring-black/[0.04] dark:ring-white/[0.04] animate-in fade-in slide-in-from-top-2 duration-150">
-                    {availableSkills.map((skill: SkillItem) => {
-                      const isSelected = skills.includes(skill.id)
-                      return (
-                        <button
-                          key={skill.id}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              setSkills(skills.filter(s => s !== skill.id))
-                            } else {
-                              setSkills([...skills, skill.id])
-                            }
-                          }}
-                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
-                        >
-                          <div
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                              isSelected
-                                ? "bg-black dark:bg-white border-black dark:border-white"
-                                : "border-black/20 dark:border-white/20"
-                            }`}
-                          >
-                            {isSelected && (
-                              <svg
-                                className="w-3 h-3 text-white dark:text-black"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className="text-sm text-black dark:text-white">{skill.displayName}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Advanced Settings */}
             <div className="rounded-lg border border-black/[0.06] dark:border-white/[0.06] overflow-hidden">
               <button
@@ -384,6 +296,97 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Skills */}
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-medium text-black dark:text-white block">Skills</div>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setSkillsDropdownOpen(!skillsDropdownOpen)}
+                        className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white flex items-center justify-between hover:bg-black/[0.07] dark:hover:bg-white/[0.09] transition-colors"
+                      >
+                        <span>{skills.length > 0 ? `${skills.length} selected` : "Add skills"}</span>
+                        <ChevronDown
+                          size={16}
+                          className={`text-black/40 dark:text-white/40 transition-transform ${
+                            skillsDropdownOpen ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {skillsDropdownOpen && availableSkills.length > 0 && (
+                        <div className="absolute z-20 top-full left-0 right-0 mt-1.5 max-h-48 overflow-auto rounded-2xl bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08] shadow-xl ring-1 ring-black/[0.04] dark:ring-white/[0.04]">
+                          {availableSkills.map((skill: SkillItem) => {
+                            const isSelected = skills.includes(skill.id)
+                            return (
+                              <button
+                                key={skill.id}
+                                type="button"
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setSkills(skills.filter(s => s !== skill.id))
+                                  } else {
+                                    setSkills([...skills, skill.id])
+                                  }
+                                }}
+                                className="w-full px-3 py-2.5 text-left text-sm hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
+                              >
+                                <div
+                                  className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                                    isSelected
+                                      ? "bg-black dark:bg-white border-black dark:border-white"
+                                      : "border-black/20 dark:border-white/20"
+                                  }`}
+                                >
+                                  {isSelected && (
+                                    <svg
+                                      className="w-3 h-3 text-white dark:text-black"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={3}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+                                <span className="text-sm text-black dark:text-white">{skill.displayName}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Selected skills chips */}
+                    {skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {skills.map((skillId: string) => {
+                          const skill = availableSkills.find((s: SkillItem) => s.id === skillId)
+                          return (
+                            <span
+                              key={skillId}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-xl bg-black/[0.04] dark:bg-white/[0.06] text-black/70 dark:text-white/70"
+                            >
+                              {skill?.displayName || skillId}
+                              <button
+                                type="button"
+                                onClick={() => setSkills(skills.filter(s => s !== skillId))}
+                                className="hover:text-black dark:hover:text-white transition-colors"
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
