@@ -9,7 +9,7 @@ export type { Endpoint, Req, Res }
 /**
  * Default path mapping: /api/<endpoint>
  * Override if any endpoint lives elsewhere.
- * For dynamic routes, use the pathParams to replace placeholders
+ * For dynamic routes, use a PathOverride with a fully resolved path.
  */
 export const endpointPath = <E extends Endpoint>(endpoint: E) => {
   const endpointStr = String(endpoint)

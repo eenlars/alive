@@ -82,7 +82,27 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     }
 
     const startedAt = new Date()
+    const startedAtIso = startedAt.toISOString()
     const timeoutSeconds = job.action_timeout_seconds || 300
+
+    // Atomically claim this job to prevent concurrent trigger races.
+    const { data: claimedRows, error: claimError } = await supabase
+      .from("automation_jobs")
+      .update({ running_at: startedAtIso })
+      .eq("id", job.id)
+      .is("running_at", null)
+      .select("id")
+      .limit(1)
+
+    if (claimError) {
+      console.error("[Automation Trigger] Failed to claim job:", claimError)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+    }
+
+    if (!claimedRows || claimedRows.length === 0) {
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, { status: 409 })
+    }
+
     console.log(`[Automation Trigger] Queued job "${job.name}" for site ${hostname} at ${startedAt.toISOString()}`)
 
     // Fire-and-forget: keep trigger endpoint fast and let runs endpoint report completion.
@@ -101,7 +121,17 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           result.error ? { error: result.error } : undefined,
         )
       })
-      .catch(error => {
+      .catch(async error => {
+        const { error: rollbackError } = await supabase
+          .from("automation_jobs")
+          .update({ running_at: null })
+          .eq("id", job.id)
+          .eq("running_at", startedAtIso)
+
+        if (rollbackError) {
+          console.error(`[Automation Trigger] Failed to roll back running_at for "${job.name}":`, rollbackError)
+        }
+
         console.error(`[Automation Trigger] Background job "${job.name}" failed to execute:`, error)
       })
 
@@ -109,7 +139,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       {
         ok: true,
         status: "queued",
-        startedAt: startedAt.toISOString(),
+        startedAt: startedAtIso,
         timeoutSeconds,
         monitor: {
           runsPath: `/api/automations/${job.id}/runs`,

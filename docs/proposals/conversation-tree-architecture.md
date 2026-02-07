@@ -31,7 +31,7 @@ This breaks down when users want to:
 
 ChatGPT stores conversations as **trees**, not arrays. Each message can have multiple children (variants).
 
-```
+```text
                     [root]
                        │
                     [user: "Hello"]
