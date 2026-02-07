@@ -249,12 +249,9 @@ describe("syncDexieTabsToLocalStorage", () => {
 
     syncDexieTabsToLocalStorage(TEST_WORKSPACE, dexieTabs, [{ id: "conv-1", title: "Conv" }])
 
-    // closedAt=0 is truthy in `if (dexieTab.closedAt)` — 0 is falsy, so it would NOT be skipped.
-    // This is an edge case: closedAt=0 means closed at epoch.
-    // The current code uses `if (dexieTab.closedAt)` which treats 0 as open.
-    // This test documents the current behavior.
+    // closedAt=0 means closed at epoch — should be treated as closed.
+    // The check uses `dexieTab.closedAt != null` so 0 is correctly treated as closed.
     const tabs = useTabDataStore.getState().tabsByWorkspace[TEST_WORKSPACE] ?? []
-    // 0 is falsy, so the tab is NOT skipped — it gets synced as open
-    expect(tabs).toHaveLength(1)
+    expect(tabs).toHaveLength(0)
   })
 })

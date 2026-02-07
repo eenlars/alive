@@ -41,9 +41,13 @@ export const { GET, POST } = nextRouteHandler({
 
     // Block test accounts from creating Flowglad customers
     const iam = await createIamClient("service")
-    const { data: user } = await iam.from("users").select("is_test_env").eq("user_id", payload.userId).single()
+    const { data: user, error } = await iam.from("users").select("is_test_env").eq("user_id", payload.userId).single()
 
-    if (user?.is_test_env) {
+    if (error || !user) {
+      throw new Error("Failed to verify user account")
+    }
+
+    if (user.is_test_env) {
       throw new Error("Test accounts are not eligible for billing")
     }
 

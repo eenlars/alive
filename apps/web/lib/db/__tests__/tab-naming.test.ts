@@ -123,7 +123,7 @@ describe("Tab naming in Dexie", () => {
     expect(tab!.name).toBe("spaced out")
   })
 
-  it("renameTab should fallback to 'untitled' for empty name", async () => {
+  it("renameTab should fallback to 'Untitled' for empty name", async () => {
     const store = useDexieMessageStore.getState()
     store.setSession({ userId: TEST_USER_ID, orgId: TEST_ORG_ID })
 
@@ -133,7 +133,7 @@ describe("Tab naming in Dexie", () => {
 
     const db = getMessageDb(TEST_USER_ID)
     const tab = await db.tabs.get(result.tabId)
-    expect(tab!.name).toBe("untitled")
+    expect(tab!.name).toBe("Untitled")
   })
 
   it("renameTab should be a no-op without a session", async () => {

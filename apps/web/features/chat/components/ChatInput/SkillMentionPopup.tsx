@@ -64,21 +64,33 @@ export function SkillMentionPopup({
   // Empty state
   if (filteredSkills.length === 0) {
     return (
-      <div className="absolute bottom-full left-0 right-0 mb-2 z-20 animate-in fade-in slide-in-from-bottom-2 duration-150">
-        <div className="bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08] rounded-2xl shadow-xl ring-1 ring-black/[0.04] dark:ring-white/[0.04] overflow-hidden">
-          <div className="px-4 py-5 text-center">
-            <div className="text-[12px] text-black/35 dark:text-white/35">
-              {query ? (
-                <>
-                  No skills match <span className="font-medium text-black/50 dark:text-white/50">@{query}</span>
-                </>
-              ) : (
-                "No skills available"
-              )}
+      <>
+        {/* Backdrop - catches outside clicks */}
+        <button
+          type="button"
+          className="fixed inset-0 z-10 bg-transparent border-0 p-0 cursor-default"
+          onClick={onDismiss}
+          onKeyDown={e => e.key === "Escape" && onDismiss()}
+          aria-label="Close skill suggestions"
+          tabIndex={-1}
+        />
+
+        <div className="absolute bottom-full left-0 right-0 mb-2 z-20 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div className="bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08] rounded-2xl shadow-xl ring-1 ring-black/[0.04] dark:ring-white/[0.04] overflow-hidden">
+            <div className="px-4 py-5 text-center">
+              <div className="text-[12px] text-black/35 dark:text-white/35">
+                {query ? (
+                  <>
+                    No skills match <span className="font-medium text-black/50 dark:text-white/50">@{query}</span>
+                  </>
+                ) : (
+                  "No skills available"
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </>
     )
   }
 
@@ -135,7 +147,7 @@ export function SkillMentionPopup({
                     className={`size-8 flex items-center justify-center rounded-lg shrink-0 transition-colors duration-100 ${
                       index === selectedIndex
                         ? "bg-purple-500/15 dark:bg-purple-400/15"
-                        : "bg-purple-500/8 dark:bg-purple-400/8"
+                        : "bg-purple-500/[0.08] dark:bg-purple-400/[0.08]"
                     }`}
                   >
                     {skill.source === "global" ? (

@@ -65,24 +65,48 @@ function isSuperadminUser(email: string): boolean {
 }
 
 /**
+ * In-memory cache for per-user enabled models.
+ * Avoids a DB round-trip on every getSessionUser() call.
+ * TTL: 30 seconds — short enough to pick up admin changes quickly.
+ */
+const enabledModelsCache = new Map<string, { models: string[]; expiry: number }>()
+const ENABLED_MODELS_CACHE_TTL_MS = 30_000
+
+/**
  * Fetch per-user enabled models from iam.users.metadata.
  * Returns empty array if no models are configured.
  * This allows admins to grant specific model access to individual users
  * without making them full admins.
+ *
+ * Results are cached in-memory for 30 seconds to avoid a DB query on every request.
  */
 async function fetchEnabledModels(userId: string): Promise<string[]> {
+  const cached = enabledModelsCache.get(userId)
+  if (cached && cached.expiry > Date.now()) {
+    return cached.models
+  }
+
   try {
     const iam = await createIamClient("service")
     const { data } = await iam.from("users").select("metadata").eq("user_id", userId).single()
 
-    if (!data?.metadata || typeof data.metadata !== "object") return []
+    if (!data?.metadata || typeof data.metadata !== "object") {
+      enabledModelsCache.set(userId, { models: [], expiry: Date.now() + ENABLED_MODELS_CACHE_TTL_MS })
+      return []
+    }
 
     const metadata = data.metadata as Record<string, unknown>
     const models = metadata.enabled_models
-    if (!Array.isArray(models)) return []
+    if (!Array.isArray(models)) {
+      enabledModelsCache.set(userId, { models: [], expiry: Date.now() + ENABLED_MODELS_CACHE_TTL_MS })
+      return []
+    }
 
-    return models.filter((m): m is string => typeof m === "string")
+    const result = models.filter((m): m is string => typeof m === "string")
+    enabledModelsCache.set(userId, { models: result, expiry: Date.now() + ENABLED_MODELS_CACHE_TTL_MS })
+    return result
   } catch {
+    // Don't cache errors — retry on next call
     return []
   }
 }

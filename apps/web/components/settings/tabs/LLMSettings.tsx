@@ -35,9 +35,13 @@ export function LLMSettings() {
   const { user: sessionUser } = useAuth()
   const canSelectAnyModel = sessionUser?.canSelectAnyModel ?? false
   const enabledModels = sessionUser?.enabledModels ?? []
-  // Admin or API key users can use any model; users with enabledModels can only use those
-  const isModelAvailable = (modelId: string) =>
-    apiKey || sessionUser?.isAdmin || enabledModels.length === 0 || enabledModels.includes(modelId)
+  // Admin or API key users can use any model; users with enabledModels can only use those;
+  // empty enabledModels means only DEFAULT_MODEL (backend enforces this for credit users)
+  const isModelAvailable = (modelId: string): boolean => {
+    if (apiKey || sessionUser?.isAdmin) return true
+    if (enabledModels.length > 0) return enabledModels.includes(modelId)
+    return modelId === DEFAULT_MODEL
+  }
 
   // Get current workspace from store
   const workspace = useCurrentWorkspace()
@@ -52,6 +56,18 @@ export function LLMSettings() {
       fetchCredits(workspace)
     }
   }, [fetchCredits, apiKey, workspace])
+
+  // Reset model when current selection becomes unavailable (e.g., API key removed, enabledModels changed)
+  useEffect(() => {
+    if (!isModelAvailable(model)) {
+      const fallback = enabledModels.length > 0 ? enabledModels[0] : DEFAULT_MODEL
+      if (isValidModel(fallback)) {
+        setModel(fallback)
+      } else {
+        setModel(DEFAULT_MODEL)
+      }
+    }
+  }, [apiKey, sessionUser?.isAdmin, enabledModels, model, setModel])
 
   const handleSaveApiKey = () => {
     const trimmedKey = apiKeyInput.trim()

@@ -21,7 +21,7 @@
 |------|-------|
 | ~15:22 | First orphaned SDK worker spawned (PID 3072231, session `9a1d73ef`) |
 | ~15:25 | Second orphaned worker spawned (PID 3084041, no `--resume`, same session) |
-| ~15:39 | User sends messages on two tabs — 4 more workers spawned (PIDs 3149506, 3149540, 3149506, 3149540) |
+| ~15:39 | User sends messages on two tabs — 2 more workers spawned (PIDs 3149506, 3149540) |
 | ~15:39 | Two `tsc --noEmit` processes spawned by a Claude worker running `npx tsc` via Bash tool |
 | ~15:43 | User navigates away (`beforeunload` beacon), cancellation fires for tab `10f791f9` |
 | ~15:43 | Cancel succeeds, but worker process (PID 3084041) enters `Dl` state (uninterruptible I/O sleep) |

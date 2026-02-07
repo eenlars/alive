@@ -70,11 +70,10 @@ export function GeneralSettings() {
 
   const billing = useBilling()
 
-  const { user: sessionUser } = useAuth()
-  const canSelectAnyModel = sessionUser?.canSelectAnyModel ?? false
-  const enabledModels = sessionUser?.enabledModels ?? []
+  const canSelectAnyModel = user?.canSelectAnyModel ?? false
+  const enabledModels = user?.enabledModels ?? []
   const isModelAvailable = (modelId: string) =>
-    apiKey || sessionUser?.isAdmin || enabledModels.length === 0 || enabledModels.includes(modelId)
+    apiKey || user?.isAdmin || enabledModels.length === 0 || enabledModels.includes(modelId)
 
   const workspace = useCurrentWorkspace()
 

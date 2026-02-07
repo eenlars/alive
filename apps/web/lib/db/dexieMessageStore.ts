@@ -612,7 +612,7 @@ export const useDexieMessageStore = create<DexieMessageStore>((set, get) => ({
     const tab = await db.tabs.get(tabId)
     if (!tab) return
 
-    await safeDb(() => db.tabs.update(tabId, { name: name.trim() || "untitled", pendingSync: true }))
+    await safeDb(() => db.tabs.update(tabId, { name: name.trim() || "Untitled", pendingSync: true }))
     queueSync(tab.conversationId, session.userId)
   },
 
