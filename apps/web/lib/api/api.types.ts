@@ -2,9 +2,10 @@
  * API client-specific shared types.
  * Endpoint/Req/Res are re-exported from schemas for convenience.
  */
+import type { Method } from "@alive-brug/alrighty"
 import type { Endpoint, Req, Res } from "@/lib/api/schemas"
 
-export type { Endpoint, Req, Res }
+export type { Endpoint, Method, Req, Res }
 
 /**
  * Default path mapping: /api/<endpoint>
@@ -15,8 +16,6 @@ export const endpointPath = <E extends Endpoint>(endpoint: E) => {
   const endpointStr = String(endpoint)
   return endpointStr.startsWith("/") ? `/api${endpointStr}` : `/api/${endpointStr}`
 }
-
-export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
 export interface ApiInit<E extends Endpoint> extends Omit<RequestInit, "body" | "method"> {
   method?: Method

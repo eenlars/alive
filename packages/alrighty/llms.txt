@@ -1,0 +1,168 @@
+# @alive-brug/alrighty
+
+Type-safe API client with Zod validation for TypeScript apps.
+
+## Installation
+
+```bash
+bun add @alive-brug/alrighty zod
+```
+
+Requirements:
+- zod ^3.24.0 (peer dependency - you must install it)
+- TypeScript 5.0+
+
+## Setup (one file)
+
+```typescript
+// lib/api/schemas.ts
+import {
+  createClient,
+  type SchemaRegistry,
+  type Endpoint as GenericEndpoint,
+  type Req as GenericReq,
+  type Res as GenericRes,
+} from "@alive-brug/alrighty"
+import { z } from "zod"
+
+export const apiSchemas = {
+  // GET endpoint (no req)
+  user: {
+    res: z.object({ id: z.string(), email: z.string() })
+  },
+  // POST endpoint (has req)
+  login: {
+    req: z.object({ email: z.string().email(), password: z.string() }),
+    res: z.object({ ok: z.boolean(), userId: z.string().optional() }),
+  },
+} as const satisfies SchemaRegistry
+
+export const api = createClient(apiSchemas)
+
+// Convenience types
+export type Endpoint = GenericEndpoint<typeof apiSchemas>
+export type Req<E extends Endpoint> = GenericReq<typeof apiSchemas, E>
+export type Res<E extends Endpoint> = GenericRes<typeof apiSchemas, E>
+```
+
+## Usage
+
+```typescript
+import { api } from "@/lib/api/schemas"
+
+// GET request
+const user = await api.getty("user")
+
+// POST request
+const result = await api.postty("login", { email: "a@b.com", password: "x" })
+
+// PUT request
+await api.putty("endpoint", body)
+
+// DELETE request
+await api.deletty("endpoint")
+```
+
+## Key Rules
+
+1. Every endpoint needs `res` (response schema)
+2. `req` is optional - omit for GET/DELETE
+3. `postty`/`putty`/`patchy` only work on endpoints WITH `req` (TypeScript enforced)
+4. `getty`/`deletty` work on any endpoint
+5. Requests and responses are validated automatically with Zod
+6. Use `as const satisfies SchemaRegistry` - both parts required for type inference
+
+## Common Errors
+
+### "Cannot find module 'zod'"
+```bash
+bun add zod
+```
+zod is a peer dependency, not bundled.
+
+### "Type 'X' is not assignable to parameter of type 'never'"
+You're calling `postty`/`putty`/`patchy` on an endpoint without a `req` schema. Either:
+- Add a `req` schema to the endpoint
+- Use `getty` or `deletty` instead
+
+### "Property 'req' does not exist"
+Missing `as const satisfies SchemaRegistry` on your schemas object.
+
+### "Argument of type 'string' is not assignable to parameter of type 'Endpoint'"
+The endpoint name doesn't exist in your schemas. Check for typos.
+
+### Response validation errors at runtime
+Your API returns data that doesn't match the `res` schema. Either:
+- Fix your API to return the correct shape
+- Update the schema to match what the API actually returns
+
+### Request validation errors at runtime
+The body you're passing doesn't match the `req` schema. Check the schema definition.
+
+## Error Handling
+
+```typescript
+import { ApiError } from "@alive-brug/alrighty"
+
+try {
+  await api.getty("user")
+} catch (e) {
+  if (e instanceof ApiError) {
+    e.status    // HTTP status code
+    e.code      // "VALIDATION_ERROR", "NETWORK_ERROR", etc.
+    e.message   // Human readable message
+    e.details   // Zod issues or raw error
+
+    // Helpers
+    if (e.isUnauthorized) // 401
+    if (e.isNotFound)     // 404
+    if (e.isValidationError) // Zod validation failed
+    if (e.isNetworkError) // fetch failed
+  }
+}
+```
+
+## Adding New Endpoints
+
+```typescript
+// In apiSchemas object:
+
+// GET endpoint
+"users/list": {
+  res: z.object({ users: z.array(z.object({ id: z.string() })) })
+},
+
+// POST endpoint
+"users/create": {
+  req: z.object({ name: z.string(), email: z.string().email() }),
+  res: z.object({ ok: z.boolean(), id: z.string() }),
+},
+
+// DELETE endpoint (uses query params, not body)
+"users/delete": {
+  res: z.object({ ok: z.boolean() })
+},
+```
+
+## Path Mapping
+
+Endpoint names map to paths: `"users/create"` → `/api/users/create`
+
+Configure base path:
+```typescript
+createClient(schemas, { basePath: "/v2/api" })
+```
+
+## Full API
+
+```typescript
+createClient(schemas, {
+  basePath: "/api",        // Default: "/api"
+  credentials: "include",  // Default: "include"
+  headers: {               // Default headers for all requests
+    Authorization: `Bearer ${token}`
+  }
+})
+```
+
+Returns: `{ getty, postty, putty, patchy, deletty }`

@@ -36,6 +36,7 @@
     "register:unregistered-domains": "bun run scripts/register-unregistered-domains.ts"
   },
   "dependencies": {
+    "@alive-brug/alrighty": "workspace:*",
     "@webalive/images": "workspace:*",
     "@webalive/redis": "workspace:*",
     "@webalive/tools": "workspace:*",
