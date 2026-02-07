@@ -6,13 +6,6 @@
  */
 import { describe, expect, it } from "vitest"
 
-// server-config.json isn't guaranteed to exist in local dev or CI; gate these tests
-// on the actual presence of configured paths instead of env heuristics.
-const hasServerConfig = async () => {
-  const shared = await import("@webalive/shared")
-  return Boolean(shared.PATHS?.SITES_ROOT) && shared.PATHS.SITES_ROOT.length > 0
-}
-
 describe("@webalive/shared exports", () => {
   it("exports critical constants", async () => {
     const shared = await import("@webalive/shared")
@@ -23,8 +16,9 @@ describe("@webalive/shared exports", () => {
 
     // Paths - used for file operations
     expect(shared.PATHS).toBeDefined()
-    // Server config paths only available outside CI - just verify it's a string
-    if (await hasServerConfig()) {
+    // Server config paths are optional in test environments
+    const hasConfiguredPaths = shared.PATHS.SITES_ROOT.length > 0
+    if (hasConfiguredPaths) {
       expect(typeof shared.PATHS.SITES_ROOT).toBe("string")
       expect(shared.PATHS.SITES_ROOT.length).toBeGreaterThan(0)
     }

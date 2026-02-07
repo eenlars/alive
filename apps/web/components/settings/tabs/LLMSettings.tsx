@@ -82,10 +82,7 @@ export function LLMSettings() {
   const isKeyChanged = apiKeyInput !== (apiKey || "")
 
   return (
-    <SettingsTabLayout
-      title="AI Model"
-      description="Choose which AI model powers your assistant and how you pay for it"
-    >
+    <SettingsTabLayout title="AI Model" description="Configure your AI settings">
       <div className="space-y-4 sm:space-y-6">
         {/* Credits Display - Only show when using workspace credits */}
         {!apiKey && (
@@ -160,13 +157,11 @@ export function LLMSettings() {
         )}
 
         <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-100">
-          <label htmlFor="anthropic-api-key" className={`block ${text.label} mb-0.5`}>
+          <label htmlFor="anthropic-api-key" className={`block ${text.label} mb-1`}>
             Your API Key
             <span className={`ml-2 ${text.muted}`}>(optional)</span>
           </label>
-          <p className={`${text.muted} mb-3`}>
-            Bring your own Anthropic API key to use any model without credits. Get one at console.anthropic.com.
-          </p>
+          <p className={`${text.description} mb-3`}>Use your own key to unlock all models</p>
           <div className="space-y-3">
             <div className="relative">
               <input
@@ -220,13 +215,13 @@ export function LLMSettings() {
         </div>
 
         <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-150">
-          <label htmlFor="claude-model" className={`block ${text.label} mb-0.5`}>
+          <label htmlFor="claude-model" className={`block ${text.label} mb-1`}>
             Model
           </label>
-          <p className={`${text.muted} mb-3`}>
+          <p className={`${text.description} mb-3`}>
             {apiKey || canSelectAnyModel
-              ? "Opus is the smartest but slowest. Sonnet balances speed and quality. Haiku is fastest for simple tasks."
-              : `You're using ${getModelDisplayName(DEFAULT_MODEL)}. Add your own API key above to switch models.`}
+              ? "Choose which Claude model to use"
+              : `Currently using ${getModelDisplayName(DEFAULT_MODEL)}`}
           </p>
           <select
             id="claude-model"

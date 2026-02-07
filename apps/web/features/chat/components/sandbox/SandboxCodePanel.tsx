@@ -82,20 +82,17 @@ export function SandboxCodePanel({
   }, [filePath, onCloseFile])
 
   return (
-    <div ref={containerRef} className={`h-full flex bg-white dark:bg-[#0d0d0d] ${isResizing ? "select-none" : ""}`}>
+    <div ref={containerRef} className={`h-full flex bg-[#0d0d0d] ${isResizing ? "select-none" : ""}`}>
       {/* File tree sidebar */}
       {!treeCollapsed && (
-        <div
-          className="flex flex-col shrink-0 border-r border-black/[0.08] dark:border-white/[0.04]"
-          style={{ width: treeWidth }}
-        >
+        <div className="flex flex-col shrink-0 border-r border-white/[0.04]" style={{ width: treeWidth }}>
           {/* Tree header */}
-          <div className="h-9 px-2 flex items-center justify-between border-b border-black/[0.08] dark:border-white/[0.04] bg-neutral-100/50 dark:bg-neutral-900/30 shrink-0">
+          <div className="h-9 px-2 flex items-center justify-between border-b border-white/[0.04] bg-neutral-900/30 shrink-0">
             <span className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">Files</span>
             <button
               type="button"
               onClick={onToggleTreeCollapsed}
-              className="p-1 text-neutral-400 dark:text-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-400 rounded transition-colors"
+              className="p-1 text-neutral-600 hover:text-neutral-400 rounded transition-colors"
               title="Collapse sidebar"
             >
               <PanelLeftClose size={14} strokeWidth={1.5} />
@@ -120,7 +117,7 @@ export function SandboxCodePanel({
       {!treeCollapsed && (
         // biome-ignore lint/a11y/noStaticElementInteractions: resize handle requires mouse interaction
         <div
-          className="w-1 shrink-0 cursor-col-resize hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors relative group"
+          className="w-1 shrink-0 cursor-col-resize hover:bg-white/[0.08] transition-colors relative group"
           onMouseDown={handleMouseDown}
         >
           {isResizing && <div className="absolute inset-y-0 -left-1 -right-1 bg-sky-500/20" />}
@@ -131,11 +128,11 @@ export function SandboxCodePanel({
       <div className="flex-1 flex flex-col min-w-0">
         {/* Collapsed tree toggle */}
         {treeCollapsed && (
-          <div className="h-9 px-2 flex items-center border-b border-black/[0.08] dark:border-white/[0.04] bg-neutral-100/50 dark:bg-neutral-900/30 shrink-0">
+          <div className="h-9 px-2 flex items-center border-b border-white/[0.04] bg-neutral-900/30 shrink-0">
             <button
               type="button"
               onClick={onToggleTreeCollapsed}
-              className="p-1 text-neutral-400 dark:text-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-400 rounded transition-colors"
+              className="p-1 text-neutral-600 hover:text-neutral-400 rounded transition-colors"
               title="Show sidebar"
             >
               <PanelLeftOpen size={14} strokeWidth={1.5} />
@@ -147,7 +144,7 @@ export function SandboxCodePanel({
         {filePath ? (
           <CodeViewer workspace={workspace} worktree={worktree} filePath={filePath} onClose={onCloseFile} />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-neutral-400 dark:text-neutral-600 text-sm">
+          <div className="flex-1 flex items-center justify-center text-neutral-600 text-sm">
             <span>Select a file to view</span>
           </div>
         )}

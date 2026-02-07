@@ -16,6 +16,10 @@ vi.mock("@/lib/api/api-client", () => ({
   postty: vi.fn().mockResolvedValue({}),
 }))
 
+vi.mock("@/lib/api/schemas", () => ({
+  validateRequest: vi.fn((_endpoint: string, data: unknown) => data),
+}))
+
 const mockEndStream = vi.fn()
 const mockGetAbortController = vi.fn()
 const mockClearAbortController = vi.fn()

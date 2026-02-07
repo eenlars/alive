@@ -196,7 +196,7 @@ export function Sandbox() {
 
   return (
     <div
-      className={`relative bg-white dark:bg-[#0d0d0d] flex flex-col border-l border-black/[0.08] dark:border-white/[0.04] h-full ${isResizing ? "select-none" : ""}`}
+      className={`relative bg-[#0d0d0d] flex flex-col border-l border-white/[0.04] h-full ${isResizing ? "select-none" : ""}`}
       style={{ width: `${width}px` }}
     >
       {/* Resize handle */}
@@ -212,9 +212,7 @@ export function Sandbox() {
       >
         <div
           className={`w-0.5 h-8 rounded-full transition-all duration-150 ${
-            isResizing
-              ? "bg-neutral-400 dark:bg-neutral-500 h-12"
-              : "bg-neutral-300 dark:bg-neutral-800 group-hover:bg-neutral-400 dark:group-hover:bg-neutral-600 group-hover:h-12"
+            isResizing ? "bg-neutral-500 h-12" : "bg-neutral-800 group-hover:bg-neutral-600 group-hover:h-12"
           }`}
         />
       </div>
@@ -223,15 +221,15 @@ export function Sandbox() {
       {isResizing && <div className="absolute inset-0 z-50 cursor-col-resize" />}
 
       {/* Header bar */}
-      <div className="h-11 px-2 flex items-center gap-1.5 border-b border-black/[0.08] dark:border-white/[0.04] bg-neutral-100/80 dark:bg-neutral-900/50 shrink-0">
+      <div className="h-11 px-2 flex items-center gap-1.5 border-b border-white/[0.04] bg-neutral-900/50 shrink-0">
         {/* URL/Path display */}
-        <div className="flex-1 h-7 flex items-center gap-1.5 bg-black/[0.04] dark:bg-white/[0.03] rounded px-2 min-w-0">
+        <div className="flex-1 h-7 flex items-center gap-1.5 bg-white/[0.03] rounded px-2 min-w-0">
           {panel.view === "site" && (
             <>
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="p-0.5 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors shrink-0"
+                className="p-0.5 text-neutral-600 hover:text-neutral-300 transition-colors shrink-0"
                 title="Refresh"
               >
                 <RotateCw size={12} strokeWidth={1.5} />
@@ -241,14 +239,14 @@ export function Sandbox() {
                 type="text"
                 defaultValue={path}
                 onKeyDown={handlePathSubmit}
-                className="flex-1 min-w-0 bg-transparent text-[13px] text-neutral-600 dark:text-neutral-400 outline-none placeholder:text-neutral-300 dark:placeholder:text-neutral-700"
+                className="flex-1 min-w-0 bg-transparent text-[13px] text-neutral-400 outline-none placeholder:text-neutral-700"
                 placeholder="/"
               />
               <a
                 href={workspace ? getSiteUrl(workspace, path) : "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-0.5 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors shrink-0"
+                className="p-0.5 text-neutral-600 hover:text-neutral-300 transition-colors shrink-0"
                 title="Open in new tab"
               >
                 <ExternalLink size={12} strokeWidth={1.5} />
@@ -256,14 +254,14 @@ export function Sandbox() {
             </>
           )}
           {panel.view === "code" && (
-            <span className="text-[13px] text-neutral-500 dark:text-neutral-500 truncate">
+            <span className="text-[13px] text-neutral-500 truncate">
               {panel.filePath ? `/${panel.filePath}` : "Code"}
             </span>
           )}
           {panel.view === "terminal" && (
             <div className="flex items-center gap-1.5">
-              <Terminal size={12} strokeWidth={1.5} className="text-neutral-400 dark:text-neutral-600" />
-              <span className="text-[13px] text-neutral-500 dark:text-neutral-500">Terminal</span>
+              <Terminal size={12} strokeWidth={1.5} className="text-neutral-600" />
+              <span className="text-[13px] text-neutral-500">Terminal</span>
             </div>
           )}
         </div>
@@ -275,7 +273,7 @@ export function Sandbox() {
         <button
           type="button"
           onClick={() => setSandbox(false)}
-          className="xl:hidden p-1.5 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 rounded transition-colors"
+          className="xl:hidden p-1.5 text-neutral-600 hover:text-neutral-300 rounded transition-colors"
           title="Close"
         >
           <X size={14} strokeWidth={1.5} />
@@ -287,16 +285,14 @@ export function Sandbox() {
         {!workspace || (!workspace.includes(".") && !isSuperadminWorkspace) ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <p className="text-neutral-400 dark:text-neutral-600 text-sm">
-                {workspace ? "Invalid workspace" : "No site selected"}
-              </p>
+              <p className="text-neutral-600 text-sm">{workspace ? "Invalid workspace" : "No site selected"}</p>
             </div>
           </div>
         ) : panel.view === "site" ? (
           <div className="h-full bg-white relative">
             {/* Loading state */}
             {(isLoading || !previewToken) && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white dark:bg-[#0d0d0d]">
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0d0d0d]">
                 <PulsingDot size="lg" />
               </div>
             )}
@@ -326,8 +322,8 @@ export function Sandbox() {
             onToggleTreeCollapsed={toggleTreeCollapsed}
           />
         ) : panel.view === "terminal" ? (
-          <div className="h-full bg-neutral-50 dark:bg-[#1e1e1e] flex items-center justify-center">
-            <div className="text-center text-neutral-400 dark:text-neutral-500">
+          <div className="h-full bg-[#1e1e1e] flex items-center justify-center">
+            <div className="text-center text-neutral-500">
               <Terminal size={48} strokeWidth={1} className="mx-auto mb-4 opacity-50" />
               <p className="text-sm">Terminal coming soon</p>
             </div>

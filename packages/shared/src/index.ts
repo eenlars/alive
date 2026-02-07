@@ -51,6 +51,9 @@ export {
   SUPERADMIN,
   STREAM_ENV,
   type StreamEnv,
+  STANDALONE,
+  BRIDGE_ENV,
+  type BridgeEnv,
   getServiceName,
   getSiteUser,
   getSiteHome,
@@ -130,6 +133,7 @@ export {
   // Tool permission helpers
   allowTool,
   denyTool,
+  isHeavyBashCommand,
   filterToolsForPlanMode,
   // Helper functions
   getStreamAllowedTools,

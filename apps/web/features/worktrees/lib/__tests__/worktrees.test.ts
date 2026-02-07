@@ -18,20 +18,12 @@ vi.mock("@/lib/workspace-execution/command-runner", () => ({
     workspaceRoot: string
     timeout?: number
   }) => {
-    // Husky hooks can export GIT_DIR/GIT_WORK_TREE. If we leak those into
-    // a temp repo, `git` thinks it is operating on the parent repo and fails
-    // with: "fatal: this operation must be run in a work tree".
-    const env = { ...process.env }
-    delete env.GIT_DIR
-    delete env.GIT_WORK_TREE
-    delete env.GIT_INDEX_FILE
-
     // In tests, just run the command directly without privilege dropping
     const result = spawnSync(command, args, {
       cwd: workspaceRoot,
       encoding: "utf8",
       timeout: timeout ?? 60000,
-      env,
+      env: sanitizedGitEnv(),
     })
     return {
       success: result.status === 0,
@@ -47,14 +39,17 @@ interface TestRepo {
   baseWorkspacePath: string
 }
 
-function runGit(cwd: string, args: string[]) {
-  // Ensure hook-provided git env vars don't break the temp repo.
+function sanitizedGitEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env }
   delete env.GIT_DIR
   delete env.GIT_WORK_TREE
+  delete env.GIT_COMMON_DIR
   delete env.GIT_INDEX_FILE
+  return env
+}
 
-  const result = spawnSync("git", args, { cwd, encoding: "utf8", env })
+function runGit(cwd: string, args: string[]) {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8", env: sanitizedGitEnv() })
   if (result.status !== 0) {
     throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`)
   }
@@ -174,7 +169,7 @@ describe("worktrees service", () => {
     const branchCheck = spawnSync(
       "git",
       ["-C", repo.baseWorkspacePath, "rev-parse", "--verify", "refs/heads/worktree/cleanup-branch"],
-      { encoding: "utf8" },
+      { encoding: "utf8", env: sanitizedGitEnv() },
     )
 
     expect(branchCheck.status).not.toBe(0)

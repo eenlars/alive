@@ -12,8 +12,6 @@ import type {
   AgentInput,
   AskUserQuestionInput,
   BashInput,
-  ConfigInput,
-  TaskOutputInput,
   ExitPlanModeInput,
   FileEditInput,
   FileReadInput,
@@ -58,7 +56,6 @@ export const ALWAYS_DISALLOWED_SDK_TOOLS = STREAM_ALWAYS_DISALLOWED_SDK_TOOLS
 type SDKToolMap = {
   AgentInput: "Task"
   BashInput: "Bash"
-  ConfigInput: "Config"
   TaskOutputInput: "TaskOutput"
   ExitPlanModeInput: "ExitPlanMode"
   FileEditInput: "Edit"
@@ -83,8 +80,6 @@ type SDKToolMap = {
  */
 type _ValidateAgentInput = AgentInput extends ToolInputSchemas ? true : never
 type _ValidateBashInput = BashInput extends ToolInputSchemas ? true : never
-type _ValidateConfigInput = ConfigInput extends ToolInputSchemas ? true : never
-type _ValidateTaskOutputInput = TaskOutputInput extends ToolInputSchemas ? true : never
 type _ValidateExitPlanModeInput = ExitPlanModeInput extends ToolInputSchemas ? true : never
 type _ValidateFileEditInput = FileEditInput extends ToolInputSchemas ? true : never
 type _ValidateFileReadInput = FileReadInput extends ToolInputSchemas ? true : never
@@ -104,8 +99,6 @@ type _ValidateAskUserQuestionInput = AskUserQuestionInput extends ToolInputSchem
 const _assertAllTypesExist: true = true as
   | _ValidateAgentInput
   | _ValidateBashInput
-  | _ValidateConfigInput
-  | _ValidateTaskOutputInput
   | _ValidateExitPlanModeInput
   | _ValidateFileEditInput
   | _ValidateFileReadInput
@@ -133,7 +126,6 @@ export type SDKToolName = SDKToolMap[keyof SDKToolMap]
 export const SDK_TOOL_NAMES = [
   "Task",
   "Bash",
-  "Config",
   "TaskOutput",
   "ExitPlanMode",
   "Edit",
@@ -169,6 +161,6 @@ const _assertAllCategorized: _MissingTools extends never ? true : never = true
  * Compile-time check: Ensure no extra tools beyond SDK.
  * Note: "Skill" is a Stream-specific tool (loaded from .claude/skills/) not in SDK's ToolInputSchemas.
  */
-type _StreamOnlyTools = "Skill"
+type _StreamOnlyTools = "Skill" | "BashOutput"
 type _ExtraTools = Exclude<_AllCategorized, SDKToolName | _StreamOnlyTools>
 const _assertNoExtraTools: _ExtraTools extends never ? true : never = true
