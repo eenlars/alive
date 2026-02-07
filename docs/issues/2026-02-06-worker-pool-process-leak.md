@@ -50,7 +50,7 @@ The worker pool (`packages/worker-pool/src/manager.ts`) manages **parent worker 
 
 **But:** The underlying `bun claude-agent-sdk/cli.js` child process that was spawned by `query()` from `@anthropic-ai/claude-agent-sdk` **does not always exit**. It can get stuck in:
 - An active Anthropic API call that doesn't respect the abort signal
-- MCP server initialization (7 MCP servers: alive-workspace, alive-tools, context7, google-scraper, ocr, github, gmail)
+- MCP server initialization (7 MCP servers: alive-workspace, alive-tools, context7, google-scraper, ocr, GitHub, gmail)
 - `Dl` state (uninterruptible disk I/O sleep in the kernel — immune to SIGTERM)
 
 When the worker is marked as "ready" again after `cancelTimeoutMs` (500ms), the **next request spawns a NEW `bun claude-agent-sdk/cli.js` process** via `query()`. The old child process is still alive, consuming CPU and memory.

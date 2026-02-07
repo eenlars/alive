@@ -123,6 +123,7 @@ export function SkillMentionPopup({
           <div
             ref={listRef}
             role="listbox"
+            id="skill-mention-listbox"
             aria-label="Skill suggestions"
             className="max-h-64 overflow-y-auto px-1.5 pb-1.5"
           >
@@ -131,6 +132,7 @@ export function SkillMentionPopup({
                 key={skill.id}
                 type="button"
                 role="option"
+                id={`skill-option-${skill.id}`}
                 aria-selected={index === selectedIndex}
                 data-skill-item
                 onClick={() => onSelect(skill)}

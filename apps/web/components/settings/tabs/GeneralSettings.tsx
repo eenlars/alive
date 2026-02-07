@@ -45,10 +45,13 @@ export function GeneralSettings() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/logout", {
+      const res = await fetch("/api/logout", {
         method: "POST",
         credentials: "include",
       })
+      if (!res.ok) {
+        console.error("Logout returned", res.status)
+      }
       setCurrentWorkspace(null)
       router.push("/")
     } catch (error) {
