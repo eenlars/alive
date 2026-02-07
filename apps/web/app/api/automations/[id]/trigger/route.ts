@@ -83,7 +83,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
 
     const startedAt = new Date()
     const startedAtIso = startedAt.toISOString()
-    const timeoutSeconds = job.action_timeout_seconds || 300
+    const timeoutSeconds = job.action_timeout_seconds ?? 300
 
     // Atomically claim this job to prevent concurrent trigger races.
     const { data: claimedRows, error: claimError } = await supabase
@@ -106,22 +106,18 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     console.log(`[Automation Trigger] Queued job "${job.name}" for site ${hostname} at ${startedAt.toISOString()}`)
 
     // Fire-and-forget: keep trigger endpoint fast and let runs endpoint report completion.
-    void runAutomationJob({
-      jobId: job.id,
-      userId: job.user_id,
-      orgId: job.org_id,
-      workspace: hostname,
-      prompt: job.action_prompt,
-      timeoutSeconds,
-    })
-      .then(result => {
-        const status = result.success ? "success" : "failure"
-        console.log(
-          `[Automation Trigger] Job "${job.name}" finished with ${status} in ${result.durationMs}ms`,
-          result.error ? { error: result.error } : undefined,
-        )
-      })
-      .catch(async error => {
+    void (async () => {
+      let result: Awaited<ReturnType<typeof runAutomationJob>>
+      try {
+        result = await runAutomationJob({
+          jobId: job.id,
+          userId: job.user_id,
+          orgId: job.org_id,
+          workspace: hostname,
+          prompt: job.action_prompt,
+          timeoutSeconds,
+        })
+      } catch (error) {
         const { error: rollbackError } = await supabase
           .from("automation_jobs")
           .update({ running_at: null })
@@ -133,7 +129,19 @@ export async function POST(_req: NextRequest, context: RouteContext) {
         }
 
         console.error(`[Automation Trigger] Background job "${job.name}" failed to execute:`, error)
-      })
+        return
+      }
+
+      try {
+        const status = result.success ? "success" : "failure"
+        console.log(
+          `[Automation Trigger] Job "${job.name}" finished with ${status} in ${result.durationMs}ms`,
+          result.error ? { error: result.error } : undefined,
+        )
+      } catch (logError) {
+        console.error(`[Automation Trigger] Logging failed for "${job.name}":`, logError)
+      }
+    })()
 
     return NextResponse.json(
       {
