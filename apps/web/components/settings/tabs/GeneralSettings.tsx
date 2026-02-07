@@ -72,8 +72,11 @@ export function GeneralSettings() {
 
   const canSelectAnyModel = user?.canSelectAnyModel ?? false
   const enabledModels = user?.enabledModels ?? []
-  const isModelAvailable = (modelId: string) =>
-    apiKey || user?.isAdmin || enabledModels.length === 0 || enabledModels.includes(modelId)
+  const isModelAvailable = (modelId: string): boolean => {
+    if (apiKey || user?.isAdmin) return true
+    if (enabledModels.length > 0) return enabledModels.includes(modelId)
+    return modelId === DEFAULT_MODEL
+  }
 
   const workspace = useCurrentWorkspace()
 
@@ -86,6 +89,18 @@ export function GeneralSettings() {
       fetchCredits(workspace)
     }
   }, [fetchCredits, apiKey, workspace])
+
+  // Reset model when current selection becomes unavailable
+  useEffect(() => {
+    if (!isModelAvailable(model)) {
+      const fallback = enabledModels.length > 0 ? enabledModels[0] : DEFAULT_MODEL
+      if (isValidModel(fallback)) {
+        setModel(fallback)
+      } else {
+        setModel(DEFAULT_MODEL)
+      }
+    }
+  }, [apiKey, user?.isAdmin, enabledModels, model, setModel])
 
   const handleSaveApiKey = () => {
     const trimmedKey = apiKeyInput.trim()
