@@ -1,3 +1,4 @@
+import type { Req as PkgReq, Res as PkgRes } from "@alive-brug/alrighty"
 import { z } from "zod"
 import { RESERVED_SLUGS } from "@/features/deployment/types/guards"
 import { OptionalWorktreeSchema, OptionalWorktreeSlugSchema } from "@/types/guards/worktree-schemas"
@@ -638,8 +639,8 @@ export const apiSchemas = {
 // ============================================================================
 
 export type Endpoint = keyof typeof apiSchemas
-export type Req<E extends Endpoint> = z.infer<(typeof apiSchemas)[E]["req"]>
-export type Res<E extends Endpoint> = z.infer<(typeof apiSchemas)[E]["res"]>
+export type Req<E extends Endpoint> = PkgReq<typeof apiSchemas, E>
+export type Res<E extends Endpoint> = PkgRes<typeof apiSchemas, E>
 
 // ============================================================================
 // VALIDATION HELPER
