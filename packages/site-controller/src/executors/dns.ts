@@ -1,5 +1,5 @@
-import { runScriptSafe } from "./common.js"
 import type { DnsValidationResult } from "../types.js"
+import { runScriptSafe } from "./common.js"
 
 export interface ValidateDnsParams {
   domain: string

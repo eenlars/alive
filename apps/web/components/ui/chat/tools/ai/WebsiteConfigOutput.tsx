@@ -8,8 +8,8 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import { WebsiteConfig, type WebsiteConfigData, type WebsiteConfigResult } from "@/components/ai/WebsiteConfig"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import type { ToolResultRendererProps } from "@/lib/tools/tool-registry"
 
 /**

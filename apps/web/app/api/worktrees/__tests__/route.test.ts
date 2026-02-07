@@ -12,8 +12,8 @@
  */
 import { NextRequest } from "next/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { ErrorCodes } from "@/lib/error-codes"
 import type { SessionUser } from "@/features/auth/lib/auth"
+import { ErrorCodes } from "@/lib/error-codes"
 
 vi.mock("@/features/auth/lib/auth", async () => {
   const actual = await vi.importActual<typeof import("@/features/auth/lib/auth")>("@/features/auth/lib/auth")

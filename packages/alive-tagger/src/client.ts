@@ -11,11 +11,11 @@
  */
 
 import {
-  SOURCE_KEY,
   ELEMENT_SELECTED_MESSAGE_TYPE,
-  type SourceInfo,
-  type ElementSelectedMessage,
   type ElementSelectedContext,
+  type ElementSelectedMessage,
+  SOURCE_KEY,
+  type SourceInfo,
 } from "./types"
 
 /** Maximum length for HTML snippet */

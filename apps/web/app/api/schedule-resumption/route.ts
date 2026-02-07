@@ -7,16 +7,16 @@
  * Authentication: Session cookie via ALIVE_SESSION_COOKIE (same as other MCP tool API calls)
  */
 
+import { scheduleResumption } from "@webalive/job-queue"
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { scheduleResumption } from "@webalive/job-queue"
-import { tabKey, sessionStore } from "@/features/auth/lib/sessionStore"
 import {
   AuthenticationError,
   createErrorResponse,
   isWorkspaceAuthenticated,
   requireSessionUser,
 } from "@/features/auth/lib/auth"
+import { sessionStore, tabKey } from "@/features/auth/lib/sessionStore"
 import { ErrorCodes } from "@/lib/error-codes"
 
 const ScheduleResumptionSchema = z.object({

@@ -5,8 +5,8 @@ import { DEFAULTS, PATHS, TIMEOUTS } from "@webalive/shared"
 import type { NextRequest } from "next/server"
 import { requireManagerAuth } from "@/features/manager/lib/api-helpers"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
-import { ErrorCodes } from "@/lib/error-codes"
 import { getAllDomains } from "@/lib/deployment/domain-registry"
+import { ErrorCodes } from "@/lib/error-codes"
 import type { DomainStatus } from "@/types/domain"
 
 const execAsync = promisify(exec)

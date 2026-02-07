@@ -17,8 +17,8 @@
  */
 
 import { chownSync, cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
 import { createConnection } from "node:net"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import process from "node:process"
 
@@ -30,18 +30,18 @@ const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 // After privilege drop, the worker can't read /root/alive/node_modules/
 import { query } from "@anthropic-ai/claude-agent-sdk"
 import {
-  isOAuthMcpTool,
-  GLOBAL_MCP_PROVIDERS,
-  DEFAULTS,
-  PLAN_MODE_BLOCKED_TOOLS,
   allowTool,
+  DEFAULTS,
   denyTool,
-  isAbortError,
-  isTransientNetworkError,
-  isFatalError,
   formatUncaughtError,
+  GLOBAL_MCP_PROVIDERS,
+  isAbortError,
+  isFatalError,
+  isOAuthMcpTool,
+  isTransientNetworkError,
+  PLAN_MODE_BLOCKED_TOOLS,
 } from "@webalive/shared"
-import { workspaceInternalMcp, toolsInternalMcp } from "@webalive/tools"
+import { toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts

@@ -4,8 +4,7 @@ import { join } from "node:path"
 import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { resolveAndValidatePath } from "@webalive/shared"
 import { z } from "zod"
-import { type ToolResult, errorResult, successResult } from "../../lib/api-client.js"
-import { validateWorkspacePath } from "../../lib/workspace-validator.js"
+import { errorResult, successResult, type ToolResult } from "../../lib/api-client.js"
 import {
   generateUsageInstructions,
   getAssetPath,
@@ -13,6 +12,7 @@ import {
   getManifest,
   listAssets,
 } from "../../lib/assets.js"
+import { validateWorkspacePath } from "../../lib/workspace-validator.js"
 
 export const copySharedAssetParamsSchema = {
   asset: z.string().min(1).describe("Asset to copy (e.g., 'fonts/satoshi')"),

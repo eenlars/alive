@@ -19,9 +19,9 @@
 
 import { existsSync } from "node:fs"
 import { join } from "node:path"
-import { config as loadDotenv } from "dotenv"
 import { createEnv } from "@t3-oss/env-nextjs"
-import { serverSchema, clientSchema, runtimeEnv } from "./schema"
+import { config as loadDotenv } from "dotenv"
+import { clientSchema, runtimeEnv, serverSchema } from "./schema"
 
 /**
  * Explicitly load environment file
@@ -310,4 +310,4 @@ export function getFlowgladSecretKey(): string | undefined {
 }
 
 // Re-export schema types for convenience
-export type { serverSchema, clientSchema } from "./schema"
+export type { clientSchema, serverSchema } from "./schema"

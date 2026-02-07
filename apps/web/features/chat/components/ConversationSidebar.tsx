@@ -19,8 +19,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useDexieArchivedConversations, useDexieConversations, useDexieSession } from "@/lib/db/dexieMessageStore"
 import type { DbConversation } from "@/lib/db/messageDb"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
-import { ConversationStatusPill } from "./ui/ConversationStatusPill"
 import { useConversationStatus } from "../hooks/useConversationStatus"
+import { ConversationStatusPill } from "./ui/ConversationStatusPill"
 
 // Shared style constants for DRY code
 const styles = {

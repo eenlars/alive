@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { NdjsonParser, isWorkerMessage, isParentMessage } from "../src/ipc"
-import { WORKER_MESSAGE_TYPES, PARENT_MESSAGE_TYPES, STREAM_TYPES } from "../src/types"
-import type { WorkerToParentMessage, AgentRequest, AgentConfig } from "../src/types"
+import { isParentMessage, isWorkerMessage, NdjsonParser } from "../src/ipc"
+import type { AgentConfig, AgentRequest, WorkerToParentMessage } from "../src/types"
+import { PARENT_MESSAGE_TYPES, STREAM_TYPES, WORKER_MESSAGE_TYPES } from "../src/types"
 
 /** Create minimal valid AgentConfig for tests */
 function createTestAgentConfig(): AgentConfig {

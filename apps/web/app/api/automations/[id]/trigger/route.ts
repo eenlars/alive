@@ -5,12 +5,12 @@
  * This bypasses the schedule and runs the job now.
  */
 
-import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
-import { structuredErrorResponse } from "@/lib/api/responses"
 
 interface RouteContext {
   params: Promise<{ id: string }>

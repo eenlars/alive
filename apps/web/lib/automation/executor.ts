@@ -11,20 +11,20 @@
 
 import { statSync } from "node:fs"
 import { resolve } from "node:path"
-import { DEFAULTS, PATHS, WORKER_POOL, getWorkspacePath, isPathWithinWorkspace } from "@webalive/shared"
 import { createClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
+import { DEFAULTS, getWorkspacePath, isPathWithinWorkspace, PATHS, WORKER_POOL } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
-import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
-import { getOrgCredits } from "@/lib/credits/supabase-credits"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
+import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import {
-  STREAM_TYPES,
   getAllowedTools,
   getDisallowedTools,
   PERMISSION_MODE,
   SETTINGS_SOURCES,
+  STREAM_TYPES,
 } from "@/lib/claude/agent-constants.mjs"
+import { getOrgCredits } from "@/lib/credits/supabase-credits"
 import { getSupabaseCredentials } from "@/lib/env/server"
 import { DEFAULT_MODEL } from "@/lib/models/claude-models"
 import { generateRequestId } from "@/lib/utils"

@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { WORKTREE_SLUG_REGEX, normalizeWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
+import { normalizeWorktreeSlug, WORKTREE_SLUG_REGEX } from "@/features/workspace/lib/worktree-utils"
 
 /**
  * Worktree slug validation schema

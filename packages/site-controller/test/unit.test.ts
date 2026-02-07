@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest"
-import { PATHS, DEFAULTS } from "../src/config"
+import { describe, expect, it } from "vitest"
+import { DEFAULTS, PATHS } from "../src/config"
 
 describe("Configuration Constants", () => {
   it("should have valid site root path", () => {

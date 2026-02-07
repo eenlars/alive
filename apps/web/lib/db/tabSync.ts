@@ -13,8 +13,8 @@
  * 4. Sidebar shows conversation, clicking it loads the correct messages
  */
 
-import type { Tab } from "@/lib/tabs/tabModel"
 import { useTabDataStore } from "@/lib/stores/tabDataStore"
+import type { Tab } from "@/lib/tabs/tabModel"
 import type { TabGroupId, TabId } from "@/lib/types/ids"
 import type { DbTab } from "./messageDb"
 

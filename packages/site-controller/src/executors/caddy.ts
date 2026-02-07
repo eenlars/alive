@@ -1,6 +1,6 @@
-import { runScript } from "./common.js"
 import { spawnSync } from "node:child_process"
 import { readFileSync } from "node:fs"
+import { runScript } from "./common.js"
 
 export interface ConfigureCaddyParams {
   domain: string

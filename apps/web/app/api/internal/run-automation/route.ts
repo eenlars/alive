@@ -10,8 +10,8 @@
  */
 
 import { NextResponse } from "next/server"
-import { runAutomationJob } from "@/lib/automation/executor"
 import { createErrorResponse } from "@/features/auth/lib/auth"
+import { runAutomationJob } from "@/lib/automation/executor"
 import { ErrorCodes } from "@/lib/error-codes"
 
 export async function POST(req: Request) {

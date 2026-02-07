@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest"
-import { SiteOrchestrator, PATHS } from "../src/index"
+import { describe, expect, it } from "vitest"
+import { PATHS, SiteOrchestrator } from "../src/index"
 
 /**
  * Basic integration tests for site-controller

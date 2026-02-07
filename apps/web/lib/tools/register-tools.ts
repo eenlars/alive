@@ -16,17 +16,17 @@ import {
 // === Linear Components ===
 import { LinearIssueResult, validateLinearIssue } from "@/components/linear/LinearIssueResult"
 import { LinearIssuesResult, validateLinearIssues } from "@/components/linear/LinearIssuesResult"
+import { AutomationConfigOutput, validateAutomationConfig } from "@/components/ui/chat/tools/ai/AutomationConfigOutput"
 // === AI Components ===
 import {
   ClarificationQuestionsOutput,
   validateClarificationQuestions,
 } from "@/components/ui/chat/tools/ai/ClarificationQuestionsOutput"
-import { AutomationConfigOutput, validateAutomationConfig } from "@/components/ui/chat/tools/ai/AutomationConfigOutput"
 import { validateWebsiteConfig, WebsiteConfigOutput } from "@/components/ui/chat/tools/ai/WebsiteConfigOutput"
-// === Plan Mode Components ===
-import { PlanApprovalOutput, validatePlanApproval } from "@/components/ui/chat/tools/plan/PlanApprovalOutput"
 // === Email Components (superadmin only) ===
 import { EmailDraftOutput, validateEmailDraft } from "@/components/ui/chat/tools/email/EmailDraftOutput"
+// === Plan Mode Components ===
+import { PlanApprovalOutput, validatePlanApproval } from "@/components/ui/chat/tools/plan/PlanApprovalOutput"
 import { AI, EMAIL, LINEAR, PLAN, registerComponent } from "./tool-registry"
 
 // ============================================================

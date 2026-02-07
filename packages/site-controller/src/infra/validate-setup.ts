@@ -10,8 +10,8 @@
  * Usage: bun run setup:validate
  */
 
-import { readFile, access, mkdir } from "node:fs/promises"
 import { constants } from "node:fs"
+import { access, mkdir, readFile } from "node:fs/promises"
 import { createClient } from "@supabase/supabase-js"
 
 // =============================================================================

@@ -5,9 +5,9 @@
  * GET /stats - Stream manager statistics
  */
 
+import { getWorkerPool } from "@webalive/worker-pool"
 import { Hono } from "hono"
 import { getStreamManager } from "../engine/stream-manager.js"
-import { getWorkerPool } from "@webalive/worker-pool"
 
 const app = new Hono()
 

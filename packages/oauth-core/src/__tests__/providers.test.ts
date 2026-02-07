@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest"
-import { GoogleProvider, LinearProvider, GitHubProvider } from "../providers"
+import { describe, expect, it } from "vitest"
 import { generatePKCEChallenge } from "../pkce"
+import { GitHubProvider, GoogleProvider, LinearProvider } from "../providers"
 
 describe("OAuth Providers", () => {
   describe("GoogleProvider", () => {

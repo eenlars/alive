@@ -20,75 +20,70 @@
  * ```
  */
 
-// Core exports
-export { WorkerPoolManager, getWorkerPool, resetWorkerPool } from "./manager.js"
-export { createConfig, getSocketPath, DEFAULT_CONFIG } from "./config.js"
-
+export { createConfig, DEFAULT_CONFIG, getSocketPath } from "./config.js"
 // IPC utilities
 export {
-  createIpcServer,
   createIpcClient,
-  NdjsonParser,
-  isWorkerMessage,
-  isParentMessage,
-  type IpcServer,
+  createIpcServer,
   type IpcClient,
-  type IpcServerOptions,
   type IpcClientOptions,
+  type IpcServer,
+  type IpcServerOptions,
+  isParentMessage,
+  isWorkerMessage,
+  NdjsonParser,
 } from "./ipc.js"
+// Core exports
+export { getWorkerPool, resetWorkerPool, WorkerPoolManager } from "./manager.js"
 
 // Types
 export type {
-  // IPC Protocol
-  ParentToWorkerMessage,
-  WorkerToParentMessage,
-  CompleteResult,
   // Agent
   AgentConfig,
   AgentRequest,
-  WorkspaceCredentials,
-  // Worker
-  WorkerState,
-  WorkerHandle,
-  WorkerInfo,
-  // Pool
-  WorkerPoolConfig,
-  QueryOptions,
-  QueryResult,
-  // Events
-  WorkerPoolEvents,
-  WorkerPoolEventListener,
-  // Stream
-  StreamType,
-  WorkerMessageType,
-  ParentMessageType,
+  CompleteResult,
   EnvVarName,
   EvictionStrategy,
+  ParentMessageType,
+  // IPC Protocol
+  ParentToWorkerMessage,
+  QueryOptions,
+  QueryResult,
+  // Stream
+  StreamType,
+  WorkerHandle,
+  WorkerInfo,
+  WorkerMessageType,
+  // Pool
+  WorkerPoolConfig,
+  WorkerPoolEventListener,
+  // Events
+  WorkerPoolEvents,
+  // Worker
+  WorkerState,
+  WorkerToParentMessage,
+  WorkspaceCredentials,
 } from "./types.js"
-
 // Constants
-export {
-  STREAM_TYPES,
-  WORKER_MESSAGE_TYPES,
-  PARENT_MESSAGE_TYPES,
-  WORKER_STATES,
-  ENV_VARS,
-  EVICTION_STRATEGIES,
-} from "./types.js"
-
 // Type Guards
 export {
-  isCompleteResult,
-  isQueryResultCancelled,
-  isSessionMessage,
-  isCompleteMessage,
-  isErrorMessage,
-  isMessageEvent,
-  isReadyMessage,
-  isHealthOkMessage,
-  isCancelMessage,
-  isQueryMessage,
-  isShutdownMessage,
-  findMessageByType,
+  ENV_VARS,
+  EVICTION_STRATEGIES,
   filterMessagesByType,
+  findMessageByType,
+  isCancelMessage,
+  isCompleteMessage,
+  isCompleteResult,
+  isErrorMessage,
+  isHealthOkMessage,
+  isMessageEvent,
+  isQueryMessage,
+  isQueryResultCancelled,
+  isReadyMessage,
+  isSessionMessage,
+  isShutdownMessage,
+  PARENT_MESSAGE_TYPES,
+  STREAM_TYPES,
+  WORKER_MESSAGE_TYPES,
+  WORKER_STATES,
 } from "./types.js"

@@ -5,7 +5,7 @@
  * Internal tools are defined here. External MCP entries are auto-generated
  * from GLOBAL_MCP_PROVIDERS and OAUTH_MCP_PROVIDERS in @webalive/shared.
  */
-import { GLOBAL_MCP_PROVIDERS, OAUTH_MCP_PROVIDERS, getTemplateIdsInline, DEFAULTS } from "@webalive/shared"
+import { DEFAULTS, GLOBAL_MCP_PROVIDERS, getTemplateIdsInline, OAUTH_MCP_PROVIDERS } from "@webalive/shared"
 
 /**
  * SDK Built-in Tools

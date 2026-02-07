@@ -7,8 +7,8 @@
  * NOTE: These tests require Redis and are skipped in CI.
  */
 
-import { createRedisClient } from "@webalive/redis"
 import { getRedisUrl } from "@webalive/env/server"
+import { createRedisClient } from "@webalive/redis"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
 // Skip these tests in CI (no Redis available)

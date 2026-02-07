@@ -5,25 +5,25 @@
  * Workers are keyed by workspace and reused across requests.
  */
 
-import { spawn, type ChildProcess } from "node:child_process"
+import { type ChildProcess, spawn } from "node:child_process"
 import { EventEmitter } from "node:events"
 import { chmod, mkdir, stat } from "node:fs/promises"
+import * as path from "node:path"
+import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
+import { createConfig, getSocketPath } from "./config.js"
+import { createIpcServer, type IpcServer, isWorkerMessage } from "./ipc.js"
 import type {
-  WorkerPoolConfig,
-  WorkerHandle,
-  WorkerInfo,
-  WorkspaceCredentials,
+  ParentToWorkerMessage,
   QueryOptions,
   QueryResult,
-  WorkerPoolEvents,
+  WorkerHandle,
+  WorkerInfo,
+  WorkerPoolConfig,
   WorkerPoolEventListener,
+  WorkerPoolEvents,
   WorkerToParentMessage,
-  ParentToWorkerMessage,
+  WorkspaceCredentials,
 } from "./types.js"
-import { createConfig, getSocketPath } from "./config.js"
-import { createIpcServer, isWorkerMessage, type IpcServer } from "./ipc.js"
-import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
-import * as path from "node:path"
 
 /** Pending query with callbacks */
 interface PendingQuery {

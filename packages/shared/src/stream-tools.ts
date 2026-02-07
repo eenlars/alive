@@ -14,7 +14,7 @@
  */
 
 import { PATHS } from "./config.js"
-import { OAUTH_MCP_PROVIDERS, GLOBAL_MCP_PROVIDERS, isOAuthMcpTool } from "./mcp-providers.js"
+import { GLOBAL_MCP_PROVIDERS, isOAuthMcpTool, OAUTH_MCP_PROVIDERS } from "./mcp-providers.js"
 
 // =============================================================================
 // SDK TOOL DEFINITIONS

@@ -1,8 +1,8 @@
 "use client"
 
 import { AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from "lucide-react"
-import { WorktreeSwitcher } from "@/components/workspace/WorktreeSwitcher"
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher"
+import { WorktreeSwitcher } from "@/components/workspace/WorktreeSwitcher"
 
 interface WorkspaceInfoBarProps {
   workspace: string | null

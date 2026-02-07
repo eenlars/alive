@@ -11,8 +11,8 @@
  * Usage: bun run routing:generate
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises"
 import { existsSync } from "node:fs"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { createClient } from "@supabase/supabase-js"
 import { DOMAINS } from "@webalive/shared"

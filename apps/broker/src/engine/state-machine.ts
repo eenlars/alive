@@ -5,7 +5,7 @@
  * States: idle → queued → running → (completed | failed | cancelled | timed_out)
  */
 
-import { type StreamState, type StreamContext, STREAM_STATES, type StreamEvent, STREAM_EVENT_TYPES } from "../types.js"
+import { STREAM_EVENT_TYPES, STREAM_STATES, type StreamContext, type StreamEvent, type StreamState } from "../types.js"
 
 // Valid state transitions
 const VALID_TRANSITIONS: Record<StreamState, StreamState[]> = {

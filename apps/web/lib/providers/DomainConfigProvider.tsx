@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, type ReactNode } from "react"
+import { createContext, type ReactNode, useContext } from "react"
 
 export interface DomainConfig {
   wildcard: string

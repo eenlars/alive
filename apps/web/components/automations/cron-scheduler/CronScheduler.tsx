@@ -1,7 +1,7 @@
 "use client"
 
 import { Clock } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { CronExpressionInput } from "./CronExpressionInput"
 import { CronPresetsPanel } from "./CronPresetsPanel"
 import { describeCron } from "./cron-parser"

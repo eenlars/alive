@@ -8,9 +8,9 @@
  * - create_draft: Disabled for MCP - only available via REST API /api/draft (user must click)
  */
 
-import { z } from "zod"
 import type { gmail_v1 } from "@googleapis/gmail"
-import { getUserProfile, searchEmails, getEmail, listLabels, modifyLabels, trashEmail } from "../gmail-client.js"
+import { z } from "zod"
+import { getEmail, getUserProfile, listLabels, modifyLabels, searchEmails, trashEmail } from "../gmail-client.js"
 
 // Tools disabled for MCP (only available via REST API)
 // User must click Send/Save Draft - Claude cannot send emails directly

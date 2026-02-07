@@ -12,8 +12,8 @@
  * 4. Expires after TTL (30 minutes by default)
  */
 
-import { createRedisClient } from "@webalive/redis"
 import { getRedisUrl } from "@webalive/env/server"
+import { createRedisClient } from "@webalive/redis"
 
 // ============================================================================
 // Types

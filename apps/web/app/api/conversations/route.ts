@@ -6,10 +6,10 @@
 
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
-import { getOrgIdForUser } from "@/lib/deployment/org-resolver"
-import { createAppClient } from "@/lib/supabase/app"
-import { ErrorCodes } from "@/lib/error-codes"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { getOrgIdForUser } from "@/lib/deployment/org-resolver"
+import { ErrorCodes } from "@/lib/error-codes"
+import { createAppClient } from "@/lib/supabase/app"
 
 // =============================================================================
 // GET /api/conversations?workspace=xxx

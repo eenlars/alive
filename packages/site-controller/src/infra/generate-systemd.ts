@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Generate systemd service files from server-config.json
  *
@@ -7,9 +8,9 @@
  * Usage: bun run gen:systemd
  */
 
-import { readFile, writeFile, mkdir, access } from "node:fs/promises"
 import { execSync } from "node:child_process"
 import { constants } from "node:fs"
+import { access, mkdir, readFile, writeFile } from "node:fs/promises"
 
 // =============================================================================
 // Types

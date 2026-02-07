@@ -5,7 +5,7 @@
  * Only retries on transient failures (5xx, network errors), not on client errors (4xx).
  */
 
-import { retryAsync, isRetryableNetworkError } from "@webalive/shared"
+import { isRetryableNetworkError, retryAsync } from "@webalive/shared"
 
 export interface FetchWithRetryOptions {
   /** Maximum number of retry attempts (default: 3) */

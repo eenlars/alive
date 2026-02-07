@@ -5,6 +5,8 @@
  * Supports both single business pages and multi-result feeds.
  */
 
+import { searchSingleBusiness } from "./extractors/detail.js"
+import { handleMultipleFeed } from "./extractors/multiple.js"
 import type { GoogleMapsBusiness, GoogleMapsOptions, GoogleMapsResult, SearchInput } from "./types.js"
 import {
   cleanupBrowser,
@@ -15,8 +17,6 @@ import {
   sanitizeJSON,
   setupPage,
 } from "./utils.js"
-import { searchSingleBusiness } from "./extractors/detail.js"
-import { handleMultipleFeed } from "./extractors/multiple.js"
 
 export type SearchResult = { success: true; data: GoogleMapsResult } | { success: false; error: string }
 

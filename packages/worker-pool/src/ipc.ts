@@ -4,14 +4,14 @@
  * Unix domain socket communication with NDJSON protocol.
  */
 
-import { createServer, createConnection, type Server, type Socket } from "node:net"
-import { mkdir, unlink, access } from "node:fs/promises"
-import { dirname } from "node:path"
 import { EventEmitter } from "node:events"
+import { access, mkdir, unlink } from "node:fs/promises"
+import { createConnection, createServer, type Server, type Socket } from "node:net"
+import { dirname } from "node:path"
 import {
-  WORKER_MESSAGE_TYPES,
   PARENT_MESSAGE_TYPES,
   type ParentToWorkerMessage,
+  WORKER_MESSAGE_TYPES,
   type WorkerToParentMessage,
 } from "./types.js"
 

@@ -11,9 +11,9 @@
  * - Supports PKCE for public clients (learned from n8n)
  */
 
-import type { OAuthProviderCore, OAuthRefreshable, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
-import type { OAuthTokens } from "../types"
 import { fetchWithRetry } from "../fetch-with-retry"
+import type { OAuthTokens } from "../types"
+import type { OAuthProviderCore, OAuthRefreshable, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
 
 /**
  * Google-specific OAuth options

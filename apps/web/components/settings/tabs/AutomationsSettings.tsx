@@ -3,13 +3,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Plus, Zap } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
-import { EmptyState } from "@/components/ui/EmptyState"
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner"
-import { AutomationSidePanel } from "@/components/automations/AutomationSidePanel"
 import { AutomationListCard } from "@/components/automations/AutomationListCard"
 import { AutomationRunsView } from "@/components/automations/AutomationRunsView"
-import { useAutomationsQuery, useSitesQuery, type AutomationJob } from "@/lib/hooks/useSettingsQueries"
-import { queryKeys, ApiError } from "@/lib/tanstack"
+import { AutomationSidePanel } from "@/components/automations/AutomationSidePanel"
+import { EmptyState } from "@/components/ui/EmptyState"
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner"
+import { type AutomationJob, useAutomationsQuery, useSitesQuery } from "@/lib/hooks/useSettingsQueries"
+import { ApiError, queryKeys } from "@/lib/tanstack"
 import { SettingsTabLayout } from "./SettingsTabLayout"
 
 type FormData = {

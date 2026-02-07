@@ -1,9 +1,9 @@
+import { spawnSync } from "node:child_process"
 import fs from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { spawnSync } from "node:child_process"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { WorktreeError, createWorktree, listWorktrees, removeWorktree, resolveWorktreePath } from "../worktrees"
+import { createWorktree, listWorktrees, removeWorktree, resolveWorktreePath, WorktreeError } from "../worktrees"
 
 // Mock runAsWorkspaceUser to work in test environment (root-owned temp dirs)
 vi.mock("@/lib/workspace-execution/command-runner", () => ({

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { WorkerPoolManager, resetWorkerPool, getWorkerPool } from "../src/manager"
 import { createConfig, DEFAULT_CONFIG } from "../src/config"
+import { getWorkerPool, resetWorkerPool, WorkerPoolManager } from "../src/manager"
 
 // NOTE: We intentionally do NOT use vi.mock() for any node modules here.
 // Bun's mock system applies globally across ALL test files in the process,

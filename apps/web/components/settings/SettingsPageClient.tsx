@@ -17,9 +17,9 @@ import {
   X,
   Zap,
 } from "lucide-react"
+import { useQueryState } from "nuqs"
 import { lazy, Suspense, useEffect, useState } from "react"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
-import { useQueryState } from "nuqs"
 import { QUERY_KEYS } from "@/lib/url/queryState"
 import { SettingsTabLayout } from "./tabs/SettingsTabLayout"
 

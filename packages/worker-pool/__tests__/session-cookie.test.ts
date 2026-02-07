@@ -14,10 +14,10 @@
  * 4. Contract: Verify payload shape between route.ts and worker-entry.mjs
  */
 
-import { describe, expect, it } from "vitest"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import type { AgentRequest, AgentConfig } from "../src/types"
+import { describe, expect, it } from "vitest"
+import type { AgentConfig, AgentRequest } from "../src/types"
 import { ENV_VARS } from "../src/types"
 
 // Paths to actual production code
