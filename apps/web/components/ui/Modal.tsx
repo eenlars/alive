@@ -145,10 +145,7 @@ export function Modal({
               {(title || description) && (
                 <div>
                   {title && (
-                    <h2
-                      id="modal-title"
-                      className="text-lg md:text-xl font-[500] text-black dark:text-white tracking-wide"
-                    >
+                    <h2 id="modal-title" className="text-2xl font-[500] text-black dark:text-white tracking-wide">
                       {title}
                     </h2>
                   )}

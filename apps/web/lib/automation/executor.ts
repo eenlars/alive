@@ -10,14 +10,14 @@
  */
 
 import { statSync } from "node:fs"
-import { resolve } from "node:path"
-import { DEFAULTS, PATHS, WORKER_POOL, getWorkspacePath, isPathWithinWorkspace } from "@webalive/shared"
+import { DEFAULTS, WORKER_POOL } from "@webalive/shared"
 import { createClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { getOrgCredits } from "@/lib/credits/supabase-credits"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
+import { resolveWorkspace as resolveWorkspacePath } from "@/features/workspace/lib/workspace-secure"
 import {
   STREAM_TYPES,
   getAllowedTools,
@@ -151,21 +151,27 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     await supabase.from("automation_jobs").update({ running_at: new Date().toISOString() }).eq("id", jobId)
 
     // === PHASE 2: Workspace Validation ===
-    // Use the same workspace path as the normal chat flow: /srv/webalive/sites/<domain>/user
-    // NOT /user/src (which is too restrictive — Claude needs access to server.ts, package.json, etc.)
-    const cwd = getWorkspacePath(workspace)
-    const resolvedCwd = resolve(cwd)
-    const resolvedSitesRoot = resolve(PATHS.SITES_ROOT)
-
-    if (!isPathWithinWorkspace(resolvedCwd, resolvedSitesRoot)) {
-      throw new Error("Path traversal attack detected")
+    // resolveWorkspacePath() throws if /user/src directory doesn't exist
+    let cwd: string
+    try {
+      cwd = resolveWorkspacePath(workspace)
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      if (errorMsg.includes("ENOENT") || errorMsg.includes("no such file")) {
+        throw new Error(
+          `Site "${workspace}" is not properly deployed. The required directory structure (/user/src) is missing. ` +
+            "The site may need to be redeployed. Please check that the site deployment completed successfully.",
+        )
+      }
+      if (errorMsg.includes("escaped")) {
+        throw new Error(`Invalid workspace path for "${workspace}". This is a security error - contact support.`)
+      }
+      throw new Error(`Failed to access workspace "${workspace}": ${errorMsg}`)
     }
 
-    const stat = statSync(cwd, { throwIfNoEntry: false })
-    if (!stat || !stat.isDirectory()) {
+    if (!cwd) {
       throw new Error(
-        `Site "${workspace}" is not properly deployed. The workspace directory is missing or invalid: ${cwd}. ` +
-          "The site may need to be redeployed.",
+        `Site not found: "${workspace}". Verify that the site exists and is accessible. Check your workspace configuration.`,
       )
     }
 

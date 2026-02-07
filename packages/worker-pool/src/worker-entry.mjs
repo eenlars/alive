@@ -539,10 +539,6 @@ async function handleQuery(ipc, requestId, payload) {
     // If payload has cookie, use it; otherwise clear any previous value
     process.env.ALIVE_SESSION_COOKIE = payload.sessionCookie || ""
 
-    // Pass tab context to tools (used by schedule_resumption MCP tool)
-    process.env.ALIVE_TAB_ID = typeof payload.tabId === "string" ? payload.tabId : ""
-    process.env.ALIVE_TAB_GROUP_ID = typeof payload.tabGroupId === "string" ? payload.tabGroupId : ""
-
     // API key handling:
     // - For user-provided API keys: pass via payload.apiKey
     // - For OAuth: SDK reads from CLAUDE_CONFIG_DIR/.credentials.json directly
