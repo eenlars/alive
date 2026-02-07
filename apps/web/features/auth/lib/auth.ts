@@ -104,6 +104,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       canSelectAnyModel: true,
       isAdmin: true,
       isSuperadmin: false, // No superadmin access in standalone mode
+      enabledModels: [],
     }
   }
 
