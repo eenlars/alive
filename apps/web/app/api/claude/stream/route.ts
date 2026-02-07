@@ -620,23 +620,27 @@ export async function POST(req: NextRequest) {
             }
 
             // Check for "tool use concurrency issues" (corrupt session state — pending tool_use without tool_result)
-            // Anthropic returns 400 when resuming a session with unresolved tool calls
+            // Anthropic returns 400 when resuming a session with unresolved tool calls.
+            // Don't auto-recover (would lose context). Instead clear the session and tell the
+            // frontend so it can offer "continue in new tab" with conversation history.
             const isToolConcurrency = combinedMessage.includes("tool use concurrency")
 
             if (isToolConcurrency && existingSessionId && sessionKey) {
               logger.log(
-                `[SESSION RECOVERY] Tool use concurrency error on session "${existingSessionId}", clearing and starting fresh...`,
+                `[SESSION CORRUPT] Tool use concurrency error on session "${existingSessionId}", clearing session and notifying frontend`,
               )
-              try {
-                await sessionStore.delete(sessionKey)
-                await runQuery(undefined, undefined)
-                controller.close()
-                return
-              } catch (retryErr) {
-                logger.error("[SESSION RECOVERY] Retry after tool concurrency failed:", retryErr)
-                controller.error(retryErr)
-                return
-              }
+              await sessionStore.delete(sessionKey)
+              controller.error(
+                new Error(
+                  JSON.stringify({
+                    ok: false,
+                    error: "SESSION_CORRUPT",
+                    message:
+                      "This conversation's session got interrupted during a tool call and can't be resumed. You can continue in a new tab with your conversation history.",
+                  }),
+                ),
+              )
+              return
             }
 
             // Existing: Check for "session not found" error (stale session ID)

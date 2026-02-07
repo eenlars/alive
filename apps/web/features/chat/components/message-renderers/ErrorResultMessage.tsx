@@ -1,7 +1,12 @@
-import { RotateCcw, WifiOff } from "lucide-react"
+import { ExternalLink, RotateCcw, WifiOff } from "lucide-react"
+import { useCallback } from "react"
 import { useRetry } from "@/features/chat/lib/retry-context"
+import { useDexieMessageStore } from "@/lib/db/dexieMessageStore"
+import { toUIMessage } from "@/lib/db/messageAdapters"
+import { getMessageDb } from "@/lib/db/messageDb"
 import type { StructuredError } from "@/lib/error-codes"
-import { getErrorHelp, getErrorMessage, isWorkspaceError } from "@/lib/error-codes"
+import { ErrorCodes, getErrorHelp, getErrorMessage, isWorkspaceError } from "@/lib/error-codes"
+import { useCurrentWorkspace } from "@/lib/stores/workspaceStore"
 
 /**
  * Check if an error is a network/offline error
@@ -114,6 +119,7 @@ export function ErrorResultMessage({ content }: ErrorResultMessageProps) {
   const errorMessage = content.result
   const canRetry = isRetryableError(errorMessage)
   const isOffline = isNetworkError(errorMessage)
+  const workspace = useCurrentWorkspace()
 
   // Extract human-readable message from potentially ugly JSON
   const { message: extractedMessage, isAuth: isAuthFromExtract } = extractHumanMessage(errorMessage)
@@ -128,6 +134,83 @@ export function ErrorResultMessage({ content }: ErrorResultMessageProps) {
   const errorCode = parsedError?.error
   const isWorkspace = errorCode ? isWorkspaceError(errorCode) : false
   const isAuthError = errorCode === "API_AUTH_FAILED" || isAuthFromExtract
+  const isSessionCorrupt = errorCode === ErrorCodes.SESSION_CORRUPT
+
+  // Continue in new tab: copy messages from current tab to a new tab
+  const handleContinueInNewTab = useCallback(async () => {
+    if (!workspace) return
+
+    const dexieState = useDexieMessageStore.getState()
+    const userId = dexieState.session?.userId
+    const currentTabId = dexieState.currentTabId
+    if (!userId || !currentTabId) return
+
+    // Dynamically import tab store to avoid circular deps
+    const { useTabActions: getTabActions } = await import("@/lib/stores/tabStore")
+    const { useTabDataStore: tabDataStoreHook } = await import("@/lib/stores/tabDataStore")
+
+    const tabActions = getTabActions()
+    const tabDataStore = tabDataStoreHook.getState()
+
+    // Find the current tab's group
+    const workspaceTabs = tabDataStore.tabsByWorkspace[workspace]
+    if (!workspaceTabs) return
+    const currentTab = Object.values(workspaceTabs)
+      .flat()
+      .find(t => t.id === currentTabId)
+    if (!currentTab) return
+
+    // Create new tab in the same group
+    const newTab = tabActions.addTab(workspace, currentTab.tabGroupId, "Continued conversation")
+    if (!newTab) return
+
+    // Copy messages from old tab to new tab
+    try {
+      const db = getMessageDb(userId)
+      const oldMessages = await db.messages.where("tabId").equals(currentTabId).sortBy("seq")
+
+      // Filter out the error message itself
+      const messagesToCopy = oldMessages.filter(m => m.status !== "error")
+
+      // Write messages to the new tab with fresh IDs and updated tabId
+      const now = Date.now()
+      await db.messages.bulkPut(
+        messagesToCopy.map((m, i) => ({
+          ...m,
+          id: `${newTab.id}-migrated-${i}`,
+          tabId: newTab.id,
+          seq: i + 1,
+          createdAt: m.createdAt,
+          updatedAt: now,
+        })),
+      )
+
+      // Build a summary of the conversation for the new tab's first message context
+      const uiMessages = messagesToCopy.map(toUIMessage)
+      const lastAssistantMsg = [...uiMessages].reverse().find(m => m.type === "sdk_message")
+      if (lastAssistantMsg) {
+        // Add a system note so the user knows this is continued
+        const noteMessage = {
+          id: `${newTab.id}-continued-note`,
+          tabId: newTab.id,
+          type: "system" as const,
+          content: { kind: "text" as const, text: "Conversation continued from a previous session." },
+          createdAt: now,
+          updatedAt: now,
+          version: 1,
+          status: "complete" as const,
+          origin: "local" as const,
+          seq: messagesToCopy.length + 1,
+        }
+        await db.messages.put(noteMessage)
+      }
+    } catch (e) {
+      console.error("[ErrorResultMessage] Failed to copy messages:", e)
+    }
+
+    // Switch to the new tab
+    tabActions.setActiveTab(workspace, newTab.id)
+  }, [workspace])
 
   // Get friendly message based on error code
   const getFriendlyMessage = (): string => {
@@ -219,19 +302,36 @@ export function ErrorResultMessage({ content }: ErrorResultMessageProps) {
   const helpText = getHelpText()
   const friendlyMessage = getFriendlyMessage()
 
-  // Use amber/yellow for network errors (recoverable), red for other errors
+  // Use amber/yellow for network errors (recoverable), blue for session corrupt, red for other errors
   const colorClass = isOffline
     ? "border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-950/30"
-    : "border-red-200 dark:border-red-800/50 bg-red-50/50 dark:bg-red-950/30"
-  const textColor = isOffline ? "text-amber-700 dark:text-amber-300" : "text-red-700 dark:text-red-300"
-  const titleColor = isOffline ? "text-amber-900 dark:text-amber-100" : "text-red-900 dark:text-red-100"
-  const iconColor = isOffline ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"
-  const buttonClass = isOffline
-    ? "text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60"
-    : "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60"
+    : isSessionCorrupt
+      ? "border-blue-200 dark:border-blue-800/50 bg-blue-50/50 dark:bg-blue-950/30"
+      : "border-red-200 dark:border-red-800/50 bg-red-50/50 dark:bg-red-950/30"
+  const textColor = isOffline
+    ? "text-amber-700 dark:text-amber-300"
+    : isSessionCorrupt
+      ? "text-blue-700 dark:text-blue-300"
+      : "text-red-700 dark:text-red-300"
+  const titleColor = isOffline
+    ? "text-amber-900 dark:text-amber-100"
+    : isSessionCorrupt
+      ? "text-blue-900 dark:text-blue-100"
+      : "text-red-900 dark:text-red-100"
+  const iconColor = isOffline
+    ? "text-amber-500 dark:text-amber-400"
+    : isSessionCorrupt
+      ? "text-blue-500 dark:text-blue-400"
+      : "text-red-500 dark:text-red-400"
+  const buttonClass = isSessionCorrupt
+    ? "text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-900/60"
+    : isOffline
+      ? "text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-900/60"
+      : "text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60"
 
   const getTitle = () => {
     if (isOffline) return "Connection Failed"
+    if (isSessionCorrupt) return "Session Interrupted"
     if (isAuthError) return "Authentication Error"
     if (isWorkspace) return "Workspace Error"
     return "Error"
@@ -282,7 +382,7 @@ export function ErrorResultMessage({ content }: ErrorResultMessageProps) {
               </div>
             )}
 
-            {errorCode && (
+            {errorCode && !isSessionCorrupt && (
               <div className="mt-2 text-xs text-red-500/70 dark:text-red-400/70 font-mono">Error code: {errorCode}</div>
             )}
 
@@ -295,7 +395,18 @@ export function ErrorResultMessage({ content }: ErrorResultMessageProps) {
                 </div>
               )}
 
-            {canRetry && (
+            {isSessionCorrupt && (
+              <button
+                type="button"
+                onClick={handleContinueInNewTab}
+                className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium ${buttonClass} rounded transition-colors`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Continue in new tab
+              </button>
+            )}
+
+            {canRetry && !isSessionCorrupt && (
               <button
                 type="button"
                 onClick={retryLastMessage}
