@@ -10,6 +10,15 @@ import { TEST_TIMEOUTS } from "./fixtures/test-data"
  */
 
 test("can open settings and see General tab", async ({ authenticatedPage, workerTenant }) => {
+  // Mock Flowglad billing API to prevent crashes for test users
+  await authenticatedPage.route("**/api/flowglad/**", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ loaded: true, pricingModel: null, billingPortalUrl: null }),
+    }),
+  )
+
   await gotoChatFast(authenticatedPage, workerTenant.workspace, workerTenant.orgId)
 
   // Click the settings button
@@ -22,7 +31,7 @@ test("can open settings and see General tab", async ({ authenticatedPage, worker
     timeout: TEST_TIMEOUTS.max,
   })
 
-  // General tab content should be visible: theme selection, model select, logout
+  // General tab content should be visible: model select, logout button
   await expect(authenticatedPage.locator("#claude-model")).toBeAttached({ timeout: TEST_TIMEOUTS.medium })
   await expect(authenticatedPage.locator('[data-testid="logout-button"]')).toBeAttached({
     timeout: TEST_TIMEOUTS.fast,
