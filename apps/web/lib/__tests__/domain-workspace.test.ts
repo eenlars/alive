@@ -8,9 +8,8 @@ import { DOMAINS, getServiceName, getSiteHome, getSiteUser, PATHS } from "@webal
 import { describe, expect, it } from "vitest"
 import { domainToSlug, isValidDomain, normalizeDomain } from "@/features/manager/lib/domain-utils"
 
-// server-config.json isn't guaranteed to exist in local dev or CI; gate these tests
-// on the actual presence of configured paths/domains instead of env heuristics.
-const hasServerConfig = Boolean(PATHS.SITES_ROOT) && PATHS.SITES_ROOT.length > 0
+const hasConfiguredPaths = PATHS.SITES_ROOT.length > 0
+const hasConfiguredDomains = DOMAINS.MAIN.length > 0
 
 describe("Domain normalization", () => {
   it("normalizes domains correctly", () => {
@@ -51,17 +50,19 @@ describe("Shared config helpers", () => {
 
   it("generates correct site home paths", () => {
     // Verify structure: SITES_ROOT + "/" + domain
-    if (hasServerConfig) {
+    if (hasConfiguredPaths) {
       expect(getSiteHome("example.com")).toBe(`${PATHS.SITES_ROOT}/example.com`)
       expect(getSiteHome("example.com")).toMatch(/\/example\.com$/)
     }
   })
 
   it("has correct base paths", () => {
-    // Server config paths only available outside CI
-    if (hasServerConfig) {
+    // Server config paths are optional in test environments
+    if (hasConfiguredPaths) {
       expect(typeof PATHS.SITES_ROOT).toBe("string")
       expect(PATHS.SITES_ROOT.length).toBeGreaterThan(0)
+    }
+    if (hasConfiguredDomains) {
       expect(typeof DOMAINS.MAIN_SUFFIX).toBe("string")
       expect(DOMAINS.MAIN_SUFFIX.startsWith(".")).toBe(true)
     }

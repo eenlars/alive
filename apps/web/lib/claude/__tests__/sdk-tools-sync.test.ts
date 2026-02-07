@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { ALLOWED_SDK_TOOLS, DISALLOWED_SDK_TOOLS, SDK_TOOL_NAMES } from "../sdk-tools-sync"
 
 // Bridge-only tools that are not in the SDK but are valid in ALLOWED_SDK_TOOLS
-const STREAM_ONLY_TOOLS = ["Skill"]
+const STREAM_ONLY_TOOLS = ["Skill", "BashOutput"]
 
 describe("SDK Tools Sync", () => {
   describe("Array completeness", () => {
@@ -62,19 +62,19 @@ describe("SDK Tools Sync", () => {
   })
 
   describe("SDK tool count", () => {
-    it("should have exactly 19 SDK tools (as of v0.1.60)", () => {
+    it("should have exactly 18 SDK tools (as of v0.1.53)", () => {
       // This test will fail if SDK adds/removes tools, prompting an update
-      expect(SDK_TOOL_NAMES.length).toBe(19)
+      expect(SDK_TOOL_NAMES.length).toBe(18)
     })
 
     it("should have correct tool counts in categories", () => {
-      // 14 SDK allowed + 1 Bridge-only (Skill) = 15 in ALLOWED_SDK_TOOLS
-      // 5 disallowed (Task, WebSearch, ExitPlanMode, KillShell, Config)
-      // 14 + 5 = 19 SDK total
+      // 14 SDK allowed + 2 Bridge-only compat tools (Skill + BashOutput) = 16 in ALLOWED_SDK_TOOLS
+      // 4 disallowed (Task, WebSearch, ExitPlanMode, KillShell)
+      // 14 + 4 = 18 SDK total
       const allowedSDKOnly = ALLOWED_SDK_TOOLS.filter(t => !STREAM_ONLY_TOOLS.includes(t))
-      expect(ALLOWED_SDK_TOOLS.length).toBe(15) // 14 SDK + 1 Bridge-only
+      expect(ALLOWED_SDK_TOOLS.length).toBe(16) // 14 SDK + 2 Bridge-only
       expect(allowedSDKOnly.length).toBe(14) // Pure SDK tools
-      expect(DISALLOWED_SDK_TOOLS.length).toBe(5)
+      expect(DISALLOWED_SDK_TOOLS.length).toBe(4)
       expect(allowedSDKOnly.length + DISALLOWED_SDK_TOOLS.length).toBe(SDK_TOOL_NAMES.length)
     })
   })
@@ -96,6 +96,8 @@ describe("SDK Tools Sync", () => {
     it("should allow shell execution tools (Bash/TaskOutput)", () => {
       expect(isAllowed("Bash")).toBe(true)
       expect(isAllowed("TaskOutput")).toBe(true)
+      // Legacy alias for older SDK versions
+      expect(isAllowed("BashOutput")).toBe(true)
     })
 
     it("should disallow KillShell (admin-only)", () => {
@@ -108,10 +110,6 @@ describe("SDK Tools Sync", () => {
 
     it("should disallow web search", () => {
       expect(isDisallowed("WebSearch")).toBe(true)
-    })
-
-    it("should disallow Config (SDK settings not applicable in Stream)", () => {
-      expect(isDisallowed("Config")).toBe(true)
     })
 
     it("should allow MCP tools", () => {

@@ -1,6 +1,6 @@
 import { ZodError } from "zod"
 import { ApiError } from "./error"
-import type { ClientOptions, Endpoint, MutationEndpoint, Req, Res, SchemaRegistry } from "./types"
+import type { ClientOptions, Endpoint, Req, Res, SchemaRegistry } from "./types"
 
 /**
  * Creates a typed API client from a schema registry
@@ -13,8 +13,9 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
     body?: unknown,
     init?: Omit<RequestInit, "body" | "method">,
+    pathOverride?: string,
   ): Promise<Res<T, E>> {
-    const path = `${basePath.replace(/\/$/, "")}/${String(endpoint).replace(/^\//, "")}`
+    const path = pathOverride ?? `${basePath.replace(/\/$/, "")}/${String(endpoint).replace(/^\//, "")}`
     const hasBody = method !== "GET" && method !== "DELETE"
 
     // Validate request body against schema (runs even for undefined to catch missing required fields)
@@ -77,21 +78,30 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
   }
 
   return {
-    getty: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">) =>
-      api(endpoint, "GET", undefined, init),
-    postty: <E extends MutationEndpoint<T>>(
+    getty: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">, pathOverride?: string) =>
+      api(endpoint, "GET", undefined, init, pathOverride),
+    postty: <E extends Endpoint<T>>(
       endpoint: E,
       body: Req<T, E>,
       init?: Omit<RequestInit, "body" | "method">,
-    ) => api(endpoint, "POST", body, init),
-    putty: <E extends MutationEndpoint<T>>(endpoint: E, body: Req<T, E>, init?: Omit<RequestInit, "body" | "method">) =>
-      api(endpoint, "PUT", body, init),
-    patchy: <E extends MutationEndpoint<T>>(
+      pathOverride?: string,
+    ) => api(endpoint, "POST", body, init, pathOverride),
+    putty: <E extends Endpoint<T>>(
       endpoint: E,
       body: Req<T, E>,
       init?: Omit<RequestInit, "body" | "method">,
-    ) => api(endpoint, "PATCH", body, init),
-    deletty: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">) =>
-      api(endpoint, "DELETE", undefined, init),
+      pathOverride?: string,
+    ) => api(endpoint, "PUT", body, init, pathOverride),
+    patchy: <E extends Endpoint<T>>(
+      endpoint: E,
+      body: Req<T, E>,
+      init?: Omit<RequestInit, "body" | "method">,
+      pathOverride?: string,
+    ) => api(endpoint, "PATCH", body, init, pathOverride),
+    deletty: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">, pathOverride?: string) =>
+      api(endpoint, "DELETE", undefined, init, pathOverride),
+    /** Alias for deletty */
+    delly: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">, pathOverride?: string) =>
+      api(endpoint, "DELETE", undefined, init, pathOverride),
   }
 }

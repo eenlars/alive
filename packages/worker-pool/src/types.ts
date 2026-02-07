@@ -132,6 +132,8 @@ export interface AgentConfig {
   bridgeStreamTypes: typeof STREAM_TYPES
   /** Whether the user is an admin (enables Bash tools) */
   isAdmin?: boolean
+  /** Whether the user is a superadmin (bypasses heavy bash guardrails) */
+  isSuperadmin?: boolean
 }
 
 /** Request payload for Claude Agent SDK query */
@@ -160,16 +162,6 @@ export interface AgentRequest {
    * Worker sets process.env.ALIVE_SESSION_COOKIE from this value.
    */
   sessionCookie?: string
-  /**
-   * Tab ID for schedule_resumption MCP tool.
-   * Worker sets process.env.ALIVE_TAB_ID from this value.
-   */
-  tabId?: string
-  /**
-   * Tab group ID for schedule_resumption MCP tool.
-   * Worker sets process.env.ALIVE_TAB_GROUP_ID from this value.
-   */
-  tabGroupId?: string
 }
 
 /** Workspace credentials for privilege dropping */
@@ -242,12 +234,36 @@ export interface WorkerPoolConfig {
   shutdownTimeoutMs: number
   /** Timeout for cancel to complete before forcing cleanup (ms) */
   cancelTimeoutMs: number
+  /** Fairness: max active workers per owner/user */
+  maxWorkersPerUser: number
+  /** Fairness: max active workers per workspace */
+  maxWorkersPerWorkspace: number
+  /** Queue limit per owner/user */
+  maxQueuedPerUser: number
+  /** Queue limit per workspace */
+  maxQueuedPerWorkspace: number
+  /** Queue limit across the entire pool */
+  maxQueuedGlobal: number
+  /** Dynamic worker cap multiplier against CPU count */
+  workersPerCore: number
+  /** Load-shed threshold (loadavg1 / cpuCount) before spawning is paused */
+  loadShedThreshold: number
+  /** Grace period between TERM and KILL when retiring workers */
+  killGraceMs: number
+  /** Interval for orphan subprocess sweeping */
+  orphanSweepIntervalMs: number
+  /** Maximum orphan age before forced kill */
+  orphanMaxAgeMs: number
 }
 
 /** Options for sending a query to a worker */
 export interface QueryOptions {
   /** Request ID for tracking */
   requestId: string
+  /** Owner key for fairness accounting (typically user ID) */
+  ownerKey: string
+  /** Workload class for observability/scheduling */
+  workloadClass?: "chat" | "automation"
   /** Agent request payload */
   payload: AgentRequest
   /** Callback for streamed messages */

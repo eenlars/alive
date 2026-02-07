@@ -129,7 +129,7 @@ lock_status() {
         return 0
     else
         echo "Stale lock found (PID $pid not running) - auto-cleaning..."
-        # Kill any orphaned deployment processes (exclude self)
+        # Kill any orphaned deployment processes
         local orphans
         orphans=$(pgrep -f "ship.sh|build-and-serve.sh|build-atomic.sh|turbo.*build|turbo.*type-check|next build" 2>/dev/null | grep -v "^$$\$" || true)
         if [ -n "$orphans" ]; then

@@ -136,7 +136,7 @@ export class InMemoryRefreshLockManager implements IRefreshLockManager {
  * Safe for horizontally scaled deployments.
  */
 export class RedisRefreshLockManager implements IRefreshLockManager {
-  private redis: RedisClient
+  private redis: RedisClient | null
   private readonly LOCK_TTL_SECONDS = 30
   private readonly LOCK_PREFIX = "oauth:refresh_lock:"
   private readonly POLL_INTERVAL_MS = 50
@@ -150,6 +150,22 @@ export class RedisRefreshLockManager implements IRefreshLockManager {
   }
 
   async withLock(key: string, refreshFn: () => Promise<string>): Promise<string> {
+    // No Redis available (standalone mode) - keep single-flight behavior in-process.
+    if (!this.redis) {
+      const localPromise = this.localPending.get(key)
+      if (localPromise) {
+        console.log(`[RefreshLock:MemoryFallback] Waiting for local pending refresh: ${key}`)
+        return localPromise
+      }
+
+      const refreshPromise = refreshFn().finally(() => {
+        this.localPending.delete(key)
+      })
+
+      this.localPending.set(key, refreshPromise)
+      return refreshPromise
+    }
+
     const lockKey = `${this.LOCK_PREFIX}${key}`
     const lockValue = `${process.pid}:${Date.now()}:${Math.random()}`
 
@@ -182,9 +198,14 @@ export class RedisRefreshLockManager implements IRefreshLockManager {
     return this.waitForLockRelease(lockKey, key, refreshFn)
   }
 
+  /** Get redis client (only called after null guard in withLock) */
+  private get r(): RedisClient {
+    return this.redis!
+  }
+
   private async tryAcquireLock(lockKey: string, lockValue: string): Promise<boolean> {
     // SET key value NX EX seconds - atomic lock acquisition
-    const result = await this.redis.set(lockKey, lockValue, "EX", this.LOCK_TTL_SECONDS, "NX")
+    const result = await this.r.set(lockKey, lockValue, "EX", this.LOCK_TTL_SECONDS, "NX")
     return result === "OK"
   }
 
@@ -213,7 +234,7 @@ export class RedisRefreshLockManager implements IRefreshLockManager {
       end
     `
     try {
-      await this.redis.eval(script, 1, lockKey, lockValue)
+      await this.r.eval(script, 1, lockKey, lockValue)
     } catch (error) {
       console.error(`[RefreshLock:Redis] Error releasing lock: ${error}`)
     }
@@ -226,7 +247,7 @@ export class RedisRefreshLockManager implements IRefreshLockManager {
       await this.sleep(this.POLL_INTERVAL_MS)
 
       // Check if lock is released
-      const lockExists = await this.redis.exists(lockKey)
+      const lockExists = await this.r.exists(lockKey)
 
       if (!lockExists) {
         // Lock released, the refresh should be complete
@@ -270,6 +291,7 @@ export class RedisRefreshLockManager implements IRefreshLockManager {
   }
 
   async getActiveLockCount(): Promise<number> {
+    if (!this.redis) return 0
     // Count locks in Redis matching our prefix using SCAN (production-safe)
     // KEYS command blocks Redis and should never be used in production
     let cursor = "0"
@@ -278,7 +300,7 @@ export class RedisRefreshLockManager implements IRefreshLockManager {
 
     do {
       // SCAN returns [nextCursor, keys[]]
-      const [nextCursor, keys] = await this.redis.scan(cursor, "MATCH", pattern, "COUNT", 100)
+      const [nextCursor, keys] = await this.r.scan(cursor, "MATCH", pattern, "COUNT", 100)
       cursor = nextCursor
       count += keys.length
     } while (cursor !== "0")
@@ -290,7 +312,7 @@ export class RedisRefreshLockManager implements IRefreshLockManager {
    * Gracefully disconnect from Redis
    */
   async disconnect(): Promise<void> {
-    await this.redis.quit()
+    await this.redis?.quit()
   }
 }
 

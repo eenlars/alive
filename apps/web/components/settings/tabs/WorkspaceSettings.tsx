@@ -442,10 +442,7 @@ export function WorkspaceSettings() {
   }
 
   return (
-    <SettingsTabLayout
-      title="Workspace"
-      description="Organizations group your websites and team members together. Credits are shared within an organization."
-    >
+    <SettingsTabLayout title="Workspace" description="Invite teammates and manage your organization">
       {/* Errors */}
       {error && (
         <div className="px-4 py-3 bg-red-500/5 dark:bg-red-500/5 border border-red-500/10 dark:border-red-500/10 rounded-xl space-y-2">
@@ -536,9 +533,11 @@ export function WorkspaceSettings() {
                           Coming soon
                         </span>
                       </div>
-                      <p className={text.muted}>
-                        Invited members get access to all websites in <strong>{selectedOrg.name}</strong> and share the
-                        same credit pool.
+                      <p className={text.description}>
+                        Give access to <strong>{selectedOrg.name}</strong> workspace and shared credits
+                      </p>
+                      <p className={`${text.muted} mt-1`}>
+                        Contact us to enable team invitations for your organization
                       </p>
                     </div>
                     <div className="flex gap-2 opacity-40">
@@ -551,11 +550,8 @@ export function WorkspaceSettings() {
 
                   {/* Members List - Always Visible */}
                   <div className="space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <h4 className={text.label}>Members</h4>
-                      </div>
-                      <p className={text.muted}>Everyone who has access to this organization's websites and credits.</p>
+                    <div className="flex items-center justify-between">
+                      <h4 className={text.label}>Members</h4>
                     </div>
 
                     {members.loadingMembers[selectedOrg.org_id] ? (
@@ -630,12 +626,9 @@ export function WorkspaceSettings() {
                     <div className="mt-3 space-y-3 px-1">
                       {/* Rename Organization */}
                       <div>
-                        <label htmlFor="org-name-input" className={`block ${text.label} mb-0.5`}>
+                        <label htmlFor="org-name-input" className={`block ${text.label} mb-2`}>
                           Organization name
                         </label>
-                        <p className={`${text.muted} mb-2`}>
-                          This is just a display name. Changing it won't affect your websites or billing.
-                        </p>
                         {editor.editingOrgId === selectedOrg.org_id ? (
                           <div className="flex gap-2">
                             <input

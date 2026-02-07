@@ -232,6 +232,55 @@ describe("createClient", () => {
     })
   })
 
+  describe("delly (DELETE alias)", () => {
+    it("is an alias for deletty", async () => {
+      mockFetch.mockReturnValue(mockResponse({ ok: true }))
+
+      const { delly } = createClient(schemas)
+      await delly("user/delete")
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/user/delete", expect.objectContaining({ method: "DELETE" }))
+    })
+  })
+
+  describe("pathOverride", () => {
+    it("uses pathOverride instead of basePath + endpoint for GET", async () => {
+      mockFetch.mockReturnValue(mockResponse({ id: "1", email: "a@b.com" }))
+
+      const { getty } = createClient(schemas)
+      await getty("user", undefined, "/custom/user/123")
+
+      expect(mockFetch).toHaveBeenCalledWith("/custom/user/123", expect.anything())
+    })
+
+    it("uses pathOverride for POST", async () => {
+      mockFetch.mockReturnValue(mockResponse({ ok: true, token: "t" }))
+
+      const { postty } = createClient(schemas)
+      await postty("login", { email: "a@b.com", password: "s" }, undefined, "/v2/auth/login")
+
+      expect(mockFetch).toHaveBeenCalledWith("/v2/auth/login", expect.anything())
+    })
+
+    it("uses pathOverride for DELETE", async () => {
+      mockFetch.mockReturnValue(mockResponse({ ok: true }))
+
+      const { delly } = createClient(schemas)
+      await delly("user/delete", undefined, "/api/users/42")
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/users/42", expect.anything())
+    })
+
+    it("falls back to default path when pathOverride is undefined", async () => {
+      mockFetch.mockReturnValue(mockResponse({ id: "1", email: "a@b.com" }))
+
+      const { getty } = createClient(schemas)
+      await getty("user", undefined, undefined)
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/user", expect.anything())
+    })
+  })
+
   describe("default headers", () => {
     it("includes default headers in all requests", async () => {
       mockFetch.mockReturnValue(mockResponse({ id: "1", email: "test@example.com" }))

@@ -1,5 +1,5 @@
 import { env } from "@webalive/env/server"
-import { SECURITY, SUPERADMIN } from "@webalive/shared"
+import { SECURITY, STANDALONE, SUPERADMIN } from "@webalive/shared"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
@@ -52,8 +52,6 @@ function getAdminEmails(): string[] {
 }
 
 function isAdminUser(email: string): boolean {
-  // Superadmins are implicitly admins
-  if (isSuperadminUser(email)) return true
   const adminEmails = getAdminEmails()
   return adminEmails.some(e => e.toLowerCase() === email.toLowerCase())
 }
@@ -95,6 +93,18 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   if (!sessionCookie?.value) {
     return null
+  }
+
+  // Standalone mode - auto-login without database
+  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+    return {
+      id: STANDALONE.TEST_USER.ID,
+      email: STANDALONE.TEST_USER.EMAIL,
+      name: STANDALONE.TEST_USER.NAME,
+      canSelectAnyModel: true,
+      isAdmin: true,
+      isSuperadmin: false, // No superadmin access in standalone mode
+    }
   }
 
   // Test mode
@@ -149,6 +159,17 @@ export async function isWorkspaceAuthenticated(workspace: string): Promise<boole
     return false
   }
 
+  // Standalone mode - verify workspace exists locally
+  if (env.BRIDGE_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
+    const { isValidStandaloneWorkspaceName, standaloneWorkspaceExists } = await import(
+      "@/features/workspace/lib/standalone-workspace"
+    )
+    if (!isValidStandaloneWorkspaceName(workspace)) {
+      return false
+    }
+    return standaloneWorkspaceExists(workspace)
+  }
+
   // Test mode allows all workspaces
   if (env.STREAM_ENV === "local" && user.id === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return true
@@ -191,6 +212,12 @@ export async function getAuthenticatedWorkspaces(): Promise<string[]> {
 
   if (!sessionCookie?.value) {
     return []
+  }
+
+  // Standalone mode - return all local workspaces
+  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+    const { getStandaloneWorkspaces } = await import("@/features/workspace/lib/standalone-workspace")
+    return getStandaloneWorkspaces()
   }
 
   // Test mode
@@ -251,6 +278,11 @@ export async function getSafeSessionCookie(logPrefix = "[Auth]"): Promise<string
 
   if (!sessionCookie?.value) {
     return undefined
+  }
+
+  // Standalone mode special value
+  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+    return sessionCookie.value
   }
 
   // Test mode special value
@@ -318,6 +350,22 @@ export async function verifyWorkspaceAccess(
   if (user.isSuperadmin) {
     console.log(`${logPrefix} ✅ Superadmin accessing workspace: ${workspace} (user: ${user.email})`)
     return workspace
+  }
+
+  // Standalone mode - verify workspace exists locally
+  if (env.BRIDGE_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
+    const { isValidStandaloneWorkspaceName, standaloneWorkspaceExists } = await import(
+      "@/features/workspace/lib/standalone-workspace"
+    )
+    if (!isValidStandaloneWorkspaceName(workspace)) {
+      console.log(`${logPrefix} Invalid standalone workspace name: ${workspace}`)
+      return null
+    }
+    if (standaloneWorkspaceExists(workspace)) {
+      return workspace
+    }
+    console.log(`${logPrefix} Standalone workspace not found: ${workspace}`)
+    return null
   }
 
   // Test mode allows all workspaces (except alive which is checked above)
