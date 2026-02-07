@@ -343,15 +343,16 @@ export function GeneralSettings() {
             className={select}
             aria-label="Claude Model Selection"
           >
-            {isModelAvailable(CLAUDE_MODELS.OPUS_4_6) && (
-              <option value={CLAUDE_MODELS.OPUS_4_6}>Claude Opus 4.6</option>
-            )}
-            {isModelAvailable(CLAUDE_MODELS.SONNET_4_5) && (
-              <option value={CLAUDE_MODELS.SONNET_4_5}>Claude Sonnet 4.5 (Recommended)</option>
-            )}
-            {isModelAvailable(CLAUDE_MODELS.HAIKU_4_5) && (
-              <option value={CLAUDE_MODELS.HAIKU_4_5}>Claude Haiku 4.5</option>
-            )}
+            {(() => {
+              const allModels = Object.values(CLAUDE_MODELS) as ClaudeModel[]
+              const available = allModels.filter(isModelAvailable)
+              const options = available.length > 0 ? available : [DEFAULT_MODEL]
+              return options.map(m => (
+                <option key={m} value={m}>
+                  {getModelDisplayName(m)}
+                </option>
+              ))
+            })()}
           </select>
         </div>
 
