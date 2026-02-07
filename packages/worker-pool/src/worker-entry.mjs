@@ -601,7 +601,7 @@ async function handleQuery(ipc, requestId, payload) {
         console.error(`[worker] PLAN MODE: ExitPlanMode blocked - requires user approval`)
         return denyTool(
           `You cannot approve your own plan. The user must review and approve the plan by clicking "Approve Plan" in the UI. ` +
-            `Present your plan clearly and wait for user approval before proceeding with implementation.`,
+            "Present your plan clearly and wait for user approval before proceeding with implementation.",
         )
       }
 

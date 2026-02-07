@@ -314,7 +314,7 @@ describe("Request queue behavior", () => {
     await expect(
       manager.query(credentials, {
         requestId: "req-no-owner",
-        ownerKey: "" as string,
+        ownerKey: "",
         payload: {
           message: "test",
           agentConfig: {

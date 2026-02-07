@@ -5,12 +5,13 @@
  * Workers are keyed by workspace and reused across requests.
  */
 
-import { spawn, type ChildProcess } from "node:child_process"
+import { execFile, spawn, type ChildProcess } from "node:child_process"
 import { EventEmitter } from "node:events"
 import { chmod, mkdir, stat } from "node:fs/promises"
 import { cpus, loadavg, platform } from "node:os"
+import * as path from "node:path"
+import { setTimeout as sleep } from "node:timers/promises"
 import { promisify } from "node:util"
-import { execFile } from "node:child_process"
 import type {
   WorkerPoolConfig,
   WorkerHandle,
@@ -26,7 +27,6 @@ import type {
 import { createConfig } from "./config.js"
 import { createIpcServer, isWorkerMessage, type IpcServer } from "./ipc.js"
 import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
-import * as path from "node:path"
 
 const execFileAsync = promisify(execFile)
 
@@ -63,6 +63,7 @@ interface QueuedRequest {
   resolve: (result: QueryResult) => void
   reject: (error: Error) => void
   enqueuedAtMs: number
+  cleanupSignalAbortListener: () => void
 }
 
 interface WorkspaceQueue {
@@ -129,10 +130,6 @@ function validateCredentials(credentials: WorkspaceCredentials): void {
   if (errors.length > 0) {
     throw new Error(`Invalid credentials: ${errors.join("; ")}`)
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 /**
@@ -265,6 +262,7 @@ export class WorkerPoolManager extends EventEmitter {
         this.sendToWorker(worker, { type: "cancel", requestId })
 
         const pending = worker.pendingQueries.get(requestId)
+        const retiredOwnerKey = worker.currentOwnerKey
         if (pending) {
           pending.cleanupAccounting()
           signal?.removeEventListener("abort", abortHandler)
@@ -279,7 +277,7 @@ export class WorkerPoolManager extends EventEmitter {
 
         worker.retiredAfterCancel = true
         worker.state = "shutting_down"
-        this.retireWorkerAfterCancel(worker, requestId).catch(err => {
+        this.retireWorkerAfterCancel(worker, requestId, retiredOwnerKey).catch(err => {
           console.error(`[pool] Error retiring worker ${worker.workspaceKey} after cancel request ${requestId}:`, err)
         })
       }
@@ -343,10 +341,21 @@ export class WorkerPoolManager extends EventEmitter {
     this.isShuttingDown = true
     this.stopEvictionTimer()
 
-    const shutdowns = Array.from(this.workers.values()).map(worker => this.terminateWorkerTree(worker, "pool_shutdown"))
+    this.rejectAllQueuedRequests("Worker pool is shutting down")
+
+    const workers = Array.from(this.workers.values())
+    const shutdowns = workers.map(async worker => {
+      this.rejectPendingQueries(worker, "Worker pool is shutting down")
+      await this.terminateWorkerTree(worker, "pool_shutdown")
+      await this.waitForWorkerExit(worker, this.config.shutdownTimeoutMs + this.config.killGraceMs + 500)
+    })
     await Promise.allSettled(shutdowns)
 
-    this.workers.clear()
+    for (const worker of workers) {
+      worker.ipc?.close()
+      this.workers.delete(worker.workspaceKey)
+    }
+
     this.resetCounters()
     this.isShuttingDown = false
   }
@@ -432,7 +441,7 @@ export class WorkerPoolManager extends EventEmitter {
     if (event === "worker:idle") {
       const { workspaceKey: workerKey } = data as WorkerPoolEvents["worker:idle"]
       const baseWorkspaceKey = workerKey.includes(":") ? workerKey.split(":")[0] : workerKey
-      this.processQueue(baseWorkspaceKey)
+      void this.processQueue(baseWorkspaceKey)
     }
     return super.emit(event, data)
   }
@@ -560,6 +569,7 @@ export class WorkerPoolManager extends EventEmitter {
       this.totalQueued -= 1
       this.decrementMap(this.queuedByOwner, ownerKey)
       this.decrementMap(this.queuedByWorkspace, workspaceKey)
+      request.cleanupSignalAbortListener()
 
       return request
     }
@@ -577,6 +587,7 @@ export class WorkerPoolManager extends EventEmitter {
     const idx = ownerQueue.indexOf(request)
     if (idx === -1) return false
 
+    request.cleanupSignalAbortListener()
     ownerQueue.splice(idx, 1)
     queue.total -= 1
     this.totalQueued -= 1
@@ -628,12 +639,32 @@ export class WorkerPoolManager extends EventEmitter {
     }
 
     return new Promise((resolve, reject) => {
-      const queuedRequest: QueuedRequest = {
+      let abortListenerCleaned = false
+      let queuedRequest: QueuedRequest | null = null
+      const onAbort = () => {
+        cleanupSignalAbortListener()
+        if (queuedRequest && this.removeQueuedRequest(workspaceKey, ownerKey, queuedRequest)) {
+          console.log("[pool] removed_aborted_queued_request", {
+            requestId: options.requestId,
+            ownerKey,
+            workspaceKey,
+          })
+          resolve({ success: true, cancelled: true })
+        }
+      }
+      const cleanupSignalAbortListener = () => {
+        if (abortListenerCleaned) return
+        abortListenerCleaned = true
+        options.signal?.removeEventListener("abort", onAbort)
+      }
+
+      queuedRequest = {
         credentials,
         options,
         resolve,
         reject,
         enqueuedAtMs: Date.now(),
+        cleanupSignalAbortListener,
       }
 
       this.enqueueRequest(workspaceKey, queuedRequest)
@@ -648,20 +679,11 @@ export class WorkerPoolManager extends EventEmitter {
         totalQueued: this.totalQueued,
       })
 
-      options.signal?.addEventListener("abort", () => {
-        if (this.removeQueuedRequest(workspaceKey, ownerKey, queuedRequest)) {
-          console.log("[pool] removed_aborted_queued_request", {
-            requestId: options.requestId,
-            ownerKey,
-            workspaceKey,
-          })
-          resolve({ success: true, cancelled: true })
-        }
-      })
+      options.signal?.addEventListener("abort", onAbort, { once: true })
     })
   }
 
-  private processQueue(workspaceKey: string): void {
+  private async processQueue(workspaceKey: string): Promise<void> {
     const request = this.dequeueNextRequest(workspaceKey)
     if (!request) return
 
@@ -674,7 +696,12 @@ export class WorkerPoolManager extends EventEmitter {
       remainingGlobalQueue: this.totalQueued,
     })
 
-    this.query(request.credentials, request.options).then(request.resolve).catch(request.reject)
+    try {
+      const result = await this.query(request.credentials, request.options)
+      request.resolve(result)
+    } catch (error) {
+      request.reject(error instanceof Error ? error : new Error(String(error)))
+    }
   }
 
   private getClaudeConfigDir(): string {
@@ -882,6 +909,7 @@ export class WorkerPoolManager extends EventEmitter {
           WORKER_WORKSPACE_KEY: workspaceKey,
         },
         stdio: ["ignore", "inherit", "inherit"],
+        // Detached ensures each worker owns a process group so we can terminate the full tree with -pid.
         detached: true,
       })
     } catch (spawnError) {
@@ -1042,7 +1070,7 @@ export class WorkerPoolManager extends EventEmitter {
     this.workers.delete(workspaceKey)
 
     const baseWorkspaceKey = workspaceKey.includes(":") ? workspaceKey.split(":")[0] : workspaceKey
-    this.processQueue(baseWorkspaceKey)
+    void this.processQueue(baseWorkspaceKey)
   }
 
   private rejectPendingQueries(worker: WorkerHandleInternal, reason: string): void {
@@ -1051,6 +1079,48 @@ export class WorkerPoolManager extends EventEmitter {
       pending.reject(new Error(reason))
     }
     worker.pendingQueries.clear()
+  }
+
+  private rejectAllQueuedRequests(reason: string): void {
+    for (const workspaceQueue of this.requestQueues.values()) {
+      for (const ownerQueue of workspaceQueue.owners.values()) {
+        for (const request of ownerQueue) {
+          request.cleanupSignalAbortListener()
+          request.reject(new Error(reason))
+        }
+      }
+    }
+
+    this.requestQueues.clear()
+    this.queuedByOwner.clear()
+    this.queuedByWorkspace.clear()
+    this.totalQueued = 0
+  }
+
+  private async waitForWorkerExit(worker: WorkerHandleInternal, timeoutMs: number): Promise<void> {
+    const processHandle = worker.process
+    if (processHandle.exitCode !== null || processHandle.signalCode !== null) {
+      return
+    }
+
+    await new Promise<void>(resolve => {
+      const timeout = setTimeout(() => {
+        cleanup()
+        resolve()
+      }, timeoutMs)
+
+      const onExit = () => {
+        cleanup()
+        resolve()
+      }
+
+      const cleanup = () => {
+        clearTimeout(timeout)
+        processHandle.off("exit", onExit)
+      }
+
+      processHandle.on("exit", onExit)
+    })
   }
 
   private async waitForReady(worker: WorkerHandleInternal): Promise<void> {
@@ -1131,13 +1201,17 @@ export class WorkerPoolManager extends EventEmitter {
     })
   }
 
-  private async retireWorkerAfterCancel(worker: WorkerHandleInternal, requestId: string): Promise<void> {
+  private async retireWorkerAfterCancel(
+    worker: WorkerHandleInternal,
+    requestId: string,
+    ownerKey: string | null,
+  ): Promise<void> {
     this.telemetry.retiredAfterCancel += 1
     console.log("[pool] retiring_worker_after_cancel", {
       requestId,
       workerKey: worker.workspaceKey,
       workspaceKey: worker.credentials.workspaceKey,
-      ownerKey: worker.currentOwnerKey,
+      ownerKey,
     })
     await this.terminateWorkerTree(worker, "cancelled")
   }
@@ -1154,6 +1228,14 @@ export class WorkerPoolManager extends EventEmitter {
 
     const pid = worker.process.pid
     if (!pid || pid <= 0) return
+
+    console.log("[pool] terminating_worker_tree", {
+      workerKey: worker.workspaceKey,
+      workspaceKey: worker.credentials.workspaceKey,
+      ownerKey: worker.currentOwnerKey,
+      reason,
+      pid,
+    })
 
     this.telemetry.groupTerminations += 1
     this.killProcessTree(pid, "SIGTERM")
@@ -1279,6 +1361,12 @@ export class WorkerPoolManager extends EventEmitter {
         ppid,
         ageMs,
       })
+    }
+
+    for (const pid of this.knownWorkerPids) {
+      if (!liveWorkerPids.has(pid)) {
+        this.knownWorkerPids.delete(pid)
+      }
     }
   }
 }

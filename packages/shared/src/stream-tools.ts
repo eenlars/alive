@@ -179,6 +179,34 @@ export const STREAM_PERMISSION_MODE = "default" as const
  */
 export const STREAM_SETTINGS_SOURCES = ["project", "user"] as const
 
+const EXACT_HEAVY_BASH_COMMANDS = new Set([
+  "bun run build",
+  "bun run type-check",
+  "bun run lint",
+  "bun run static-check",
+  "bun run check:pre-push",
+  "bun run check:all",
+  "npm run build",
+  "npm run type-check",
+  "npm run lint",
+  "pnpm run build",
+  "pnpm run type-check",
+  "pnpm run lint",
+  "yarn build",
+  "yarn type-check",
+  "yarn lint",
+  "next build",
+  "claude",
+])
+
+const HEAVY_BASH_PATTERNS = [
+  /\b(?:tsc|npx\s+tsc|bunx?\s+tsc|pnpm\s+tsc|yarn\s+tsc)\b/,
+  /(?:^|(?:&&|\|\||\||;)\s*)(?:\.\/)?claude(?:\b|$)/,
+  /(?:^|(?:&&|\|\||\||;)\s*)(?:npx|bunx?|pnpm\s+dlx|yarn\s+dlx)\s+(?:\.\/)?claude(?:\b|$)/,
+  /claude-agent-sdk\/cli\.js/,
+  /\b(turbo|bun run turbo)\s+run\s+(build|type-check|lint|test)\b/,
+]
+
 // =============================================================================
 // TOOL PERMISSION HELPERS
 // =============================================================================
@@ -201,39 +229,12 @@ export function denyTool(message: string) {
  * Detect shell commands that are known to be expensive at monorepo scope.
  * This is a conservative deny-list used to protect shared CPU capacity.
  */
-export function isHeavyBashCommand(command: string): boolean {
+export function isHeavyBashCommand(command: unknown): boolean {
   if (typeof command !== "string") return false
   const normalized = command.toLowerCase().trim().replace(/\s+/g, " ")
-  const exactHeavy = new Set([
-    "bun run build",
-    "bun run type-check",
-    "bun run lint",
-    "bun run static-check",
-    "bun run check:pre-push",
-    "bun run check:all",
-    "npm run build",
-    "npm run type-check",
-    "npm run lint",
-    "pnpm run build",
-    "pnpm run type-check",
-    "pnpm run lint",
-    "yarn build",
-    "yarn type-check",
-    "yarn lint",
-    "next build",
-    "claude",
-  ])
-
-  if (exactHeavy.has(normalized)) return true
-
-  const heavyPatterns = [
-    /\b(?:tsc|npx\s+tsc|bunx?\s+tsc|pnpm\s+tsc|yarn\s+tsc)\b/,
-    /(^|\s)claude(\s|$)/,
-    /claude-agent-sdk\/cli\.js/,
-    /\b(turbo|bun run turbo)\s+run\s+(build|type-check|lint|test)\b/,
-  ]
-
-  return heavyPatterns.some(pattern => pattern.test(normalized))
+  if (!normalized) return false
+  if (EXACT_HEAVY_BASH_COMMANDS.has(normalized)) return true
+  return HEAVY_BASH_PATTERNS.some(pattern => pattern.test(normalized))
 }
 
 /**

@@ -202,9 +202,13 @@ describe("Worker Pool Hardening Integration", () => {
   let ctx: TestContext
   let manager: WorkerPoolManager
   let previousMode: string | undefined
+  let previousCi: string | undefined
+  let previousVitest: string | undefined
 
   beforeEach(async () => {
     previousMode = process.env.TEST_WORKER_MODE
+    previousCi = process.env.CI
+    previousVitest = process.env.VITEST
     process.env.CI = "true"
     process.env.VITEST = "true"
     process.env.TEST_WORKER_MODE = "normal"
@@ -240,6 +244,18 @@ describe("Worker Pool Hardening Integration", () => {
       delete process.env.TEST_WORKER_MODE
     } else {
       process.env.TEST_WORKER_MODE = previousMode
+    }
+
+    if (previousCi === undefined) {
+      delete process.env.CI
+    } else {
+      process.env.CI = previousCi
+    }
+
+    if (previousVitest === undefined) {
+      delete process.env.VITEST
+    } else {
+      process.env.VITEST = previousVitest
     }
   })
 
@@ -294,18 +310,16 @@ describe("Worker Pool Hardening Integration", () => {
     const credentials = buildCredentials("wk-fair")
     const completionOrder: string[] = []
 
-    const run = (requestId: string, ownerKey: string, message: string) =>
-      manager
-        .query(credentials, {
-          requestId,
-          ownerKey,
-          workloadClass: "chat",
-          payload: createPayload(message),
-          onMessage: () => {},
-        })
-        .then(() => {
-          completionOrder.push(requestId)
-        })
+    const run = async (requestId: string, ownerKey: string, message: string) => {
+      await manager.query(credentials, {
+        requestId,
+        ownerKey,
+        workloadClass: "chat",
+        payload: createPayload(message),
+        onMessage: () => {},
+      })
+      completionOrder.push(requestId)
+    }
 
     const p0 = run("p0", "owner-a", "delay:120")
 
@@ -321,6 +335,50 @@ describe("Worker Pool Hardening Integration", () => {
 
     // Queue order should be owner-a first queued item, then owner-b, then owner-a second queued item.
     expect(completionOrder).toEqual(["p0", "p1", "p3", "p2"])
+  })
+
+  it("removes aborted queued requests and does not execute them later", async () => {
+    const credentials = buildCredentials("wk-queue-abort")
+    const queuedAbort = new AbortController()
+    let queuedMessageCount = 0
+
+    const p0 = manager.query(credentials, {
+      requestId: "queue-abort-p0",
+      ownerKey: "owner-a",
+      workloadClass: "chat",
+      payload: createPayload("delay:160"),
+      onMessage: () => {},
+    })
+
+    await waitFor(() => manager.getStats().activeWorkers === 1, {
+      label: "active worker for queue abort",
+    })
+
+    const p1 = manager.query(credentials, {
+      requestId: "queue-abort-p1",
+      ownerKey: "owner-a",
+      workloadClass: "chat",
+      payload: createPayload("delay:10"),
+      onMessage: () => {
+        queuedMessageCount += 1
+      },
+      signal: queuedAbort.signal,
+    })
+
+    await waitFor(() => manager.getStats().queuedRequests === 1, {
+      label: "queued request before abort",
+    })
+
+    queuedAbort.abort()
+    const queuedResult = await p1
+    expect(queuedResult.cancelled).toBe(true)
+    expect(queuedMessageCount).toBe(0)
+
+    await waitFor(() => manager.getStats().queuedRequests === 0, {
+      label: "queue drained after abort",
+    })
+
+    await p0
   })
 
   it("rejects overflow when per-user queue limit is exceeded", async () => {
@@ -457,4 +515,76 @@ describe("Worker Pool Hardening Integration", () => {
       timeout: 8_000,
     })
   }, 15_000)
+
+  it("rejects pending and queued requests during shutdownAll", async () => {
+    process.env.TEST_WORKER_MODE = "stubborn"
+
+    await manager.shutdownAll()
+    manager = new WorkerPoolManager({
+      workerEntryPath: ctx.workerScriptPath,
+      socketDir: ctx.socketDir,
+      maxWorkers: 1,
+      inactivityTimeoutMs: 30_000,
+      maxAgeMs: 60_000,
+      readyTimeoutMs: 2_000,
+      shutdownTimeoutMs: 200,
+      cancelTimeoutMs: 50,
+      killGraceMs: 80,
+      orphanSweepIntervalMs: 30_000,
+      orphanMaxAgeMs: 60_000,
+      maxWorkersPerUser: 1,
+      maxWorkersPerWorkspace: 1,
+      maxQueuedPerUser: 4,
+      maxQueuedPerWorkspace: 8,
+      maxQueuedGlobal: 16,
+      workersPerCore: 4,
+      loadShedThreshold: 100,
+    })
+
+    const credentials = buildCredentials("wk-shutdown-reject")
+
+    const pending = manager.query(credentials, {
+      requestId: "shutdown-pending",
+      ownerKey: "owner-a",
+      workloadClass: "chat",
+      payload: createPayload("delay:1200"),
+      onMessage: () => {},
+    })
+
+    await waitFor(() => manager.getStats().activeWorkers === 1, {
+      label: "pending query active before shutdown",
+    })
+
+    const queued = manager.query(credentials, {
+      requestId: "shutdown-queued",
+      ownerKey: "owner-a",
+      workloadClass: "chat",
+      payload: createPayload("delay:10"),
+      onMessage: () => {},
+    })
+
+    const pendingOutcome = pending.then(
+      () => ({ status: "resolved" as const, error: null }),
+      error => ({ status: "rejected" as const, error: error as Error }),
+    )
+    const queuedOutcome = queued.then(
+      () => ({ status: "resolved" as const, error: null }),
+      error => ({ status: "rejected" as const, error: error as Error }),
+    )
+
+    await waitFor(() => manager.getStats().queuedRequests === 1, {
+      label: "queued query before shutdown",
+    })
+
+    await manager.shutdownAll()
+
+    const pendingSettled = await pendingOutcome
+    const queuedSettled = await queuedOutcome
+    expect(pendingSettled.status).toBe("rejected")
+    expect(queuedSettled.status).toBe("rejected")
+    expect(pendingSettled.error?.message).toContain("Worker pool is shutting down")
+    expect(queuedSettled.error?.message).toContain("Worker pool is shutting down")
+    expect(manager.getStats().queuedRequests).toBe(0)
+    expect(manager.getWorkerInfo()).toHaveLength(0)
+  })
 })
