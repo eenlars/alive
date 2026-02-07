@@ -180,7 +180,7 @@
 
 ## 0.1.65
 
-- Updated to parity with Claude Code v2.0.66
+- Updated to parity with Claude Code v2.0.65
 
 ## 0.1.64
 
