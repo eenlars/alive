@@ -133,6 +133,7 @@ export {
   // Tool permission helpers
   allowTool,
   denyTool,
+  isHeavyBashCommand,
   filterToolsForPlanMode,
   // Helper functions
   getStreamAllowedTools,
