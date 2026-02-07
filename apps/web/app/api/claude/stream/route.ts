@@ -619,6 +619,26 @@ export async function POST(req: NextRequest) {
               }
             }
 
+            // Check for "tool use concurrency issues" (corrupt session state — pending tool_use without tool_result)
+            // Anthropic returns 400 when resuming a session with unresolved tool calls
+            const isToolConcurrency = combinedMessage.includes("tool use concurrency")
+
+            if (isToolConcurrency && existingSessionId && sessionKey) {
+              logger.log(
+                `[SESSION RECOVERY] Tool use concurrency error on session "${existingSessionId}", clearing and starting fresh...`,
+              )
+              try {
+                await sessionStore.delete(sessionKey)
+                await runQuery(undefined, undefined)
+                controller.close()
+                return
+              } catch (retryErr) {
+                logger.error("[SESSION RECOVERY] Retry after tool concurrency failed:", retryErr)
+                controller.error(retryErr)
+                return
+              }
+            }
+
             // Existing: Check for "session not found" error (stale session ID)
             const isSessionNotFound =
               combinedMessage.includes("No conversation found") ||
