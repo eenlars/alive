@@ -84,6 +84,11 @@ export async function verifyPassword(plaintext: string, hash: string): Promise<b
   return bcrypt.compare(plaintext, hash)
 }
 
+/**
+ * Determine the filesystem path to the domain-passwords.json registry.
+ *
+ * @returns Absolute path to an existing domain-passwords.json file if found; otherwise the preferred persistent registry path where the file should be created.
+ */
 function getDomainPasswordsPath(): string {
   // PRODUCTION: Use persistent location outside of git and build process
   // This ensures the file survives deployments and doesn't require rebuilds

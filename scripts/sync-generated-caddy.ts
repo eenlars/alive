@@ -7,6 +7,12 @@ const SRC = PATHS.CADDYFILE_SITES
 const DEST = resolve(PATHS.ALIVE_ROOT, "ops/caddy/generated/Caddyfile.sites")
 const ENV_PATH = resolve(PATHS.ALIVE_ROOT, "packages/shared/environments.json")
 
+/**
+ * Produce a label from a domain by replacing every dot with a hyphen.
+ *
+ * @param domain - The domain name to convert (e.g., "example.com")
+ * @returns The domain with `.` characters replaced by `-` (e.g., "example-com")
+ */
 function sanitizeLabel(domain: string): string {
   return domain.replace(/\./g, "-")
 }

@@ -106,6 +106,12 @@ function requireConfig(envKey: string, serverConfigValue: string | undefined, _d
   return serverConfigValue || ""
 }
 
+/**
+ * Return the configured filesystem path or an empty string when it is not provided.
+ *
+ * @param serverConfigValue - The path value read from the server configuration
+ * @returns The configured path, or an empty string if `serverConfigValue` is undefined or empty
+ */
 function requirePath(serverConfigValue: string | undefined, _description: string): string {
   return serverConfigValue || ""
 }
