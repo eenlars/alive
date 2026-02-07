@@ -634,7 +634,7 @@ export async function POST(req: NextRequest) {
                 new Error(
                   JSON.stringify({
                     ok: false,
-                    error: "SESSION_CORRUPT",
+                    error: ErrorCodes.SESSION_CORRUPT,
                     message:
                       "This conversation's session got interrupted during a tool call and can't be resumed. You can continue in a new tab with your conversation history.",
                   }),
