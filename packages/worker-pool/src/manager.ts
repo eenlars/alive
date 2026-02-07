@@ -441,7 +441,7 @@ export class WorkerPoolManager extends EventEmitter {
     if (event === "worker:idle") {
       const { workspaceKey: workerKey } = data as WorkerPoolEvents["worker:idle"]
       const baseWorkspaceKey = workerKey.includes(":") ? workerKey.split(":")[0] : workerKey
-      void this.processQueue(baseWorkspaceKey)
+      this.runProcessQueue(baseWorkspaceKey, "worker_idle")
     }
     return super.emit(event, data)
   }
@@ -557,7 +557,10 @@ export class WorkerPoolManager extends EventEmitter {
         const orderIndex = queue.order.indexOf(ownerKey)
         if (orderIndex >= 0) {
           queue.order.splice(orderIndex, 1)
-          if (queue.cursor >= queue.order.length) queue.cursor = 0
+          if (orderIndex < queue.cursor) {
+            queue.cursor = Math.max(0, queue.cursor - 1)
+          }
+          queue.cursor = queue.cursor % Math.max(1, queue.order.length)
         }
       }
 
@@ -1070,7 +1073,7 @@ export class WorkerPoolManager extends EventEmitter {
     this.workers.delete(workspaceKey)
 
     const baseWorkspaceKey = workspaceKey.includes(":") ? workspaceKey.split(":")[0] : workspaceKey
-    void this.processQueue(baseWorkspaceKey)
+    this.runProcessQueue(baseWorkspaceKey, "worker_exit")
   }
 
   private rejectPendingQueries(worker: WorkerHandleInternal, reason: string): void {
@@ -1079,6 +1082,21 @@ export class WorkerPoolManager extends EventEmitter {
       pending.reject(new Error(reason))
     }
     worker.pendingQueries.clear()
+  }
+
+  private runProcessQueue(workspaceKey: string, source: "worker_idle" | "worker_exit"): void {
+    this.processQueue(workspaceKey).catch(error => {
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error("[pool] process_queue_failed", {
+        workspaceKey,
+        source,
+        error: err.message,
+      })
+      this.emit("pool:error", {
+        error: err,
+        context: `processQueue:${source}:${workspaceKey}`,
+      })
+    })
   }
 
   private rejectAllQueuedRequests(reason: string): void {
