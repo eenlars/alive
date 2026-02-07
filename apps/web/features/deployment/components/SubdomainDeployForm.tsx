@@ -27,7 +27,7 @@ const deploySubdomainSchema = z.object({
     .min(3, "Must be at least 3 characters")
     .max(20, "Must be 20 characters or less")
     .regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers, and dashes"),
-  siteIdeas: z.string().optional().default(""),
+  siteIdeas: z.string().optional(),
 })
 
 type DeploySubdomainForm = z.infer<typeof deploySubdomainSchema>

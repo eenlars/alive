@@ -35,7 +35,9 @@ function isValidApiKeyFormat(key: string): boolean {
 export const BodySchema = z.object({
   message: z.string().min(1),
   workspace: z.string().optional(),
-  worktree: OptionalWorktreeSchema, // Validated to prevent session key corruption
+  // Keep explicit .optional() here for object-shape clarity after Zod v4 migration.
+  // OptionalWorktreeSchema is nullish internally, but this call documents field optionality at the boundary.
+  worktree: OptionalWorktreeSchema.optional(), // Validated to prevent session key corruption
   conversationId: z.string().uuid().optional(), // Optional grouping layer (future: git branches)
   tabGroupId: z.string().uuid(), // Tab group ID - groups tabs in sidebar, part of lock key
   tabId: z.string().uuid(), // Tab ID - primary session key (maps to Claude SDK session)
