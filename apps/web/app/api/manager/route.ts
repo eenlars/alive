@@ -161,6 +161,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * Handle DELETE requests to remove a site/domain by invoking the site deletion script.
+ *
+ * Requires manager authentication; returns the authentication error response if authentication fails.
+ *
+ * @returns A CORS-enabled Response. On success the response body contains `{ output, error, requestId }` where `output` is the script stdout and `error` is stderr or `null`. On failure returns an error response with an appropriate ErrorCodes entry and HTTP status (400 for invalid JSON or missing domain, 500 for internal errors) along with `requestId`; internal errors include `details.error` with the error message.
+ */
 export async function DELETE(req: NextRequest) {
   const origin = req.headers.get("origin")
   const requestId = generateRequestId()
