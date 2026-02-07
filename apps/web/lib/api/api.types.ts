@@ -1,12 +1,6 @@
 /**
- * @deprecated This file re-exports types for backward compatibility.
- * New code should import directly from '@/lib/api/schemas' instead.
- *
- * Migration guide:
- *   ❌ import { type Endpoint, type Req, type Res } from '@/lib/api/api.types'
- *   ✅ import { type Endpoint, type Req, type Res } from '@/lib/api/schemas'
- *
- * This file will be removed in a future version.
+ * API client-specific shared types.
+ * Endpoint/Req/Res are re-exported from schemas for convenience.
  */
 import type { Endpoint, Req, Res } from "@/lib/api/schemas"
 

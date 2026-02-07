@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Setup script for Claude Bridge standalone mode
+# Setup script for Alive standalone mode
 # Run this to configure your local development environment without external dependencies
 #
 
@@ -13,12 +13,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}=== Claude Bridge Standalone Setup ===${NC}"
+echo -e "${BLUE}=== Alive Standalone Setup ===${NC}"
 echo ""
 
 # Get home directory
 HOME_DIR="${HOME:-$(eval echo ~)}"
-STANDALONE_DIR="$HOME_DIR/.claude-bridge"
+STANDALONE_DIR="$HOME_DIR/.alive"
 WORKSPACES_DIR="$STANDALONE_DIR/workspaces"
 
 # Create directories
@@ -52,11 +52,11 @@ fi
 if [[ "$response" =~ ^[Yy]$ ]] || [ ! -f "$ENV_FILE" ]; then
   echo -e "${YELLOW}Creating .env.local...${NC}"
   cat > "$ENV_FILE" << 'ENVEOF'
-# Claude Bridge Standalone Mode
+# Alive Standalone Mode
 # No external dependencies required (except Anthropic API key)
 
 BRIDGE_ENV=standalone
-WORKSPACE_BASE=~/.claude-bridge/workspaces
+WORKSPACE_BASE=$HOME/.alive/workspaces
 
 # REQUIRED: Add your Anthropic API key
 ANTHROPIC_API_KEY=your-api-key-here

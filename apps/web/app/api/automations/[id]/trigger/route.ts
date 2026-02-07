@@ -82,28 +82,41 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     }
 
     const startedAt = new Date()
-    console.log(`[Automation Trigger] Running job "${job.name}" for site ${hostname} at ${startedAt.toISOString()}`)
+    const timeoutSeconds = job.action_timeout_seconds || 300
+    console.log(`[Automation Trigger] Queued job "${job.name}" for site ${hostname} at ${startedAt.toISOString()}`)
 
-    // Run the automation
-    const result = await runAutomationJob({
+    // Fire-and-forget: keep trigger endpoint fast and let runs endpoint report completion.
+    void runAutomationJob({
       jobId: job.id,
       userId: job.user_id,
       orgId: job.org_id,
       workspace: hostname,
       prompt: job.action_prompt,
-      timeoutSeconds: job.action_timeout_seconds || 300,
+      timeoutSeconds,
     })
+      .then(result => {
+        const status = result.success ? "success" : "failure"
+        console.log(
+          `[Automation Trigger] Job "${job.name}" finished with ${status} in ${result.durationMs}ms`,
+          result.error ? { error: result.error } : undefined,
+        )
+      })
+      .catch(error => {
+        console.error(`[Automation Trigger] Background job "${job.name}" failed to execute:`, error)
+      })
 
-    // Return complete response with timing info
-    return NextResponse.json({
-      ok: result.success,
-      startedAt: startedAt.toISOString(),
-      completedAt: new Date().toISOString(),
-      durationMs: result.durationMs,
-      timeoutSeconds: job.action_timeout_seconds || 300,
-      error: result.error,
-      response: result.response,
-    })
+    return NextResponse.json(
+      {
+        ok: true,
+        status: "queued",
+        startedAt: startedAt.toISOString(),
+        timeoutSeconds,
+        monitor: {
+          runsPath: `/api/automations/${job.id}/runs`,
+        },
+      },
+      { status: 202 },
+    )
   } catch (error) {
     console.error("[Automation Trigger] Error:", error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })

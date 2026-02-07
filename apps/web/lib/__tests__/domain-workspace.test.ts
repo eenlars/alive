@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest"
 import { domainToSlug, isValidDomain, normalizeDomain } from "@/features/manager/lib/domain-utils"
 
 const hasConfiguredPaths = PATHS.SITES_ROOT.length > 0
-const hasConfiguredDomains = DOMAINS.MAIN_SUFFIX.length > 0
+const hasConfiguredDomains = DOMAINS.MAIN.length > 0
 
 describe("Domain normalization", () => {
   it("normalizes domains correctly", () => {

@@ -19,7 +19,7 @@
 import { readFileSync, existsSync } from "node:fs"
 import { join } from "node:path"
 import { createRedisClient } from "@webalive/redis"
-import { getRedisUrl } from "@webalive/env/server"
+import { env, getRedisUrl } from "@webalive/env/server"
 import { getSupabaseCredentials } from "@/lib/env/server"
 
 // Read build info at startup (file is generated at build time)
@@ -110,14 +110,17 @@ async function checkRedis(): Promise<ServiceHealth> {
   try {
     const redis = getHealthCheckRedis()
 
-    // Standalone mode - Redis not available
+    // Redis absent: expected in standalone mode, misconfiguration otherwise
     if (!redis) {
+      const isStandalone = env.BRIDGE_ENV === "standalone"
       return {
-        status: "connected", // Report as "connected" since it's expected in standalone
-        responseTimeMs: 0,
+        status: isStandalone ? "connected" : "disconnected",
+        responseTimeMs: Math.round(performance.now() - start),
         details: {
-          mode: "standalone",
-          message: "Redis not available in standalone mode",
+          mode: isStandalone ? "standalone" : "missing",
+          message: isStandalone
+            ? "Redis not available in standalone mode"
+            : "Redis client unavailable - check REDIS_URL configuration",
         },
       }
     }
@@ -157,7 +160,7 @@ async function checkRedis(): Promise<ServiceHealth> {
  */
 async function checkDatabase(): Promise<ServiceHealth> {
   // Standalone mode - no database available
-  if (process.env.BRIDGE_ENV === "standalone") {
+  if (env.BRIDGE_ENV === "standalone") {
     return {
       status: "connected", // Report as "connected" since it's expected in standalone
       responseTimeMs: 0,

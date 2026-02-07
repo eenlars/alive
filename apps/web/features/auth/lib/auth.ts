@@ -130,7 +130,12 @@ export async function isWorkspaceAuthenticated(workspace: string): Promise<boole
 
   // Standalone mode - verify workspace exists locally
   if (env.BRIDGE_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
-    const { standaloneWorkspaceExists } = await import("@/features/workspace/lib/standalone-workspace")
+    const { isValidStandaloneWorkspaceName, standaloneWorkspaceExists } = await import(
+      "@/features/workspace/lib/standalone-workspace"
+    )
+    if (!isValidStandaloneWorkspaceName(workspace)) {
+      return false
+    }
     return standaloneWorkspaceExists(workspace)
   }
 
@@ -318,7 +323,13 @@ export async function verifyWorkspaceAccess(
 
   // Standalone mode - verify workspace exists locally
   if (env.BRIDGE_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
-    const { standaloneWorkspaceExists } = await import("@/features/workspace/lib/standalone-workspace")
+    const { isValidStandaloneWorkspaceName, standaloneWorkspaceExists } = await import(
+      "@/features/workspace/lib/standalone-workspace"
+    )
+    if (!isValidStandaloneWorkspaceName(workspace)) {
+      console.log(`${logPrefix} Invalid standalone workspace name: ${workspace}`)
+      return null
+    }
     if (standaloneWorkspaceExists(workspace)) {
       return workspace
     }
