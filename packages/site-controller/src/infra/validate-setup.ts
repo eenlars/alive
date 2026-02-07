@@ -72,7 +72,7 @@ const COLORS = {
 // =============================================================================
 
 function print(msg: string) {
-  process.stdout.write(msg + "\n")
+  process.stdout.write(`${msg}\n`)
 }
 
 function printResult(result: CheckResult) {
@@ -194,7 +194,7 @@ async function checkDirectory(name: string, path: string | undefined, create = f
         status: "pass",
         message: `${path} (created)`,
       }
-    } catch (e) {
+    } catch (_e) {
       return {
         name: `Directory: ${name}`,
         status: "fail",
@@ -219,14 +219,14 @@ function checkEnvVar(name: string, envVar: string, required: boolean): CheckResu
     // Mask sensitive values
     const masked = value.length > 8 ? `${value.slice(0, 4)}...${value.slice(-4)}` : "****"
     return {
-      name: `Env: ${envVar}`,
+      name: `Env: ${name}`,
       status: "pass",
       message: masked,
     }
   }
 
   return {
-    name: `Env: ${envVar}`,
+    name: `Env: ${name}`,
     status: required ? "fail" : "warn",
     message: "Not set",
     fix: `export ${envVar}=<value> or add to .env file`,
@@ -411,14 +411,13 @@ async function main() {
   print("")
 
   const results: CheckResult[] = []
-  let config: ServerConfig | undefined
 
   // 1. Check server config
   print(`${COLORS.dim}[1/6] Checking server configuration...${COLORS.reset}`)
   const configCheck = await checkServerConfig()
   results.push(configCheck.result)
   printResult(configCheck.result)
-  config = configCheck.config
+  const config = configCheck.config
   print("")
 
   // 2. Check directories

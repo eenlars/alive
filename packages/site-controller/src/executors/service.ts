@@ -1,4 +1,4 @@
-import { runScript } from './common.js'
+import { runScript } from "./common.js"
 
 export interface StartServiceParams {
   slug: string
@@ -13,7 +13,7 @@ export interface StartServiceParams {
  * @param params - Service start parameters
  */
 export async function startService(params: StartServiceParams): Promise<void> {
-  await runScript('04-start-service.sh', {
+  await runScript("04-start-service.sh", {
     SITE_SLUG: params.slug,
     SITE_PORT: params.port.toString(),
     SITE_DOMAIN: params.domain,

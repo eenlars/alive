@@ -194,7 +194,7 @@ function renderCaddySites(
   ].join("\n")
 
   // Build frame-ancestors from all environment domains (+ production URL)
-  const frameAncestors = environments.map(e => `https://${e.domain}`).join(" ") + ` ${DOMAINS.STREAM_PROD}`
+  const frameAncestors = `${environments.map(e => `https://${e.domain}`).join(" ")} ${DOMAINS.STREAM_PROD}`
 
   // Generate site blocks
   const siteBlocks = filteredDomains
@@ -206,7 +206,7 @@ function renderCaddySites(
         "    import image_serving",
         "",
         "    # Serve user work files directly from disk",
-        `    handle_path /files/* {`,
+        "    handle_path /files/* {",
         `        root * ${cfg.paths.sitesRoot}/${hostname}/user/.alive/files`,
         '        header Cache-Control "no-cache"',
         "        file_server",
@@ -240,7 +240,7 @@ function renderCaddySites(
           "    import image_serving",
           "",
           "    # Serve user work files directly from disk",
-          `    handle_path /files/* {`,
+          "    handle_path /files/* {",
           `        root * ${cfg.paths.sitesRoot}/${hostname}/user/.alive/files`,
           '        header Cache-Control "no-cache"',
           "        file_server",

@@ -84,7 +84,9 @@ async function checkDependencies(): Promise<string> {
 
   if (errors.length > 0) {
     console.error("\n🚨 Missing dependencies:\n")
-    errors.forEach(e => console.error(e + "\n"))
+    errors.forEach(e => {
+      console.error(`${e}\n`)
+    })
     process.exit(1)
   }
 

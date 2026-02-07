@@ -1,5 +1,5 @@
-import { runScriptSafe } from './common.js'
-import type { DnsValidationResult } from '../types.js'
+import { runScriptSafe } from "./common.js"
+import type { DnsValidationResult } from "../types.js"
 
 export interface ValidateDnsParams {
   domain: string
@@ -13,10 +13,8 @@ export interface ValidateDnsParams {
  * @param params - DNS validation parameters
  * @returns DNS validation result
  */
-export async function validateDns(
-  params: ValidateDnsParams
-): Promise<DnsValidationResult> {
-  const result = await runScriptSafe('00-validate-dns.sh', {
+export async function validateDns(params: ValidateDnsParams): Promise<DnsValidationResult> {
+  const result = await runScriptSafe("00-validate-dns.sh", {
     SITE_DOMAIN: params.domain,
     SERVER_IP: params.serverIp,
     WILDCARD_DOMAIN: params.wildcardDomain,
@@ -30,13 +28,13 @@ export async function validateDns(
     return {
       valid: true,
       resolvedIp,
-      message: 'DNS validation passed',
+      message: "DNS validation passed",
     }
   }
 
   // DNS validation failed (exit code 12)
   return {
     valid: false,
-    message: result.stderr || 'DNS validation failed',
+    message: result.stderr || "DNS validation failed",
   }
 }

@@ -512,7 +512,7 @@ export class WorkerPoolManager extends EventEmitter {
 
   private getClaudeConfigDir(): string {
     const configured = process.env.CLAUDE_CONFIG_DIR
-    if (configured && configured.startsWith("/")) {
+    if (configured?.startsWith("/")) {
       return configured
     }
     const home = process.env.HOME || "/root"

@@ -50,8 +50,8 @@ export class NdjsonParser extends EventEmitter {
       return
     }
 
-    let newlineIndex: number
-    while ((newlineIndex = this.buffer.indexOf("\n")) !== -1) {
+    let newlineIndex = this.buffer.indexOf("\n")
+    while (newlineIndex !== -1) {
       const line = this.buffer.slice(0, newlineIndex).trim()
       this.buffer = this.buffer.slice(newlineIndex + 1)
 
@@ -64,6 +64,8 @@ export class NdjsonParser extends EventEmitter {
         // Truncate line in error message to prevent log flooding
         this.emit("error", new Error(`Failed to parse NDJSON: ${line.slice(0, 200)}`))
       }
+
+      newlineIndex = this.buffer.indexOf("\n")
     }
   }
 

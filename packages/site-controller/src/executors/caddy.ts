@@ -1,6 +1,6 @@
-import { runScript } from './common.js'
-import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { runScript } from "./common.js"
+import { spawnSync } from "node:child_process"
+import { readFileSync } from "node:fs"
 
 export interface ConfigureCaddyParams {
   domain: string
@@ -16,7 +16,7 @@ export interface ConfigureCaddyParams {
  * @param params - Caddy configuration parameters
  */
 export async function configureCaddy(params: ConfigureCaddyParams): Promise<void> {
-  await runScript('05-caddy-inject.sh', {
+  await runScript("05-caddy-inject.sh", {
     SITE_DOMAIN: params.domain,
     SITE_PORT: params.port.toString(),
     CADDYFILE_PATH: params.caddyfilePath,
@@ -48,9 +48,9 @@ export async function teardown(params: TeardownParams): Promise<void> {
     SITE_DOMAIN: params.domain,
     SITE_SLUG: params.slug,
     SERVICE_NAME: params.serviceName,
-    REMOVE_USER: params.removeUser ? 'true' : 'false',
-    REMOVE_FILES: params.removeFiles ? 'true' : 'false',
-    REMOVE_PORT: params.removePort !== false ? 'true' : 'false',  // Default true
+    REMOVE_USER: params.removeUser ? "true" : "false",
+    REMOVE_FILES: params.removeFiles ? "true" : "false",
+    REMOVE_PORT: params.removePort !== false ? "true" : "false", // Default true
   }
 
   if (params.caddyfilePath) env.CADDYFILE_PATH = params.caddyfilePath
@@ -58,7 +58,7 @@ export async function teardown(params: TeardownParams): Promise<void> {
   if (params.envFilePath) env.ENV_FILE_PATH = params.envFilePath
   if (params.registryPath) env.REGISTRY_PATH = params.registryPath
 
-  await runScript('99-teardown.sh', env)
+  await runScript("99-teardown.sh", env)
 }
 
 /**
@@ -86,18 +86,18 @@ export interface CaddyValidation {
  */
 export async function getCaddyStatus(): Promise<CaddyStatus> {
   // Check if service is active
-  const isActiveResult = spawnSync('systemctl', ['is-active', '--quiet', 'caddy'])
+  const isActiveResult = spawnSync("systemctl", ["is-active", "--quiet", "caddy"])
   const isActive = isActiveResult.status === 0
 
   // Get detailed status
-  const statusResult = spawnSync('systemctl', ['status', 'caddy', '--no-pager'], {
-    encoding: 'utf-8',
+  const statusResult = spawnSync("systemctl", ["status", "caddy", "--no-pager"], {
+    encoding: "utf-8",
   })
 
   return {
     isActive,
-    status: statusResult.stdout || statusResult.stderr || '',
-    message: isActive ? 'Caddy is running' : 'Caddy is not active',
+    status: statusResult.stdout || statusResult.stderr || "",
+    message: isActive ? "Caddy is running" : "Caddy is not active",
   }
 }
 
@@ -107,10 +107,10 @@ export async function getCaddyStatus(): Promise<CaddyStatus> {
  * @throws Error if reload fails
  */
 export async function reloadCaddy(): Promise<void> {
-  const result = spawnSync('systemctl', ['reload', 'caddy'])
+  const result = spawnSync("systemctl", ["reload", "caddy"])
 
   if (result.status !== 0) {
-    const error = result.stderr?.toString() || result.stdout?.toString() || 'Unknown error'
+    const error = result.stderr?.toString() || result.stdout?.toString() || "Unknown error"
     throw new Error(`Failed to reload Caddy: ${error}`)
   }
 }
@@ -122,13 +122,13 @@ export async function reloadCaddy(): Promise<void> {
  * @returns Promise resolving to CaddyValidation
  */
 export async function validateCaddyConfig(caddyfilePath: string): Promise<CaddyValidation> {
-  const result = spawnSync('caddy', ['validate', '--config', caddyfilePath], {
-    encoding: 'utf-8',
+  const result = spawnSync("caddy", ["validate", "--config", caddyfilePath], {
+    encoding: "utf-8",
   })
 
   return {
     isValid: result.status === 0,
-    output: result.stdout || '',
+    output: result.stdout || "",
     error: result.status !== 0 ? result.stderr : undefined,
   }
 }
@@ -142,11 +142,11 @@ export async function validateCaddyConfig(caddyfilePath: string): Promise<CaddyV
  */
 export async function checkDomainInCaddy(domain: string, caddyfilePath: string): Promise<boolean> {
   try {
-    const content = readFileSync(caddyfilePath, 'utf-8')
+    const content = readFileSync(caddyfilePath, "utf-8")
     // Check for domain block (e.g., "example.com {")
-    const domainBlockRegex = new RegExp(`^${domain.replace(/\./g, '\\.')} \\{`, 'm')
+    const domainBlockRegex = new RegExp(`^${domain.replace(/\./g, "\\.")} \\{`, "m")
     return domainBlockRegex.test(content)
   } catch (error) {
-    throw new Error(`Failed to read Caddyfile: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    throw new Error(`Failed to read Caddyfile: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }
