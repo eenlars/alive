@@ -321,7 +321,7 @@ async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promi
       .single()
 
     if (siteError) {
-      console.error(`[CronService] Error querying domains table:`, siteError)
+      console.error("[CronService] Error querying domains table:", siteError)
       throw new Error(`Failed to lookup site: ${siteError.message}`)
     }
 
