@@ -62,14 +62,14 @@ describe("SDK Tools Sync", () => {
   })
 
   describe("SDK tool count", () => {
-    it("should have exactly 18 SDK tools (as of v0.1.53)", () => {
+    it("should have exactly 18 SDK tools (as of v0.2.34)", () => {
       // This test will fail if SDK adds/removes tools, prompting an update
       expect(SDK_TOOL_NAMES.length).toBe(18)
     })
 
     it("should have correct tool counts in categories", () => {
       // 14 SDK allowed + 2 Bridge-only compat tools (Skill + BashOutput) = 16 in ALLOWED_SDK_TOOLS
-      // 4 disallowed (Task, WebSearch, ExitPlanMode, KillShell)
+      // 4 disallowed (Task, WebSearch, ExitPlanMode, TaskStop)
       // 14 + 4 = 18 SDK total
       const allowedSDKOnly = ALLOWED_SDK_TOOLS.filter(t => !STREAM_ONLY_TOOLS.includes(t))
       expect(ALLOWED_SDK_TOOLS.length).toBe(16) // 14 SDK + 2 Bridge-only
@@ -100,8 +100,8 @@ describe("SDK Tools Sync", () => {
       expect(isAllowed("BashOutput")).toBe(true)
     })
 
-    it("should disallow KillShell (admin-only)", () => {
-      expect(isDisallowed("KillShell")).toBe(true)
+    it("should disallow TaskStop (admin-only)", () => {
+      expect(isDisallowed("TaskStop")).toBe(true)
     })
 
     it("should disallow subagent spawning", () => {
