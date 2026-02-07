@@ -29,6 +29,8 @@ export interface SessionUser {
   isAdmin: boolean
   /** Whether user is a superadmin (can edit Bridge repo itself) */
   isSuperadmin: boolean
+  /** Specific models this user is allowed to use (set via iam.users.metadata.enabled_models) */
+  enabledModels: string[]
 }
 
 /**
@@ -64,6 +66,29 @@ function isSuperadminUser(email: string): boolean {
   return SUPERADMIN.EMAILS.some((e: string) => e.toLowerCase() === email.toLowerCase())
 }
 
+/**
+ * Fetch per-user enabled models from iam.users.metadata.
+ * Returns empty array if no models are configured.
+ * This allows admins to grant specific model access to individual users
+ * without making them full admins.
+ */
+async function fetchEnabledModels(userId: string): Promise<string[]> {
+  try {
+    const iam = await createIamClient("service")
+    const { data } = await iam.from("users").select("metadata").eq("user_id", userId).single()
+
+    if (!data?.metadata || typeof data.metadata !== "object") return []
+
+    const metadata = data.metadata as Record<string, unknown>
+    const models = metadata.enabled_models
+    if (!Array.isArray(models)) return []
+
+    return models.filter((m): m is string => typeof m === "string")
+  } catch {
+    return []
+  }
+}
+
 export async function getSessionUser(): Promise<SessionUser | null> {
   const jar = await cookies()
   const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
@@ -84,6 +109,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       canSelectAnyModel: isAdmin,
       isAdmin,
       isSuperadmin,
+      enabledModels: [],
     }
   }
 
@@ -98,13 +124,18 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   // Old tokens without email/workspaces will be rejected by verifySessionToken
   const isAdmin = isAdminUser(payload.email)
   const isSuperadmin = isSuperadminUser(payload.email)
+
+  // Fetch per-user enabled models from DB (lightweight query)
+  const enabledModels = await fetchEnabledModels(payload.userId)
+
   return {
     id: payload.userId,
     email: payload.email,
     name: payload.name,
-    canSelectAnyModel: isAdmin,
+    canSelectAnyModel: isAdmin || enabledModels.length > 0,
     isAdmin,
     isSuperadmin,
+    enabledModels,
   }
 }
 

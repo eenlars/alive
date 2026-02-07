@@ -352,20 +352,28 @@ export async function POST(req: NextRequest) {
     // Force default model for credit users (cost management)
     // API key users can choose any model
     // Exception: Admins (set via ADMIN_EMAILS env var) can use any model
+    // Exception: Users with specific enabled_models in their metadata
     const isUnrestrictedUser = user.isAdmin
+    const hasModelAccess = (model: string) => isUnrestrictedUser || user.enabledModels.includes(model)
 
     // Determine model with proper type validation
     let effectiveModel: ClaudeModel
     if (tokenSource === "workspace" && !isUnrestrictedUser) {
-      // ENFORCED for org credits - always use default
-      effectiveModel = DEFAULT_MODEL
+      // Check if user has per-model access for their requested model
+      const requestedModel = userModel || env.CLAUDE_MODEL
+      if (isValidClaudeModel(requestedModel) && hasModelAccess(requestedModel)) {
+        effectiveModel = requestedModel
+      } else {
+        // ENFORCED for org credits - always use default
+        effectiveModel = DEFAULT_MODEL
+      }
     } else {
       // User's choice with API key or unrestricted user
       const requestedModel = userModel || env.CLAUDE_MODEL
       effectiveModel = isValidClaudeModel(requestedModel) ? requestedModel : DEFAULT_MODEL
     }
 
-    if (tokenSource === "workspace" && userModel && userModel !== DEFAULT_MODEL && !isUnrestrictedUser) {
+    if (tokenSource === "workspace" && userModel && userModel !== DEFAULT_MODEL && !hasModelAccess(userModel)) {
       logger.log(`Model override: User requested ${userModel} but forcing ${DEFAULT_MODEL} for org credits`)
     }
     logger.log("Claude model:", effectiveModel)

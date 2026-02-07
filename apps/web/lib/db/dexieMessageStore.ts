@@ -233,7 +233,7 @@ export const useDexieMessageStore = create<DexieMessageStore>((set, get) => ({
     const defaultTab: DbTab = {
       id: defaultTabId,
       conversationId: id,
-      name: "current",
+      name: "Tab 1",
       position: 0,
       createdAt: now,
       messageCount: 0,
@@ -313,7 +313,7 @@ export const useDexieMessageStore = create<DexieMessageStore>((set, get) => ({
           const newTab: DbTab = {
             id: tabId,
             conversationId,
-            name: "current",
+            name: `Tab ${existingTabs.length + 1}`,
             position: existingTabs.length,
             createdAt: now,
             messageCount: 0,

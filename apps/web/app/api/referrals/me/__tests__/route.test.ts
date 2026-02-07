@@ -50,6 +50,7 @@ const MOCK_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 // Helper to create chainable mock that simulates Supabase query behavior (cast to unknown to satisfy SupabaseClient type)

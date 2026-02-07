@@ -55,6 +55,7 @@ const MOCK_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 function createMockFormData(fields: Record<string, string | File>): FormData {

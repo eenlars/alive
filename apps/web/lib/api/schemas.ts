@@ -89,6 +89,7 @@ export const apiSchemas = {
           canSelectAnyModel: z.boolean(),
           isAdmin: z.boolean(),
           isSuperadmin: z.boolean(),
+          enabledModels: z.array(z.string()),
         })
         .nullable(),
     }),

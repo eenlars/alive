@@ -722,7 +722,7 @@ function ChatPageContent() {
           )}
 
           {/* Messages */}
-          <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-2">
+          <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-8">
             <div className="p-4 mx-auto w-full md:max-w-[calc(42rem+2rem)] min-w-0">
               {messages.length === 0 && !busy && (
                 <ChatEmptyState

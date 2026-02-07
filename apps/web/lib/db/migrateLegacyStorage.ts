@@ -284,7 +284,7 @@ async function migrateConversation(
   await db.tabs.put({
     id: defaultTabId,
     conversationId: id,
-    name: "current",
+    name: "Tab 1",
     position: 0,
     createdAt: baseTime,
     messageCount: convo.messages?.length ?? 0,

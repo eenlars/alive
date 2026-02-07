@@ -75,6 +75,7 @@ const REGULAR_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 const SUPERADMIN_USER = {
@@ -84,6 +85,7 @@ const SUPERADMIN_USER = {
   canSelectAnyModel: true,
   isAdmin: true,
   isSuperadmin: true,
+  enabledModels: [],
 }
 
 const LOCAL_TEST_USER = {
@@ -93,6 +95,7 @@ const LOCAL_TEST_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 function createMockRequest(): NextRequest {

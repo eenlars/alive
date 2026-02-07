@@ -19,6 +19,7 @@
  * The view store starts fresh per browser tab (intentional - no stale selections).
  */
 
+import { useDexieMessageStore } from "@/lib/db/dexieMessageStore"
 import { isClosed, isOpen, type Tab } from "@/lib/tabs/tabModel"
 import type { TabGroupId, TabId } from "@/lib/types/ids"
 import { migrateFromLegacyTabStore, useTabDataStore } from "./tabDataStore"
@@ -127,6 +128,8 @@ function createTabActions(): TabStoreActions {
 
     renameTab: (workspace: string, tabId: TabId, name: string): void => {
       useTabDataStore.getState().renameTab(workspace, tabId, name)
+      // Also persist to Dexie so the name syncs to the server
+      void useDexieMessageStore.getState().renameTab(tabId, name)
     },
 
     toggleTabsExpanded: (workspace: string): void => {

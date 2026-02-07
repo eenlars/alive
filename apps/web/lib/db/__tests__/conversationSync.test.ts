@@ -100,7 +100,7 @@ const TEST_CONVERSATION = {
 const TEST_TAB = {
   id: "tab-123",
   conversationId: "conv-123",
-  name: "current",
+  name: "Tab 1",
   position: 0,
   messageCount: 5,
   lastMessageAt: Date.now(),
@@ -371,7 +371,7 @@ describe("Conversation Sync Service", () => {
                   {
                     id: "tab-server-1",
                     conversationId: "conv-server-1",
-                    name: "current",
+                    name: "Tab 1",
                     position: 0,
                     messageCount: 10,
                     lastMessageAt: Date.now(),
