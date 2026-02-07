@@ -78,6 +78,7 @@ interface PoolTelemetry {
   groupTerminations: number
   groupKillEscalations: number
   queueRejectedUser: number
+  queueRejectedWorkspace: number
   queueRejectedGlobal: number
   loadShedEvents: number
   orphansReaped: number
@@ -160,6 +161,7 @@ export class WorkerPoolManager extends EventEmitter {
     groupTerminations: 0,
     groupKillEscalations: 0,
     queueRejectedUser: 0,
+    queueRejectedWorkspace: 0,
     queueRejectedGlobal: 0,
     loadShedEvents: 0,
     orphansReaped: 0,
@@ -384,6 +386,7 @@ export class WorkerPoolManager extends EventEmitter {
     groupTerminations: number
     groupKillEscalations: number
     queueRejectedUser: number
+    queueRejectedWorkspace: number
     queueRejectedGlobal: number
     loadShedEvents: number
     orphansReaped: number
@@ -400,6 +403,7 @@ export class WorkerPoolManager extends EventEmitter {
       groupTerminations: this.telemetry.groupTerminations,
       groupKillEscalations: this.telemetry.groupKillEscalations,
       queueRejectedUser: this.telemetry.queueRejectedUser,
+      queueRejectedWorkspace: this.telemetry.queueRejectedWorkspace,
       queueRejectedGlobal: this.telemetry.queueRejectedGlobal,
       loadShedEvents: this.telemetry.loadShedEvents,
       orphansReaped: this.telemetry.orphansReaped,
@@ -632,6 +636,7 @@ export class WorkerPoolManager extends EventEmitter {
     }
 
     if ((this.queuedByWorkspace.get(workspaceKey) ?? 0) >= this.config.maxQueuedPerWorkspace) {
+      this.telemetry.queueRejectedWorkspace += 1
       throw new WorkerPoolLimitError(
         "WORKSPACE_LIMIT",
         `Queue full for workspace ${workspaceKey}: maxQueuedPerWorkspace=${this.config.maxQueuedPerWorkspace}`,
@@ -685,6 +690,9 @@ export class WorkerPoolManager extends EventEmitter {
       })
 
       options.signal?.addEventListener("abort", onAbort, { once: true })
+      if (options.signal?.aborted) {
+        onAbort()
+      }
     })
   }
 
@@ -1199,7 +1207,11 @@ export class WorkerPoolManager extends EventEmitter {
     await new Promise<void>(resolve => {
       const timeout = setTimeout(() => {
         cleanup()
-        void this.terminateWorkerTree(worker, "shutdown_timeout").finally(resolve)
+        void this.terminateWorkerTree(worker, "shutdown_timeout")
+          .catch(err => {
+            console.error(`[pool] Error terminating worker tree ${worker.workspaceKey}:`, err)
+          })
+          .finally(resolve)
       }, this.config.shutdownTimeoutMs)
 
       const onShutdown = (event: { workspaceKey: string }) => {
