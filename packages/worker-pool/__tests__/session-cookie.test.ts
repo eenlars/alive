@@ -223,8 +223,10 @@ describe("Session Cookie: Legacy vs Worker Pool Parity", () => {
   it("both legacy and worker pool paths pass sessionCookie", () => {
     const routeCode = readFileSync(ROUTE_PATH, "utf-8")
 
-    // Find worker pool section
-    const workerPoolMatch = routeCode.match(/if \(WORKER_POOL\.ENABLED\) \{[\s\S]*?\} else \{/m)
+    // Find worker pool query payload section (more robust than full if/else block matching)
+    const workerPoolMatch = routeCode.match(
+      /pool\.query\(credentials,\s*\{[\s\S]*?payload:\s*\{[\s\S]*?\}\s*,\s*onMessage:/m,
+    )
     expect(workerPoolMatch).not.toBeNull()
     const workerPoolSection = workerPoolMatch![0]
 

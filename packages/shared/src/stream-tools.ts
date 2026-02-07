@@ -198,6 +198,45 @@ export function denyTool(message: string) {
 }
 
 /**
+ * Detect shell commands that are known to be expensive at monorepo scope.
+ * This is a conservative deny-list used to protect shared CPU capacity.
+ */
+export function isHeavyBashCommand(command: string): boolean {
+  if (typeof command !== "string") return false
+  const normalized = command.toLowerCase().trim().replace(/\s+/g, " ")
+  const exactHeavy = new Set([
+    "bun run build",
+    "bun run type-check",
+    "bun run lint",
+    "bun run static-check",
+    "bun run check:pre-push",
+    "bun run check:all",
+    "npm run build",
+    "npm run type-check",
+    "npm run lint",
+    "pnpm run build",
+    "pnpm run type-check",
+    "pnpm run lint",
+    "yarn build",
+    "yarn type-check",
+    "yarn lint",
+    "next build",
+    "claude",
+  ])
+
+  if (exactHeavy.has(normalized)) return true
+
+  const heavyPatterns = [
+    /\b(?:tsc|npx\s+tsc|bunx?\s+tsc|pnpm\s+tsc|yarn\s+tsc)\b/,
+    /(^|\s)claude(\s|$)/,
+    /claude-agent-sdk\/cli\.js/,
+    /\b(turbo|bun run turbo)\s+run\s+(build|type-check|lint|test)\b/,
+  ]
+
+  return heavyPatterns.some(pattern => pattern.test(normalized))
+}
+
+/**
  * Filter allowed tools for plan mode.
  *
  * Plan mode is read-only exploration - must remove modification tools

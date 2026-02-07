@@ -515,6 +515,8 @@ export async function POST(req: NextRequest) {
           const runQuery = async (resumeId: string | undefined, resumeAtMessage: string | undefined) => {
             return pool.query(credentials, {
               requestId,
+              ownerKey: user.id,
+              workloadClass: "chat",
               payload: {
                 message: finalMessage,
                 model: effectiveModel,

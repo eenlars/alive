@@ -21,7 +21,7 @@
  */
 
 // Core exports
-export { WorkerPoolManager, getWorkerPool, resetWorkerPool } from "./manager.js"
+export { WorkerPoolManager, WorkerPoolLimitError, getWorkerPool, resetWorkerPool } from "./manager.js"
 export { createConfig, getSocketPath, DEFAULT_CONFIG } from "./config.js"
 
 // IPC utilities

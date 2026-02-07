@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { STREAM_TYPES } from "@webalive/shared"
 import { WorkerPoolManager, resetWorkerPool, getWorkerPool } from "../src/manager"
 import { createConfig, DEFAULT_CONFIG } from "../src/config"
 
@@ -58,12 +59,15 @@ describe("WorkerPoolManager", () => {
   describe("getStats", () => {
     it("should return correct stats when no workers", () => {
       const stats = manager.getStats()
-      expect(stats).toEqual({
+      expect(stats).toMatchObject({
         totalWorkers: 0,
         activeWorkers: 0,
         idleWorkers: 0,
         maxWorkers: 5,
       })
+      expect(typeof stats.dynamicMaxWorkers).toBe("number")
+      expect(typeof stats.retiredAfterCancel).toBe("number")
+      expect(typeof stats.orphansReaped).toBe("number")
     })
   })
 
@@ -243,12 +247,10 @@ describe("Multi-worker per workspace", () => {
       // Emit worker:idle event (this triggers processQueue internally)
       manager.emit("worker:idle", {
         workspaceKey: "example.com:0",
-        pid: 12345,
       })
 
       expect(idleHandler).toHaveBeenCalledWith({
         workspaceKey: "example.com:0",
-        pid: 12345,
       })
     })
 
@@ -259,8 +261,8 @@ describe("Multi-worker per workspace", () => {
       manager.on("worker:idle", idleHandler)
 
       // Instance keys like "example.com:0" and "example.com:1" both map to "example.com" queue
-      manager.emit("worker:idle", { workspaceKey: "example.com:2", pid: 111 })
-      manager.emit("worker:idle", { workspaceKey: "example.com:0", pid: 222 })
+      manager.emit("worker:idle", { workspaceKey: "example.com:2" })
+      manager.emit("worker:idle", { workspaceKey: "example.com:0" })
 
       expect(idleHandler).toHaveBeenCalledTimes(2)
     })
@@ -299,6 +301,34 @@ describe("Request queue behavior", () => {
 
     // No errors should be emitted from normal operations
     expect(errorHandler).not.toHaveBeenCalled()
+  })
+
+  it("should require ownerKey in query options", async () => {
+    const credentials = {
+      uid: 1000,
+      gid: 1000,
+      cwd: "/srv/webalive/sites/example.com/user",
+      workspaceKey: "example.com",
+    }
+
+    await expect(
+      manager.query(credentials, {
+        requestId: "req-no-owner",
+        ownerKey: "" as string,
+        payload: {
+          message: "test",
+          agentConfig: {
+            allowedTools: [],
+            disallowedTools: [],
+            permissionMode: "default",
+            settingSources: [],
+            oauthMcpServers: {},
+            bridgeStreamTypes: STREAM_TYPES,
+          },
+        },
+        onMessage: () => {},
+      }),
+    ).rejects.toThrow("ownerKey is required")
   })
 })
 
@@ -371,6 +401,24 @@ describe("createConfig validation", () => {
     it("should accept non-empty paths", () => {
       expect(() => createConfig({ workerEntryPath: "/path/to/worker.js" })).not.toThrow()
       expect(() => createConfig({ socketDir: "/tmp/sockets" })).not.toThrow()
+    })
+  })
+
+  describe("fairness and CPU knobs", () => {
+    it("should reject invalid fairness limits", () => {
+      expect(() => createConfig({ maxWorkersPerUser: 0 })).toThrow("Invalid maxWorkersPerUser")
+      expect(() => createConfig({ maxWorkersPerWorkspace: 0 })).toThrow("Invalid maxWorkersPerWorkspace")
+      expect(() => createConfig({ maxQueuedPerUser: 0 })).toThrow("Invalid maxQueuedPerUser")
+      expect(() => createConfig({ maxQueuedPerWorkspace: 0 })).toThrow("Invalid maxQueuedPerWorkspace")
+      expect(() => createConfig({ maxQueuedGlobal: 0 })).toThrow("Invalid maxQueuedGlobal")
+    })
+
+    it("should reject invalid cpu/load knobs", () => {
+      expect(() => createConfig({ workersPerCore: 0 })).toThrow("Invalid workersPerCore")
+      expect(() => createConfig({ loadShedThreshold: 0 })).toThrow("Invalid loadShedThreshold")
+      expect(() => createConfig({ killGraceMs: 0 })).toThrow("Invalid killGraceMs")
+      expect(() => createConfig({ orphanSweepIntervalMs: 0 })).toThrow("Invalid orphanSweepIntervalMs")
+      expect(() => createConfig({ orphanMaxAgeMs: 0 })).toThrow("Invalid orphanMaxAgeMs")
     })
   })
 })

@@ -257,6 +257,8 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       try {
         await pool.query(credentials, {
           requestId,
+          ownerKey: params.userId,
+          workloadClass: "automation",
           payload: {
             message: fullPrompt,
             model: selectedModel,
