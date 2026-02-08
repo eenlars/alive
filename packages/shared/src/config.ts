@@ -45,6 +45,8 @@ interface ServerConfigFile {
   // NOTE: urls section removed - URLs are now derived from domains.main
   // Pattern: app.{main} (prod), staging.{main} (staging), dev.{main} (dev)
   serverIp?: string
+  /** Per-server template source path overrides. Maps template_id → local path. */
+  templates?: Record<string, string>
 }
 
 // Check if we're in a browser environment
@@ -545,6 +547,17 @@ export function getEnvFilePath(slug: string): string {
  */
 export function getServerId(): string | undefined {
   return serverConfig.serverId
+}
+
+/**
+ * Get local template source path override for a given template ID.
+ * Returns the local path if configured in server-config.json, otherwise undefined.
+ *
+ * This allows each server to override the DB's source_path with a local path,
+ * since template files live at different locations on different servers.
+ */
+export function getLocalTemplatePath(templateId: string): string | undefined {
+  return serverConfig.templates?.[templateId]
 }
 
 // =============================================================================
