@@ -11,7 +11,7 @@
     "main": "sonno.tech",
     "wildcard": "sonno.tech",
     "cookieDomain": ".sonno.tech",
-    "previewBase": "preview.sonno.tech",
+    "previewBase": "sonno.tech",
     "frameAncestors": [
       "https://app.sonno.tech",
       "https://dev.sonno.tech",

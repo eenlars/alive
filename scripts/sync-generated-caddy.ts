@@ -59,7 +59,7 @@ while (i < lines.length) {
     continue
   }
 
-  const match = /^([A-Za-z0-9.-]+)\s*\{/.exec(trimmed)
+  const match = /^([*A-Za-z0-9.-]+)\s*\{/.exec(trimmed)
   if (!match) {
     i += 1
     continue
