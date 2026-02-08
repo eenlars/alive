@@ -96,10 +96,10 @@ devchat:
 	@mkdir -p /etc/claude-code/skills
 	@rsync -a --delete .claude/skills/ /etc/claude-code/skills/ 2>/dev/null || cp -r .claude/skills/* /etc/claude-code/skills/
 	@echo "$(BLUE)Restarting dev server...$(NC)"
-	@systemctl restart claude-bridge-dev
+	@systemctl restart alive-dev
 	@sleep 2
 	@echo "$(GREEN)✓ Dev server restarted$(NC)"
-	@systemctl status claude-bridge-dev --no-pager | head -10
+	@systemctl status alive-dev --no-pager | head -10
 
 # Run all quality checks
 static-check:
@@ -115,21 +115,21 @@ status:
 	@echo "$(BLUE)Alive Status$(NC)"
 	@echo ""
 	@echo "$(GREEN)Services:$(NC)"
-	@systemctl is-active claude-bridge-dev >/dev/null 2>&1 && echo "  Dev (8997):        $(GREEN)running$(NC)" || echo "  Dev (8997):        $(RED)stopped$(NC)"
-	@systemctl is-active claude-bridge-staging >/dev/null 2>&1 && echo "  Staging (8998):    $(GREEN)running$(NC)" || echo "  Staging (8998):    $(RED)stopped$(NC)"
-	@systemctl is-active claude-bridge-production >/dev/null 2>&1 && echo "  Production (9000): $(GREEN)running$(NC)" || echo "  Production (9000): $(RED)stopped$(NC)"
+	@systemctl is-active alive-dev >/dev/null 2>&1 && echo "  Dev (8997):        $(GREEN)running$(NC)" || echo "  Dev (8997):        $(RED)stopped$(NC)"
+	@systemctl is-active alive-staging >/dev/null 2>&1 && echo "  Staging (8998):    $(GREEN)running$(NC)" || echo "  Staging (8998):    $(RED)stopped$(NC)"
+	@systemctl is-active alive-production >/dev/null 2>&1 && echo "  Production (9000): $(GREEN)running$(NC)" || echo "  Production (9000): $(RED)stopped$(NC)"
 	@echo ""
 	@echo "$(GREEN)Deployment Lock:$(NC)"
 	@./scripts/deployment/ship.sh --status || true
 
 logs-staging:
-	@journalctl -u claude-bridge-staging -f
+	@journalctl -u alive-staging -f
 
 logs-production:
-	@journalctl -u claude-bridge-production -f
+	@journalctl -u alive-production -f
 
 logs-dev:
-	@journalctl -u claude-bridge-dev -f
+	@journalctl -u alive-dev -f
 
 rollback:
 	@./scripts/deployment/rollback.sh
