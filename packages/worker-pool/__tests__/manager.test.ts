@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { STREAM_TYPES } from "@webalive/shared"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createConfig, DEFAULT_CONFIG } from "../src/config"
 import { getWorkerPool, resetWorkerPool, WorkerPoolManager } from "../src/manager"
 

@@ -5,13 +5,16 @@
  * Workers are keyed by workspace and reused across requests.
  */
 
-import { execFile, spawn, type ChildProcess } from "node:child_process"
+import { type ChildProcess, execFile, spawn } from "node:child_process"
 import { EventEmitter } from "node:events"
 import { chmod, mkdir, stat } from "node:fs/promises"
 import { cpus, loadavg, platform } from "node:os"
 import * as path from "node:path"
 import { setTimeout as sleep } from "node:timers/promises"
 import { promisify } from "node:util"
+import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
+import { createConfig } from "./config.js"
+import { createIpcServer, type IpcServer, isWorkerMessage } from "./ipc.js"
 import type {
   ParentToWorkerMessage,
   QueryOptions,
@@ -24,9 +27,6 @@ import type {
   WorkerToParentMessage,
   WorkspaceCredentials,
 } from "./types.js"
-import { createConfig } from "./config.js"
-import { createIpcServer, isWorkerMessage, type IpcServer } from "./ipc.js"
-import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
 
 const execFileAsync = promisify(execFile)
 
