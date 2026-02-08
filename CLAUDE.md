@@ -431,6 +431,8 @@ systemctl status caddy
 
 **Auto-sync architecture**: Main `/etc/caddy/Caddyfile` imports `/root/webalive/alive/ops/caddy/Caddyfile`, which in turn imports the generated routing file.
 
+**⚠️ CRITICAL: `tls force_automate`** — Every explicit `*.sonno.tech` domain block MUST include `tls force_automate`. Without it, Caddy v2.10.x silently fails to obtain certs due to a bug with `on_demand_tls` ([#6996](https://github.com/caddyserver/caddy/issues/6996)). The routing generator template already includes this — see `ops/caddy/README.md` for details.
+
 ## Testing Guidelines
 
 **Documentation**: See [docs/testing/TESTING_GUIDE.md](./docs/testing/TESTING_GUIDE.md) for complete testing guide.

@@ -200,6 +200,7 @@ function renderCaddySites(
     .map(({ hostname, port }) => {
       return [
         `${hostname} {`,
+        "    tls force_automate",
         "    import common_headers",
         "    import image_serving",
         "",

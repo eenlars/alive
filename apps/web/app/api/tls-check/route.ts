@@ -2,10 +2,14 @@
  * TLS Check endpoint for Caddy on-demand TLS
  *
  * Caddy calls this endpoint before obtaining a TLS certificate for a domain.
- * Returns 200 if the domain is a valid preview subdomain, 403 otherwise.
+ * Returns 200 if the domain is allowed, 403 otherwise.
  *
- * Preview subdomains use the single-level pattern: preview--{label}.{WILDCARD}
- * Domain-agnostic: validates against PREVIEW_PREFIX and WILDCARD domain.
+ * Allowed domains:
+ * - The wildcard domain itself (e.g., sonno.tech)
+ * - Any subdomain of the wildcard (e.g., dev.sonno.tech, preview--foo.sonno.tech)
+ *
+ * Caddy v2.10.2+ checks this endpoint for ALL domains (not just on-demand),
+ * so we must accept explicitly configured domains too.
  *
  * Caddy config:
  *   on_demand_tls {
@@ -14,8 +18,6 @@
  */
 
 import { DOMAINS } from "@webalive/shared"
-
-const PREVIEW_PREFIX = DOMAINS.PREVIEW_PREFIX
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url)
@@ -30,13 +32,8 @@ export async function GET(request: Request): Promise<Response> {
     return new Response("Wildcard domain not configured", { status: 500 })
   }
 
-  // Allow preview subdomains: preview--{label}.{WILDCARD}
-  const suffix = `.${wildcard}`
-  if (
-    domain.startsWith(PREVIEW_PREFIX) &&
-    domain.endsWith(suffix) &&
-    domain.length > PREVIEW_PREFIX.length + suffix.length
-  ) {
+  // Allow the wildcard domain itself and any single-level subdomain
+  if (domain === wildcard || domain.endsWith(`.${wildcard}`)) {
     return new Response("OK", { status: 200 })
   }
 
