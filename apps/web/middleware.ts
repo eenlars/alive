@@ -23,7 +23,8 @@ export function middleware(request: NextRequest) {
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
 
   // Check if this is a preview subdomain request (starts with "preview--")
-  if (host.startsWith(PREVIEW_PREFIX)) {
+  // Skip paths already rewritten to /api/preview-router to prevent double-rewrite
+  if (host.startsWith(PREVIEW_PREFIX) && !request.nextUrl.pathname.startsWith("/api/preview-router")) {
     // Internal rewrite to preview-router (no redirect, preserves original URL)
     const url = request.nextUrl.clone()
     url.pathname = `/api/preview-router${url.pathname}`
