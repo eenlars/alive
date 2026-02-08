@@ -16,7 +16,10 @@ trap cleanup EXIT ERR INT TERM
 log_info "Assigning port for domain: $SITE_DOMAIN"
 
 # Load server ID from server-config.json
-SERVER_CONFIG="/var/lib/claude-bridge/server-config.json"
+SERVER_CONFIG="${SERVER_CONFIG_PATH:-}"
+if [[ -z "$SERVER_CONFIG" ]]; then
+    die "SERVER_CONFIG_PATH env var is not set"
+fi
 if [[ -f "$SERVER_CONFIG" ]]; then
     SERVER_ID=$(jq -r '.serverId // empty' "$SERVER_CONFIG")
     if [[ -n "$SERVER_ID" ]]; then

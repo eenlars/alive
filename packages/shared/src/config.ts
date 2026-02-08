@@ -6,7 +6,7 @@
  * This file contains ALL infrastructure constants used throughout the WebAlive
  * platform. Always import from this file - never hardcode values.
  *
- * NO FALLBACKS: Values are loaded from /var/lib/claude-stream/server-config.json.
+ * NO FALLBACKS: Values are loaded from server-config.json (via SERVER_CONFIG_PATH env var).
  * Missing config = fail fast. Browser/test environments get empty strings.
  *
  * Organization:
@@ -36,6 +36,12 @@ interface ServerConfigFile {
     cookieDomain?: string
     frameAncestors?: string[]
   }
+  generated?: {
+    dir?: string
+    caddySites?: string
+    caddyShell?: string
+    nginxMap?: string
+  }
   // NOTE: urls section removed - URLs are now derived from domains.main
   // Pattern: app.{main} (prod), staging.{main} (staging), dev.{main} (dev)
   serverIp?: string
@@ -44,7 +50,21 @@ interface ServerConfigFile {
 // Check if we're in a browser environment
 const isBrowser = typeof globalThis !== "undefined" && "window" in globalThis
 
-const CONFIG_PATH = "/var/lib/claude-stream/server-config.json"
+/**
+ * Require an environment variable to be set. Throws if missing.
+ * Use in standalone scripts that need specific env vars at startup.
+ */
+export function requireEnv(key: string): string {
+  const val = process.env[key]
+  if (!val) throw new Error(`FATAL: ${key} env var is not set.`)
+  return val
+}
+
+/**
+ * Path to server-config.json. Set via SERVER_CONFIG_PATH env var.
+ * Exported so other packages can read the same file without hardcoding paths.
+ */
+export const CONFIG_PATH = !isBrowser && typeof process !== "undefined" ? (process.env.SERVER_CONFIG_PATH ?? "") : ""
 
 /**
  * Load server-config.json - STRICT MODE
@@ -74,12 +94,21 @@ function loadServerConfig(): ServerConfigFile {
     return {}
   }
 
-  if (!fs.existsSync(CONFIG_PATH)) {
-    // In CI/test without config file, return empty (tests will skip config-dependent assertions)
+  if (!CONFIG_PATH) {
+    // In CI/test without config, return empty (tests will skip config-dependent assertions)
     if (process.env.CI === "true" || process.env.VITEST === "true") {
       return {}
     }
-    throw new Error(`FATAL: Server config not found at ${CONFIG_PATH}. This file is REQUIRED.`)
+    throw new Error(
+      "FATAL: SERVER_CONFIG_PATH env var is not set. " + "Set it to the absolute path of your server-config.json.",
+    )
+  }
+
+  if (!fs.existsSync(CONFIG_PATH)) {
+    if (process.env.CI === "true" || process.env.VITEST === "true") {
+      return {}
+    }
+    throw new Error(`FATAL: Server config not found at ${CONFIG_PATH} (from SERVER_CONFIG_PATH env var).`)
   }
 
   try {
@@ -125,6 +154,35 @@ const COOKIE_DOMAIN = requireConfig("COOKIE_DOMAIN", serverConfig.domains?.cooki
 const SERVER_IP = requireConfig("SERVER_IP", serverConfig.serverIp, "Server IP")
 
 // =============================================================================
+// Startup Validation (server-only, after config load)
+// =============================================================================
+
+// If we loaded a real server config (not browser/CI empty), validate all required fields.
+// This catches missing keys at startup instead of silently returning "" and breaking later.
+if (serverConfig.serverId) {
+  const required: Record<string, string> = {
+    "paths.aliveRoot": ALIVE_ROOT,
+    "paths.sitesRoot": SITES_ROOT,
+    "domains.main (or MAIN_DOMAIN env)": MAIN_DOMAIN,
+    "domains.wildcard (or WILDCARD_DOMAIN env)": WILDCARD_DOMAIN,
+    "domains.previewBase (or PREVIEW_BASE env)": PREVIEW_BASE,
+    "domains.cookieDomain (or COOKIE_DOMAIN env)": COOKIE_DOMAIN,
+    "serverIp (or SERVER_IP env)": SERVER_IP,
+  }
+
+  const missing = Object.entries(required)
+    .filter(([, value]) => !value)
+    .map(([key]) => key)
+
+  if (missing.length > 0) {
+    throw new Error(
+      `FATAL: Missing required server config values: ${missing.join(", ")}. ` +
+        `Check ${CONFIG_PATH} and ensure all required fields are set.`,
+    )
+  }
+}
+
+// =============================================================================
 // Path Constants
 // =============================================================================
 
@@ -144,20 +202,20 @@ export const PATHS = {
   /** Site controller deployment scripts directory */
   SCRIPTS_DIR: `${ALIVE_ROOT}/packages/site-controller/scripts`,
 
-  /** Domain password registry */
-  REGISTRY_PATH: "/var/lib/claude-stream/domain-passwords.json",
+  /** Domain password registry (derived from SERVER_CONFIG_PATH dir) */
+  REGISTRY_PATH: CONFIG_PATH ? `${CONFIG_PATH.replace(/\/[^/]+$/, "")}/domain-passwords.json` : "",
 
-  /** Server config (contains server identity and paths) */
-  SERVER_CONFIG: "/var/lib/claude-stream/server-config.json",
+  /** Server config path (from SERVER_CONFIG_PATH env var) */
+  SERVER_CONFIG: CONFIG_PATH,
 
-  /** Generated routing files directory */
-  GENERATED_DIR: "/var/lib/claude-stream/generated",
+  /** Generated routing files directory (from server-config.json) */
+  GENERATED_DIR: serverConfig.generated?.dir || "",
 
   /** Caddyfile location for reverse proxy configuration (legacy - now generated) */
   CADDYFILE_PATH: `${ALIVE_ROOT}/ops/caddy/Caddyfile`,
 
-  /** Generated Caddyfile for sites */
-  CADDYFILE_SITES: "/var/lib/claude-stream/generated/Caddyfile.sites",
+  /** Generated Caddyfile for sites (from server-config.json) */
+  CADDYFILE_SITES: serverConfig.generated?.caddySites || "",
 
   /** Systemd service environment files */
   SYSTEMD_ENV_DIR: "/etc/sites",
@@ -520,15 +578,13 @@ export function validateConfig(): ConfigValidationResult {
   // WILDCARD_DOMAIN is required for site deployments
   if (!WILDCARD_DOMAIN) {
     errors.push(
-      "WILDCARD_DOMAIN is not configured. Set via WILDCARD_DOMAIN env var or domains.wildcard in /var/lib/claude-stream/server-config.json",
+      "WILDCARD_DOMAIN is not configured. Set via WILDCARD_DOMAIN env var or domains.wildcard in server-config.json",
     )
   }
 
   // SERVER_ID is recommended for multi-server deployments
   if (!serverConfig.serverId) {
-    warnings.push(
-      "SERVER_ID is not configured. Set serverId in /var/lib/claude-stream/server-config.json for multi-server deployments",
-    )
+    warnings.push("SERVER_ID is not configured. Set serverId in server-config.json (via SERVER_CONFIG_PATH env var)")
   }
 
   return {

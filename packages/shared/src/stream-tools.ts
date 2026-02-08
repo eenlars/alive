@@ -79,10 +79,10 @@ export type StreamAllowedSDKTool =
 
 /**
  * Admin-only SDK tools.
- * KillShell is admin-only because it can terminate long-running processes.
+ * TaskStop is admin-only because it can terminate background tasks.
  * Bash/TaskOutput/BashOutput are in STREAM_ALLOWED_SDK_TOOLS (available to all users).
  */
-export const STREAM_ADMIN_ONLY_SDK_TOOLS = ["KillShell"] as const
+export const STREAM_ADMIN_ONLY_SDK_TOOLS = ["TaskStop"] as const
 export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number]
 
 /**

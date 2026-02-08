@@ -49,26 +49,37 @@ export interface SessionUser {
  *
  * Set via: ADMIN_EMAILS=admin1@example.com,admin2@example.com
  */
-function getAdminEmails(): string[] {
-  const envValue = process.env.ADMIN_EMAILS
-  if (!envValue) return []
-  return envValue
+/** Pre-computed lowercase Sets — parsed once at module load, O(1) lookup */
+const superadminEmails = new Set(SUPERADMIN.EMAILS.map((e: string) => e.toLowerCase()))
+const adminEmails = new Set(
+  (process.env.ADMIN_EMAILS || "")
     .split(",")
-    .map(e => e.trim())
-    .filter(Boolean)
-}
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean),
+)
 
 function isAdminUser(email: string): boolean {
-  const adminEmails = getAdminEmails()
-  return adminEmails.some(e => e.toLowerCase() === email.toLowerCase())
+  const lower = email.toLowerCase()
+  return superadminEmails.has(lower) || adminEmails.has(lower)
 }
 
 /**
- * Check if user is a superadmin (can edit Bridge repo).
- * Uses SUPERADMIN.EMAILS from @webalive/shared.
+ * Build a SessionUser from email + enabled models.
+ * Single place that derives isAdmin, isSuperadmin, canSelectAnyModel.
  */
-function isSuperadminUser(email: string): boolean {
-  return SUPERADMIN.EMAILS.some((e: string) => e.toLowerCase() === email.toLowerCase())
+function buildSessionUser(id: string, email: string, name: string | null, enabledModels: string[]): SessionUser {
+  const lower = email.toLowerCase()
+  const isSuperadmin = superadminEmails.has(lower)
+  const isAdmin = isSuperadmin || adminEmails.has(lower)
+  return {
+    id,
+    email,
+    name,
+    isAdmin,
+    isSuperadmin,
+    canSelectAnyModel: isAdmin || enabledModels.length > 0,
+    enabledModels,
+  }
 }
 
 /**
@@ -256,17 +267,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   // Test mode
   if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     const testEmail = SECURITY.LOCAL_TEST.EMAIL
-    const isAdmin = isAdminUser(testEmail)
-    const isSuperadmin = isSuperadminUser(testEmail)
-    return {
-      id: SECURITY.LOCAL_TEST.SESSION_VALUE,
-      email: testEmail,
-      name: "Test User",
-      canSelectAnyModel: isAdmin,
-      isAdmin,
-      isSuperadmin,
-      enabledModels: [],
-    }
+    return buildSessionUser(SECURITY.LOCAL_TEST.SESSION_VALUE, testEmail, "Test User", [])
   }
 
   // Verify JWT and extract user data.
@@ -276,22 +277,15 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     return null
   }
 
-  // Return user data directly from JWT claims.
-  const isAdmin = isAdminUser(payload.email)
-  const isSuperadmin = isSuperadminUser(payload.email)
+  // Skip DB query for admins — they already get canSelectAnyModel: true
+  if (isAdminUser(payload.email)) {
+    return buildSessionUser(payload.userId, payload.email, payload.name, [])
+  }
 
-  // Fetch per-user enabled models from DB (lightweight query)
+  // Fetch per-user enabled models from DB (lightweight query, cached 30s)
   const enabledModels = await fetchEnabledModels(payload.userId)
 
-  return {
-    id: payload.userId,
-    email: payload.email,
-    name: payload.name,
-    canSelectAnyModel: isAdmin || enabledModels.length > 0,
-    isAdmin,
-    isSuperadmin,
-    enabledModels,
-  }
+  return buildSessionUser(payload.userId, payload.email, payload.name, enabledModels)
 }
 
 export async function hasSessionScope(scope: SessionScope): Promise<boolean> {
@@ -390,7 +384,7 @@ export async function getAuthenticatedWorkspaces(): Promise<string[]> {
 
   const app = await createAppClient("service")
 
-  if (isSuperadminUser(payload.email)) {
+  if (superadminEmails.has(payload.email.toLowerCase())) {
     const { data: allDomains } = await app.from("domains").select("hostname, is_test_env")
     const realDomains = allDomains?.filter(d => !d.is_test_env).map(d => d.hostname) || []
     const testDomains = allDomains?.filter(d => d.is_test_env).map(d => d.hostname) || []

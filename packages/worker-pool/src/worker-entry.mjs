@@ -681,6 +681,7 @@ async function handleQuery(ipc, requestId, payload) {
         model: payload.model,
         maxTurns: payload.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
         permissionMode,
+        ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
         allowedTools,
         disallowedTools,
         canUseTool,

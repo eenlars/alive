@@ -12,7 +12,7 @@ A simple, file-based feedback storage system that follows the same pattern as `d
 
 Following the same pattern as domain passwords:
 
-1. **Production**: `/var/lib/alive/feedback.json`
+1. **Production**: Path derived from `SERVER_CONFIG_PATH` env var (e.g., `feedback.json` in the same directory as `server-config.json`)
 2. **Development Fallbacks**:
    - `{cwd}/feedback.json` (current working directory)
    - `/root/alive/feedback.json`

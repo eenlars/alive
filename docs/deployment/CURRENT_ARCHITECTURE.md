@@ -156,7 +156,7 @@ Supabase: Check/create user, hash password, store
 ```
 TypeScript: getOrAssignPort(domain)
   ↓
-Read: /var/lib/alive/domain-passwords.json
+Read: domain-passwords.json (path from SERVER_CONFIG_PATH)
   ↓
 Domain exists?
   YES → Reuse port
@@ -179,7 +179,7 @@ API writes port to Supabase: app.domains.port
 
 ### Port Registry
 
-**Location:** `/var/lib/alive/domain-passwords.json`
+**Location:** `domain-passwords.json` (path derived from `SERVER_CONFIG_PATH` env var / `server-config.json`)
 
 **Format:**
 ```json
@@ -343,7 +343,7 @@ CREATE TABLE app.domains (
 
 **Two sources of truth:**
 
-1. **JSON:** `/var/lib/alive/domain-passwords.json`
+1. **JSON:** `domain-passwords.json` (path from `SERVER_CONFIG_PATH` env var)
    - Written during `deploySite()` (before Supabase)
 
 2. **Database:** `app.domains.port`

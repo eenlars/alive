@@ -432,7 +432,7 @@ CREATE TABLE app.domains (
 
 ## PORT REGISTRY (File-Based)
 
-**Location**: `/var/lib/alive/domain-passwords.json`
+**Location**: `domain-passwords.json` (path derived from `SERVER_CONFIG_PATH` env var / `server-config.json`)
 
 **Format**:
 ```json

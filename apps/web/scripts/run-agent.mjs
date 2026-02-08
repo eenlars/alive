@@ -116,7 +116,7 @@ async function readStdinJson() {
 
     // Get base allowed tools (SDK + internal MCP tools)
     // OAuth MCP tools are allowed dynamically in canUseTool
-    // Admin users get Bash, BashOutput, KillShell tools
+    // Admin users get Bash, BashOutput, TaskStop tools
     // Superadmin users get ALL tools (Task, WebSearch included)
     const baseAllowedTools = getAllowedTools(targetCwd || process.cwd(), isAdmin, isSuperadmin)
     const disallowedTools = getDisallowedTools(isAdmin, isSuperadmin)
@@ -196,6 +196,7 @@ async function readStdinJson() {
         model: request.model,
         maxTurns: request.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
         permissionMode: effectivePermissionMode,
+        ...(effectivePermissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
         allowedTools: effectiveAllowedTools, // Plan mode filters out modification tools
         disallowedTools, // Dynamic based on admin status
         canUseTool,

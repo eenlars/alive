@@ -17,15 +17,25 @@ describe("SiteOrchestrator", () => {
 
   it("should export PATHS constant", () => {
     expect(PATHS).toBeDefined()
-    expect(PATHS.SITES_ROOT).toBe("/srv/webalive/sites")
-    expect(PATHS.TEMPLATE_PATH).toBe("/root/alive/templates/site-template")
+    // PATHS values derive from server-config.json at runtime.
+    // In CI/test without config, they are empty strings.
+    expect(typeof PATHS.SITES_ROOT).toBe("string")
+    expect(typeof PATHS.TEMPLATE_PATH).toBe("string")
   })
 })
 
 describe("Configuration", () => {
-  it("should have correct default paths", () => {
-    expect(PATHS.REGISTRY_PATH).toBe("/var/lib/alive/domain-passwords.json")
-    expect(PATHS.CADDYFILE_PATH).toBe("/root/alive/ops/caddy/Caddyfile")
+  it("should have correct static paths", () => {
+    // These are always the same regardless of server config
     expect(PATHS.SYSTEMD_ENV_DIR).toBe("/etc/sites")
+    expect(PATHS.CADDY_LOCK).toBe("/tmp/caddyfile.lock")
+  })
+
+  it("should derive dynamic paths from SERVER_CONFIG_PATH", () => {
+    // Dynamic paths come from server-config.json — empty in test without config
+    expect(typeof PATHS.REGISTRY_PATH).toBe("string")
+    expect(typeof PATHS.SERVER_CONFIG).toBe("string")
+    expect(typeof PATHS.GENERATED_DIR).toBe("string")
+    expect(typeof PATHS.CADDYFILE_SITES).toBe("string")
   })
 })

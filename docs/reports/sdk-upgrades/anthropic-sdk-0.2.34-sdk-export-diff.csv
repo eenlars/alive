@@ -1,0 +1,192 @@
+change,symbol
+added,"export declare class AbortError extends Error {"
+added,"export declare const EXIT_REASONS: readonly ["clear", "logout", "prompt_input_exit", "other", "bypass_permissions_disabled"];"
+added,"export declare const HOOK_EVENTS: readonly ["PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "UserPromptSubmit", "SessionStart", "SessionEnd", "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PermissionRequest", "Setup", "TeammateIdle", "TaskCompleted"];"
+added,"export declare function createSdkMcpServer(_options: CreateSdkMcpServerOptions): McpSdkServerConfigWithInstance;"
+added,"export declare function query(_params: {"
+added,"export declare function tool<Schema extends AnyZodRawShape>(_name: string, _description: string, _inputSchema: Schema, _handler: (args: InferShape<Schema>, extra: unknown) => Promise<CallToolResult>, _extras?: {"
+added,"export declare function unstable_v2_createSession(_options: SDKSessionOptions): SDKSession;"
+added,"export declare function unstable_v2_prompt(_message: string, _options: SDKSessionOptions): Promise<SDKResultMessage>;"
+added,"export declare function unstable_v2_resumeSession(_sessionId: string, _options: SDKSessionOptions): SDKSession;"
+added,"export declare interface HookCallbackMatcher {"
+added,"export declare interface Query extends AsyncGenerator<SDKMessage, void> {"
+added,"export declare interface SDKSession {"
+added,"export declare interface SpawnOptions {"
+added,"export declare interface SpawnedProcess {"
+added,"export declare interface Transport {"
+added,"export declare type AccountInfo = {"
+added,"export declare type AgentDefinition = {"
+added,"export declare type AgentMcpServerSpec = string | Record<string, McpServerConfigForProcessTransport>;"
+added,"export declare type AnyZodRawShape = ZodRawShape | ZodRawShape_2;"
+added,"export declare type ApiKeySource = 'user' | 'project' | 'org' | 'temporary';"
+added,"export declare type AsyncHookJSONOutput = {"
+added,"export declare type BaseHookInput = {"
+added,"export declare type BaseOutputFormat = {"
+added,"export declare type CanUseTool = (toolName: string, input: Record<string, unknown>, options: {"
+added,"export declare type ConfigScope = 'local' | 'user' | 'project';"
+added,"export declare type ExitReason = 'clear' | 'logout' | 'prompt_input_exit' | 'other' | 'bypass_permissions_disabled';"
+added,"export declare type HookCallback = (input: HookInput, toolUseID: string | undefined, options: {"
+added,"export declare type HookEvent = 'PreToolUse' | 'PostToolUse' | 'PostToolUseFailure' | 'Notification' | 'UserPromptSubmit' | 'SessionStart' | 'SessionEnd' | 'Stop' | 'SubagentStart' | 'SubagentStop' | 'PreCompact' | 'PermissionRequest' | 'Setup' | 'TeammateIdle' | 'TaskCompleted';"
+added,"export declare type HookInput = PreToolUseHookInput | PostToolUseHookInput | PostToolUseFailureHookInput | NotificationHookInput | UserPromptSubmitHookInput | SessionStartHookInput | SessionEndHookInput | StopHookInput | SubagentStartHookInput | SubagentStopHookInput | PreCompactHookInput | PermissionRequestHookInput | SetupHookInput | TeammateIdleHookInput | TaskCompletedHookInput;"
+added,"export declare type HookJSONOutput = AsyncHookJSONOutput | SyncHookJSONOutput;"
+added,"export declare type InferShape<T extends AnyZodRawShape> = {"
+added,"export declare type JsonSchemaOutputFormat = {"
+added,"export declare type McpClaudeAIProxyServerConfig = {"
+added,"export declare type McpHttpServerConfig = {"
+added,"export declare type McpSSEServerConfig = {"
+added,"export declare type McpSdkServerConfig = {"
+added,"export declare type McpSdkServerConfigWithInstance = McpSdkServerConfig & {"
+added,"export declare type McpServerConfig = McpStdioServerConfig | McpSSEServerConfig | McpHttpServerConfig | McpSdkServerConfigWithInstance;"
+added,"export declare type McpServerConfigForProcessTransport = McpStdioServerConfig | McpSSEServerConfig | McpHttpServerConfig | McpSdkServerConfig;"
+added,"export declare type McpServerStatus = {"
+added,"export declare type McpServerStatusConfig = McpServerConfigForProcessTransport | McpClaudeAIProxyServerConfig;"
+added,"export declare type McpSetServersResult = {"
+added,"export declare type McpStdioServerConfig = {"
+added,"export declare type ModelInfo = {"
+added,"export declare type ModelUsage = {"
+added,"export declare type NonNullableUsage = {"
+added,"export declare type NotificationHookInput = BaseHookInput & {"
+added,"export declare type NotificationHookSpecificOutput = {"
+added,"export declare type Options = {"
+added,"export declare type OutputFormat = JsonSchemaOutputFormat;"
+added,"export declare type OutputFormatType = 'json_schema';"
+added,"export declare type PermissionBehavior = 'allow' | 'deny' | 'ask';"
+added,"export declare type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'delegate' | 'dontAsk';"
+added,"export declare type PermissionRequestHookInput = BaseHookInput & {"
+added,"export declare type PermissionRequestHookSpecificOutput = {"
+added,"export declare type PermissionResult = {"
+added,"export declare type PermissionRuleValue = {"
+added,"export declare type PermissionUpdate = {"
+added,"export declare type PermissionUpdateDestination = 'userSettings' | 'projectSettings' | 'localSettings' | 'session' | 'cliArg';"
+added,"export declare type PostToolUseFailureHookInput = BaseHookInput & {"
+added,"export declare type PostToolUseFailureHookSpecificOutput = {"
+added,"export declare type PostToolUseHookInput = BaseHookInput & {"
+added,"export declare type PostToolUseHookSpecificOutput = {"
+added,"export declare type PreCompactHookInput = BaseHookInput & {"
+added,"export declare type PreToolUseHookInput = BaseHookInput & {"
+added,"export declare type PreToolUseHookSpecificOutput = {"
+added,"export declare type RewindFilesResult = {"
+added,"export declare type SDKAssistantMessage = {"
+added,"export declare type SDKAssistantMessageError = 'authentication_failed' | 'billing_error' | 'rate_limit' | 'invalid_request' | 'server_error' | 'unknown';"
+added,"export declare type SDKAuthStatusMessage = {"
+added,"export declare type SDKCompactBoundaryMessage = {"
+added,"export declare type SDKFilesPersistedEvent = {"
+added,"export declare type SDKHookProgressMessage = {"
+added,"export declare type SDKHookResponseMessage = {"
+added,"export declare type SDKHookStartedMessage = {"
+added,"export declare type SDKMessage = SDKAssistantMessage | SDKUserMessage | SDKUserMessageReplay | SDKResultMessage | SDKSystemMessage | SDKPartialAssistantMessage | SDKCompactBoundaryMessage | SDKStatusMessage | SDKHookStartedMessage | SDKHookProgressMessage | SDKHookResponseMessage | SDKToolProgressMessage | SDKAuthStatusMessage | SDKTaskNotificationMessage | SDKFilesPersistedEvent | SDKToolUseSummaryMessage;"
+added,"export declare type SDKPartialAssistantMessage = {"
+added,"export declare type SDKPermissionDenial = {"
+added,"export declare type SDKResultError = {"
+added,"export declare type SDKResultMessage = SDKResultSuccess | SDKResultError;"
+added,"export declare type SDKResultSuccess = {"
+added,"export declare type SDKSessionOptions = {"
+added,"export declare type SDKStatus = 'compacting' | null;"
+added,"export declare type SDKStatusMessage = {"
+added,"export declare type SDKSystemMessage = {"
+added,"export declare type SDKTaskNotificationMessage = {"
+added,"export declare type SDKToolProgressMessage = {"
+added,"export declare type SDKToolUseSummaryMessage = {"
+added,"export declare type SDKUserMessage = {"
+added,"export declare type SDKUserMessageReplay = {"
+added,"export declare type SandboxIgnoreViolations = NonNullable<SandboxSettings['ignoreViolations']>;"
+added,"export declare type SandboxNetworkConfig = NonNullable<z.infer<typeof SandboxNetworkConfigSchema>>;"
+added,"export declare type SandboxSettings = z.infer<typeof SandboxSettingsSchema>;"
+added,"export declare type SdkBeta = 'context-1m-2025-08-07';"
+added,"export declare type SdkMcpToolDefinition<Schema extends AnyZodRawShape = AnyZodRawShape> = {"
+added,"export declare type SdkPluginConfig = {"
+added,"export declare type SessionEndHookInput = BaseHookInput & {"
+added,"export declare type SessionStartHookInput = BaseHookInput & {"
+added,"export declare type SessionStartHookSpecificOutput = {"
+added,"export declare type SettingSource = 'user' | 'project' | 'local';"
+added,"export declare type SetupHookInput = BaseHookInput & {"
+added,"export declare type SetupHookSpecificOutput = {"
+added,"export declare type SlashCommand = {"
+added,"export declare type StopHookInput = BaseHookInput & {"
+added,"export declare type SubagentStartHookInput = BaseHookInput & {"
+added,"export declare type SubagentStartHookSpecificOutput = {"
+added,"export declare type SubagentStopHookInput = BaseHookInput & {"
+added,"export declare type SyncHookJSONOutput = {"
+added,"export declare type TaskCompletedHookInput = BaseHookInput & {"
+added,"export declare type TeammateIdleHookInput = BaseHookInput & {"
+added,"export declare type UserPromptSubmitHookInput = BaseHookInput & {"
+added,"export declare type UserPromptSubmitHookSpecificOutput = {"
+removed,"export declare class AbortError extends Error {"
+removed,"export declare const EXIT_REASONS: string[];"
+removed,"export declare const HOOK_EVENTS: readonly ["PreToolUse", "PostToolUse", "PostToolUseFailure", "Notification", "UserPromptSubmit", "SessionStart", "SessionEnd", "Stop", "SubagentStart", "SubagentStop", "PreCompact", "PermissionRequest"];"
+removed,"export declare function createSdkMcpServer(_options: CreateSdkMcpServerOptions): McpSdkServerConfigWithInstance;"
+removed,"export declare function query(_params: {"
+removed,"export declare function tool<Schema extends ZodRawShape>(_name: string, _description: string, _inputSchema: Schema, _handler: (args: z.infer<ZodObject<Schema>>, extra: unknown) => Promise<CallToolResult>): SdkMcpToolDefinition<Schema>;"
+removed,"export declare function unstable_v2_createSession(_options: SDKSessionOptions): SDKSession;"
+removed,"export declare function unstable_v2_prompt(_message: string, _options: SDKSessionOptions): Promise<SDKResultMessage>;"
+removed,"export declare function unstable_v2_resumeSession(_sessionId: string, _options: SDKSessionOptions): SDKSession;"
+removed,"export interface HookCallbackMatcher {"
+removed,"export interface Query extends AsyncGenerator<SDKMessage, void> {"
+removed,"export interface SDKSession {"
+removed,"export type AccountInfo = {"
+removed,"export type AgentDefinition = {"
+removed,"export type ApiKeySource = 'user' | 'project' | 'org' | 'temporary';"
+removed,"export type AsyncHookJSONOutput = {"
+removed,"export type BaseHookInput = {"
+removed,"export type BaseOutputFormat = {"
+removed,"export type CanUseTool = (toolName: string, input: Record<string, unknown>, options: {"
+removed,"export type ConfigScope = 'local' | 'user' | 'project';"
+removed,"export type ExitReason = (typeof EXIT_REASONS)[number];"
+removed,"export type HookCallback = (input: HookInput, toolUseID: string | undefined, options: {"
+removed,"export type HookEvent = (typeof HOOK_EVENTS)[number];"
+removed,"export type HookInput = PreToolUseHookInput | PostToolUseHookInput | PostToolUseFailureHookInput | NotificationHookInput | UserPromptSubmitHookInput | SessionStartHookInput | SessionEndHookInput | StopHookInput | SubagentStartHookInput | SubagentStopHookInput | PreCompactHookInput | PermissionRequestHookInput;"
+removed,"export type HookJSONOutput = AsyncHookJSONOutput | SyncHookJSONOutput;"
+removed,"export type JsonSchemaOutputFormat = BaseOutputFormat & {"
+removed,"export type McpHttpServerConfig = {"
+removed,"export type McpSSEServerConfig = {"
+removed,"export type McpSdkServerConfig = {"
+removed,"export type McpSdkServerConfigWithInstance = McpSdkServerConfig & {"
+removed,"export type McpServerConfig = McpStdioServerConfig | McpSSEServerConfig | McpHttpServerConfig | McpSdkServerConfigWithInstance;"
+removed,"export type McpServerConfigForProcessTransport = McpStdioServerConfig | McpSSEServerConfig | McpHttpServerConfig | McpSdkServerConfig;"
+removed,"export type McpServerStatus = {"
+removed,"export type McpStdioServerConfig = {"
+removed,"export type ModelInfo = {"
+removed,"export type ModelUsage = {"
+removed,"export type NonNullableUsage = {"
+removed,"export type NotificationHookInput = BaseHookInput & {"
+removed,"export type Options = {"
+removed,"export type OutputFormat = JsonSchemaOutputFormat;"
+removed,"export type OutputFormatType = 'json_schema';"
+removed,"export type PermissionBehavior = 'allow' | 'deny' | 'ask';"
+removed,"export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk';"
+removed,"export type PermissionRequestHookInput = BaseHookInput & {"
+removed,"export type PermissionResult = {"
+removed,"export type PermissionRuleValue = {"
+removed,"export type PermissionUpdate = {"
+removed,"export type PostToolUseFailureHookInput = BaseHookInput & {"
+removed,"export type PostToolUseHookInput = BaseHookInput & {"
+removed,"export type PreCompactHookInput = BaseHookInput & {"
+removed,"export type PreToolUseHookInput = BaseHookInput & {"
+removed,"export type SDKAssistantMessage = {"
+removed,"export type SDKAssistantMessageError = 'authentication_failed' | 'billing_error' | 'rate_limit' | 'invalid_request' | 'server_error' | 'unknown';"
+removed,"export type SDKAuthStatusMessage = {"
+removed,"export type SDKCompactBoundaryMessage = {"
+removed,"export type SDKHookResponseMessage = {"
+removed,"export type SDKMessage = SDKAssistantMessage | SDKUserMessage | SDKUserMessageReplay | SDKResultMessage | SDKSystemMessage | SDKPartialAssistantMessage | SDKCompactBoundaryMessage | SDKStatusMessage | SDKHookResponseMessage | SDKToolProgressMessage | SDKAuthStatusMessage;"
+removed,"export type SDKPartialAssistantMessage = {"
+removed,"export type SDKPermissionDenial = {"
+removed,"export type SDKResultMessage = {"
+removed,"export type SDKSessionOptions = {"
+removed,"export type SDKStatus = 'compacting' | null;"
+removed,"export type SDKStatusMessage = {"
+removed,"export type SDKSystemMessage = {"
+removed,"export type SDKToolProgressMessage = {"
+removed,"export type SDKUserMessage = SDKUserMessageContent & {"
+removed,"export type SDKUserMessageReplay = SDKUserMessageContent & {"
+removed,"export type SdkBeta = 'context-1m-2025-08-07';"
+removed,"export type SdkPluginConfig = {"
+removed,"export type SessionEndHookInput = BaseHookInput & {"
+removed,"export type SessionStartHookInput = BaseHookInput & {"
+removed,"export type SettingSource = 'user' | 'project' | 'local';"
+removed,"export type SlashCommand = {"
+removed,"export type StopHookInput = BaseHookInput & {"
+removed,"export type SubagentStartHookInput = BaseHookInput & {"
+removed,"export type SubagentStopHookInput = BaseHookInput & {"
+removed,"export type SyncHookJSONOutput = {"
+removed,"export type UserPromptSubmitHookInput = BaseHookInput & {"
+removed,"export type { SandboxSettings, SandboxNetworkConfig, SandboxIgnoreViolations };"

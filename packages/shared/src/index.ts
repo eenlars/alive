@@ -59,8 +59,10 @@ export {
   getSiteHome,
   getEnvFilePath,
   getServerId,
+  requireEnv,
   validateConfig,
   assertConfigValid,
+  CONFIG_PATH,
   type ConfigValidationResult,
 } from "./config.js"
 export {

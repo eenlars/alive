@@ -1,10 +1,11 @@
 "use client"
 
 import { useBilling } from "@flowglad/nextjs"
+import type { FlowgladContextValues } from "@flowglad/nextjs"
 import { Eye, EyeOff, LogOut, Moon, Sun } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
+import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
 import { getModelDisplayName } from "@/lib/models/claude-models"
 import { useCredits, useCreditsError, useCreditsLoading, useUserActions } from "@/lib/providers/UserStoreProvider"
@@ -30,6 +31,36 @@ import { SettingsTabLayout } from "./SettingsTabLayout"
 
 function isValidModel(value: string): value is ClaudeModel {
   return Object.values(CLAUDE_MODELS).includes(value as ClaudeModel)
+}
+
+/** Error boundary that renders fallback instead of crashing the page */
+class BillingErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false }
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true }
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn("[BillingErrorBoundary] Caught:", error.message, info.componentStack)
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback
+    return this.props.children
+  }
+}
+
+/** Wrapper that calls useBilling inside an error boundary */
+function BillingProvider({ children }: { children: (billing: FlowgladContextValues) => ReactNode }) {
+  const billing = useBilling()
+  return <>{children(billing)}</>
+}
+
+/** Safe wrapper: renders children with billing data, falls back to not-loaded on error */
+function SafeBilling({ children }: { children: (billing: FlowgladContextValues) => ReactNode }) {
+  return (
+    <BillingErrorBoundary fallback={null}>
+      <BillingProvider>{children}</BillingProvider>
+    </BillingErrorBoundary>
+  )
 }
 
 export function GeneralSettings() {
@@ -71,12 +102,10 @@ export function GeneralSettings() {
   const creditsError = useCreditsError()
   const { fetchCredits } = useUserActions()
 
-  const billing = useBilling()
-
   const canSelectAnyModel = user?.canSelectAnyModel ?? false
   const enabledModels = user?.enabledModels ?? []
   const isModelAvailable = (modelId: string): boolean => {
-    if (apiKey || user?.isAdmin) return true
+    if (apiKey || canSelectAnyModel) return true
     if (enabledModels.length > 0) return enabledModels.includes(modelId)
     return modelId === DEFAULT_MODEL
   }
@@ -103,7 +132,7 @@ export function GeneralSettings() {
         setModel(DEFAULT_MODEL)
       }
     }
-  }, [apiKey, user?.isAdmin, enabledModels, model, setModel])
+  }, [apiKey, canSelectAnyModel, enabledModels, model, setModel])
 
   const handleSaveApiKey = () => {
     const trimmedKey = apiKeyInput.trim()
@@ -188,80 +217,86 @@ export function GeneralSettings() {
 
         {/* Credits - only when using workspace credits */}
         {!apiKey && (
-          <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-50`}>
-            {(() => {
-              const isLow = credits != null && credits < 5
-              const handleUpgrade = async () => {
-                if (!billing.loaded) return
-                setIsUpgrading(true)
-                try {
-                  const products = billing.pricingModel?.products
-                  const defaultProduct = products?.[0]
-                  if (billing.createCheckoutSession && defaultProduct?.defaultPrice) {
-                    const result = await billing.createCheckoutSession({
-                      priceId: defaultProduct.defaultPrice.id,
-                      successUrl: `${window.location.origin}/chat?upgraded=true`,
-                      cancelUrl: window.location.href,
-                      autoRedirect: true,
-                    })
-                    if (result && "url" in result && result.url) {
-                      window.location.href = result.url
+          <SafeBilling>
+            {billing => (
+              <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-50`}>
+                {(() => {
+                  const isLow = credits != null && credits < 5
+                  const handleUpgrade = async () => {
+                    if (!billing.loaded) return
+                    setIsUpgrading(true)
+                    try {
+                      const products = billing.pricingModel?.products
+                      const defaultProduct = products?.[0]
+                      if (billing.createCheckoutSession && defaultProduct?.defaultPrice) {
+                        const result = await billing.createCheckoutSession({
+                          priceId: defaultProduct.defaultPrice.id,
+                          successUrl: `${window.location.origin}/chat?upgraded=true`,
+                          cancelUrl: window.location.href,
+                          autoRedirect: true,
+                        })
+                        if (result && "url" in result && result.url) {
+                          window.location.href = result.url
+                        }
+                      } else if (billing.billingPortalUrl) {
+                        window.open(billing.billingPortalUrl, "_blank")
+                      }
+                    } catch (err) {
+                      console.error("Upgrade failed:", err)
+                    } finally {
+                      setIsUpgrading(false)
                     }
-                  } else if (billing.billingPortalUrl) {
-                    window.open(billing.billingPortalUrl, "_blank")
                   }
-                } catch (err) {
-                  console.error("Upgrade failed:", err)
-                } finally {
-                  setIsUpgrading(false)
-                }
-              }
 
-              return isLow ? (
-                <button
-                  type="button"
-                  onClick={handleUpgrade}
-                  disabled={isUpgrading || !billing.loaded}
-                  className={`w-full ${warningCard} hover:bg-amber-500/10 transition-colors disabled:opacity-40`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="text-left">
-                      <p className="text-sm font-medium text-amber-900 dark:text-amber-100">Running low on credits</p>
-                      <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                        {credits?.toFixed(2)} remaining
-                      </p>
-                    </div>
-                    <span className="px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg">
-                      {isUpgrading ? "..." : "Top up"}
-                    </span>
-                  </div>
-                </button>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <h4 className={text.label}>Credits</h4>
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-semibold text-black/90 dark:text-white/90">
-                      {creditsLoading
-                        ? "..."
-                        : creditsError
-                          ? "\u2014"
-                          : credits != null
-                            ? credits.toFixed(2)
-                            : "\u2014"}
-                    </span>
+                  return isLow ? (
                     <button
                       type="button"
                       onClick={handleUpgrade}
                       disabled={isUpgrading || !billing.loaded}
-                      className={smallButton}
+                      className={`w-full ${warningCard} hover:bg-amber-500/10 transition-colors disabled:opacity-40`}
                     >
-                      {isUpgrading ? "..." : "Get more"}
+                      <div className="flex items-center justify-between">
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                            Running low on credits
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                            {credits?.toFixed(2)} remaining
+                          </p>
+                        </div>
+                        <span className="px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg">
+                          {isUpgrading ? "..." : "Top up"}
+                        </span>
+                      </div>
                     </button>
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <h4 className={text.label}>Credits</h4>
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg font-semibold text-black/90 dark:text-white/90">
+                          {creditsLoading
+                            ? "..."
+                            : creditsError
+                              ? "\u2014"
+                              : credits != null
+                                ? credits.toFixed(2)
+                                : "\u2014"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleUpgrade}
+                          disabled={isUpgrading || !billing.loaded}
+                          className={smallButton}
+                        >
+                          {isUpgrading ? "..." : "Get more"}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+          </SafeBilling>
         )}
 
         {/* API Key */}
