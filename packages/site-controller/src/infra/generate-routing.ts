@@ -75,10 +75,6 @@ function must<T>(v: T | undefined | null, msg: string): T {
   return v
 }
 
-function sanitizeLabel(domain: string): string {
-  return domain.replace(/\./g, "-")
-}
-
 function filterReservedDomains(domains: DomainRow[], environments: EnvironmentConfig[]): DomainRow[] {
   const reservedDomains = new Set(environments.flatMap(e => [e.domain, e.previewBase]))
 
