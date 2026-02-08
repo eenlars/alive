@@ -5,7 +5,7 @@
 
 ## Overview
 
-All domain inputs across the Claude Bridge system are automatically normalized to lowercase to ensure consistency and prevent case-sensitivity issues.
+All domain inputs across the Alive system are automatically normalized to lowercase to ensure consistency and prevent case-sensitivity issues.
 
 ## Implementation
 

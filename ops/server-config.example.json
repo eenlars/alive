@@ -3,7 +3,7 @@
   "serverId": "srv-CHANGEME",
   "serverIp": "0.0.0.0",
   "paths": {
-    "aliveRoot": "/path/to/claude-bridge",
+    "aliveRoot": "/path/to/alive",
     "sitesRoot": "/srv/webalive/sites",
     "imagesStorage": "/srv/webalive/storage"
   },

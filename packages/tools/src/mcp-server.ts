@@ -24,7 +24,7 @@ import { switchServeModeTool } from "./tools/workspace/switch-serve-mode.js"
 /**
  * Alive Tools MCP Server
  *
- * Comprehensive tool suite for Claude Bridge development platform.
+ * Comprehensive tool suite for Alive development platform.
  *
  * **Tool Discovery (Progressive Disclosure):**
  * - search_tools: Find tools by query/category with configurable detail levels (Anthropic best practice)

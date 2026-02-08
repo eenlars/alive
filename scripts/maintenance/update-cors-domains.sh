@@ -5,12 +5,12 @@
 
 set -e
 
-SITES_DIR="/root/webalive/sites"
-ALLOWED_DOMAINS_FILE="/root/alive/allowed-domains.json"
-
 # Read environment configuration
 SCRIPT_DIR="$(dirname "$0")"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+SITES_DIR="/root/webalive/sites"
+ALLOWED_DOMAINS_FILE="$PROJECT_ROOT/allowed-domains.json"
 ENV_CONFIG="$PROJECT_ROOT/packages/shared/environments.json"
 
 PROD_PORT=$(jq -r '.environments.production.port' "$ENV_CONFIG")

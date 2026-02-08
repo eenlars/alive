@@ -254,7 +254,7 @@ async function main() {
 
   console.log(`
 ${COLORS.bold}╔═══════════════════════════════════════╗
-║     Claude Bridge Server Setup        ║
+║     Alive Server Setup                ║
 ╚═══════════════════════════════════════╝${COLORS.reset}
 `)
 

@@ -2,7 +2,7 @@
 /**
  * Database Setup Script
  *
- * Sets up the Claude Bridge database from scratch.
+ * Sets up the Alive database from scratch.
  *
  * Usage:
  *   bun run db:setup               # Interactive setup
@@ -25,7 +25,7 @@ async function main() {
 
   console.log(`
 ╔══════════════════════════════════════════════════════════════════╗
-║               Claude Bridge Database Setup                        ║
+║               Alive Database Setup                                ║
 ╚══════════════════════════════════════════════════════════════════╝
 `)
 

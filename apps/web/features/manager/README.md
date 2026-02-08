@@ -54,7 +54,7 @@ All API operations are abstracted into service functions for:
 **Settings Service** (`lib/services/settingsService.ts`)
 - `checkServiceStatus()` - Check system service status
 - `reloadCaddy()` - Reload reverse proxy
-- `restartBridge()` - Restart Claude Bridge
+- `restartBridge()` - Restart Alive
 - `backupWebsites()` - Backup all websites
 - `cleanupTestData(preview)` - Clean test data
 

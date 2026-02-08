@@ -10,7 +10,7 @@ set -euo pipefail
 SERVER_CONFIG="${SERVER_CONFIG_PATH:-}"
 if [[ -z "$SERVER_CONFIG" ]]; then
     echo "ERROR: SERVER_CONFIG_PATH env var is not set." >&2
-    echo "Set it to the path of server-config.json (e.g., /var/lib/claude-bridge/server-config.json)" >&2
+    echo "Set it to the path of server-config.json (e.g., /var/lib/alive/server-config.json)" >&2
     exit 1
 fi
 DRY_RUN=${DRY_RUN:-false}

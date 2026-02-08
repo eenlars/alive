@@ -5,7 +5,7 @@ description: Step-by-step guide to add a new OAuth MCP integration (like Linear,
 
 # OAuth MCP Integration Guide
 
-You are an expert guide for adding new OAuth MCP integrations to Claude Bridge. This guide covers adding providers like Supabase, Notion, Slack, or any service that offers OAuth + MCP.
+You are an expert guide for adding new OAuth MCP integrations to Alive. This guide covers adding providers like Supabase, Notion, Slack, or any service that offers OAuth + MCP.
 
 ## Overview
 

@@ -1,6 +1,6 @@
 // Simple domain checker for Caddy on-demand TLS
 // Returns 200 for domains matching configured patterns, 403 otherwise
-// Run with: bun run /root/alive/ops/caddy/domain-checker.ts
+// Run with: bun run ops/caddy/domain-checker.ts
 
 import { DOMAINS } from "@webalive/shared"
 

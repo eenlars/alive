@@ -2,7 +2,7 @@
 
 **Architectural Pattern:** Single Source of Truth for Secrets
 
-This document describes how environment variables are organized in the Claude Bridge monorepo to prevent duplication and configuration drift.
+This document describes how environment variables are organized in the Alive monorepo to prevent duplication and configuration drift.
 
 ## Architecture Overview
 

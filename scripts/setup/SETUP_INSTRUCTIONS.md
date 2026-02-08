@@ -1,6 +1,6 @@
-# Claude Bridge Setup Instructions
+# Alive Setup Instructions
 
-**For Claude Code**: Follow these steps to set up Claude Bridge for a new developer.
+**For Claude Code**: Follow these steps to set up Alive for a new developer.
 
 ---
 

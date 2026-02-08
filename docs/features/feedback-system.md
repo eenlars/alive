@@ -1,6 +1,6 @@
 # Feedback System Implementation
 
-This document describes the feedback storage system implementation for Claude Bridge.
+This document describes the feedback storage system implementation for Alive.
 
 ## Overview
 

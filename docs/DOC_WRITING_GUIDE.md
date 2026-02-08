@@ -1,6 +1,6 @@
 # Documentation Writing Guide
 
-Best practices for writing technical documentation in the WebAlive/Claude Bridge codebase.
+Best practices for writing technical documentation in the WebAlive/Alive codebase.
 
 ## Core Principles
 

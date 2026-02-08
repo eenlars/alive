@@ -1,6 +1,6 @@
 # Photo Upload Flow (Frontend)
 
-This document explains how photo uploads work in the Claude Bridge chat interface.
+This document explains how photo uploads work in the Alive chat interface.
 
 ## Table of Contents
 - [Overview](#overview)

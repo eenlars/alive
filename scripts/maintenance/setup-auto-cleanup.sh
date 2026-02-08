@@ -3,10 +3,13 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 echo "🔧 Setting up automatic test data cleanup..."
 
-# Create systemd service
-cat > /etc/systemd/system/alive-cleanup.service <<'EOF'
+# Create systemd service (uses PROJECT_ROOT resolved at setup time)
+cat > /etc/systemd/system/alive-cleanup.service <<EOF
 [Unit]
 Description=Alive Test Data Cleanup
 After=network.target
@@ -14,8 +17,8 @@ After=network.target
 [Service]
 Type=oneshot
 User=root
-WorkingDirectory=/root/alive/apps/web
-ExecStart=/root/.bun/bin/bun /root/alive/scripts/cleanup-test-database.ts --force
+WorkingDirectory=${PROJECT_ROOT}/apps/web
+ExecStart=/root/.bun/bin/bun ${PROJECT_ROOT}/scripts/cleanup-test-database.ts --force
 StandardOutput=append:/var/log/alive-cleanup.log
 StandardError=append:/var/log/alive-cleanup.log
 EOF

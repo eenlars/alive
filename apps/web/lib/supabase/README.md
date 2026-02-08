@@ -1,6 +1,6 @@
 # Supabase Clients
 
-Type-safe Supabase clients for Claude Bridge.
+Type-safe Supabase clients for Alive.
 
 ## Client Types
 

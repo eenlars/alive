@@ -400,7 +400,7 @@ run().catch(e => {
   // Provide specific help based on error
   if (msg.includes("SERVER_CONFIG_PATH")) {
     console.error("\x1b[33mFix:\x1b[0m Set SERVER_CONFIG_PATH env var to point to server-config.json")
-    console.error("     Example: export SERVER_CONFIG_PATH=/var/lib/claude-bridge/server-config.json")
+    console.error("     Example: export SERVER_CONFIG_PATH=/var/lib/alive/server-config.json")
     console.error("     Copy from: ops/server-config.example.json\n")
   } else if (msg.includes("server-config.json") || msg.includes("ENOENT")) {
     console.error("\x1b[33mFix:\x1b[0m Ensure server-config.json exists at the SERVER_CONFIG_PATH location")
