@@ -33,32 +33,6 @@ function isValidModel(value: string): value is ClaudeModel {
   return Object.values(CLAUDE_MODELS).includes(value as ClaudeModel)
 }
 
-const BILLING_NOT_LOADED: FlowgladContextValues = {
-  loaded: false,
-  errors: null,
-  customer: null,
-  subscriptions: null,
-  createCheckoutSession: null,
-  createAddPaymentMethodCheckoutSession: null,
-  createActivateSubscriptionCheckoutSession: null,
-  createUsageEvent: null,
-  checkFeatureAccess: null,
-  checkUsageBalance: null,
-  hasPurchased: null,
-  pricingModel: null,
-  billingPortalUrl: null,
-  reload: null,
-  catalog: null,
-  uncancelSubscription: null,
-  adjustSubscription: null,
-  cancelSubscription: null,
-  currentSubscriptions: [],
-  currentSubscription: null,
-  invoices: [],
-  paymentMethods: [],
-  purchases: [],
-}
-
 /** Error boundary that renders fallback instead of crashing the page */
 class BillingErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
   state = { hasError: false }
@@ -83,7 +57,7 @@ function BillingProvider({ children }: { children: (billing: FlowgladContextValu
 /** Safe wrapper: renders children with billing data, falls back to not-loaded on error */
 function SafeBilling({ children }: { children: (billing: FlowgladContextValues) => ReactNode }) {
   return (
-    <BillingErrorBoundary fallback={<>{children(BILLING_NOT_LOADED)}</>}>
+    <BillingErrorBoundary fallback={null}>
       <BillingProvider>{children}</BillingProvider>
     </BillingErrorBoundary>
   )
