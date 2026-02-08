@@ -6,8 +6,8 @@
  * extraction works correctly for all edge cases.
  */
 
-import { describe, expect, it, vi, beforeEach } from "vitest"
 import { resolve } from "node:path"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // Use vi.hoisted to define mocks before vi.mock hoisting
 const { existsSyncMock, TEST_WORKSPACE_BASES } = vi.hoisted(() => ({
@@ -34,7 +34,7 @@ vi.mock("@webalive/shared", () => ({
 }))
 
 // Import after mocking
-import { validateWorkspacePath, extractDomainFromWorkspace, hasPackageJson } from "../src/lib/workspace-validator"
+import { extractDomainFromWorkspace, hasPackageJson, validateWorkspacePath } from "../src/lib/workspace-validator"
 
 const ALLOWED_BASES = TEST_WORKSPACE_BASES
 

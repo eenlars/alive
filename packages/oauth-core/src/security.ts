@@ -17,11 +17,11 @@ import crypto from "node:crypto"
 import { getMasterKey } from "./config"
 import {
   CURRENT_KEY_VERSION,
-  getKeyForVersion,
-  serializeMetadata,
-  parseMetadata,
-  type KeyDerivationContext,
   type EncryptionMetadata,
+  getKeyForVersion,
+  type KeyDerivationContext,
+  parseMetadata,
+  serializeMetadata,
 } from "./key-derivation"
 import type { EncryptedPayload } from "./types"
 

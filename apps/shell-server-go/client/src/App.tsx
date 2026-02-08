@@ -1,11 +1,11 @@
 import { useEffect } from "react"
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom"
-import { useConfigStore } from "./store/config"
-import { LoginPage } from "./pages/LoginPage"
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom"
 import { DashboardPage } from "./pages/DashboardPage"
+import { EditPage } from "./pages/EditPage"
+import { LoginPage } from "./pages/LoginPage"
 import { ShellPage } from "./pages/ShellPage"
 import { UploadPage } from "./pages/UploadPage"
-import { EditPage } from "./pages/EditPage"
+import { useConfigStore } from "./store/config"
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useConfigStore()

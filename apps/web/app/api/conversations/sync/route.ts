@@ -13,10 +13,10 @@
 import type { Json } from "@webalive/database"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
+import { ErrorCodes } from "@/lib/error-codes"
 import type { AppConversationInsert, AppConversationTabInsert, AppMessageInsert } from "@/lib/supabase/app"
 import { createAppClient } from "@/lib/supabase/app"
-import { ErrorCodes } from "@/lib/error-codes"
-import { structuredErrorResponse } from "@/lib/api/responses"
 
 // =============================================================================
 // Types

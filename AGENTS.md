@@ -62,7 +62,7 @@ alive is a **multi-tenant development platform** that enables Claude AI to assis
 - **TURBOREPO Next.js 16 + React 19**: Modern App Router architecture using **Turborepo** for building and deploying the project.
 - **SSE streaming**: Real-time Claude responses via Server-Sent Events
 - **Tool-based interaction**: Limited to safe file operations (Read, Write, Edit, Glob, Grep)
-- **Superadmin access**: Users in `SUPERADMIN_EMAILS` env var can edit this repo via the frontend (workspace: `claude-bridge`, runs as root, all tools enabled)
+- **Superadmin access**: Users in `SUPERADMIN_EMAILS` env var can edit this repo via the frontend (workspace: `alive`, runs as root, all tools enabled)
 
 ## Monorepo Structure
 
@@ -83,22 +83,22 @@ alive is a **multi-tenant development platform** that enables Claude AI to assis
 |---------|---------|
 | `@webalive/shared` | Constants, environment definitions, database types. Almost everything depends on this. |
 | `@webalive/database` | Auto-generated Supabase types (`iam.*`, `app.*` schemas) |
-| `@alive-brug/tools` | Claude's workspace tools (Read, Write, Edit, Glob, Grep) + MCP server |
+| `@webalive/tools` | Claude's workspace tools (Read, Write, Edit, Glob, Grep) + MCP server |
 | `@webalive/site-controller` | Shell-Operator deployment: TS orchestrates, bash executes systemd/caddy/users |
 | `@webalive/oauth-core` | Multi-tenant OAuth with AES-256-GCM encrypted token storage |
-| `@alive-brug/redis` | ioredis wrapper with Docker setup for sessions/caching |
+| `@webalive/redis` | ioredis wrapper with Docker setup for sessions/caching |
 | `@webalive/env` | Zod-validated env vars via @t3-oss/env-nextjs |
 | `@webalive/worker-pool` | Unix socket IPC for warm Claude SDK workers |
-| `@alive-brug/images` | Native image processing via @napi-rs/image |
+| `@webalive/images` | Native image processing via @napi-rs/image |
 | `@alive-game/alive-tagger` | Vite plugin: injects source locations so Claude knows file:line from UI clicks |
-| `@webalive/bridge-types` | TypeScript types for SSE streaming protocol |
+| `@webalive/stream-types` | TypeScript types for SSE streaming protocol |
 
 ### Request Flow (Claude Chat)
 
 ```text
 Browser → /api/claude/stream → Claude Agent SDK → tool callbacks
                                                        ↓
-                                              @alive-brug/tools
+                                              @webalive/tools
                                                        ↓
                                               workspace sandbox
                                               /srv/webalive/sites/[domain]/
@@ -322,7 +322,7 @@ bun run unit
 1. ✅ Document the migration plan
 2. ✅ Search for ALL references: `grep -r "old-file" .`
 3. ✅ Validate before deleting: `./scripts/validate-no-deleted-refs.sh old-file`
-4. ✅ Test service restarts: `systemctl restart claude-bridge-dev && journalctl -u claude-bridge-dev -n 20`
+4. ✅ Test service restarts: `systemctl restart alive-dev && journalctl -u alive-dev -n 20`
 5. ✅ Run full test suite: `bun run test && bun run test:e2e`
 
 **Never**:
@@ -380,14 +380,14 @@ if (result.success) {
 
 #### Updating Caddy Configuration
 
-**Location (generated)**: `/root/webalive/claude-bridge/ops/caddy/generated/Caddyfile.sites`
+**Location (generated)**: `/root/webalive/alive/ops/caddy/generated/Caddyfile.sites`
 
 ```bash
-# 1. Regenerate routing from DB (creates /var/lib/claude-bridge/generated/Caddyfile.sites)
+# 1. Regenerate routing from DB (creates /var/lib/alive/generated/Caddyfile.sites)
 bun run --cwd packages/site-controller routing:generate
 
 # 2. Sync filtered file used by main Caddy import
-bun /root/webalive/claude-bridge/scripts/sync-generated-caddy.ts
+bun /root/webalive/alive/scripts/sync-generated-caddy.ts
 
 # 3. Reload (zero-downtime, preserves active connections)
 systemctl reload caddy
@@ -396,7 +396,7 @@ systemctl reload caddy
 systemctl status caddy
 ```
 
-**Auto-sync architecture**: Main `/etc/caddy/Caddyfile` imports `/root/webalive/claude-bridge/ops/caddy/Caddyfile`, which in turn imports the generated routing file.
+**Auto-sync architecture**: Main `/etc/caddy/Caddyfile` imports `/root/webalive/alive/ops/caddy/Caddyfile`, which in turn imports the generated routing file.
 
 ## Testing Guidelines
 
@@ -574,7 +574,7 @@ curl -X POST https://terminal.goalive.nl/api/deploy-subdomain \
 - **@webalive/database**: Supabase schema types - `iam` schema (users, orgs, org_memberships, sessions), `app` schema (domains, user_quotas, feedback, templates)
 - **@webalive/site-controller**: Site deployment orchestration (Shell-Operator Pattern)
 - **@webalive/oauth-core**: Multi-tenant OAuth with AES-256-GCM encryption
-- **@alive-brug/redis**: Redis client with automatic retry and error handling
+- **@webalive/redis**: Redis client with automatic retry and error handling
 - **@webalive/template**: Template for new site deployments
 
 ### Legacy (Deprecated)

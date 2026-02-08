@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod"
-import type { SessionMessage, AgentToAgentPolicy } from "./types.js"
+import type { AgentToAgentPolicy, SessionMessage } from "./types.js"
 import { isA2AAllowed } from "./types.js"
 
 export const sessionsHistorySchema = z.object({

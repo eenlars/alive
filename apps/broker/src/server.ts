@@ -10,9 +10,9 @@
  * Internal only - not exposed to internet.
  */
 
+import { type ServerType, serve } from "@hono/node-server"
 import { Hono } from "hono"
 import { logger } from "hono/logger"
-import { serve, type ServerType } from "@hono/node-server"
 import { getStreamManager, resetStreamManager } from "./engine/stream-manager.js"
 import claudeRoutes from "./routes/claude.js"
 import healthRoutes from "./routes/health.js"

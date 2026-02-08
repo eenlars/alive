@@ -2,7 +2,7 @@
  * Security Layer Unit Tests
  */
 
-import { describe, it, expect, beforeAll } from "vitest"
+import { beforeAll, describe, expect, it } from "vitest"
 import { Security } from "../src/security.js"
 
 // Set up test environment

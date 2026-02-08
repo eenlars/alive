@@ -19,35 +19,6 @@
  */
 
 // ============================================================================
-// IAM Schema - Identity & Access Management
-// ============================================================================
-export {
-  // Schema
-  iamSchema,
-  // Enums
-  orgRoleEnum,
-  userStatusEnum,
-  // Tables
-  users,
-  orgs,
-  orgMemberships,
-  sessions,
-  userPreferences,
-  orgInvites,
-  emailInvites,
-  referrals,
-  // Relations
-  usersRelations,
-  orgsRelations,
-  orgMembershipsRelations,
-  sessionsRelations,
-  userPreferencesRelations,
-  orgInvitesRelations,
-  emailInvitesRelations,
-  referralsRelations,
-} from "./iam"
-
-// ============================================================================
 // App Schema - Application Data
 // ============================================================================
 export {
@@ -55,47 +26,75 @@ export {
   appSchema,
   // Enums
   automationActionTypeEnum,
-  automationRunStatusEnum,
-  automationTriggerTypeEnum,
-  severityLevelEnum,
-  // Tables
-  servers,
-  domains,
-  templates,
-  conversations,
-  conversationTabs,
-  messages,
   automationJobs,
+  automationJobsRelations,
+  automationRunStatusEnum,
   automationRuns,
-  userQuotas,
-  userOnboarding,
-  userProfile,
-  gatewaySettings,
-  feedback,
-  errors,
+  automationRunsRelations,
+  automationTriggerTypeEnum,
+  conversations,
+  conversationsRelations,
+  conversationTabs,
+  conversationTabsRelations,
+  domains,
   // Relations
   domainsRelations,
-  conversationsRelations,
-  conversationTabsRelations,
+  errors,
+  feedback,
+  gatewaySettings,
+  messages,
   messagesRelations,
-  automationJobsRelations,
-  automationRunsRelations,
-  userQuotasRelations,
+  // Tables
+  servers,
+  severityLevelEnum,
+  templates,
+  userOnboarding,
   userOnboardingRelations,
+  userProfile,
+  userQuotas,
+  userQuotasRelations,
 } from "./app"
+// ============================================================================
+// IAM Schema - Identity & Access Management
+// ============================================================================
+export {
+  emailInvites,
+  emailInvitesRelations,
+  // Schema
+  iamSchema,
+  orgInvites,
+  orgInvitesRelations,
+  orgMemberships,
+  orgMembershipsRelations,
+  // Enums
+  orgRoleEnum,
+  orgs,
+  orgsRelations,
+  referrals,
+  referralsRelations,
+  sessions,
+  sessionsRelations,
+  userPreferences,
+  userPreferencesRelations,
+  userStatusEnum,
+  // Tables
+  users,
+  // Relations
+  usersRelations,
+} from "./iam"
 
 // ============================================================================
 // Integrations Schema - OAuth & External Services
 // ============================================================================
 export {
+  accessPolicies,
+  accessPoliciesRelations,
   // Schema
   integrationsSchema,
   // Tables
   providers,
-  accessPolicies,
   // Relations
   providersRelations,
-  accessPoliciesRelations,
 } from "./integrations"
 
 // ============================================================================
@@ -104,10 +103,10 @@ export {
 export {
   // Schema
   lockboxSchema,
+  secretKeys,
+  secretKeysRelations,
   // Tables
   userSecrets,
-  secretKeys,
   // Relations
   userSecretsRelations,
-  secretKeysRelations,
 } from "./lockbox"

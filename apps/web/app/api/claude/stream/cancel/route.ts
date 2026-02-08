@@ -2,7 +2,7 @@ import { appendFileSync, mkdirSync } from "node:fs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { tabKey } from "@/features/auth/lib/sessionStore"
-import { WORKTREE_SLUG_REGEX, normalizeWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
+import { normalizeWorktreeSlug, WORKTREE_SLUG_REGEX } from "@/features/workspace/lib/worktree-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { cancelStream, cancelStreamByConversationKey } from "@/lib/stream/cancellation-registry"
 

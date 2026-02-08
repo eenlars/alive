@@ -3,13 +3,13 @@ import "fake-indexeddb/auto"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest"
 import { useDexieMessageStore } from "../dexieMessageStore"
-import { getMessageDb, resetMessageDb, type DbMessage } from "../messageDb"
+import { type DbMessage, getMessageDb, resetMessageDb } from "../messageDb"
 import {
+  type TabMessage,
   useActiveStreamId,
   useIsTabStreaming,
   useStreamingText,
   useTabMessages,
-  type TabMessage,
 } from "../useTabMessages"
 
 const TEST_USER_ID = "test-user-tab-messages"

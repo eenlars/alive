@@ -1,7 +1,7 @@
 "use client"
 
-import { WifiOff } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
+import { WifiOff } from "lucide-react"
 
 interface OfflineBannerProps {
   isOnline: boolean

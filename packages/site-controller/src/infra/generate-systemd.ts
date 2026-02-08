@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Generate systemd service files from server-config.json
  *
@@ -7,9 +8,9 @@
  * Usage: bun run gen:systemd
  */
 
-import { readFile, writeFile, mkdir, access } from "node:fs/promises"
 import { execSync } from "node:child_process"
 import { constants } from "node:fs"
+import { access, mkdir, readFile, writeFile } from "node:fs/promises"
 import { requireEnv } from "@webalive/shared"
 
 // =============================================================================
@@ -84,7 +85,9 @@ async function checkDependencies(): Promise<string> {
 
   if (errors.length > 0) {
     console.error("\n🚨 Missing dependencies:\n")
-    errors.forEach(e => console.error(e + "\n"))
+    errors.forEach(e => {
+      console.error(`${e}\n`)
+    })
     process.exit(1)
   }
 
@@ -252,6 +255,9 @@ async function main() {
 
   console.log(`
 ${COLORS.dim}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLORS.reset}
+
+Install:  cp ${generatedDir}/alive-*.service /etc/systemd/system/
+          systemctl daemon-reload
 
 Install:  cp ${generatedDir}/alive-*.service /etc/systemd/system/
           systemctl daemon-reload

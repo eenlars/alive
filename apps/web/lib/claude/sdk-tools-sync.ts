@@ -31,12 +31,12 @@ import type {
 
 // Import from shared - single source of truth
 import {
+  getStreamDisallowedTools,
   STREAM_ADMIN_ONLY_SDK_TOOLS,
   STREAM_ALLOWED_SDK_TOOLS,
   STREAM_ALWAYS_DISALLOWED_SDK_TOOLS,
   type StreamAllowedSDKTool,
   type StreamDisallowedSDKTool,
-  getStreamDisallowedTools,
 } from "@webalive/shared"
 
 // Re-export for use in tests

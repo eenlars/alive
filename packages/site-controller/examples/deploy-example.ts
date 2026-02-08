@@ -5,7 +5,7 @@
  * Usage: bun examples/deploy-example.ts <domain>
  */
 
-import { SiteOrchestrator, PATHS, DEFAULTS } from "../src/index"
+import { DEFAULTS, PATHS, SiteOrchestrator } from "../src/index"
 
 const domain = process.argv[2]
 

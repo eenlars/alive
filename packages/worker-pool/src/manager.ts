@@ -5,28 +5,28 @@
  * Workers are keyed by workspace and reused across requests.
  */
 
-import { execFile, spawn, type ChildProcess } from "node:child_process"
+import { type ChildProcess, execFile, spawn } from "node:child_process"
 import { EventEmitter } from "node:events"
 import { chmod, mkdir, stat } from "node:fs/promises"
 import { cpus, loadavg, platform } from "node:os"
 import * as path from "node:path"
 import { setTimeout as sleep } from "node:timers/promises"
 import { promisify } from "node:util"
+import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
+import { createConfig } from "./config.js"
+import { createIpcServer, type IpcServer, isWorkerMessage } from "./ipc.js"
 import type {
-  WorkerPoolConfig,
-  WorkerHandle,
-  WorkerInfo,
-  WorkspaceCredentials,
+  ParentToWorkerMessage,
   QueryOptions,
   QueryResult,
-  WorkerPoolEvents,
+  WorkerHandle,
+  WorkerInfo,
+  WorkerPoolConfig,
   WorkerPoolEventListener,
+  WorkerPoolEvents,
   WorkerToParentMessage,
-  ParentToWorkerMessage,
+  WorkspaceCredentials,
 } from "./types.js"
-import { createConfig } from "./config.js"
-import { createIpcServer, isWorkerMessage, type IpcServer } from "./ipc.js"
-import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
 
 const execFileAsync = promisify(execFile)
 
@@ -719,7 +719,7 @@ export class WorkerPoolManager extends EventEmitter {
 
   private getClaudeConfigDir(): string {
     const configured = process.env.CLAUDE_CONFIG_DIR
-    if (configured && configured.startsWith("/")) {
+    if (configured?.startsWith("/")) {
       return configured
     }
     const home = process.env.HOME || "/root"

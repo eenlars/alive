@@ -1,13 +1,13 @@
-import { readFile, readdir, stat } from "node:fs/promises"
+import { readdir, readFile, stat } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, it } from "vitest"
-import { type GetTemplateParams, getTemplate } from "../src/tools/templates/get-template.js"
 import {
-  parseFrontmatter,
   isTemplateEnabled,
   type PartialTemplateFrontmatter,
+  parseFrontmatter,
 } from "../src/lib/template-frontmatter.js"
+import { type GetTemplateParams, getTemplate } from "../src/tools/templates/get-template.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)

@@ -14,9 +14,9 @@
  * Note: Supabase OAuth doesn't use granular scopes - it grants full Management API access
  */
 
-import type { OAuthProviderCore, OAuthRefreshable, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
-import type { OAuthTokens } from "../types"
 import { fetchWithRetry } from "../fetch-with-retry"
+import type { OAuthTokens } from "../types"
+import type { OAuthProviderCore, OAuthRefreshable, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
 
 /**
  * Supabase-specific OAuth options

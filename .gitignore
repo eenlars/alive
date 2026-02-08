@@ -181,7 +181,7 @@ apps/shell-server/.env*
 
 # Generated routing files (created by routing:generate script)
 # These are server-specific and should not be committed
-# Location: /var/lib/claude-bridge/generated/
+# Location: /var/lib/alive/generated/
 .uploads/
 domain-passwords.json.lock
 
@@ -196,8 +196,6 @@ ops/caddy/Caddyfile.shell
 !ops/caddy/Caddyfile.snippets
 !ops/caddy/etc/
 
-# Agent memory database (development context)
-use_this_to_remember.db
 
 # Operations infrastructure (ops-only, never distribute)
 # These are server management scripts, not part of the npm package

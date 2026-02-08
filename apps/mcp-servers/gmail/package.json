@@ -30,7 +30,8 @@
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
     "lint": "biome lint .",
-    "format": "npx biome format --write ."
+    "format": "biome format --write .",
+    "ci": "biome ci ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",

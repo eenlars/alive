@@ -9,11 +9,11 @@
  * - Cron/scheduler for timed executions
  */
 
-import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { getSupabaseCredentials } from "@/lib/env/server"
-import { runAutomationJob } from "@/lib/automation/executor"
+import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
+import { runAutomationJob } from "@/lib/automation/executor"
+import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
 
 export async function POST(req: NextRequest) {

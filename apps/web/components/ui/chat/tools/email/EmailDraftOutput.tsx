@@ -14,7 +14,7 @@ import { EmailDraftCard } from "@/components/email/EmailDraftCard"
 import type { EmailDraft } from "@/components/email/types"
 import { FAKE_EMAIL_DRAFTS } from "@/components/email/types"
 import type { ToolResultRendererProps } from "@/lib/tools/tool-registry"
-import type { GmailSendResponse, GmailDraftResponse, GmailErrorResponse } from "@/lib/types/gmail-api"
+import type { GmailDraftResponse, GmailErrorResponse, GmailSendResponse } from "@/lib/types/gmail-api"
 
 /**
  * Generate a unique key for storing sent status in localStorage

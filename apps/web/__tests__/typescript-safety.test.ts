@@ -105,11 +105,16 @@ export function TestComponent() {
   })
 
   it("documents TypeScript strict mode is enabled", () => {
-    const tsConfigPath = join(process.cwd(), "tsconfig.json")
-    const tsConfig = JSON.parse(readFileSync(tsConfigPath, "utf-8"))
+    // Use resolved compiler settings (includes inherited settings via "extends")
+    const resolvedConfigRaw = execSync("bun tsc --showConfig", {
+      cwd: process.cwd(),
+      encoding: "utf-8",
+      stdio: "pipe",
+    })
+    const resolvedConfig = JSON.parse(resolvedConfigRaw)
 
     // These settings catch undefined variables
-    expect(tsConfig.compilerOptions.strict).toBe(true)
+    expect(resolvedConfig.compilerOptions.strict).toBe(true)
 
     // Note: noUnusedLocals is optional, but strict mode should catch undefined vars
     // The important thing is that strict is true

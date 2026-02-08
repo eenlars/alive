@@ -8,9 +8,9 @@
  * Stripe Connect supports token refresh but not PKCE
  */
 
-import type { OAuthProviderCore, OAuthRefreshable, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
-import type { OAuthTokens } from "../types"
 import { fetchWithRetry } from "../fetch-with-retry"
+import type { OAuthTokens } from "../types"
+import type { OAuthProviderCore, OAuthRefreshable, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
 
 export const STRIPE_SCOPES = ["read_write", "read_only"] as const
 

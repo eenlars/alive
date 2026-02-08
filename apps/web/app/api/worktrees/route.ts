@@ -1,9 +1,9 @@
 import path from "node:path"
 import type { NextRequest } from "next/server"
-import { getSessionUser, verifyWorkspaceAccess, createErrorResponse } from "@/features/auth/lib/auth"
+import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
-import { WorktreeError, createWorktree, listWorktrees, removeWorktree } from "@/features/worktrees/lib/worktrees"
-import { handleBody, isHandleBodyError, alrighty } from "@/lib/api/server"
+import { createWorktree, listWorktrees, removeWorktree, WorktreeError } from "@/features/worktrees/lib/worktrees"
+import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 

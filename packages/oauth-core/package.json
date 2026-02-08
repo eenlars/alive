@@ -18,9 +18,11 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "typecheck": "bun run type-check",
     "lint": "biome lint .",
     "format": "biome format --write .",
+    "ci": "biome ci .",
     "clean": "rm -rf dist",
     "test": "vitest run",
     "test:integration": "vitest run -c vitest.integration.config.ts",

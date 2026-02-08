@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   aliveTagger,
+  ELEMENT_SELECTED_MESSAGE_TYPE,
+  formatSourceLocation,
   getElementSource,
   hasSourceInfo,
-  formatSourceLocation,
   isElementSelectedMessage,
   SOURCE_KEY,
-  ELEMENT_SELECTED_MESSAGE_TYPE,
 } from "../src/index"
 import type { SourceInfo } from "../src/types"
 

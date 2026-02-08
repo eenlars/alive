@@ -7,10 +7,10 @@
 
 "use client"
 
+import { TEMPLATES } from "@webalive/shared"
 import { RotateCcw } from "lucide-react"
 import { useState } from "react"
 import { WebsiteConfig, type WebsiteConfigData, type WebsiteConfigResult } from "@/components/ai/WebsiteConfig"
-import { TEMPLATES } from "@webalive/shared"
 import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 
 const SAMPLE_DATA: WebsiteConfigData = {

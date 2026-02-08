@@ -137,7 +137,7 @@ bun run web
 
 ### 5. Login
 
-Open `http://localhost:8999`
+Open `http://localhost:8997`
 
 - **Email**: `test@alive.local`
 - **Password**: `test`
@@ -208,10 +208,10 @@ LOCAL_TEMPLATE_PATH=$(pwd)/.alive/template
 bun run setup
 ```
 
-### "Port 8999 in use"
+### "Port 8997 in use"
 
 ```bash
-lsof -i :8999 | awk 'NR>1 {print $2}' | xargs kill -9
+lsof -i :8997 | awk 'NR>1 {print $2}' | xargs kill -9
 ```
 
 ### "Test credentials don't work"

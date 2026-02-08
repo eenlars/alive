@@ -1,5 +1,5 @@
-import { runScript } from "./common.js"
 import type { PortAssignment } from "../types.js"
+import { runScript } from "./common.js"
 
 export interface AssignPortParams {
   domain: string

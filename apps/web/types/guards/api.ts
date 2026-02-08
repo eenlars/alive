@@ -6,7 +6,8 @@ import { z } from "zod"
 import type { DomainPasswords } from "@/types/domain"
 
 // Re-export schemas for backward compatibility
-export { WorktreeSlugSchema, OptionalWorktreeSchema } from "./worktree-schemas"
+export { OptionalWorktreeSchema, WorktreeSlugSchema } from "./worktree-schemas"
+
 import { OptionalWorktreeSchema } from "./worktree-schemas"
 
 /**

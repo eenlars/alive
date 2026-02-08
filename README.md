@@ -47,7 +47,7 @@ bun run dev
 
 ### 5. Open the app
 
-Visit `http://localhost:3000` and log in:
+Visit `http://localhost:8997` and log in:
 - **Email**: `test@alive.local`
 - **Password**: `test`
 
@@ -76,7 +76,7 @@ Browser → Claude Bridge → Claude SDK → Your Files
 apps/
 ├── web/              # Main Next.js app (chat UI, Claude API, auth)
 ├── broker/           # Message broker for streaming
-└── shell-server/     # Web terminal + file editor
+└── shell-server-go/  # Web terminal + file editor (Go)
 
 packages/
 ├── tools/            # Claude's workspace tools

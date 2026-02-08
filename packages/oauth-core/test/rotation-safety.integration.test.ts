@@ -4,7 +4,7 @@
  * Requires real Supabase credentials (LOCKBOX + PostgREST) to be configured.
  */
 
-import { describe, expect, it, beforeEach } from "vitest"
+import { beforeEach, describe, expect, it } from "vitest"
 import { createOAuthManager, type OAuthManagerConfig } from "../src"
 import type { OAuthTokens } from "../src/types"
 

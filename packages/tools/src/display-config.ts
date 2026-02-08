@@ -17,7 +17,7 @@
  * ```
  */
 
-import { LINEAR, STRIPE, STRIPE_PATTERNS, FILE_OPS, AI, OTHER, EMAIL, PLAN } from "./tool-names.js"
+import { AI, EMAIL, FILE_OPS, LINEAR, OTHER, PLAN, STRIPE, STRIPE_PATTERNS } from "./tool-names.js"
 
 // ============================================================
 // TYPES

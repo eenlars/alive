@@ -1,4 +1,4 @@
-import { spawnSync, type SpawnSyncOptions, type SpawnSyncReturns } from "node:child_process"
+import { type SpawnSyncOptions, type SpawnSyncReturns, spawnSync } from "node:child_process"
 import { platform } from "node:os"
 import { sanitizeSubprocessEnv } from "./env-sanitizer.js"
 

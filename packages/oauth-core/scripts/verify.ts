@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * OAuth Core Verification Script
  *
@@ -15,8 +16,8 @@
  * - Supabase lockbox schema must be set up (run setup-schema.sql first)
  */
 
-import { oauth } from "../src/index.js"
 import { createClient } from "@supabase/supabase-js"
+import { oauth } from "../src/index.js"
 import { Security } from "../src/security.js"
 
 // Test user IDs - MUST be valid UUIDs from iam.users

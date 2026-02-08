@@ -9,13 +9,13 @@
  *   bun run src/scraper/debug.ts i18n                             # Show i18n config
  */
 
-import { readFile, mkdir, writeFile } from "node:fs/promises"
-import { join, dirname } from "node:path"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 import * as cheerio from "cheerio"
-import { setupPage, cleanupBrowser, navigateToGoogleMaps, clickReviewsTabAndWait } from "./utils.js"
 import { searchSingleBusiness } from "./extractors/detail.js"
 import { debugI18n } from "./i18n.js"
+import { cleanupBrowser, clickReviewsTabAndWait, navigateToGoogleMaps, setupPage } from "./utils.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUTPUT_DIR = join(__dirname, "../../test-html")

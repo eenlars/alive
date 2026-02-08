@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
-  SOURCE_KEY,
   ELEMENT_SELECTED_MESSAGE_TYPE,
-  type SourceInfo,
   type ElementSelectedContext,
   type ElementSelectedMessage,
+  SOURCE_KEY,
+  type SourceInfo,
 } from "../src/types"
 
 describe("types", () => {

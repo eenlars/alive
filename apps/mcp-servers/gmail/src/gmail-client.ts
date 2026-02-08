@@ -5,7 +5,7 @@
  * Each request uses the access token passed via HTTP Authorization header.
  */
 
-import { gmail, auth, type gmail_v1 } from "@googleapis/gmail"
+import { auth, gmail, type gmail_v1 } from "@googleapis/gmail"
 
 /**
  * Create a Gmail client with the provided access token

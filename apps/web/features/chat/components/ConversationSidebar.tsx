@@ -18,9 +18,9 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useDexieArchivedConversations, useDexieConversations, useDexieSession } from "@/lib/db/dexieMessageStore"
 import type { DbConversation } from "@/lib/db/messageDb"
-import { useWorkspaceTabs } from "@/lib/stores/tabStore"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
 import { useStreamingStore } from "@/lib/stores/streamingStore"
+import { useWorkspaceTabs } from "@/lib/stores/tabStore"
 
 // Shared style constants for DRY code
 const styles = {

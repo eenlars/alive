@@ -22,7 +22,7 @@
  */
 
 import { query } from "@anthropic-ai/claude-agent-sdk"
-import { DEFAULTS, CLAUDE_MODELS, type ClaudeModel } from "@webalive/shared"
+import { CLAUDE_MODELS, type ClaudeModel, DEFAULTS } from "@webalive/shared"
 
 // Re-export from shared for backwards compatibility
 export { CLAUDE_MODELS, type ClaudeModel }

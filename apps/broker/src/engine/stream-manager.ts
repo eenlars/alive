@@ -7,14 +7,14 @@
  * - Stream lifecycle tracking
  */
 
-import { StreamStateMachine } from "./state-machine.js"
 import {
   type ConcurrencyConfig,
-  type StreamState,
-  type StreamContext,
   DEFAULT_CONCURRENCY,
   STREAM_STATES,
+  type StreamContext,
+  type StreamState,
 } from "../types.js"
+import { StreamStateMachine } from "./state-machine.js"
 
 export interface StreamHandle {
   machine: StreamStateMachine

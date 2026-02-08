@@ -5,7 +5,7 @@ import { PATHS, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { domainToSlug, normalizeDomain } from "@/features/manager/lib/domain-utils"
-import { WorktreeError, resolveWorktreePath } from "@/features/worktrees/lib/worktrees"
+import { resolveWorktreePath, WorktreeError } from "@/features/worktrees/lib/worktrees"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 import { resolveAndValidatePath } from "@/lib/utils/path-security"
 

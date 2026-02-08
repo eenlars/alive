@@ -17,8 +17,8 @@
  */
 
 import { chownSync, cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
 import { createConnection } from "node:net"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import process from "node:process"
 
@@ -30,8 +30,8 @@ const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 // After privilege drop, the worker can't read /root/alive/node_modules/
 import { query } from "@anthropic-ai/claude-agent-sdk"
 // biome-ignore format: import checker expects a single-line import statement for this package.
-import { isOAuthMcpTool, GLOBAL_MCP_PROVIDERS, DEFAULTS, PLAN_MODE_BLOCKED_TOOLS, allowTool, denyTool, isHeavyBashCommand, isAbortError, isTransientNetworkError, isFatalError, formatUncaughtError } from "@webalive/shared"
-import { workspaceInternalMcp, toolsInternalMcp } from "@webalive/tools"
+import { allowTool, DEFAULTS, denyTool, formatUncaughtError, GLOBAL_MCP_PROVIDERS, isAbortError, isFatalError, isHeavyBashCommand, isOAuthMcpTool, isTransientNetworkError, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
+import { toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts
@@ -203,8 +203,8 @@ class IpcClient {
       process.exit(1)
     }
 
-    let newlineIndex
-    while ((newlineIndex = this.buffer.indexOf("\n")) !== -1) {
+    let newlineIndex = this.buffer.indexOf("\n")
+    while (newlineIndex !== -1) {
       const line = this.buffer.slice(0, newlineIndex).trim()
       this.buffer = this.buffer.slice(newlineIndex + 1)
 
@@ -216,6 +216,8 @@ class IpcClient {
       } catch (_err) {
         console.error("[worker] Failed to parse message:", line.slice(0, 200))
       }
+
+      newlineIndex = this.buffer.indexOf("\n")
     }
   }
 
@@ -266,7 +268,7 @@ function dropPrivileges() {
   // Sessions (conversation history) still persist per-workspace via HOME.
   const configuredClaudeDir = process.env.CLAUDE_CONFIG_DIR
   const defaultClaudeDir = join(originalHome, ".claude")
-  if (configuredClaudeDir && configuredClaudeDir.startsWith("/")) {
+  if (configuredClaudeDir?.startsWith("/")) {
     process.env.CLAUDE_CONFIG_DIR = configuredClaudeDir
   } else {
     if (configuredClaudeDir && !configuredClaudeDir.startsWith("/")) {
@@ -277,7 +279,7 @@ function dropPrivileges() {
 
   // Try to use stable session home for this workspace
   // Falls back to temp directory if stable home creation fails
-  let workerHome = ensureStableSessionHome(workspaceKey, targetUid, targetGid)
+  const workerHome = ensureStableSessionHome(workspaceKey, targetUid, targetGid)
 
   if (workerHome) {
     // Using stable session home - sessions will persist across restarts
@@ -531,7 +533,7 @@ async function handleQuery(ipc, requestId, payload) {
   // Declare these outside try so they're accessible in catch
   let messageCount = 0
   let queryResult = null
-  let stderrBuffer = [] // Captures Claude subprocess stderr for error debugging
+  const stderrBuffer = [] // Captures Claude subprocess stderr for error debugging
 
   try {
     // SECURITY: Always set/clear session cookie at start of each request
@@ -594,7 +596,7 @@ async function handleQuery(ipc, requestId, payload) {
       // ExitPlanMode requires user approval - Claude cannot approve its own plan
       // The user must click "Approve Plan" in the UI to exit plan mode
       if (toolName === "ExitPlanMode") {
-        console.error(`[worker] PLAN MODE: ExitPlanMode blocked - requires user approval`)
+        console.error("[worker] PLAN MODE: ExitPlanMode blocked - requires user approval")
         return denyTool(
           `You cannot approve your own plan. The user must review and approve the plan by clicking "Approve Plan" in the UI. ` +
             "Present your plan clearly and wait for user approval before proceeding with implementation.",

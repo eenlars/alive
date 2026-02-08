@@ -24,13 +24,13 @@ import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
 import { getAccessTokenReadOnly, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import {
-  STREAM_TYPES,
   getAllowedTools,
   getDisallowedTools,
   getOAuthMcpServers,
   hasStripeMcpAccess,
   PERMISSION_MODE,
   SETTINGS_SOURCES,
+  STREAM_TYPES,
 } from "@/lib/claude/agent-constants.mjs"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { env } from "@/lib/env"
