@@ -61,7 +61,7 @@
     "see:dev": "journalctl -u alive-dev -n 1000 -f",
     "shell-server": "cd apps/shell-server-go && make build && systemctl restart shell-server",
     "pull": "GIT_SSH_COMMAND='ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes' git pull --rebase origin main",
-    "push": "GIT_SSH_COMMAND='ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes' git push origin $(git branch --show-current)",
+    "push": "bash -c 'BRANCH=$(git branch --show-current) && [ -n \"$BRANCH\" ] && GIT_SSH_COMMAND=\"ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes\" git push origin \"$BRANCH\" || { echo \"Error: not on a branch (detached HEAD)\"; exit 1; }'",
     "ship": "bash -c 'git add -A && git commit -m \"$1\" && git push' --"
   },
   "lint-staged": {
