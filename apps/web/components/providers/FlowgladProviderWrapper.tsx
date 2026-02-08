@@ -27,13 +27,24 @@ function hasCookie(name: string): boolean {
  *
  * Only renders the FlowgladProvider when the user has a session cookie.
  * This avoids unnecessary API calls and errors for unauthenticated users.
+ *
+ * In Playwright E2E tests (window.PLAYWRIGHT_TEST === true), the provider
+ * is skipped entirely because:
+ * 1. Test users don't have Flowglad customer records
+ * 2. The provider's internal QueryClientProvider can conflict with the app's
+ *    if @tanstack/react-query is duplicated across packages
  */
 export function FlowgladProviderWrapper({ children }: FlowgladProviderWrapperProps) {
   // Only load billing if user has a session cookie
   const hasSession = hasCookie(COOKIE_NAMES.SESSION)
 
-  // Don't render FlowgladProvider for unauthenticated users
-  if (!hasSession) {
+  // Skip FlowgladProvider in E2E tests - test users don't have billing records
+  // and the provider's QueryClientProvider can conflict with the app's
+  const isPlaywrightTest =
+    typeof window !== "undefined" && "PLAYWRIGHT_TEST" in window && window.PLAYWRIGHT_TEST === true
+
+  // Don't render FlowgladProvider for unauthenticated users or E2E tests
+  if (!hasSession || isPlaywrightTest) {
     return <>{children}</>
   }
 
