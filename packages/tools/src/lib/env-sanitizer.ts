@@ -20,6 +20,7 @@ const DENIED_ENV_KEYS = new Set([
   // Redis
   "REDIS_URL",
   // Third-party secrets
+  "ANTHROPIC_API_KEY",
   "ANTH_API_SECRET",
   "GROQ_API_SECRET",
   "STRIPE_OAUTH_TOKEN",

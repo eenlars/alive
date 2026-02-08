@@ -235,7 +235,9 @@ function renderCaddySites(
   // Single-level pattern: covered by Cloudflare Universal SSL *.{WILDCARD}
   // Routes through Next.js middleware → preview-router for auth + port lookup
   const prodEnv = environments.find(e => e.key === "production")
-  const wildcardBlock = prodEnv ? renderWildcardPreviewBlock(cfg.domains.main, prodEnv.port, frameAncestors) : ""
+  const wildcardDomain = cfg.domains.previewBase ?? cfg.domains.main
+  const wildcardBlock =
+    prodEnv && wildcardDomain ? renderWildcardPreviewBlock(wildcardDomain, prodEnv.port, frameAncestors) : ""
 
   return `${header}${siteBlocks}\n\n${wildcardBlock}`
 }

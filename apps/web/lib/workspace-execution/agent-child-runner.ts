@@ -82,7 +82,8 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
 
   // Derive workspace home for HOME env var
   // workspaceRoot is like /srv/webalive/sites/domain.com/user → home is parent
-  const workspaceHome = workspaceRoot.endsWith("/user") ? dirname(workspaceRoot) : workspaceRoot
+  const normalizedRoot = workspaceRoot.replace(/\/+$/, "")
+  const workspaceHome = normalizedRoot.endsWith("/user") ? dirname(normalizedRoot) : normalizedRoot
 
   // Build env — superadmin gets full access, regular users get sandbox allowlist only
   const sandboxBase = payload.isSuperadmin ? process.env : createSandboxEnv()

@@ -50,7 +50,7 @@ async function readStdinJson() {
       const claudeDir = join(targetHome, ".claude")
       if (!existsSync(claudeDir)) {
         try {
-          mkdirSync(claudeDir, { recursive: true, mode: 0o755 })
+          mkdirSync(claudeDir, { recursive: true, mode: 0o700 })
           if (targetUid && targetGid) {
             chownSync(claudeDir, targetUid, targetGid)
           }

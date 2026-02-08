@@ -41,7 +41,11 @@ export function previewLabelToDomain(label: string): string {
 }
 
 /**
- * Check if a hostname is a preview subdomain
+ * Check if a hostname is a preview subdomain.
+ *
+ * NOTE: This only checks the prefix — it does NOT validate the wildcard domain
+ * suffix. Do NOT use as a standalone security gate. For full validation
+ * (prefix + suffix), use `extractWorkspaceFromPreviewHost()` instead.
  *
  * @example
  * isPreviewHost("preview--protino-sonno-tech.sonno.tech") // true
