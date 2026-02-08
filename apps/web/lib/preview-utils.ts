@@ -112,6 +112,6 @@ export function getPreviewUrl(workspace: string, options?: { path?: string; toke
   const label = domainToPreviewLabel(workspace)
   const path = options?.path ?? "/"
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
-  const tokenParam = options?.token ? `?preview_token=${options.token}` : ""
+  const tokenParam = options?.token ? `?preview_token=${encodeURIComponent(options.token)}` : ""
   return `https://${PREVIEW_PREFIX}${label}.${WILDCARD_DOMAIN}${normalizedPath}${tokenParam}`
 }
