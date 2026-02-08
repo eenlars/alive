@@ -35,8 +35,8 @@ fi
 # Remove from Caddy configuration
 # =============================================================================
 
-# Get stream root from env or use default
-STREAM_ROOT="${STREAM_ROOT:-/root/alive}"
+# Get stream root from env or derive from script location
+STREAM_ROOT="${STREAM_ROOT:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 SERVER_CONFIG="${SERVER_CONFIG_PATH:-}"
 
 if [[ -f "$SERVER_CONFIG" ]]; then

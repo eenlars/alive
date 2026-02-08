@@ -20,8 +20,8 @@ require_var SITE_DOMAIN
 
 log_info "Configuring Caddy for: $SITE_DOMAIN"
 
-# Get bridge root from server config or use default
-STREAM_ROOT="${STREAM_ROOT:-/root/alive}"
+# Get bridge root from env or derive from script location
+STREAM_ROOT="${STREAM_ROOT:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 if [[ ! -d "$STREAM_ROOT" ]]; then
     log_error "STREAM_ROOT not found: $STREAM_ROOT"
     exit 15

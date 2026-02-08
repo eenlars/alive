@@ -188,12 +188,8 @@ import /etc/caddy/Caddyfile.staging
 import /root/webalive/alive/ops/caddy/Caddyfile.snippets
 
 # WebAlive sites (auto-reload safe, generated)
-<<<<<<< HEAD
-import /var/lib/alive/generated/Caddyfile.sites
-=======
 # Path depends on your server — resolve from SERVER_CONFIG_PATH env var, e.g.:
 import /var/lib/alive/generated/Caddyfile.sites
->>>>>>> origin/main
 
 # ... other config
 ```

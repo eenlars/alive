@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process"
 import { createWriteStream } from "node:fs"
 import { z } from "zod"
+import { PATHS } from "@webalive/shared"
 import { AuthenticationError, createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
@@ -16,7 +17,7 @@ import { generateRequestId } from "@/lib/utils"
  * - All actions are logged with request ID
  */
 
-const PROJECT_ROOT = "/root/alive"
+const PROJECT_ROOT = PATHS.ALIVE_ROOT
 
 const DeployActionSchema = z.enum(["staging", "production", "production-skip-e2e", "status"])
 type DeployAction = z.infer<typeof DeployActionSchema>

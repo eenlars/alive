@@ -20,6 +20,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { env, getRedisUrl } from "@webalive/env/server"
 import { createRedisClient } from "@webalive/redis"
+import { PATHS } from "@webalive/shared"
 import { getSupabaseCredentials } from "@/lib/env/server"
 
 // Read build info at startup (file is generated at build time)
@@ -28,8 +29,8 @@ function getBuildInfo(): { commit: string; branch: string; buildTime: string } {
   const possiblePaths = [
     join(process.cwd(), "lib/build-info.json"),
     join(process.cwd(), "apps/web/lib/build-info.json"),
-    "/root/alive/.builds/staging/current/standalone/apps/web/lib/build-info.json",
-    "/root/alive/apps/web/lib/build-info.json",
+    join(PATHS.ALIVE_ROOT, ".builds/staging/current/standalone/apps/web/lib/build-info.json"),
+    join(PATHS.ALIVE_ROOT, "apps/web/lib/build-info.json"),
   ]
 
   for (const buildInfoPath of possiblePaths) {
