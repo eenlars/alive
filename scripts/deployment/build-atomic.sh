@@ -114,7 +114,7 @@ log_step "Building web app..."
 BUILD_START=$(date +%s)
 
 BUILD_OUTPUT_LOG="/tmp/alive-nextjs-build-${ENV}.log"
-if ! bun run build --filter=web --force 2>&1 | tee "$BUILD_OUTPUT_LOG"; then
+if ! bun run build --filter=@webalive/web --force 2>&1 | tee "$BUILD_OUTPUT_LOG"; then
     log_error "Build failed. Errors:"
     echo ""
     grep -E "error TS|Error:|error:|Type error|Module not found|Cannot find" "$BUILD_OUTPUT_LOG" | head -30

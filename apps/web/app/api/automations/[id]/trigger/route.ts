@@ -6,6 +6,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js"
+import { computeNextRunAtMs } from "@webalive/automation"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
@@ -105,7 +106,8 @@ export async function POST(_req: NextRequest, context: RouteContext) {
 
     console.log(`[Automation Trigger] Queued job "${job.name}" for site ${hostname} at ${startedAt.toISOString()}`)
 
-    // Fire-and-forget: keep trigger endpoint fast and let runs endpoint report completion.
+    // Fire-and-forget: run the job and update DB state after completion.
+    // The executor is a pure function — this route owns all DB side effects for manual triggers.
     void (async () => {
       let result: Awaited<ReturnType<typeof runAutomationJob>>
       try {
@@ -118,29 +120,62 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           timeoutSeconds,
         })
       } catch (error) {
-        const { error: rollbackError } = await supabase
+        // Executor threw unexpectedly — roll back running_at so job isn't permanently stuck
+        await supabase
           .from("automation_jobs")
           .update({ running_at: null })
           .eq("id", job.id)
           .eq("running_at", startedAtIso)
 
-        if (rollbackError) {
-          console.error(`[Automation Trigger] Failed to roll back running_at for "${job.name}":`, rollbackError)
-        }
-
-        console.error(`[Automation Trigger] Background job "${job.name}" failed to execute:`, error)
+        console.error(`[Automation Trigger] Background job "${job.name}" crashed:`, error)
         return
       }
 
-      try {
-        const status = result.success ? "success" : "failure"
-        console.log(
-          `[Automation Trigger] Job "${job.name}" finished with ${status} in ${result.durationMs}ms`,
-          result.error ? { error: result.error } : undefined,
+      const now = new Date()
+      const status = result.success ? "success" : "failure"
+
+      // Compute next_run_at so a manual trigger doesn't break the cron schedule
+      let nextRunAt: string | null = null
+      if (job.trigger_type === "cron" && job.cron_schedule) {
+        const nextMs = computeNextRunAtMs(
+          { kind: "cron", expr: job.cron_schedule, tz: job.cron_timezone || undefined },
+          now.getTime(),
         )
-      } catch (logError) {
-        console.error(`[Automation Trigger] Logging failed for "${job.name}":`, logError)
+        if (nextMs) {
+          nextRunAt = new Date(nextMs).toISOString()
+        }
       }
+
+      // Update job state (clear running_at, record last run info)
+      await supabase
+        .from("automation_jobs")
+        .update({
+          running_at: null,
+          last_run_at: startedAtIso,
+          last_run_status: status,
+          last_run_error: result.error ?? null,
+          last_run_duration_ms: result.durationMs,
+          next_run_at: nextRunAt,
+        })
+        .eq("id", job.id)
+
+      // Insert run record
+      await supabase.from("automation_runs").insert({
+        job_id: job.id,
+        started_at: startedAtIso,
+        completed_at: now.toISOString(),
+        duration_ms: result.durationMs,
+        status,
+        error: result.error ?? null,
+        result: result.response ? { response: result.response.substring(0, 10000) } : null,
+        messages: result.messages ?? null,
+        triggered_by: "manual",
+      })
+
+      console.log(
+        `[Automation Trigger] Job "${job.name}" finished with ${status} in ${result.durationMs}ms`,
+        result.error ? { error: result.error } : undefined,
+      )
     })()
 
     return NextResponse.json(

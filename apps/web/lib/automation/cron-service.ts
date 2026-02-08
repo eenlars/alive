@@ -258,6 +258,23 @@ async function runDueJobs(): Promise<void> {
 
   const now = Date.now()
 
+  // Reap stale jobs: if running_at is older than 1 hour, the executor likely crashed.
+  // Clear running_at so the job can be picked up again.
+  const staleThreshold = new Date(now - 60 * 60 * 1000).toISOString()
+  const { data: staleJobs } = await state.supabase
+    .from("automation_jobs")
+    .select("id, name, running_at")
+    .eq("is_active", true)
+    .not("running_at", "is", null)
+    .lt("running_at", staleThreshold)
+
+  if (staleJobs?.length) {
+    for (const stale of staleJobs) {
+      console.warn(`[CronService] Reaping stale job "${stale.name}" (${stale.id}), stuck since ${stale.running_at}`)
+      await state.supabase.from("automation_jobs").update({ running_at: null }).eq("id", stale.id)
+    }
+  }
+
   // Get due jobs that aren't already running
   const { data: dueJobs } = await state.supabase
     .from("automation_jobs")
@@ -429,27 +446,19 @@ async function finishJob(
   }
 
   // Update job in DB
-  // Note: consecutive_failures column may not exist yet (migration pending)
-  const updateData: Record<string, unknown> = {
-    running_at: null,
-    last_run_at: new Date(now - result.durationMs).toISOString(),
-    last_run_status: result.status,
-    last_run_error: result.error || null,
-    last_run_duration_ms: result.durationMs,
-    next_run_at: nextRunAt,
-    is_active: isActive,
-  }
-
-  // Try to update with consecutive_failures first
-  const { error: updateError } = await state.supabase
+  await state.supabase
     .from("automation_jobs")
-    .update({ ...updateData, consecutive_failures: consecutiveFailures })
+    .update({
+      running_at: null,
+      last_run_at: new Date(now - result.durationMs).toISOString(),
+      last_run_status: result.status,
+      last_run_error: result.error || null,
+      last_run_duration_ms: result.durationMs,
+      next_run_at: nextRunAt,
+      is_active: isActive,
+      consecutive_failures: consecutiveFailures,
+    })
     .eq("id", job.id)
-
-  // If column doesn't exist, retry without it
-  if (updateError?.message?.includes("consecutive_failures")) {
-    await state.supabase.from("automation_jobs").update(updateData).eq("id", job.id)
-  }
 
   // Create run record with full message log
   await state.supabase.from("automation_runs").insert({

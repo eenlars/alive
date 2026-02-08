@@ -10,6 +10,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js"
+import { computeNextRunAtMs } from "@webalive/automation"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { runAutomationJob } from "@/lib/automation/executor"
@@ -70,7 +71,23 @@ export async function POST(req: NextRequest) {
 
   console.log(`[internal/automation/trigger] Running job ${jobId} for ${site.hostname}`)
 
-  // Run the automation
+  const startedAt = new Date()
+  const startedAtIso = startedAt.toISOString()
+
+  // Atomically claim the job
+  const { data: claimed } = await supabase
+    .from("automation_jobs")
+    .update({ running_at: startedAtIso })
+    .eq("id", job.id)
+    .is("running_at", null)
+    .select("id")
+    .limit(1)
+
+  if (!claimed || claimed.length === 0) {
+    return createErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, 409)
+  }
+
+  // Run the automation (pure execution, no DB side effects)
   const result = await runAutomationJob({
     jobId: job.id,
     userId: job.user_id,
@@ -80,10 +97,51 @@ export async function POST(req: NextRequest) {
     timeoutSeconds: job.action_timeout_seconds || 300,
   })
 
+  const now = new Date()
+  const status = result.success ? "success" : "failure"
+
+  // Compute next_run_at for cron jobs
+  let nextRunAt: string | null = null
+  if (job.trigger_type === "cron" && job.cron_schedule) {
+    const nextMs = computeNextRunAtMs(
+      { kind: "cron", expr: job.cron_schedule, tz: job.cron_timezone || undefined },
+      now.getTime(),
+    )
+    if (nextMs) {
+      nextRunAt = new Date(nextMs).toISOString()
+    }
+  }
+
+  // Update job state
+  await supabase
+    .from("automation_jobs")
+    .update({
+      running_at: null,
+      last_run_at: startedAtIso,
+      last_run_status: status,
+      last_run_error: result.error ?? null,
+      last_run_duration_ms: result.durationMs,
+      next_run_at: nextRunAt,
+    })
+    .eq("id", job.id)
+
+  // Insert run record
+  await supabase.from("automation_runs").insert({
+    job_id: job.id,
+    started_at: startedAtIso,
+    completed_at: now.toISOString(),
+    duration_ms: result.durationMs,
+    status,
+    error: result.error ?? null,
+    result: result.response ? { response: result.response.substring(0, 10000) } : null,
+    messages: result.messages ?? null,
+    triggered_by: "manual",
+  })
+
   return NextResponse.json({
     ok: result.success,
     durationMs: result.durationMs,
     error: result.error,
-    response: result.response?.substring(0, 2000), // Limit response size
+    response: result.response?.substring(0, 2000),
   })
 }
