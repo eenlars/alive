@@ -179,12 +179,12 @@ export {
   createStreamCanUseTool,
   denyTool,
   filterToolsForPlanMode,
-  isHeavyBashCommand,
   // Helper functions
   getStreamAllowedTools,
   getStreamDisallowedTools,
   getStreamMcpServers,
   getWorkspacePath,
+  isHeavyBashCommand,
   PLAN_MODE_BLOCKED_TOOLS,
   type PlanModeBlockedTool,
   STREAM_ADMIN_ONLY_SDK_TOOLS,
