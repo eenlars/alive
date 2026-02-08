@@ -331,7 +331,7 @@ export function GeneralSettings() {
             Model
           </label>
           <p className={`${text.muted} mb-3`}>
-            {apiKey || canSelectAnyModel
+            {apiKey || canSelectAnyModel || user?.isAdmin
               ? "Opus is the smartest but slowest. Sonnet balances speed and quality. Haiku is fastest for simple tasks."
               : `You're using ${getModelDisplayName(DEFAULT_MODEL)}. Add your own API key above to switch models.`}
           </p>
@@ -339,7 +339,7 @@ export function GeneralSettings() {
             id="claude-model"
             value={model}
             onChange={handleModelChange}
-            disabled={!apiKey && !canSelectAnyModel}
+            disabled={!apiKey && !canSelectAnyModel && !user?.isAdmin}
             className={select}
             aria-label="Claude Model Selection"
           >
