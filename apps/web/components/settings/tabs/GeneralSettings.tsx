@@ -1,53 +1,109 @@
 "use client"
 
 import { useBilling } from "@flowglad/nextjs"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, LogOut, Moon, Sun } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
 import { getModelDisplayName } from "@/lib/models/claude-models"
 import { useCredits, useCreditsError, useCreditsLoading, useUserActions } from "@/lib/providers/UserStoreProvider"
 import { CLAUDE_MODELS, type ClaudeModel, DEFAULT_MODEL, useLLMStore } from "@/lib/stores/llmStore"
 import { useCurrentWorkspace } from "@/lib/stores/workspaceStore"
-import { infoCard, input, primaryButton, secondaryButton, select, smallButton, text, warningCard } from "../styles"
+import { useWorkspaceActions } from "@/lib/stores/workspaceStore"
+import {
+  dangerButton,
+  infoCard,
+  input,
+  primaryButton,
+  readOnlyField,
+  secondaryButton,
+  sectionDivider,
+  select,
+  selectionCardActive,
+  selectionCardInactive,
+  smallButton,
+  text,
+  warningCard,
+} from "../styles"
 import { SettingsTabLayout } from "./SettingsTabLayout"
 
 function isValidModel(value: string): value is ClaudeModel {
   return Object.values(CLAUDE_MODELS).includes(value as ClaudeModel)
 }
 
-export function LLMSettings() {
+export function GeneralSettings() {
+  // --- Profile state ---
+  const { user } = useAuth()
+  const router = useRouter()
+  const { setCurrentWorkspace } = useWorkspaceActions()
+  const { theme, setTheme } = useTheme()
+
+  const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
+    setTheme(newTheme)
+  }
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
+      })
+      if (!res.ok) {
+        console.error("Logout returned", res.status)
+      }
+      setCurrentWorkspace(null)
+      router.push("/")
+    } catch (error) {
+      console.error("Logout failed:", error)
+    }
+  }
+
+  // --- AI state ---
   const { apiKey, model, setApiKey, setModel, clearApiKey, error } = useLLMStore()
   const [showApiKey, setShowApiKey] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState("")
   const [isSaved, setIsSaved] = useState(false)
   const [isUpgrading, setIsUpgrading] = useState(false)
 
-  // Credits state
   const credits = useCredits()
   const creditsLoading = useCreditsLoading()
   const creditsError = useCreditsError()
   const { fetchCredits } = useUserActions()
 
-  // FlowGlad billing state
   const billing = useBilling()
 
-  // Check if user can select any model (server-side flag based on UNRESTRICTED_MODEL_EMAILS env var)
-  const { user: sessionUser } = useAuth()
-  const canSelectAnyModel = sessionUser?.canSelectAnyModel ?? false
+  const canSelectAnyModel = user?.canSelectAnyModel ?? false
+  const enabledModels = user?.enabledModels ?? []
+  const isModelAvailable = (modelId: string): boolean => {
+    if (apiKey || user?.isAdmin) return true
+    if (enabledModels.length > 0) return enabledModels.includes(modelId)
+    return modelId === DEFAULT_MODEL
+  }
 
-  // Get current workspace from store
   const workspace = useCurrentWorkspace()
 
   useEffect(() => {
     setApiKeyInput(apiKey || "")
   }, [apiKey])
 
-  // Fetch credits when component mounts
   useEffect(() => {
     if (workspace && !apiKey) {
       fetchCredits(workspace)
     }
   }, [fetchCredits, apiKey, workspace])
+
+  // Reset model when current selection becomes unavailable
+  useEffect(() => {
+    if (!isModelAvailable(model)) {
+      const fallback = enabledModels.length > 0 ? enabledModels[0] : DEFAULT_MODEL
+      if (isValidModel(fallback)) {
+        setModel(fallback)
+      } else {
+        setModel(DEFAULT_MODEL)
+      }
+    }
+  }, [apiKey, user?.isAdmin, enabledModels, model, setModel])
 
   const handleSaveApiKey = () => {
     const trimmedKey = apiKeyInput.trim()
@@ -82,11 +138,57 @@ export function LLMSettings() {
   const isKeyChanged = apiKeyInput !== (apiKey || "")
 
   return (
-    <SettingsTabLayout title="AI Model" description="Configure your AI settings">
+    <SettingsTabLayout title="General" description="Your account, appearance, and AI model settings">
       <div className="space-y-4 sm:space-y-6">
-        {/* Credits Display - Only show when using workspace credits */}
+        {/* Email */}
+        <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-75">
+          <p className={`${text.label} mb-0.5`}>Email Address</p>
+          <p className={`${text.muted} mb-2`}>
+            The email you signed up with. This is used for login and notifications.
+          </p>
+          <div className={readOnlyField}>{user?.email || "\u2014"}</div>
+        </div>
+
+        {/* Theme */}
+        <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-175`}>
+          <p className={`${text.label} mb-0.5`}>Theme</p>
+          <p className={`${text.muted} mb-3`}>
+            Controls how the interface looks. System follows your device's setting.
+          </p>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => handleThemeChange("light")}
+              className={theme === "light" ? selectionCardActive : selectionCardInactive}
+            >
+              <Sun size={20} strokeWidth={1.5} className="text-black/70 dark:text-white/70" />
+              <span className={text.description}>Light</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleThemeChange("dark")}
+              className={theme === "dark" ? selectionCardActive : selectionCardInactive}
+            >
+              <Moon size={20} strokeWidth={1.5} className="text-black/70 dark:text-white/70" />
+              <span className={text.description}>Dark</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleThemeChange("system")}
+              className={theme === "system" ? selectionCardActive : selectionCardInactive}
+            >
+              <div className="flex items-center gap-1.5">
+                <Sun size={14} strokeWidth={1.5} className="text-black/70 dark:text-white/70" />
+                <Moon size={14} strokeWidth={1.5} className="text-black/70 dark:text-white/70" />
+              </div>
+              <span className={text.description}>System</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Credits - only when using workspace credits */}
         {!apiKey && (
-          <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-50">
+          <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-50`}>
             {(() => {
               const isLow = credits != null && credits < 5
               const handleUpgrade = async () => {
@@ -139,7 +241,13 @@ export function LLMSettings() {
                   <h4 className={text.label}>Credits</h4>
                   <div className="flex items-center gap-3">
                     <span className="text-lg font-semibold text-black/90 dark:text-white/90">
-                      {creditsLoading ? "..." : creditsError ? "—" : credits != null ? credits.toFixed(2) : "—"}
+                      {creditsLoading
+                        ? "..."
+                        : creditsError
+                          ? "\u2014"
+                          : credits != null
+                            ? credits.toFixed(2)
+                            : "\u2014"}
                     </span>
                     <button
                       type="button"
@@ -156,12 +264,15 @@ export function LLMSettings() {
           </div>
         )}
 
-        <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-100">
-          <label htmlFor="anthropic-api-key" className={`block ${text.label} mb-1`}>
+        {/* API Key */}
+        <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-100`}>
+          <label htmlFor="anthropic-api-key" className={`block ${text.label} mb-0.5`}>
             Your API Key
             <span className={`ml-2 ${text.muted}`}>(optional)</span>
           </label>
-          <p className={`${text.description} mb-3`}>Use your own key to unlock all models</p>
+          <p className={`${text.muted} mb-3`}>
+            Bring your own Anthropic API key to use any model without credits. Get one at console.anthropic.com.
+          </p>
           <div className="space-y-3">
             <div className="relative">
               <input
@@ -214,14 +325,15 @@ export function LLMSettings() {
           </div>
         </div>
 
-        <div className="animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-150">
-          <label htmlFor="claude-model" className={`block ${text.label} mb-1`}>
+        {/* Model Selection */}
+        <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-150`}>
+          <label htmlFor="claude-model" className={`block ${text.label} mb-0.5`}>
             Model
           </label>
-          <p className={`${text.description} mb-3`}>
+          <p className={`${text.muted} mb-3`}>
             {apiKey || canSelectAnyModel
-              ? "Choose which Claude model to use"
-              : `Currently using ${getModelDisplayName(DEFAULT_MODEL)}`}
+              ? "Opus is the smartest but slowest. Sonnet balances speed and quality. Haiku is fastest for simple tasks."
+              : `You're using ${getModelDisplayName(DEFAULT_MODEL)}. Add your own API key above to switch models.`}
           </p>
           <select
             id="claude-model"
@@ -231,17 +343,34 @@ export function LLMSettings() {
             className={select}
             aria-label="Claude Model Selection"
           >
-            <option value={CLAUDE_MODELS.OPUS_4_6}>Claude Opus 4.6</option>
-            <option value={CLAUDE_MODELS.SONNET_4_5}>Claude Sonnet 4.5 (Recommended)</option>
-            <option value={CLAUDE_MODELS.HAIKU_4_5}>Claude Haiku 4.5</option>
+            {(() => {
+              const allModels = Object.values(CLAUDE_MODELS) as ClaudeModel[]
+              const available = allModels.filter(isModelAvailable)
+              const options = available.length > 0 ? available : [DEFAULT_MODEL]
+              return options.map(m => (
+                <option key={m} value={m}>
+                  {getModelDisplayName(m)}
+                </option>
+              ))
+            })()}
           </select>
         </div>
 
+        {/* Privacy notice */}
         <div className={`${infoCard} animate-in fade-in-0 slide-in-from-bottom-2 duration-300 delay-200`}>
           <p className={`${text.description} leading-relaxed`}>
             Your API key is stored only in your browser (hidden from view). When you send messages, we use your key to
-            call Anthropic&apos;s API—but we never save it on our servers.
+            call Anthropic&apos;s API&mdash;but we never save it on our servers.
           </p>
+        </div>
+
+        {/* Logout */}
+        <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-200`}>
+          <p className={`${text.muted} mb-3`}>Signs you out of this session. Your data and websites are kept safe.</p>
+          <button type="button" onClick={handleLogout} className={`${dangerButton} gap-2`} data-testid="logout-button">
+            <LogOut size={16} strokeWidth={1.75} />
+            Log out
+          </button>
         </div>
       </div>
     </SettingsTabLayout>

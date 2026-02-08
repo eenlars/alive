@@ -116,6 +116,7 @@ describe("API Schema Type System", () => {
           canSelectAnyModel: boolean
           isAdmin: boolean
           isSuperadmin: boolean
+          enabledModels: string[]
         } | null
       }>()
     })
@@ -184,6 +185,7 @@ describe("API Schema Type System", () => {
           canSelectAnyModel: boolean
           isAdmin: boolean
           isSuperadmin: boolean
+          enabledModels: string[]
         } | null
       }>()
     })

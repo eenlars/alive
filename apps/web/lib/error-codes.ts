@@ -52,6 +52,7 @@ export const ErrorCodes = {
 
   // Conversation errors (4xxx)
   CONVERSATION_BUSY: "CONVERSATION_BUSY",
+  SESSION_CORRUPT: "SESSION_CORRUPT",
 
   // SDK errors (5xxx)
   QUERY_FAILED: "QUERY_FAILED",
@@ -263,6 +264,9 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
 
     case ErrorCodes.CONVERSATION_BUSY:
       return "I'm still working on your previous request. Please wait for me to finish before sending another message."
+
+    case ErrorCodes.SESSION_CORRUPT:
+      return "This conversation's session got interrupted during a tool call and can't be resumed. You can continue in a new tab with your conversation history."
 
     case ErrorCodes.QUERY_FAILED:
       return "I encountered an error while processing your request. This might be a temporary issue - please try again."

@@ -349,20 +349,28 @@ export async function POST(req: NextRequest) {
     // Force default model for credit users (cost management)
     // API key users can choose any model
     // Exception: Admins (set via ADMIN_EMAILS env var) can use any model
+    // Exception: Users with specific enabled_models in their metadata
     const isUnrestrictedUser = user.isAdmin
+    const hasModelAccess = (model: string) => isUnrestrictedUser || user.enabledModels.includes(model)
 
     // Determine model with proper type validation
     let effectiveModel: ClaudeModel
     if (tokenSource === "workspace" && !isUnrestrictedUser) {
-      // ENFORCED for org credits - always use default
-      effectiveModel = DEFAULT_MODEL
+      // Check if user has per-model access for their requested model
+      const requestedModel = userModel || env.CLAUDE_MODEL
+      if (isValidClaudeModel(requestedModel) && hasModelAccess(requestedModel)) {
+        effectiveModel = requestedModel
+      } else {
+        // ENFORCED for org credits - always use default
+        effectiveModel = DEFAULT_MODEL
+      }
     } else {
       // User's choice with API key or unrestricted user
       const requestedModel = userModel || env.CLAUDE_MODEL
       effectiveModel = isValidClaudeModel(requestedModel) ? requestedModel : DEFAULT_MODEL
     }
 
-    if (tokenSource === "workspace" && userModel && userModel !== DEFAULT_MODEL && !isUnrestrictedUser) {
+    if (tokenSource === "workspace" && userModel && userModel !== DEFAULT_MODEL && !hasModelAccess(userModel)) {
       logger.log(`Model override: User requested ${userModel} but forcing ${DEFAULT_MODEL} for org credits`)
     }
     logger.log("Claude model:", effectiveModel)
@@ -609,6 +617,30 @@ export async function POST(req: NextRequest) {
                 controller.error(retryErr)
                 return
               }
+            }
+
+            // Check for "tool use concurrency issues" (corrupt session state — pending tool_use without tool_result)
+            // Anthropic returns 400 when resuming a session with unresolved tool calls.
+            // Don't auto-recover (would lose context). Instead clear the session and tell the
+            // frontend so it can offer "continue in new tab" with conversation history.
+            const isToolConcurrency = combinedMessage.includes("tool use concurrency")
+
+            if (isToolConcurrency && existingSessionId && sessionKey) {
+              logger.log(
+                `[SESSION CORRUPT] Tool use concurrency error on session "${existingSessionId}", clearing session and notifying frontend`,
+              )
+              await sessionStore.delete(sessionKey)
+              controller.error(
+                new Error(
+                  JSON.stringify({
+                    ok: false,
+                    error: ErrorCodes.SESSION_CORRUPT,
+                    message:
+                      "This conversation's session got interrupted during a tool call and can't be resumed. You can continue in a new tab with your conversation history.",
+                  }),
+                ),
+              )
+              return
             }
 
             // Existing: Check for "session not found" error (stale session ID)

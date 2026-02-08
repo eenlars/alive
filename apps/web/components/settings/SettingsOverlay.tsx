@@ -5,8 +5,7 @@ import { Suspense } from "react"
 import { SettingsPageClient } from "./SettingsPageClient"
 
 type SettingsTab =
-  | "account"
-  | "llm"
+  | "general"
   | "goal"
   | "skills"
   | "organization"

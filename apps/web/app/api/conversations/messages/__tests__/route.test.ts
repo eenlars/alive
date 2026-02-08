@@ -51,6 +51,7 @@ const TEST_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 const TEST_TAB_WITH_CONVERSATION = {

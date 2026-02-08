@@ -332,7 +332,7 @@ export const DEFAULTS = {
   CLAUDE_MODEL: "claude-sonnet-4-5" as const,
 
   /** Default Claude max turns */
-  CLAUDE_MAX_TURNS: 50,
+  CLAUDE_MAX_TURNS: 100,
 
   /** Default fallback origin for CORS */
   FALLBACK_ORIGIN: `https://app.${WILDCARD_DOMAIN}`,
