@@ -9,6 +9,7 @@
 import { test as base, type Page } from "@playwright/test"
 import { COOKIE_NAMES, createTestStorageState, DOMAINS, TEST_CONFIG } from "@webalive/shared"
 import jwt from "jsonwebtoken"
+import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
 
 export interface TestUser {
   userId: string
@@ -145,7 +146,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         userId: workerStorageState.userId,
         email: workerStorageState.email,
         name: workerStorageState.orgName,
-        workspaces: [workerStorageState.workspace],
+        scopes: DEFAULT_USER_SCOPES,
+        orgIds: [workerStorageState.orgId],
+        orgRoles: { [workerStorageState.orgId]: "owner" as const },
       },
       jwtSecret,
       { expiresIn: "30d" },

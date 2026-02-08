@@ -171,10 +171,10 @@ export function AuthModal() {
       // Update auth store
       authStore.setAuthenticated()
 
-      // Validate current workspace against JWT workspaces
-      // If the localStorage workspace isn't in the JWT, clear it to force re-selection
+      // Validate current workspace against server-returned workspace access list
+      // If the localStorage workspace isn't accessible, clear it to force re-selection
       if (currentWorkspace && data.workspaces && !data.workspaces.includes(currentWorkspace)) {
-        console.log(`[AuthModal] Clearing invalid workspace: ${currentWorkspace} (not in JWT)`)
+        console.log(`[AuthModal] Clearing invalid workspace: ${currentWorkspace} (not in accessible workspaces)`)
         setCurrentWorkspace(null)
       }
 

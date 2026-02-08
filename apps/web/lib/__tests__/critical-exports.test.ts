@@ -12,7 +12,7 @@ describe("@webalive/shared exports", () => {
 
     // Cookie names - used everywhere for auth
     expect(shared.COOKIE_NAMES).toBeDefined()
-    expect(shared.COOKIE_NAMES.SESSION).toBe("auth_session_v2")
+    expect(shared.COOKIE_NAMES.SESSION).toBe("auth_session_v3")
 
     // Paths - used for file operations
     expect(shared.PATHS).toBeDefined()

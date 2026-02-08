@@ -2,7 +2,7 @@ import { env } from "@webalive/env/server"
 import { SECURITY, STANDALONE } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { createSessionToken } from "@/features/auth/lib/jwt"
+import { createSessionToken, type SessionOrgRole } from "@/features/auth/lib/jwt"
 import { createCorsResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES, getSessionCookieOptions } from "@/lib/auth/cookies"
 import { addCorsHeaders } from "@/lib/cors-utils"
@@ -120,17 +120,25 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Query user's workspaces (only once at login, embedded in JWT)
-  // This eliminates database queries on every subsequent request
-  const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", user.user_id)
+  // Query memberships and workspaces for login response payload.
+  const { data: memberships } = await iam.from("org_memberships").select("org_id, role").eq("user_id", user.user_id)
 
   const workspaces: string[] = []
+  const orgIds: string[] = []
+  const orgRoles: Record<string, SessionOrgRole> = {}
   if (memberships && memberships.length > 0) {
-    const orgIds = memberships.map(m => m.org_id)
+    for (const membership of memberships) {
+      if (!membership.org_id) continue
+      if (membership.role !== "owner" && membership.role !== "admin" && membership.role !== "member") continue
+      orgIds.push(membership.org_id)
+      orgRoles[membership.org_id] = membership.role
+    }
+
+    const dedupedOrgIds = [...new Set(orgIds)]
 
     // Get all domains for these orgs (include is_test_env to handle test domains)
     const app = await createAppClient("service")
-    const { data: domains } = await app.from("domains").select("hostname, is_test_env").in("org_id", orgIds)
+    const { data: domains } = await app.from("domains").select("hostname, is_test_env").in("org_id", dedupedOrgIds)
 
     if (domains) {
       // Filter to only include domains that exist on THIS server
@@ -141,9 +149,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Create JWT session token with embedded user profile + workspaces
-  // This eliminates 3 database queries per request (iam.users, org_memberships, domains)
-  const sessionToken = await createSessionToken(user.user_id, user.email || "", user.display_name, workspaces)
+  // Create JWT session token with scoped org access claims.
+  const sessionToken = await createSessionToken({
+    userId: user.user_id,
+    email: user.email || "",
+    name: user.display_name,
+    orgIds: [...new Set(orgIds)],
+    orgRoles,
+  })
 
   console.log(`[Login] Successfully authenticated: ${user.email} (${workspaces.length} workspaces)`)
 

@@ -12,7 +12,7 @@
  * Both frontend (apps/web) and backend tools (packages/tools) use these.
  */
 export const COOKIE_NAMES = {
-  SESSION: "auth_session_v2", // v2: changed sameSite from "none" to "lax" for mobile Safari ITP
+  SESSION: "auth_session_v3", // v3: scoped JWT claims (orgs + scopes), workspace list removed
   MANAGER_SESSION: "manager_session",
 } as const
 

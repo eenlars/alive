@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto"
 import { env } from "@webalive/env/server"
 import { SECURITY, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
-import { getSessionUser } from "@/features/auth/lib/auth"
+import { hasSessionScope, getSessionUser } from "@/features/auth/lib/auth"
+import { SESSION_SCOPES } from "@/features/auth/lib/jwt"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { filterLocalDomains } from "@/lib/domains"
@@ -29,6 +30,10 @@ export async function GET(req: NextRequest) {
       return createCorsSuccessResponse(origin, {
         workspaces: [`test.${TEST_CONFIG.EMAIL_DOMAIN}`, `demo.${TEST_CONFIG.EMAIL_DOMAIN}`],
       })
+    }
+
+    if (!(await hasSessionScope(SESSION_SCOPES.WORKSPACE_LIST))) {
+      return createCorsErrorResponse(origin, ErrorCodes.ORG_ACCESS_DENIED, 403, { requestId })
     }
 
     const app = await createAppClient("service")

@@ -57,7 +57,10 @@ const MOCK_USER: {
 }
 
 // Mock membership/domain data
-const MOCK_MEMBERSHIPS = [{ org_id: "org-1" }, { org_id: "org-2" }]
+const MOCK_MEMBERSHIPS = [
+  { org_id: "org-1", role: "owner" },
+  { org_id: "org-2", role: "member" },
+]
 const MOCK_DOMAINS = [{ hostname: "site1.example.com" }, { hostname: "site2.example.com" }]
 
 function createMockRequest(body: Record<string, unknown>, origin?: string): NextRequest {
@@ -298,10 +301,16 @@ describe("POST /api/login", () => {
       })
       await POST(req)
 
-      expect(createSessionToken).toHaveBeenCalledWith(MOCK_USER.user_id, MOCK_USER.email, MOCK_USER.display_name, [
-        "site1.example.com",
-        "site2.example.com",
-      ])
+      expect(createSessionToken).toHaveBeenCalledWith({
+        userId: MOCK_USER.user_id,
+        email: MOCK_USER.email,
+        name: MOCK_USER.display_name,
+        orgIds: ["org-1", "org-2"],
+        orgRoles: {
+          "org-1": "owner",
+          "org-2": "member",
+        },
+      })
     })
 
     it("should handle user with no workspaces", async () => {

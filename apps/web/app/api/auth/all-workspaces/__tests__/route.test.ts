@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 // Mock auth functions
 vi.mock("@/features/auth/lib/auth", () => ({
   getSessionUser: vi.fn(),
+  hasSessionScope: vi.fn(),
 }))
 
 // Mock CORS responses
@@ -64,7 +65,7 @@ vi.mock("@/lib/supabase/app", () => ({
 
 // Import after mocking
 const { GET } = await import("../route")
-const { getSessionUser } = await import("@/features/auth/lib/auth")
+const { getSessionUser, hasSessionScope } = await import("@/features/auth/lib/auth")
 const { domainExistsOnThisServer } = await import("@/lib/domains")
 
 // Mock users
@@ -133,6 +134,7 @@ describe("GET /api/auth/all-workspaces", () => {
     vi.clearAllMocks()
     // Default: authenticated regular user
     vi.mocked(getSessionUser).mockResolvedValue(REGULAR_USER)
+    vi.mocked(hasSessionScope).mockResolvedValue(true)
     // Default: all domains exist on server
     vi.mocked(domainExistsOnThisServer).mockReturnValue(true)
   })
@@ -160,6 +162,17 @@ describe("GET /api/auth/all-workspaces", () => {
       const response = await GET(req)
 
       expect(response.status).toBe(200)
+    })
+
+    it("should return 403 when workspace:list scope is missing", async () => {
+      vi.mocked(hasSessionScope).mockResolvedValue(false)
+
+      const req = createMockRequest()
+      const response = await GET(req)
+      const data = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(data.error).toBe("ORG_ACCESS_DENIED")
     })
   })
 

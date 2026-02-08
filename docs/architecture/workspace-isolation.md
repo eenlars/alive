@@ -242,16 +242,23 @@ if (targetUid && targetGid) {
 
 ### Layer 1: Authentication
 
-User authenticates for specific workspace → JWT with workspace list:
+User authenticates → JWT v3 with compact scopes + org access claims:
 
 ```typescript
 // JWT payload
 {
-  workspaces: ["example.com", "demo.site.com"],
+  scopes: ["workspace:access", "workspace:list", "org:read"],
+  orgIds: ["org_abc123", "org_def456"],
+  orgRoles: { org_abc123: "owner", org_def456: "member" },
   iat: 1234567890,
   exp: 1237159890
 }
 ```
+
+Workspace authorization is resolved at request time:
+1. `workspace hostname -> org_id` (cached)
+2. `user_id -> org memberships` (cached)
+3. Allow when scope includes `workspace:access` and org membership matches
 
 ### Layer 2: Workspace Resolution
 

@@ -113,47 +113,84 @@ async function getJwtConfig() {
   return jwtConfigPromise
 }
 
-export interface SessionPayload {
+export const SESSION_SCOPES = {
+  WORKSPACE_ACCESS: "workspace:access",
+  WORKSPACE_LIST: "workspace:list",
+  ORG_READ: "org:read",
+  MANAGER_ACCESS: "manager:access",
+} as const
+
+export type SessionScope = (typeof SESSION_SCOPES)[keyof typeof SESSION_SCOPES]
+export type SessionOrgRole = "owner" | "admin" | "member"
+export type SessionOrgRoles = Record<string, SessionOrgRole>
+
+export const DEFAULT_USER_SCOPES: SessionScope[] = [
+  SESSION_SCOPES.WORKSPACE_ACCESS,
+  SESSION_SCOPES.WORKSPACE_LIST,
+  SESSION_SCOPES.ORG_READ,
+]
+
+function isValidScope(scope: unknown): scope is SessionScope {
+  return Object.values(SESSION_SCOPES).includes(scope as SessionScope)
+}
+
+function isValidOrgRole(role: unknown): role is SessionOrgRole {
+  return role === "owner" || role === "admin" || role === "member"
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== ""
+}
+
+function normalizeScopes(scopes: SessionScope[] | undefined): SessionScope[] {
+  const source = scopes && scopes.length > 0 ? scopes : DEFAULT_USER_SCOPES
+  return [...new Set(source)]
+}
+
+export interface SessionPayloadV3 {
   sub: string // Standard JWT claim for user ID (required for RLS)
   userId: string // Legacy claim (backward compatibility)
   email: string // User email (eliminates iam.users query)
   name: string | null // Display name (eliminates iam.users query)
-  workspaces: string[] // Authorized domain hostnames (eliminates org_memberships + domains queries)
+  scopes: SessionScope[]
+  orgIds: string[]
+  orgRoles: SessionOrgRoles
   iat?: number
   exp?: number
   [key: string]: unknown // Index signature for JWTPayload compatibility
+}
+
+export interface CreateSessionTokenInput {
+  userId: string
+  email: string
+  name: string | null
+  scopes?: SessionScope[]
+  orgIds?: string[]
+  orgRoles?: SessionOrgRoles
 }
 
 /**
  * Create a signed JWT token for authenticated user
  * Token expires in 30 days
  *
- * @param userId - User ID (must be a valid UUID)
- * @param email - User email
- * @param name - User display name (nullable)
- * @param workspaces - Authorized domain hostnames (workspace access list)
+ * @param input - JWT payload input for session claims
  * @returns Signed JWT token
  * @throws Error if userId is invalid
  *
- * NOTE: Embeds user profile + workspace access to eliminate database queries on every request.
+ * NOTE: Embeds user profile + org access metadata.
  * Includes both 'sub' (standard JWT claim for Supabase RLS) and 'userId' (backward compatibility).
  */
-export async function createSessionToken(
-  userId: string,
-  email: string,
-  name: string | null,
-  workspaces: string[],
-): Promise<string> {
+export async function createSessionToken(input: CreateSessionTokenInput): Promise<string> {
   // Lazy load JWT configuration (validates env vars on first use)
   const config = await getJwtConfig()
+  const { userId, email, name } = input
+  const scopes = normalizeScopes(input.scopes)
+  const orgIds = [...new Set(input.orgIds ?? [])]
+  const orgRoles = input.orgRoles ?? {}
 
   // Security: Validate userId before creating token
-  if (!userId || typeof userId !== "string") {
+  if (!isNonEmptyString(userId)) {
     throw new Error("[JWT] userId must be a non-empty string")
-  }
-
-  if (userId.trim() === "") {
-    throw new Error("[JWT] userId cannot be empty or whitespace")
   }
 
   // Security: Detect malicious patterns
@@ -166,21 +203,49 @@ export async function createSessionToken(
   }
 
   // Security: Validate email
-  if (!email || typeof email !== "string" || email.trim() === "") {
+  if (!isNonEmptyString(email)) {
     throw new Error("[JWT] email must be a non-empty string")
   }
 
-  // Security: Validate workspaces array
-  if (!Array.isArray(workspaces)) {
-    throw new Error("[JWT] workspaces must be an array")
+  if (!Array.isArray(scopes) || scopes.length === 0 || !scopes.every(isValidScope)) {
+    throw new Error("[JWT] scopes must be a non-empty array of valid session scopes")
   }
 
-  const payload: SessionPayload = {
+  if (!Array.isArray(orgIds) || !orgIds.every(isNonEmptyString)) {
+    throw new Error("[JWT] orgIds must be an array of non-empty strings")
+  }
+
+  if (!orgRoles || typeof orgRoles !== "object" || Array.isArray(orgRoles)) {
+    throw new Error("[JWT] orgRoles must be an object")
+  }
+
+  const roleEntries = Object.entries(orgRoles)
+  for (const [orgId, role] of roleEntries) {
+    if (!isNonEmptyString(orgId) || !isValidOrgRole(role)) {
+      throw new Error("[JWT] orgRoles must map org IDs to valid roles")
+    }
+  }
+
+  for (const orgId of orgIds) {
+    if (!orgRoles[orgId]) {
+      throw new Error("[JWT] orgRoles must include every orgId")
+    }
+  }
+
+  for (const orgId of Object.keys(orgRoles)) {
+    if (!orgIds.includes(orgId)) {
+      throw new Error("[JWT] orgRoles contains org not present in orgIds")
+    }
+  }
+
+  const payload: SessionPayloadV3 = {
     sub: userId, // Standard JWT claim (used by RLS policies)
     userId: userId, // Legacy claim (backward compatibility)
     email: email,
     name: name,
-    workspaces: workspaces,
+    scopes,
+    orgIds,
+    orgRoles,
   }
 
   // Use ES256 if enabled, otherwise fall back to HS256
@@ -205,9 +270,9 @@ export async function createSessionToken(
  * Verify and decode a session JWT token
  * Supports both ES256 (new) and HS256 (legacy) tokens
  * @param token - JWT token to verify
- * @returns SessionPayload if valid, null if invalid/expired
+ * @returns SessionPayloadV3 if valid, null if invalid/expired
  */
-export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
+export async function verifySessionToken(token: string): Promise<SessionPayloadV3 | null> {
   try {
     // Lazy load JWT configuration (validates env vars on first use)
     const config = await getJwtConfig()
@@ -216,7 +281,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       return null
     }
 
-    let decoded: SessionPayload
+    let decoded: SessionPayloadV3
 
     // Try ES256 verification first (if enabled)
     if (config.es256Enabled) {
@@ -229,14 +294,14 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
         const { payload } = await jwtVerify(token, publicKey, {
           algorithms: ["ES256"],
         })
-        decoded = payload as SessionPayload
+        decoded = payload as SessionPayloadV3
       } catch (_es256Error) {
         // If ES256 fails, try HS256 (for backward compatibility)
-        decoded = verifyHS256(token, config.secret) as SessionPayload
+        decoded = verifyHS256(token, config.secret) as SessionPayloadV3
       }
     } else {
       // HS256 mode only
-      decoded = verifyHS256(token, config.secret) as SessionPayload
+      decoded = verifyHS256(token, config.secret) as SessionPayloadV3
     }
 
     // Extract user ID from either 'sub' or 'userId' (backward compatibility)
@@ -246,7 +311,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
     // Security: Both must be present and valid, OR one is present and we backfill
     const extractedUserId = sub || userId
 
-    if (!extractedUserId || typeof extractedUserId !== "string" || extractedUserId.trim() === "") {
+    if (!isNonEmptyString(extractedUserId)) {
       console.error("[JWT] Invalid token payload: sub/userId missing or invalid")
       return null
     }
@@ -257,31 +322,70 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       return null
     }
 
-    // Extract and validate required fields (email, name, workspaces)
+    // Extract and validate required fields
     const email = decoded.email
     const name = decoded.name ?? null
-    const workspaces = decoded.workspaces
+    const scopes = decoded.scopes
+    const orgIds = decoded.orgIds
+    const orgRoles = decoded.orgRoles
 
-    // Security: Validate email is present and valid (REQUIRED - no backward compatibility)
-    if (!email || typeof email !== "string" || email.trim() === "") {
-      console.error("[JWT] Invalid token payload: email missing or invalid (old token - re-login required)")
+    if (!isNonEmptyString(email)) {
+      console.error("[JWT] Invalid token payload: email missing or invalid")
       return null
     }
 
-    // Security: Validate workspaces is an array (REQUIRED - no backward compatibility)
-    if (!Array.isArray(workspaces)) {
-      console.error("[JWT] Invalid token payload: workspaces must be an array (old token - re-login required)")
+    if (!Array.isArray(scopes) || scopes.length === 0 || !scopes.every(isValidScope)) {
+      console.error("[JWT] Invalid token payload: scopes must be a non-empty array of valid scope strings")
       return null
     }
 
-    // Return payload with all required fields
+    if (!Array.isArray(orgIds) || !orgIds.every(isNonEmptyString)) {
+      console.error("[JWT] Invalid token payload: orgIds must be an array of non-empty strings")
+      return null
+    }
+
+    if (!orgRoles || typeof orgRoles !== "object" || Array.isArray(orgRoles)) {
+      console.error("[JWT] Invalid token payload: orgRoles must be an object")
+      return null
+    }
+
+    const normalizedOrgRoles: SessionOrgRoles = {}
+    for (const [orgId, role] of Object.entries(orgRoles)) {
+      if (!isNonEmptyString(orgId) || !isValidOrgRole(role)) {
+        console.error("[JWT] Invalid token payload: orgRoles must map org IDs to valid roles")
+        return null
+      }
+      normalizedOrgRoles[orgId] = role
+    }
+
+    for (const orgId of orgIds) {
+      if (!normalizedOrgRoles[orgId]) {
+        console.error("[JWT] Invalid token payload: orgRoles missing role for orgId")
+        return null
+      }
+    }
+
+    for (const orgId of Object.keys(normalizedOrgRoles)) {
+      if (!orgIds.includes(orgId)) {
+        console.error("[JWT] Invalid token payload: orgRoles has org not listed in orgIds")
+        return null
+      }
+    }
+
+    if (name !== null && typeof name !== "string") {
+      console.error("[JWT] Invalid token payload: name must be a string or null")
+      return null
+    }
+
     return {
       ...decoded,
       sub: sub || userId,
       userId: userId || sub,
       email: email,
       name: name,
-      workspaces: workspaces,
+      scopes: [...new Set(scopes)],
+      orgIds: [...new Set(orgIds)],
+      orgRoles: normalizedOrgRoles,
     }
   } catch (error) {
     if (error instanceof TokenExpiredError) {

@@ -70,13 +70,20 @@ describe("Manager Login Integration", () => {
   })
 
   it("should create manager JWT tokens", async () => {
-    const { createSessionToken, verifySessionToken } = await import("@/features/auth/lib/jwt")
+    const { createSessionToken, SESSION_SCOPES, verifySessionToken } = await import("@/features/auth/lib/jwt")
 
     expect(createSessionToken).toBeDefined()
     expect(verifySessionToken).toBeDefined()
 
     // Test manager JWT creation
-    const token = await createSessionToken("manager", "manager@system", "Manager", [])
+    const token = await createSessionToken({
+      userId: "manager",
+      email: "manager@system",
+      name: "Manager",
+      scopes: [SESSION_SCOPES.MANAGER_ACCESS],
+      orgIds: [],
+      orgRoles: {},
+    })
 
     expect(token).toBeDefined()
     expect(typeof token).toBe("string")
@@ -87,6 +94,7 @@ describe("Manager Login Integration", () => {
     expect(payload).toBeDefined()
     expect(payload?.userId).toBe("manager")
     expect(payload?.email).toBe("manager@system")
+    expect(payload?.scopes).toEqual([SESSION_SCOPES.MANAGER_ACCESS])
 
     // Test invalid token
     const invalid = await verifySessionToken("invalid.jwt.token")

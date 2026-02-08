@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { createSessionToken } from "@/features/auth/lib/jwt"
+import { createSessionToken, SESSION_SCOPES } from "@/features/auth/lib/jwt"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES, getSessionCookieOptions } from "@/lib/auth/cookies"
 import { managerLoginRateLimiter } from "@/lib/auth/rate-limiter"
@@ -66,7 +66,14 @@ export async function POST(req: NextRequest) {
     console.log("[Manager Login] Test mode authentication")
 
     // Create JWT session token (same as regular users, but with manager role)
-    const sessionToken = await createSessionToken("manager", "manager@system", "Manager", [])
+    const sessionToken = await createSessionToken({
+      userId: "manager",
+      email: "manager@system",
+      name: "Manager",
+      scopes: [SESSION_SCOPES.MANAGER_ACCESS],
+      orgIds: [],
+      orgRoles: {},
+    })
 
     const res = createCorsSuccessResponse(origin, { requestId })
     res.cookies.set(COOKIE_NAMES.MANAGER_SESSION, sessionToken, getSessionCookieOptions(host))
@@ -91,7 +98,14 @@ export async function POST(req: NextRequest) {
   managerLoginRateLimiter.reset(clientId)
 
   // Create JWT session token (same as regular users, but with manager role)
-  const sessionToken = await createSessionToken("manager", "manager@system", "Manager", [])
+  const sessionToken = await createSessionToken({
+    userId: "manager",
+    email: "manager@system",
+    name: "Manager",
+    scopes: [SESSION_SCOPES.MANAGER_ACCESS],
+    orgIds: [],
+    orgRoles: {},
+  })
 
   // Set manager session cookie with JWT token
   const res = createCorsSuccessResponse(origin, { requestId })

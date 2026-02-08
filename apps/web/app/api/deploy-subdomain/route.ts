@@ -1,9 +1,7 @@
 import { existsSync } from "node:fs"
-import { COOKIE_NAMES, PATHS } from "@webalive/shared"
-import { cookies } from "next/headers"
+import { PATHS } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
-import { createSessionToken, verifySessionToken } from "@/features/auth/lib/jwt"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { buildSubdomain } from "@/lib/config"
@@ -209,34 +207,6 @@ export async function POST(request: NextRequest) {
       orgId,
       chatUrl: `/chat?slug=${slug}`,
     })
-
-    // For authenticated users: regenerate JWT with the new workspace included
-    // For anonymous users: don't set session - they'll log in after account creation
-    if (sessionUser) {
-      const jar = await cookies()
-      const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
-
-      if (sessionCookie?.value) {
-        // Get current workspaces from JWT and add the new domain
-        const payload = await verifySessionToken(sessionCookie.value)
-        if (payload) {
-          const updatedWorkspaces = [...payload.workspaces, fullDomain]
-          const newToken = await createSessionToken(
-            sessionUser.id,
-            sessionUser.email,
-            sessionUser.name,
-            updatedWorkspaces,
-          )
-
-          res.cookies.set(COOKIE_NAMES.SESSION, newToken, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "none",
-            path: "/",
-          })
-        }
-      }
-    }
 
     return res
   } catch (error: unknown) {

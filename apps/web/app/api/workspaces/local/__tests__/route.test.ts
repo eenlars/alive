@@ -56,8 +56,8 @@ const { GET, POST } = await import("../route")
 function createMockCookies(sessionValue?: string) {
   return {
     get: vi.fn((name: string) => {
-      // COOKIE_NAMES.SESSION = "auth_session_v2"
-      if (name === "auth_session_v2" && sessionValue) {
+      // COOKIE_NAMES.SESSION = "auth_session_v3"
+      if (name === "auth_session_v3" && sessionValue) {
         return { value: sessionValue }
       }
       return undefined
