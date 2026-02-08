@@ -13,7 +13,7 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { STANDALONE } from "@webalive/shared"
+import { COOKIE_NAMES, STANDALONE } from "@webalive/shared"
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Store original env
@@ -56,8 +56,7 @@ const { GET, POST } = await import("../route")
 function createMockCookies(sessionValue?: string) {
   return {
     get: vi.fn((name: string) => {
-      // COOKIE_NAMES.SESSION = "auth_session_v3"
-      if (name === "auth_session_v3" && sessionValue) {
+      if (name === COOKIE_NAMES.SESSION && sessionValue) {
         return { value: sessionValue }
       }
       return undefined

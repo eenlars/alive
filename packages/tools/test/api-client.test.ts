@@ -538,7 +538,7 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
    * THE COOKIE NAME BUG - Primary regression test
    * Cookie header MUST use "auth_session_v3" not "session"
    */
-  it("should use 'auth_session' cookie name from shared constant, not hardcoded 'session'", async () => {
+  it("should use 'auth_session_v3' cookie name from shared constant, not hardcoded 'session'", async () => {
     await callBridgeApi({
       endpoint: "/api/restart-workspace",
       body: { workspaceRoot: "/srv/webalive/sites/test.com/user" },

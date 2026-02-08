@@ -18,11 +18,11 @@ import type {
   FileWriteInput,
   GlobInput,
   GrepInput,
-  KillShellInput,
   ListMcpResourcesInput,
   McpInput,
   NotebookEditInput,
   ReadMcpResourceInput,
+  TaskStopInput,
   TodoWriteInput,
   ToolInputSchemas,
   WebFetchInput,
@@ -63,7 +63,7 @@ type SDKToolMap = {
   FileWriteInput: "Write"
   GlobInput: "Glob"
   GrepInput: "Grep"
-  KillShellInput: "TaskStop"
+  TaskStopInput: "TaskStop"
   ListMcpResourcesInput: "ListMcpResources"
   McpInput: "Mcp"
   NotebookEditInput: "NotebookEdit"
@@ -86,7 +86,7 @@ type _ValidateFileReadInput = FileReadInput extends ToolInputSchemas ? true : ne
 type _ValidateFileWriteInput = FileWriteInput extends ToolInputSchemas ? true : never
 type _ValidateGlobInput = GlobInput extends ToolInputSchemas ? true : never
 type _ValidateGrepInput = GrepInput extends ToolInputSchemas ? true : never
-type _ValidateTaskStopInput = KillShellInput extends ToolInputSchemas ? true : never
+type _ValidateTaskStopInput = TaskStopInput extends ToolInputSchemas ? true : never
 type _ValidateListMcpResourcesInput = ListMcpResourcesInput extends ToolInputSchemas ? true : never
 type _ValidateMcpInput = McpInput extends ToolInputSchemas ? true : never
 type _ValidateNotebookEditInput = NotebookEditInput extends ToolInputSchemas ? true : never

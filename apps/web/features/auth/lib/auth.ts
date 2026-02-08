@@ -106,7 +106,7 @@ const workspaceOrgCache = new Map<string, WorkspaceOrgCacheEntry>()
 const userOrgMembershipCache = new Map<string, UserOrgMembershipCacheEntry>()
 
 function hasScope(payload: SessionPayloadV3 | null, requiredScope: SessionScope): boolean {
-  return !!payload?.scopes.includes(requiredScope)
+  return Array.isArray(payload?.scopes) && payload.scopes.includes(requiredScope)
 }
 
 async function getSessionPayloadFromCookie(): Promise<SessionPayloadV3 | null> {
@@ -127,7 +127,13 @@ async function getWorkspaceOrgId(workspace: string): Promise<string | null> {
   }
 
   const app = await createAppClient("service")
-  const { data } = await app.from("domains").select("org_id").eq("hostname", workspace).single()
+  const { data, error } = await app.from("domains").select("org_id").eq("hostname", workspace).single()
+
+  if (error) {
+    // Don't cache failures; transient DB/network errors should be retryable.
+    return null
+  }
+
   const orgId = data?.org_id ?? null
 
   workspaceOrgCache.set(workspace, {
@@ -151,7 +157,12 @@ async function getUserOrgMemberships(userId: string): Promise<{
   }
 
   const iam = await createIamClient("service")
-  const { data: memberships } = await iam.from("org_memberships").select("org_id, role").eq("user_id", userId)
+  const { data: memberships, error } = await iam.from("org_memberships").select("org_id, role").eq("user_id", userId)
+
+  if (error) {
+    // Don't cache failures; transient DB/network errors should be retryable.
+    return { orgIds: [], orgRoles: {} }
+  }
 
   if (!memberships || memberships.length === 0) {
     userOrgMembershipCache.set(userId, {
