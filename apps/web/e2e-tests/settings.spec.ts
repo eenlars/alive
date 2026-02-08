@@ -7,23 +7,9 @@ import { TEST_TIMEOUTS } from "./fixtures/test-data"
  *
  * Verifies the settings screen opens and renders key sections.
  * Uses authenticatedPage fixture - no login flow, state pre-injected.
- *
- * TODO: Fix FlowgladProvider crash for test users - the billing provider
- * throws when no Flowglad customer exists, crashing the error boundary.
- * Need to either mock the provider at the component level or create
- * Flowglad test customers in bootstrap-tenant.
  */
 
-test.skip("can open settings and see General tab", async ({ authenticatedPage, workerTenant }) => {
-  // Mock Flowglad billing API to prevent crashes for test users
-  await authenticatedPage.route("**/api/flowglad/**", route =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ loaded: true, pricingModel: null, billingPortalUrl: null }),
-    }),
-  )
-
+test("can open settings and see General tab", async ({ authenticatedPage, workerTenant }) => {
   await gotoChatFast(authenticatedPage, workerTenant.workspace, workerTenant.orgId)
 
   // Click the settings button
