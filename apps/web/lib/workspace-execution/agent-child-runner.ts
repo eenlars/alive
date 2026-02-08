@@ -10,7 +10,7 @@
 import { spawn } from "node:child_process"
 import { statSync } from "node:fs"
 import { dirname, resolve } from "node:path"
-import { createSandboxEnv } from "./sandbox-env.js"
+import { createSandboxEnv } from "./sandbox-env"
 
 interface WorkspaceCredentials {
   uid: number
