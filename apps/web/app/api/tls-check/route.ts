@@ -5,8 +5,8 @@
  * Returns 200 if the domain is allowed, 403 otherwise.
  *
  * Allowed domains:
- * - The wildcard domain itself (e.g., sonno.tech)
- * - Any subdomain of the wildcard (e.g., dev.sonno.tech, preview--foo.sonno.tech)
+ * - The wildcard domain itself (from DOMAINS.WILDCARD)
+ * - Any subdomain of the wildcard (e.g., dev.<wildcard>, preview--foo.<wildcard>)
  *
  * Caddy v2.10.2+ checks this endpoint for ALL domains (not just on-demand),
  * so we must accept explicitly configured domains too.
