@@ -90,6 +90,15 @@
     "@webalive/redis#health": {
       "cache": false
     },
+    "@webalive/env#build": {
+      "outputs": []
+    },
+    "@webalive/image-processor#build": {
+      "outputs": []
+    },
+    "@webalive/mcp-ocr#build": {
+      "outputs": []
+    },
     "@webalive/broker#dev": {
       "cache": false,
       "persistent": true,

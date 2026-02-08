@@ -20,5 +20,6 @@ export default defineConfig({
     },
     minify: true,
     cssMinify: true,
+    chunkSizeWarningLimit: 2000,
   },
 })
