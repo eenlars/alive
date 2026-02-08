@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "../features/chat/components/ChatInput/composer.css";
 
-@variant dark (.dark &);
+@custom-variant dark (.dark &);
 
 /* Satoshi Variable Font - for headings */
 @font-face {
