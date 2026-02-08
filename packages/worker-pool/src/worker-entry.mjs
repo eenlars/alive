@@ -30,8 +30,8 @@ const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 // After privilege drop, the worker can't read /root/alive/node_modules/
 import { query } from "@anthropic-ai/claude-agent-sdk"
 // biome-ignore format: import checker expects a single-line import statement for this package.
-import { isOAuthMcpTool, GLOBAL_MCP_PROVIDERS, DEFAULTS, PLAN_MODE_BLOCKED_TOOLS, allowTool, denyTool, isHeavyBashCommand, isAbortError, isTransientNetworkError, isFatalError, formatUncaughtError } from "@webalive/shared"
-import { workspaceInternalMcp, toolsInternalMcp } from "@webalive/tools"
+import { allowTool, DEFAULTS, denyTool, formatUncaughtError, GLOBAL_MCP_PROVIDERS, isAbortError, isFatalError, isHeavyBashCommand, isOAuthMcpTool, isTransientNetworkError, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
+import { toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts
