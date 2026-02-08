@@ -501,9 +501,9 @@ describe("callBridgeApi - PORT Environment Variable Validation", () => {
  *
  * BUG HISTORY (2025-11-21):
  * MCP tools were hardcoding cookie name as "session" instead of importing
- * COOKIE_NAMES.SESSION ("auth_session_v2") from the shared package.
+ * COOKIE_NAMES.SESSION ("auth_session_v3") from the shared package.
  *
- * Result: Tools sent `Cookie: session=<JWT>` but API expected `Cookie: auth_session_v2=<JWT>`
+ * Result: Tools sent `Cookie: session=<JWT>` but API expected `Cookie: auth_session_v3=<JWT>`
  * This caused all tool API calls to fail with 401 Unauthorized.
  *
  * SOLUTION:
@@ -536,7 +536,7 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
 
   /**
    * THE COOKIE NAME BUG - Primary regression test
-   * Cookie header MUST use "auth_session_v2" not "session"
+   * Cookie header MUST use "auth_session_v3" not "session"
    */
   it("should use 'auth_session' cookie name from shared constant, not hardcoded 'session'", async () => {
     await callBridgeApi({
@@ -546,12 +546,12 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
 
     const [_, options] = mockFetch.mock.calls[0]
 
-    // CRITICAL: Must be "auth_session_v2" (from COOKIE_NAMES.SESSION)
+    // CRITICAL: Must be "auth_session_v3" (from COOKIE_NAMES.SESSION)
     expect(options.headers.Cookie).toBe(`${COOKIE_NAMES.SESSION}=jwt-token-123`)
 
     // CRITICAL: Must NOT start with the old hardcoded "session=" pattern
     expect(options.headers.Cookie).not.toMatch(/^session=/)
-    expect(options.headers.Cookie).toMatch(/^auth_session_v2=/)
+    expect(options.headers.Cookie).toMatch(/^auth_session_v3=/)
 
     // If this test FAILS, MCP tools will fail with 401 Unauthorized
   })
@@ -567,15 +567,15 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
 
     const [_, options] = mockFetch.mock.calls[0]
 
-    // Extract cookie name from header "auth_session_v2=value"
+    // Extract cookie name from header "auth_session_v3=value"
     const cookieName = options.headers.Cookie?.split("=")[0]
 
     expect(cookieName).toBe(COOKIE_NAMES.SESSION)
-    expect(cookieName).toBe("auth_session_v2")
+    expect(cookieName).toBe("auth_session_v3")
   })
 
   /**
-   * Verify cookie format is exactly "auth_session_v2=<value>" with no spaces
+   * Verify cookie format is exactly "auth_session_v3=<value>" with no spaces
    */
   it("should format cookie header correctly without extra spaces", async () => {
     await callBridgeApi({
@@ -586,7 +586,7 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
     const [_, options] = mockFetch.mock.calls[0]
 
     // Exact format check
-    expect(options.headers.Cookie).toBe("auth_session_v2=jwt-token-123")
+    expect(options.headers.Cookie).toBe("auth_session_v3=jwt-token-123")
     expect(options.headers.Cookie).not.toContain(" ")
 
     // Regex validation: name=value with no spaces
@@ -612,7 +612,7 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
       await callBridgeApi({ endpoint: "/api/test", body: {} })
 
       const [_, options] = mockFetch.mock.calls[0]
-      expect(options.headers.Cookie).toBe(`auth_session_v2=${token}`)
+      expect(options.headers.Cookie).toBe(`auth_session_v3=${token}`)
     }
   })
 
@@ -636,7 +636,7 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
 
       expect(options.headers.Cookie).toBeDefined()
       expect(options.headers.Cookie).toBe(`${COOKIE_NAMES.SESSION}=jwt-token-123`)
-      expect(options.headers.Cookie).toMatch(/^auth_session_v2=/) // Must start with auth_session_v2=
+      expect(options.headers.Cookie).toMatch(/^auth_session_v3=/) // Must start with auth_session_v3=
 
       // If this fails for ANY endpoint, that endpoint won't authenticate
     }
@@ -693,7 +693,7 @@ describe("callBridgeApi - Cookie Name Authentication (THE COOKIE NAME BUG)", () 
 
     // All headers should coexist
     expect(options.headers["Content-Type"]).toBe("application/json")
-    expect(options.headers.Cookie).toBe("auth_session_v2=jwt-token-123")
+    expect(options.headers.Cookie).toBe("auth_session_v3=jwt-token-123")
     expect(options.headers["X-Internal-Tools-Secret"]).toBe("secret-123")
 
     // Verify cookie doesn't interfere with other headers
