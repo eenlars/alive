@@ -313,11 +313,24 @@ async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promi
 
   try {
     // Get site hostname
-    const { data: site } = await state.supabase.from("domains").select("hostname").eq("domain_id", job.site_id).single()
+    console.log(`[CronService] Looking up site for site_id: ${job.site_id}`)
+    const { data: site, error: siteError } = await state.supabase
+      .from("domains")
+      .select("hostname")
+      .eq("domain_id", job.site_id)
+      .single()
+
+    if (siteError) {
+      console.error("[CronService] Error querying domains table:", siteError)
+      throw new Error(`Failed to lookup site: ${siteError.message}`)
+    }
 
     if (!site?.hostname) {
-      throw new Error("Site not found")
+      console.error(`[CronService] Site not found for site_id: ${job.site_id}`)
+      throw new Error(`Site not found (site_id: ${job.site_id})`)
     }
+
+    console.log(`[CronService] Resolved site ${job.site_id} to hostname: ${site.hostname}`)
 
     // Run the automation
     const { runAutomationJob } = await import("./executor")

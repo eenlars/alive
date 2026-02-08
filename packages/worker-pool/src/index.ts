@@ -20,7 +20,10 @@
  * ```
  */
 
-export { createConfig, DEFAULT_CONFIG, getSocketPath } from "./config.js"
+// Core exports
+export { WorkerPoolManager, WorkerPoolLimitError, getWorkerPool, resetWorkerPool } from "./manager.js"
+export { createConfig, getSocketPath, DEFAULT_CONFIG } from "./config.js"
+
 // IPC utilities
 export {
   createIpcClient,
@@ -33,8 +36,6 @@ export {
   isWorkerMessage,
   NdjsonParser,
 } from "./ipc.js"
-// Core exports
-export { getWorkerPool, resetWorkerPool, WorkerPoolManager } from "./manager.js"
 
 // Types
 export type {

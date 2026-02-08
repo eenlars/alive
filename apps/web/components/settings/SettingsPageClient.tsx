@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  Bot,
   Building2,
   ChevronDown,
   ClipboardList,
@@ -13,7 +12,6 @@ import {
   Settings,
   Shield,
   Target,
-  User,
   X,
   Zap,
 } from "lucide-react"
@@ -24,10 +22,9 @@ import { QUERY_KEYS } from "@/lib/url/queryState"
 import { SettingsTabLayout } from "./tabs/SettingsTabLayout"
 
 // Lazy load tab components - same as SettingsModal
-const AccountSettings = lazy(() =>
-  import("@/components/settings/tabs/AccountSettings").then(m => ({ default: m.AccountSettings })),
+const GeneralSettings = lazy(() =>
+  import("@/components/settings/tabs/GeneralSettings").then(m => ({ default: m.GeneralSettings })),
 )
-const LLMSettings = lazy(() => import("@/components/settings/tabs/LLMSettings").then(m => ({ default: m.LLMSettings })))
 const GoalSettings = lazy(() =>
   import("@/components/settings/tabs/GoalSettings").then(m => ({ default: m.GoalSettings })),
 )
@@ -57,8 +54,7 @@ const AutomationsSettings = lazy(() =>
 )
 
 const SETTINGS_TABS = [
-  "account",
-  "llm",
+  "general",
   "goal",
   "skills",
   "organization",
@@ -80,8 +76,7 @@ interface TabDefinition {
 }
 
 const allTabs: TabDefinition[] = [
-  { id: "account", label: "Profile", icon: User },
-  { id: "llm", label: "AI", icon: Bot },
+  { id: "general", label: "General", icon: Settings },
   { id: "goal", label: "Project", icon: Target },
   { id: "skills", label: "Skills", icon: ClipboardList },
   { id: "organization", label: "Workspace", icon: Building2 },
@@ -115,7 +110,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
 
   // Use URL search params to persist active tab across page reloads
   const [activeTab, setActiveTab] = useQueryState(QUERY_KEYS.settingsTab, {
-    defaultValue: initialTab || "account",
+    defaultValue: initialTab || "general",
     parse: (value: string) => {
       const parsed = value as SettingsTab
       // Validate that the parsed value is a valid tab
@@ -124,7 +119,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
       if (SETTINGS_TABS.includes(parsed)) {
         return parsed
       }
-      return initialTab || "account"
+      return initialTab || "general"
     },
     serialize: (value: string) => value,
   })
@@ -137,7 +132,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
   // Derive effective tab - if activeTab points to an admin-only tab the user can't see,
   // fall back to the first available tab
   const effectiveTab = tabs.find(t => t.id === activeTab) || tabs[0]
-  const currentTab = effectiveTab || { id: "account" as const, label: "Profile", icon: User }
+  const currentTab = effectiveTab || { id: "general" as const, label: "General", icon: Settings }
   const isWideTab = currentTab.id === "automations"
   const mainClassName = isWideTab
     ? "flex-1 min-h-0 overflow-hidden px-4 md:px-8 py-2 md:py-0"
@@ -265,8 +260,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
             <Suspense
               fallback={<div className="py-12 text-center text-zinc-400 dark:text-zinc-500 text-sm">Loading...</div>}
             >
-              {activeTab === "account" && <AccountSettings />}
-              {activeTab === "llm" && <LLMSettings />}
+              {activeTab === "general" && <GeneralSettings />}
               {activeTab === "goal" && <GoalSettings />}
               {activeTab === "skills" && <UserPromptsSettings />}
               {activeTab === "organization" && <WorkspaceSettings />}
@@ -286,10 +280,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
 
 function IntegrationsListWithHeader() {
   return (
-    <SettingsTabLayout
-      title="Integrations"
-      description="Connect services like GitHub or Linear so the AI can read and write to them on your behalf"
-    >
+    <SettingsTabLayout title="Integrations" description="Connect external services to enhance your workspace">
       <IntegrationsList />
     </SettingsTabLayout>
   )
@@ -297,10 +288,7 @@ function IntegrationsListWithHeader() {
 
 function UserEnvKeysWithHeader() {
   return (
-    <SettingsTabLayout
-      title="API Keys"
-      description="Store your own API keys so the AI can use external services that require authentication"
-    >
+    <SettingsTabLayout title="API Keys" description="Store custom API keys for MCP integrations">
       <UserEnvKeysSettings />
     </SettingsTabLayout>
   )

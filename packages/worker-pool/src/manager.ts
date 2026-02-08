@@ -5,13 +5,13 @@
  * Workers are keyed by workspace and reused across requests.
  */
 
-import { type ChildProcess, spawn } from "node:child_process"
+import { execFile, spawn, type ChildProcess } from "node:child_process"
 import { EventEmitter } from "node:events"
 import { chmod, mkdir, stat } from "node:fs/promises"
+import { cpus, loadavg, platform } from "node:os"
 import * as path from "node:path"
-import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
-import { createConfig, getSocketPath } from "./config.js"
-import { createIpcServer, type IpcServer, isWorkerMessage } from "./ipc.js"
+import { setTimeout as sleep } from "node:timers/promises"
+import { promisify } from "node:util"
 import type {
   ParentToWorkerMessage,
   QueryOptions,
@@ -24,14 +24,22 @@ import type {
   WorkerToParentMessage,
   WorkspaceCredentials,
 } from "./types.js"
+import { createConfig } from "./config.js"
+import { createIpcServer, isWorkerMessage, type IpcServer } from "./ipc.js"
+import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
+
+const execFileAsync = promisify(execFile)
 
 /** Pending query with callbacks */
 interface PendingQuery {
   requestId: string
+  ownerKey: string
+  workspaceKey: string
   resolve: (result: QueryResult) => void
   reject: (error: Error) => void
   onMessage: (msg: WorkerToParentMessage) => void
   cleanup: () => void
+  cleanupAccounting: () => void
   sessionId?: string
   result?: unknown
 }
@@ -42,7 +50,11 @@ interface WorkerHandleInternal extends WorkerHandle {
   pendingQueries: Map<string, PendingQuery>
   credentialsVersion: string | null
   needsRestartForCredentials: boolean
+  currentOwnerKey: string | null
+  retiredAfterCancel: boolean
 }
+
+type DeferReason = "capacity" | "user_limit" | "workspace_limit" | "load_shed"
 
 /** Queued request waiting for worker to become available */
 interface QueuedRequest {
@@ -50,6 +62,38 @@ interface QueuedRequest {
   options: QueryOptions
   resolve: (result: QueryResult) => void
   reject: (error: Error) => void
+  enqueuedAtMs: number
+  cleanupSignalAbortListener: () => void
+}
+
+interface WorkspaceQueue {
+  owners: Map<string, QueuedRequest[]>
+  order: string[]
+  cursor: number
+  total: number
+}
+
+interface PoolTelemetry {
+  retiredAfterCancel: number
+  groupTerminations: number
+  groupKillEscalations: number
+  queueRejectedUser: number
+  queueRejectedWorkspace: number
+  queueRejectedGlobal: number
+  loadShedEvents: number
+  orphansReaped: number
+}
+
+export type WorkerPoolLimitCode = "QUEUE_FULL" | "USER_LIMIT" | "WORKSPACE_LIMIT" | "LOAD_SHED"
+
+export class WorkerPoolLimitError extends Error {
+  readonly code: WorkerPoolLimitCode
+
+  constructor(code: WorkerPoolLimitCode, message: string) {
+    super(message)
+    this.name = "WorkerPoolLimitError"
+    this.code = code
+  }
 }
 
 /**
@@ -59,25 +103,20 @@ interface QueuedRequest {
 function validateCredentials(credentials: WorkspaceCredentials): void {
   const errors: string[] = []
 
-  // Validate uid (must be non-negative integer)
   if (!Number.isInteger(credentials.uid) || credentials.uid < 0) {
     errors.push(`uid must be non-negative integer, got: ${credentials.uid}`)
   }
 
-  // Validate gid (must be non-negative integer)
   if (!Number.isInteger(credentials.gid) || credentials.gid < 0) {
     errors.push(`gid must be non-negative integer, got: ${credentials.gid}`)
   }
 
-  // Validate cwd (must be non-empty absolute path within workspace root)
   if (typeof credentials.cwd !== "string" || credentials.cwd.length === 0) {
     errors.push("cwd must be non-empty string")
   } else if (!credentials.cwd.startsWith("/")) {
     errors.push(`cwd must be absolute path, got: ${credentials.cwd}`)
   } else {
-    // Canonical path traversal check using resolved paths
     const resolvedCwd = path.resolve(credentials.cwd)
-    // Allow both regular sites and the superadmin workspace (alive repo)
     const isWithinSitesRoot = isPathWithinWorkspace(resolvedCwd, PATHS.SITES_ROOT)
     const isSuperadminWorkspace = resolvedCwd === SUPERADMIN.WORKSPACE_PATH
     if (!isWithinSitesRoot && !isSuperadminWorkspace) {
@@ -85,7 +124,6 @@ function validateCredentials(credentials: WorkspaceCredentials): void {
     }
   }
 
-  // Validate workspaceKey (must be non-empty)
   if (typeof credentials.workspaceKey !== "string" || credentials.workspaceKey.length === 0) {
     errors.push("workspaceKey must be non-empty string")
   }
@@ -100,20 +138,34 @@ function validateCredentials(credentials: WorkspaceCredentials): void {
  *
  * Singleton that manages persistent worker processes.
  * Multiple workers can serve the same workspace (keyed by workspaceKey:instanceId).
- * When all workers for a workspace are busy, a new instance is spawned.
+ * When all workers for a workspace are busy, requests are queued with fairness.
  */
 export class WorkerPoolManager extends EventEmitter {
-  // Workers keyed by "workspaceKey:instanceId" (e.g., "example.com:0", "example.com:1")
   private workers = new Map<string, WorkerHandleInternal>()
-  // Track next instance ID per workspace
   private nextInstanceId = new Map<string, number>()
-  // Queue requests when all workers are busy (keyed by base workspaceKey)
-  private requestQueues = new Map<string, QueuedRequest[]>()
+  private requestQueues = new Map<string, WorkspaceQueue>()
   private config: WorkerPoolConfig
   private evictionTimer: ReturnType<typeof setInterval> | null = null
+  private orphanSweepTimer: ReturnType<typeof setInterval> | null = null
   private isShuttingDown = false
   private credentialsVersion: string | null = null
   private lastCredentialsCheckMs = 0
+  private activeByOwner = new Map<string, number>()
+  private activeByWorkspace = new Map<string, number>()
+  private queuedByOwner = new Map<string, number>()
+  private queuedByWorkspace = new Map<string, number>()
+  private totalQueued = 0
+  private knownWorkerPids = new Set<number>()
+  private telemetry: PoolTelemetry = {
+    retiredAfterCancel: 0,
+    groupTerminations: 0,
+    groupKillEscalations: 0,
+    queueRejectedUser: 0,
+    queueRejectedWorkspace: 0,
+    queueRejectedGlobal: 0,
+    loadShedEvents: 0,
+    orphansReaped: 0,
+  }
 
   constructor(config?: Partial<WorkerPoolConfig>) {
     super()
@@ -124,196 +176,130 @@ export class WorkerPoolManager extends EventEmitter {
   // Public API
   // ==========================================================================
 
-  /**
-   * Get or create a worker for a workspace.
-   * Multiple workers can exist for the same workspace (different instances).
-   * Returns an available worker or spawns a new one if capacity allows.
-   * Returns null if all workers are busy and pool is at capacity (caller should queue).
-   */
-  private async getOrCreateWorker(
-    credentials: WorkspaceCredentials,
-    useOAuth: boolean,
-  ): Promise<WorkerHandleInternal | null> {
-    // Validate credentials before any operations
-    validateCredentials(credentials)
-
-    const { workspaceKey } = credentials
-
-    // First, try to find an available (ready) worker for this workspace
-    for (const [key, worker] of this.workers) {
-      if (key.startsWith(`${workspaceKey}:`) && worker.state === "ready") {
-        if (useOAuth) {
-          // Skip workers that need restart due to credential changes
-          if (worker.needsRestartForCredentials) {
-            this.gracefulShutdown(worker, "credentials_changed").catch(err => {
-              console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
-            })
-            continue
-          }
-
-          // If we know the current credentials version and this worker is stale, restart it
-          if (this.credentialsVersion && worker.credentialsVersion !== this.credentialsVersion) {
-            worker.needsRestartForCredentials = true
-            this.gracefulShutdown(worker, "credentials_changed").catch(err => {
-              console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
-            })
-            continue
-          }
-        }
-
-        worker.lastActivity = new Date()
-        return worker
-      }
-    }
-
-    // No available worker - try to spawn a new instance
-    if (this.workers.size >= this.config.maxWorkers) {
-      // Pool at capacity - try to evict an idle worker from another workspace
-      const evicted = await this.evictWorker()
-      if (!evicted) {
-        // All workers busy - return null to signal caller should queue
-        return null
-      }
-    }
-
-    // Get next instance ID for this workspace
-    const instanceId = this.nextInstanceId.get(workspaceKey) ?? 0
-    this.nextInstanceId.set(workspaceKey, instanceId + 1)
-
-    // Spawn new worker with instance-specific key
-    return this.spawnWorker(credentials, instanceId)
-  }
-
-  /**
-   * Send a query to a worker and stream results.
-   *
-   * NOTE: Each worker handles ONE query at a time. If the worker is busy,
-   * this method throws immediately. The caller (route.ts) should handle
-   * this by waiting or spawning a new worker for a different workspace.
-   *
-   * For the same workspace, queries are serialized - the second query
-   * must wait for the first to complete (enforced by conversation locking
-   * at the API layer, not here).
-   */
   async query(credentials: WorkspaceCredentials, options: QueryOptions): Promise<QueryResult> {
-    const { requestId, payload, onMessage, signal } = options
+    const { requestId, ownerKey, payload, onMessage, signal } = options
     const queryStartTime = Date.now()
     const timing = (label: string) =>
       console.log(`[pool ${requestId}] [TIMING] ${label}: +${Date.now() - queryStartTime}ms`)
 
     timing("query_start")
 
-    // OAuth credentials are shared across workers. If they changed, restart stale workers
-    // before selecting a worker for this request.
+    validateCredentials(credentials)
+    if (!ownerKey || typeof ownerKey !== "string") {
+      throw new Error("Query ownerKey is required")
+    }
+
     const useOAuth = !payload.apiKey
     if (useOAuth) {
       await this.ensureOAuthCredentialsFresh(requestId)
     }
 
-    // CRITICAL: Check if already aborted BEFORE any async work
-    // This catches the case where abort() was called before query() even started
     if (signal?.aborted) {
       console.error(`[pool] Signal already aborted for ${requestId} - returning early`)
       return { success: true, cancelled: true }
     }
 
-    const worker = await this.getOrCreateWorker(credentials, useOAuth)
-    timing("got_or_created_worker")
+    const baseWorkspaceKey = credentials.workspaceKey
 
-    // If no worker available (pool at capacity, all busy), queue the request
-    if (!worker) {
-      console.log(`[pool ${requestId}] All workers busy, queueing request for ${credentials.workspaceKey}`)
-      return this.queueRequest(credentials, options)
+    // Enforce per-owner/workspace concurrency before attempting ready-worker reuse.
+    // getOrCreateWorker also enforces these limits on spawn-paths for consistency.
+    if (this.getActiveByOwner(ownerKey) >= this.config.maxWorkersPerUser) {
+      return this.queueRequest(credentials, options, "USER_LIMIT")
+    }
+    if (this.getActiveByWorkspace(baseWorkspaceKey) >= this.config.maxWorkersPerWorkspace) {
+      return this.queueRequest(credentials, options, "WORKSPACE_LIMIT")
     }
 
-    // Check again after async work - abort might have fired during spawn
+    const workerResolution = await this.getOrCreateWorker(credentials, useOAuth, ownerKey)
+    const worker = workerResolution.worker
+    timing("got_or_created_worker")
+
+    if (!worker) {
+      switch (workerResolution.reason) {
+        case "user_limit":
+          return this.queueRequest(credentials, options, "USER_LIMIT")
+        case "workspace_limit":
+          return this.queueRequest(credentials, options, "WORKSPACE_LIMIT")
+        case "load_shed":
+          return this.queueRequest(credentials, options, "LOAD_SHED")
+        default:
+          return this.queueRequest(credentials, options, "QUEUE_FULL")
+      }
+    }
+
     if (signal?.aborted) {
       console.error(`[pool] Signal aborted during worker spawn for ${requestId} - returning early`)
       return { success: true, cancelled: true }
     }
 
-    // Wait for worker to be ready
     if (worker.state === "starting") {
       timing("waiting_for_worker_ready")
       await this.waitForReady(worker)
       timing("worker_ready")
     }
 
-    // Check again after waiting for ready - abort might have fired during wait
     if (signal?.aborted) {
       console.error(`[pool] Signal aborted during worker ready wait for ${requestId} - returning early`)
       return { success: true, cancelled: true }
     }
 
-    // Double-check worker is ready (shouldn't happen but safety check)
-    if (worker.state === "busy") {
-      console.log(`[pool ${requestId}] Worker became busy, queueing request for ${credentials.workspaceKey}`)
-      return this.queueRequest(credentials, options)
+    if (worker.state !== "ready" || worker.retiredAfterCancel) {
+      console.log(`[pool ${requestId}] Worker unavailable, queueing request for ${credentials.workspaceKey}`)
+      return this.queueRequest(credentials, options, "QUEUE_FULL")
     }
 
-    if (worker.state !== "ready") {
-      throw new Error(`Worker not ready: ${worker.state}`)
-    }
-
-    // Mark worker as busy
     worker.state = "busy"
     worker.activeRequestId = requestId
+    worker.currentOwnerKey = ownerKey
+    this.incrementActive(ownerKey, baseWorkspaceKey)
     this.emit("worker:busy", { workspaceKey: worker.workspaceKey, requestId })
 
     return new Promise((resolve, reject) => {
-      // Track cancel timeout for cleanup
-      let cancelTimeout: ReturnType<typeof setTimeout> | null = null
       let resolved = false
 
-      // Handle abort signal - resolve IMMEDIATELY so caller can proceed
-      // Worker cleanup happens in the background (we don't block on it)
       const abortHandler = () => {
         if (resolved) return
         resolved = true
 
         console.error(`[pool] Abort triggered for ${worker.workspaceKey}:${requestId}`)
 
-        // Send cancel to worker (background - we don't wait for response)
         this.sendToWorker(worker, { type: "cancel", requestId })
 
-        // Remove from pending queries so delayed worker response is ignored
-        // Don't call full cleanup yet - worker is still cleaning up
-        signal?.removeEventListener("abort", abortHandler)
-        worker.pendingQueries.delete(requestId)
+        const pending = worker.pendingQueries.get(requestId)
+        const retiredOwnerKey = worker.currentOwnerKey
+        if (pending) {
+          pending.cleanupAccounting()
+          signal?.removeEventListener("abort", abortHandler)
+          worker.pendingQueries.delete(requestId)
+          worker.queriesProcessed++
+          worker.activeRequestId = null
+          worker.currentOwnerKey = null
+          worker.lastActivity = new Date()
+        }
 
-        // CRITICAL: Resolve immediately so caller can proceed
-        // This unblocks the NDJSON stream so it can release the lock
-        resolve({ success: true, cancelled: true, sessionId: pending.sessionId })
+        resolve({ success: true, cancelled: true, sessionId: pending?.sessionId })
 
-        // Worker state cleanup: Reset to "ready" after giving worker time to clean up
-        // The worker might still be processing the abort, so we wait before accepting new requests
-        cancelTimeout = setTimeout(() => {
-          // Only reset if worker is still marked busy for this request
-          if (worker.state === "busy" && worker.activeRequestId === requestId) {
-            console.error(`[pool] Cancel timeout for ${worker.workspaceKey}:${requestId} - resetting worker state`)
-            worker.queriesProcessed++
-            worker.activeRequestId = null
-            worker.lastActivity = new Date()
-            if (worker.needsRestartForCredentials) {
-              worker.needsRestartForCredentials = false
-              this.gracefulShutdown(worker, "credentials_changed").catch(err => {
-                console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
-              })
-            } else {
-              worker.state = "ready"
-              this.emit("worker:idle", { workspaceKey: worker.workspaceKey })
-            }
-          }
-        }, this.config.cancelTimeoutMs)
+        worker.retiredAfterCancel = true
+        worker.state = "shutting_down"
+        this.retireWorkerAfterCancel(worker, requestId, retiredOwnerKey).catch(err => {
+          console.error(`[pool] Error retiring worker ${worker.workspaceKey} after cancel request ${requestId}:`, err)
+        })
       }
 
-      // Cleanup function - called on success, error, or worker crash
+      let accountingCleaned = false
+      const cleanupAccounting = () => {
+        if (accountingCleaned) return
+        accountingCleaned = true
+        this.decrementActive(ownerKey, baseWorkspaceKey)
+      }
+
       const cleanup = () => {
-        if (cancelTimeout) clearTimeout(cancelTimeout)
         signal?.removeEventListener("abort", abortHandler)
         worker.pendingQueries.delete(requestId)
+        cleanupAccounting()
         worker.queriesProcessed++
         worker.activeRequestId = null
+        worker.currentOwnerKey = null
         worker.lastActivity = new Date()
 
         if (worker.state === "busy") {
@@ -329,28 +315,25 @@ export class WorkerPoolManager extends EventEmitter {
         }
       }
 
-      // Create pending query entry
       const pending: PendingQuery = {
         requestId,
+        ownerKey,
+        workspaceKey: baseWorkspaceKey,
         resolve,
         reject,
         onMessage,
         cleanup,
+        cleanupAccounting,
       }
 
-      // Register in pending queries map (keyed by requestId to handle multiple)
       worker.pendingQueries.set(requestId, pending)
       signal?.addEventListener("abort", abortHandler)
 
-      // Send query to worker
       timing("sending_query_to_worker")
       this.sendToWorker(worker, { type: "query", requestId, payload })
     })
   }
 
-  /**
-   * Gracefully shutdown a specific worker
-   */
   async shutdownWorker(workspaceKey: string, reason = "manual"): Promise<void> {
     const worker = this.workers.get(workspaceKey)
     if (!worker) return
@@ -358,23 +341,29 @@ export class WorkerPoolManager extends EventEmitter {
     await this.gracefulShutdown(worker, reason)
   }
 
-  /**
-   * Shutdown all workers
-   */
   async shutdownAll(): Promise<void> {
     this.isShuttingDown = true
     this.stopEvictionTimer()
 
-    const shutdowns = Array.from(this.workers.keys()).map(key => this.shutdownWorker(key, "pool_shutdown"))
+    this.rejectAllQueuedRequests("Worker pool is shutting down")
+
+    const workers = Array.from(this.workers.values())
+    const shutdowns = workers.map(async worker => {
+      this.rejectPendingQueries(worker, "Worker pool is shutting down")
+      await this.terminateWorkerTree(worker, "pool_shutdown")
+      await this.waitForWorkerExit(worker, this.config.shutdownTimeoutMs + this.config.killGraceMs + 500)
+    })
     await Promise.allSettled(shutdowns)
 
-    this.workers.clear()
+    for (const worker of workers) {
+      worker.ipc?.close()
+      this.workers.delete(worker.workspaceKey)
+    }
+
+    this.resetCounters()
     this.isShuttingDown = false
   }
 
-  /**
-   * Get info about all workers (safe to expose)
-   */
   getWorkerInfo(): WorkerInfo[] {
     return Array.from(this.workers.values()).map(w => ({
       workspaceKey: w.workspaceKey,
@@ -386,14 +375,21 @@ export class WorkerPoolManager extends EventEmitter {
     }))
   }
 
-  /**
-   * Get pool statistics
-   */
   getStats(): {
     totalWorkers: number
     activeWorkers: number
     idleWorkers: number
     maxWorkers: number
+    dynamicMaxWorkers: number
+    queuedRequests: number
+    retiredAfterCancel: number
+    groupTerminations: number
+    groupKillEscalations: number
+    queueRejectedUser: number
+    queueRejectedWorkspace: number
+    queueRejectedGlobal: number
+    loadShedEvents: number
+    orphansReaped: number
   } {
     const workers = Array.from(this.workers.values())
     return {
@@ -401,114 +397,325 @@ export class WorkerPoolManager extends EventEmitter {
       activeWorkers: workers.filter(w => w.state === "busy").length,
       idleWorkers: workers.filter(w => w.state === "ready").length,
       maxWorkers: this.config.maxWorkers,
+      dynamicMaxWorkers: this.getDynamicMaxWorkers(),
+      queuedRequests: this.totalQueued,
+      retiredAfterCancel: this.telemetry.retiredAfterCancel,
+      groupTerminations: this.telemetry.groupTerminations,
+      groupKillEscalations: this.telemetry.groupKillEscalations,
+      queueRejectedUser: this.telemetry.queueRejectedUser,
+      queueRejectedWorkspace: this.telemetry.queueRejectedWorkspace,
+      queueRejectedGlobal: this.telemetry.queueRejectedGlobal,
+      loadShedEvents: this.telemetry.loadShedEvents,
+      orphansReaped: this.telemetry.orphansReaped,
     }
   }
 
-  /**
-   * Start the eviction timer for inactive workers
-   */
   startEvictionTimer(): void {
-    if (this.evictionTimer) return
+    if (!this.evictionTimer) {
+      this.evictionTimer = setInterval(() => {
+        this.evictInactiveWorkers()
+      }, 60_000)
+      this.evictionTimer.unref()
+    }
 
-    // Check every minute, unref so it doesn't prevent process exit
-    this.evictionTimer = setInterval(() => {
-      this.evictInactiveWorkers()
-    }, 60_000)
-    this.evictionTimer.unref()
+    if (!this.orphanSweepTimer) {
+      this.orphanSweepTimer = setInterval(() => {
+        this.sweepOrphanedCliProcesses().catch(err => {
+          console.error("[pool] orphan_sweep_failed", { error: err instanceof Error ? err.message : String(err) })
+        })
+      }, this.config.orphanSweepIntervalMs)
+      this.orphanSweepTimer.unref()
+    }
   }
 
-  /**
-   * Stop the eviction timer
-   */
   stopEvictionTimer(): void {
     if (this.evictionTimer) {
       clearInterval(this.evictionTimer)
       this.evictionTimer = null
     }
+    if (this.orphanSweepTimer) {
+      clearInterval(this.orphanSweepTimer)
+      this.orphanSweepTimer = null
+    }
   }
-
-  // ==========================================================================
-  // Event Emitter Typed Methods
-  // ==========================================================================
 
   override on<K extends keyof WorkerPoolEvents>(event: K, listener: WorkerPoolEventListener<K>): this {
     return super.on(event, listener)
   }
 
   override emit<K extends keyof WorkerPoolEvents>(event: K, data: WorkerPoolEvents[K]): boolean {
-    // When a worker becomes idle, process any queued requests for its workspace
     if (event === "worker:idle") {
       const { workspaceKey: workerKey } = data as WorkerPoolEvents["worker:idle"]
-      // Extract base workspace key (remove instance suffix)
       const baseWorkspaceKey = workerKey.includes(":") ? workerKey.split(":")[0] : workerKey
-      this.processQueue(baseWorkspaceKey)
+      this.runProcessQueue(baseWorkspaceKey, "worker_idle")
     }
     return super.emit(event, data)
   }
 
   // ==========================================================================
-  // Request Queue Methods
+  // Private Methods
   // ==========================================================================
 
-  /**
-   * Queue a request when all workers are busy.
-   * Returns a promise that resolves when the request is eventually processed.
-   */
-  private queueRequest(credentials: WorkspaceCredentials, options: QueryOptions): Promise<QueryResult> {
-    const { workspaceKey } = credentials
+  private resetCounters(): void {
+    this.activeByOwner.clear()
+    this.activeByWorkspace.clear()
+    this.queuedByOwner.clear()
+    this.queuedByWorkspace.clear()
+    this.totalQueued = 0
+  }
 
-    return new Promise((resolve, reject) => {
-      // Get or create queue for this workspace
-      let queue = this.requestQueues.get(workspaceKey)
-      if (!queue) {
-        queue = []
-        this.requestQueues.set(workspaceKey, queue)
+  private incrementMap(map: Map<string, number>, key: string): void {
+    map.set(key, (map.get(key) ?? 0) + 1)
+  }
+
+  private decrementMap(map: Map<string, number>, key: string): void {
+    const current = map.get(key) ?? 0
+    if (current <= 1) {
+      map.delete(key)
+    } else {
+      map.set(key, current - 1)
+    }
+  }
+
+  private incrementActive(ownerKey: string, workspaceKey: string): void {
+    this.incrementMap(this.activeByOwner, ownerKey)
+    this.incrementMap(this.activeByWorkspace, workspaceKey)
+  }
+
+  private decrementActive(ownerKey: string, workspaceKey: string): void {
+    this.decrementMap(this.activeByOwner, ownerKey)
+    this.decrementMap(this.activeByWorkspace, workspaceKey)
+  }
+
+  private getActiveByOwner(ownerKey: string): number {
+    return this.activeByOwner.get(ownerKey) ?? 0
+  }
+
+  private getActiveByWorkspace(workspaceKey: string): number {
+    return this.activeByWorkspace.get(workspaceKey) ?? 0
+  }
+
+  private getDynamicMaxWorkers(): number {
+    const cpuCount = Math.max(1, cpus().length)
+    const dynamic = Math.max(4, Math.floor(cpuCount * this.config.workersPerCore))
+    return Math.min(this.config.maxWorkers, dynamic)
+  }
+
+  private shouldLoadShed(): boolean {
+    const cpuCount = Math.max(1, cpus().length)
+    const currentLoad = loadavg()[0]
+    const threshold = cpuCount * this.config.loadShedThreshold
+    return currentLoad > threshold
+  }
+
+  private getWorkspaceQueue(workspaceKey: string): WorkspaceQueue {
+    let queue = this.requestQueues.get(workspaceKey)
+    if (!queue) {
+      queue = {
+        owners: new Map(),
+        order: [],
+        cursor: 0,
+        total: 0,
+      }
+      this.requestQueues.set(workspaceKey, queue)
+    }
+    return queue
+  }
+
+  private enqueueRequest(workspaceKey: string, request: QueuedRequest): void {
+    const ownerKey = request.options.ownerKey
+    const queue = this.getWorkspaceQueue(workspaceKey)
+
+    let ownerQueue = queue.owners.get(ownerKey)
+    if (!ownerQueue) {
+      ownerQueue = []
+      queue.owners.set(ownerKey, ownerQueue)
+      queue.order.push(ownerKey)
+    }
+
+    ownerQueue.push(request)
+    queue.total += 1
+
+    this.totalQueued += 1
+    this.incrementMap(this.queuedByOwner, ownerKey)
+    this.incrementMap(this.queuedByWorkspace, workspaceKey)
+  }
+
+  private dequeueNextRequest(workspaceKey: string): QueuedRequest | null {
+    const queue = this.requestQueues.get(workspaceKey)
+    if (!queue || queue.total === 0 || queue.order.length === 0) return null
+
+    const ownerCount = queue.order.length
+    for (let i = 0; i < ownerCount; i++) {
+      const index = (queue.cursor + i) % ownerCount
+      const ownerKey = queue.order[index]
+      const ownerQueue = queue.owners.get(ownerKey)
+
+      if (!ownerQueue || ownerQueue.length === 0) continue
+
+      const request = ownerQueue.shift() ?? null
+      queue.cursor = (index + 1) % Math.max(1, queue.order.length)
+
+      if (!request) continue
+
+      if (ownerQueue.length === 0) {
+        queue.owners.delete(ownerKey)
+        const orderIndex = queue.order.indexOf(ownerKey)
+        if (orderIndex >= 0) {
+          queue.order.splice(orderIndex, 1)
+          if (orderIndex < queue.cursor) {
+            queue.cursor = Math.max(0, queue.cursor - 1)
+          }
+          queue.cursor = queue.cursor % Math.max(1, queue.order.length)
+        }
       }
 
-      const queuedRequest: QueuedRequest = {
+      queue.total -= 1
+      if (queue.total <= 0) {
+        this.requestQueues.delete(workspaceKey)
+      }
+
+      this.totalQueued -= 1
+      this.decrementMap(this.queuedByOwner, ownerKey)
+      this.decrementMap(this.queuedByWorkspace, workspaceKey)
+      request.cleanupSignalAbortListener()
+
+      return request
+    }
+
+    return null
+  }
+
+  private removeQueuedRequest(workspaceKey: string, ownerKey: string, request: QueuedRequest): boolean {
+    const queue = this.requestQueues.get(workspaceKey)
+    if (!queue) return false
+
+    const ownerQueue = queue.owners.get(ownerKey)
+    if (!ownerQueue) return false
+
+    const idx = ownerQueue.indexOf(request)
+    if (idx === -1) return false
+
+    request.cleanupSignalAbortListener()
+    ownerQueue.splice(idx, 1)
+    queue.total -= 1
+    this.totalQueued -= 1
+    this.decrementMap(this.queuedByOwner, ownerKey)
+    this.decrementMap(this.queuedByWorkspace, workspaceKey)
+
+    if (ownerQueue.length === 0) {
+      queue.owners.delete(ownerKey)
+      const orderIndex = queue.order.indexOf(ownerKey)
+      if (orderIndex >= 0) {
+        queue.order.splice(orderIndex, 1)
+        if (queue.cursor >= queue.order.length) queue.cursor = 0
+      }
+    }
+
+    if (queue.total <= 0) {
+      this.requestQueues.delete(workspaceKey)
+    }
+
+    return true
+  }
+
+  private queueRequest(
+    credentials: WorkspaceCredentials,
+    options: QueryOptions,
+    reason: WorkerPoolLimitCode,
+  ): Promise<QueryResult> {
+    const workspaceKey = credentials.workspaceKey
+    const ownerKey = options.ownerKey
+
+    if ((this.queuedByOwner.get(ownerKey) ?? 0) >= this.config.maxQueuedPerUser) {
+      this.telemetry.queueRejectedUser += 1
+      throw new WorkerPoolLimitError(
+        "USER_LIMIT",
+        `Queue full for owner ${ownerKey}: maxQueuedPerUser=${this.config.maxQueuedPerUser}`,
+      )
+    }
+
+    if ((this.queuedByWorkspace.get(workspaceKey) ?? 0) >= this.config.maxQueuedPerWorkspace) {
+      this.telemetry.queueRejectedWorkspace += 1
+      throw new WorkerPoolLimitError(
+        "WORKSPACE_LIMIT",
+        `Queue full for workspace ${workspaceKey}: maxQueuedPerWorkspace=${this.config.maxQueuedPerWorkspace}`,
+      )
+    }
+
+    if (this.totalQueued >= this.config.maxQueuedGlobal) {
+      this.telemetry.queueRejectedGlobal += 1
+      throw new WorkerPoolLimitError("QUEUE_FULL", `Global queue full: maxQueuedGlobal=${this.config.maxQueuedGlobal}`)
+    }
+
+    return new Promise((resolve, reject) => {
+      let abortListenerCleaned = false
+      let queuedRequest: QueuedRequest | null = null
+      const onAbort = () => {
+        cleanupSignalAbortListener()
+        if (queuedRequest && this.removeQueuedRequest(workspaceKey, ownerKey, queuedRequest)) {
+          console.log("[pool] removed_aborted_queued_request", {
+            requestId: options.requestId,
+            ownerKey,
+            workspaceKey,
+          })
+          resolve({ success: true, cancelled: true })
+        }
+      }
+      const cleanupSignalAbortListener = () => {
+        if (abortListenerCleaned) return
+        abortListenerCleaned = true
+        options.signal?.removeEventListener("abort", onAbort)
+      }
+
+      queuedRequest = {
         credentials,
         options,
         resolve,
         reject,
+        enqueuedAtMs: Date.now(),
+        cleanupSignalAbortListener,
       }
 
-      queue.push(queuedRequest)
-      console.log(`[pool] Queued request ${options.requestId} for ${workspaceKey} (queue size: ${queue.length})`)
+      this.enqueueRequest(workspaceKey, queuedRequest)
 
-      // Handle abort while queued
-      options.signal?.addEventListener("abort", () => {
-        const idx = queue!.indexOf(queuedRequest)
-        if (idx !== -1) {
-          queue!.splice(idx, 1)
-          console.log(`[pool] Removed aborted request ${options.requestId} from queue`)
-          resolve({ success: true, cancelled: true })
-        }
+      console.log("[pool] request_queued", {
+        requestId: options.requestId,
+        ownerKey,
+        workspaceKey,
+        reason,
+        workspaceQueue: this.queuedByWorkspace.get(workspaceKey) ?? 0,
+        ownerQueue: this.queuedByOwner.get(ownerKey) ?? 0,
+        totalQueued: this.totalQueued,
       })
+
+      options.signal?.addEventListener("abort", onAbort, { once: true })
+      if (options.signal?.aborted) {
+        onAbort()
+      }
     })
   }
 
-  /**
-   * Process queued requests for a workspace when a worker becomes available.
-   */
-  private processQueue(workspaceKey: string): void {
-    const queue = this.requestQueues.get(workspaceKey)
-    if (!queue || queue.length === 0) return
-
-    // Take the first request from the queue
-    const request = queue.shift()
+  private async processQueue(workspaceKey: string): Promise<void> {
+    const request = this.dequeueNextRequest(workspaceKey)
     if (!request) return
 
-    console.log(
-      `[pool] Processing queued request ${request.options.requestId} for ${workspaceKey} (remaining: ${queue.length})`,
-    )
+    console.log("[pool] processing_queued_request", {
+      requestId: request.options.requestId,
+      ownerKey: request.options.ownerKey,
+      workspaceKey,
+      queuedForMs: Date.now() - request.enqueuedAtMs,
+      remainingWorkspaceQueue: this.queuedByWorkspace.get(workspaceKey) ?? 0,
+      remainingGlobalQueue: this.totalQueued,
+    })
 
-    // Process the request (this will find the now-available worker)
-    this.query(request.credentials, request.options).then(request.resolve).catch(request.reject)
+    try {
+      const result = await this.query(request.credentials, request.options)
+      request.resolve(result)
+    } catch (error) {
+      request.reject(error instanceof Error ? error : new Error(String(error)))
+    }
   }
-
-  // ==========================================================================
-  // Private Methods
-  // ==========================================================================
 
   private getClaudeConfigDir(): string {
     const configured = process.env.CLAUDE_CONFIG_DIR
@@ -529,14 +736,13 @@ export class WorkerPoolManager extends EventEmitter {
       const stats = await stat(dirPath)
       if (!stats.isDirectory()) return false
       const mode = stats.mode & 0o777
-      const desired = mode | 0o011 // ensure group/other execute for traversal
+      const desired = mode | 0o011
       if (desired !== mode) {
         await chmod(dirPath, desired)
         return true
       }
       return false
     } catch {
-      // Best-effort only - absence just means we can't auto-fix
       return false
     }
   }
@@ -547,15 +753,13 @@ export class WorkerPoolManager extends EventEmitter {
       const stats = await stat(credentialsPath)
       let permissionsAdjusted = false
 
-      // Ensure traversal to credentials dir (e.g., /root/.claude)
       const credentialsDir = path.dirname(credentialsPath)
       const parentDir = path.dirname(credentialsDir)
       if (await this.ensureDirTraversal(credentialsDir)) permissionsAdjusted = true
       if (await this.ensureDirTraversal(parentDir)) permissionsAdjusted = true
 
-      // Ensure file is readable by non-root workers
       const mode = stats.mode & 0o777
-      const desired = mode | 0o044 // add group/other read
+      const desired = mode | 0o044
       if (desired !== mode) {
         await chmod(credentialsPath, desired)
         permissionsAdjusted = true
@@ -582,7 +786,6 @@ export class WorkerPoolManager extends EventEmitter {
       if (permissionsAdjusted) {
         await this.restartWorkersForCredentialsChange(version, requestId, true)
       } else {
-        // Seed existing workers with current version so we don't restart unnecessarily
         for (const worker of this.workers.values()) {
           if (!worker.credentialsVersion) {
             worker.credentialsVersion = version
@@ -622,21 +825,80 @@ export class WorkerPoolManager extends EventEmitter {
     }
   }
 
-  private async spawnWorker(credentials: WorkspaceCredentials, instanceId: number = 0): Promise<WorkerHandleInternal> {
-    const { workspaceKey, uid, gid, cwd } = credentials
-    // Use instance-specific key for multiple workers per workspace
-    const workerKey = `${workspaceKey}:${instanceId}`
-    const socketPath = getSocketPath(this.config.socketDir, workerKey)
+  private async getOrCreateWorker(
+    credentials: WorkspaceCredentials,
+    useOAuth: boolean,
+    ownerKey: string,
+  ): Promise<{ worker: WorkerHandleInternal | null; reason?: DeferReason }> {
+    const workspaceKey = credentials.workspaceKey
 
-    // Ensure socket directory exists with restricted permissions (only owner can access)
+    for (const [key, worker] of this.workers) {
+      if (!key.startsWith(`${workspaceKey}:`)) continue
+      if (worker.state !== "ready") continue
+      if (worker.retiredAfterCancel) continue
+
+      if (useOAuth) {
+        if (worker.needsRestartForCredentials) {
+          this.gracefulShutdown(worker, "credentials_changed").catch(err => {
+            console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
+          })
+          continue
+        }
+
+        if (this.credentialsVersion && worker.credentialsVersion !== this.credentialsVersion) {
+          worker.needsRestartForCredentials = true
+          this.gracefulShutdown(worker, "credentials_changed").catch(err => {
+            console.error(`[pool] Error restarting worker ${worker.workspaceKey} after credential change:`, err)
+          })
+          continue
+        }
+      }
+
+      worker.lastActivity = new Date()
+      return { worker }
+    }
+
+    if (this.getActiveByOwner(ownerKey) >= this.config.maxWorkersPerUser) {
+      return { worker: null, reason: "user_limit" }
+    }
+
+    if (this.getActiveByWorkspace(workspaceKey) >= this.config.maxWorkersPerWorkspace) {
+      return { worker: null, reason: "workspace_limit" }
+    }
+
+    if (this.shouldLoadShed()) {
+      this.telemetry.loadShedEvents += 1
+      return { worker: null, reason: "load_shed" }
+    }
+
+    const maxWorkersNow = this.getDynamicMaxWorkers()
+    if (this.workers.size >= maxWorkersNow) {
+      const evicted = await this.evictWorker()
+      if (!evicted) {
+        return { worker: null, reason: "capacity" }
+      }
+    }
+
+    const instanceId = this.nextInstanceId.get(workspaceKey) ?? 0
+    this.nextInstanceId.set(workspaceKey, instanceId + 1)
+
+    return {
+      worker: await this.spawnWorker(credentials, instanceId),
+    }
+  }
+
+  private async spawnWorker(credentials: WorkspaceCredentials, instanceId = 0): Promise<WorkerHandleInternal> {
+    const { workspaceKey, uid, gid, cwd } = credentials
+    const workerKey = `${workspaceKey}:${instanceId}`
+    const socketSafeWorkerKey = workerKey.replace(/[^a-zA-Z0-9_-]/g, "_")
+    const socketPath = path.join(this.config.socketDir, `worker-${socketSafeWorkerKey}.sock`)
+
     await mkdir(this.config.socketDir, { recursive: true })
     await chmod(this.config.socketDir, 0o700)
 
-    // Create IPC server before spawning worker
     const ipc = await createIpcServer({
       socketPath,
       onMessage: msg => {
-        // Validate message structure before processing
         if (!isWorkerMessage(msg)) {
           console.error(`[pool] Invalid message from worker ${workerKey}:`, msg)
           return
@@ -648,7 +910,6 @@ export class WorkerPoolManager extends EventEmitter {
       onError: err => this.emit("pool:error", { error: err, context: workerKey }),
     })
 
-    // Spawn worker process
     let child: ChildProcess
     try {
       child = spawn(process.execPath, [this.config.workerEntryPath], {
@@ -660,21 +921,25 @@ export class WorkerPoolManager extends EventEmitter {
           WORKER_SOCKET_PATH: socketPath,
           WORKER_WORKSPACE_KEY: workspaceKey,
         },
-        // stdin: ignore (not used), stdout: inherit (avoid pipe buffer blocking), stderr: inherit
         stdio: ["ignore", "inherit", "inherit"],
-        detached: false,
+        // Detached ensures each worker owns a process group so we can terminate the full tree with -pid.
+        detached: true,
       })
     } catch (spawnError) {
-      // Clean up IPC server if spawn fails synchronously
       await ipc.close()
       throw spawnError
+    }
+
+    const pid = child.pid ?? -1
+    if (pid > 0) {
+      this.knownWorkerPids.add(pid)
     }
 
     const handle: WorkerHandleInternal = {
       process: child,
       socket: null,
       state: "starting",
-      workspaceKey: workerKey, // Use workerKey (includes instance) for lookups
+      workspaceKey: workerKey,
       credentials,
       createdAt: new Date(),
       lastActivity: new Date(),
@@ -685,9 +950,10 @@ export class WorkerPoolManager extends EventEmitter {
       pendingQueries: new Map(),
       credentialsVersion: this.credentialsVersion,
       needsRestartForCredentials: false,
+      currentOwnerKey: null,
+      retiredAfterCancel: false,
     }
 
-    // Handle process events
     child.on("exit", (code, signal) => {
       this.handleWorkerExit(workerKey, code, signal)
     })
@@ -695,15 +961,12 @@ export class WorkerPoolManager extends EventEmitter {
     child.on("error", err => {
       this.emit("pool:error", { error: err, context: `spawn:${workerKey}` })
       handle.state = "dead"
-      // Clean up IPC server on spawn error to prevent resource leak
       handle.ipc?.close()
       this.rejectPendingQueries(handle, `Worker spawn error: ${err.message}`)
     })
 
     this.workers.set(workerKey, handle)
     this.emit("worker:spawned", { workspaceKey: workerKey, pid: child.pid! })
-
-    // Start eviction timer if not running
     this.startEvictionTimer()
 
     return handle
@@ -718,14 +981,15 @@ export class WorkerPoolManager extends EventEmitter {
 
     switch (msg.type) {
       case "ready":
-        worker.state = "ready"
-        this.emit("worker:ready", { workspaceKey, pid: worker.process.pid! })
+        if (!worker.retiredAfterCancel) {
+          worker.state = "ready"
+          this.emit("worker:ready", { workspaceKey, pid: worker.process.pid! })
+        }
         break
       case "shutdown_ack":
         worker.state = "dead"
         break
       case "health_ok":
-        // Health check response - log for debugging
         console.error(
           `[pool] Worker ${workspaceKey} health OK: uptime=${msg.uptime}ms, queries=${msg.queriesProcessed}`,
         )
@@ -734,8 +998,6 @@ export class WorkerPoolManager extends EventEmitter {
       case "message":
       case "complete":
       case "error": {
-        // Route to the correct pending query by requestId
-        // SECURITY: Validate requestId exists and is a string
         if (!("requestId" in msg) || typeof msg.requestId !== "string" || !msg.requestId) {
           console.error(`[pool] Message missing valid requestId from worker ${workspaceKey}:`, msg.type)
           return
@@ -749,7 +1011,6 @@ export class WorkerPoolManager extends EventEmitter {
         }
 
         if (msg.type === "session") {
-          // Validate sessionId exists
           if (!("sessionId" in msg) || typeof msg.sessionId !== "string") {
             console.error(`[pool] Session message missing sessionId from worker ${workspaceKey}`)
             return
@@ -759,7 +1020,6 @@ export class WorkerPoolManager extends EventEmitter {
         } else if (msg.type === "message") {
           pending.onMessage(msg)
         } else if (msg.type === "complete") {
-          // Validate result exists
           if (!("result" in msg)) {
             console.error(`[pool] Complete message missing result from worker ${workspaceKey}`)
             return
@@ -772,11 +1032,7 @@ export class WorkerPoolManager extends EventEmitter {
           pending.cleanup()
           const errorMessage = "error" in msg && typeof msg.error === "string" ? msg.error : "Unknown error"
           const stderr = "stderr" in msg && typeof msg.stderr === "string" ? msg.stderr : undefined
-          const error = new Error(errorMessage)
-          // Attach stderr to error for upstream logging
-          if (stderr) {
-            ;(error as Error & { stderr?: string }).stderr = stderr
-          }
+          const error = stderr ? Object.assign(new Error(errorMessage), { stderr }) : new Error(errorMessage)
           pending.reject(error)
         }
         break
@@ -787,14 +1043,12 @@ export class WorkerPoolManager extends EventEmitter {
   private handleWorkerDisconnect(workspaceKey: string): void {
     const worker = this.workers.get(workspaceKey)
     if (!worker) {
-      // Worker already removed from map (normal during shutdown)
       return
     }
 
     if (worker.state !== "shutting_down" && worker.state !== "dead") {
       console.error(`[pool] Worker ${workspaceKey} disconnected unexpectedly`)
       worker.state = "dead"
-      // Clean up IPC server defensively - exit event should also fire, but be safe
       worker.ipc?.close()
       this.rejectPendingQueries(worker, "Worker disconnected unexpectedly")
     }
@@ -803,19 +1057,16 @@ export class WorkerPoolManager extends EventEmitter {
   private handleWorkerExit(workspaceKey: string, code: number | null, signal: string | null): void {
     const worker = this.workers.get(workspaceKey)
     if (!worker) {
-      // Worker already removed from map (can happen if exit fires after disconnect cleanup)
       return
     }
 
-    // Reject any pending queries
+    const wasShuttingDown = worker.state === "shutting_down"
+    worker.state = "dead"
+
     const exitReason = signal ? `signal ${signal}` : `exit code ${code}`
     this.rejectPendingQueries(worker, `Worker exited: ${exitReason}`)
 
-    // Clean up IPC
     worker.ipc?.close()
-
-    const wasShuttingDown = worker.state === "shutting_down"
-    worker.state = "dead"
 
     if (!wasShuttingDown && !this.isShuttingDown) {
       this.emit("worker:crashed", { workspaceKey, exitCode: code, signal })
@@ -827,9 +1078,11 @@ export class WorkerPoolManager extends EventEmitter {
     }
 
     this.workers.delete(workspaceKey)
+
+    const baseWorkspaceKey = workspaceKey.includes(":") ? workspaceKey.split(":")[0] : workspaceKey
+    this.runProcessQueue(baseWorkspaceKey, "worker_exit")
   }
 
-  /** Reject all pending queries for a worker (on crash/disconnect) */
   private rejectPendingQueries(worker: WorkerHandleInternal, reason: string): void {
     for (const pending of worker.pendingQueries.values()) {
       pending.cleanup()
@@ -838,25 +1091,77 @@ export class WorkerPoolManager extends EventEmitter {
     worker.pendingQueries.clear()
   }
 
+  private runProcessQueue(workspaceKey: string, source: "worker_idle" | "worker_exit"): void {
+    this.processQueue(workspaceKey).catch(error => {
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error("[pool] process_queue_failed", {
+        workspaceKey,
+        source,
+        error: err.message,
+      })
+      this.emit("pool:error", {
+        error: err,
+        context: `processQueue:${source}:${workspaceKey}`,
+      })
+    })
+  }
+
+  private rejectAllQueuedRequests(reason: string): void {
+    for (const workspaceQueue of this.requestQueues.values()) {
+      for (const ownerQueue of workspaceQueue.owners.values()) {
+        for (const request of ownerQueue) {
+          request.cleanupSignalAbortListener()
+          request.reject(new Error(reason))
+        }
+      }
+    }
+
+    this.requestQueues.clear()
+    this.queuedByOwner.clear()
+    this.queuedByWorkspace.clear()
+    this.totalQueued = 0
+  }
+
+  private async waitForWorkerExit(worker: WorkerHandleInternal, timeoutMs: number): Promise<void> {
+    const processHandle = worker.process
+    if (processHandle.exitCode !== null || processHandle.signalCode !== null) {
+      return
+    }
+
+    await new Promise<void>(resolve => {
+      const timeout = setTimeout(() => {
+        cleanup()
+        resolve()
+      }, timeoutMs)
+
+      const onExit = () => {
+        cleanup()
+        resolve()
+      }
+
+      const cleanup = () => {
+        clearTimeout(timeout)
+        processHandle.off("exit", onExit)
+      }
+
+      processHandle.on("exit", onExit)
+    })
+  }
+
   private async waitForReady(worker: WorkerHandleInternal): Promise<void> {
-    // Already ready
     if (worker.state === "ready") return
 
-    // Already dead - fail immediately
     if (worker.state === "dead") {
       throw new Error(`Worker ${worker.workspaceKey} died while starting`)
     }
 
-    // Not in starting state - something went wrong
     if (worker.state !== "starting") {
       throw new Error(`Worker ${worker.workspaceKey} in unexpected state: ${worker.state}`)
     }
 
-    // Use event-based waiting instead of busy-loop polling
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         cleanup()
-        // Clean up the worker that failed to become ready - kill process and close IPC
         worker.state = "dead"
         worker.ipc?.close()
         worker.process.kill("SIGKILL")
@@ -897,29 +1202,18 @@ export class WorkerPoolManager extends EventEmitter {
     if (worker.state === "shutting_down" || worker.state === "dead") return
 
     worker.state = "shutting_down"
-
-    // Send shutdown message
     this.sendToWorker(worker, { type: "shutdown", graceful: true })
 
-    // Wait for acknowledgment with timeout (event-based, not polling)
     await new Promise<void>(resolve => {
       const timeout = setTimeout(() => {
         cleanup()
-        // Force kill on timeout
-        worker.process.kill("SIGKILL")
-        resolve()
+        void this.terminateWorkerTree(worker, "shutdown_timeout")
+          .catch(err => {
+            console.error(`[pool] Error terminating worker tree ${worker.workspaceKey}:`, err)
+          })
+          .finally(resolve)
       }, this.config.shutdownTimeoutMs)
 
-      // shutdown_ack message sets state to "dead" in handleWorkerMessage
-      // Also handle process exit which triggers handleWorkerExit
-      const checkDead = () => {
-        if (worker.state === "dead") {
-          cleanup()
-          resolve()
-        }
-      }
-
-      // Listen for worker:shutdown event (emitted when worker exits)
       const onShutdown = (event: { workspaceKey: string }) => {
         if (event.workspaceKey === worker.workspaceKey) {
           cleanup()
@@ -930,31 +1224,81 @@ export class WorkerPoolManager extends EventEmitter {
       const cleanup = () => {
         clearTimeout(timeout)
         this.off("worker:shutdown", onShutdown)
-        // Remove interval if we added one
-        if (stateCheckInterval) clearInterval(stateCheckInterval)
       }
 
       this.on("worker:shutdown", onShutdown)
-
-      // Also check state periodically (backup for edge cases) - much less frequent than 100ms
-      const stateCheckInterval = setInterval(checkDead, 500)
     })
-    // Note: "worker:shutdown" event is already emitted by handleWorkerExit - no need to emit again
   }
 
-  /**
-   * Attempt to evict a worker to make room for a new one.
-   * @returns true if a worker was evicted, false if all workers are busy
-   */
+  private async retireWorkerAfterCancel(
+    worker: WorkerHandleInternal,
+    requestId: string,
+    ownerKey: string | null,
+  ): Promise<void> {
+    this.telemetry.retiredAfterCancel += 1
+    console.log("[pool] retiring_worker_after_cancel", {
+      requestId,
+      workerKey: worker.workspaceKey,
+      workspaceKey: worker.credentials.workspaceKey,
+      ownerKey,
+    })
+    await this.terminateWorkerTree(worker, "cancelled")
+  }
+
+  private async terminateWorkerTree(worker: WorkerHandleInternal, reason: string): Promise<void> {
+    if (worker.state === "dead") return
+
+    worker.state = "shutting_down"
+
+    if (worker.activeRequestId) {
+      this.sendToWorker(worker, { type: "cancel", requestId: worker.activeRequestId })
+    }
+    this.sendToWorker(worker, { type: "shutdown", graceful: false })
+
+    const pid = worker.process.pid
+    if (!pid || pid <= 0) return
+
+    console.log("[pool] terminating_worker_tree", {
+      workerKey: worker.workspaceKey,
+      workspaceKey: worker.credentials.workspaceKey,
+      ownerKey: worker.currentOwnerKey,
+      reason,
+      pid,
+    })
+
+    this.telemetry.groupTerminations += 1
+    this.killProcessTree(pid, "SIGTERM")
+
+    await sleep(this.config.killGraceMs)
+
+    if (this.workers.has(worker.workspaceKey)) {
+      this.telemetry.groupKillEscalations += 1
+      this.killProcessTree(pid, "SIGKILL")
+    }
+  }
+
+  private killProcessTree(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
+    try {
+      process.kill(-pid, signal)
+      return
+    } catch {
+      // Fallback to single-pid kill below
+    }
+
+    try {
+      process.kill(pid, signal)
+    } catch {
+      // Process may already be gone
+    }
+  }
+
   private async evictWorker(): Promise<boolean> {
-    const candidates = Array.from(this.workers.values()).filter(
-      w => w.state === "ready", // Only evict idle workers
-    )
+    const candidates = Array.from(this.workers.values()).filter(w => w.state === "ready" && !w.retiredAfterCancel)
 
     if (candidates.length === 0) {
       this.emit("pool:at_capacity", {
         currentWorkers: this.workers.size,
-        maxWorkers: this.config.maxWorkers,
+        maxWorkers: this.getDynamicMaxWorkers(),
       })
       return false
     }
@@ -985,15 +1329,12 @@ export class WorkerPoolManager extends EventEmitter {
     const now = Date.now()
 
     for (const worker of this.workers.values()) {
-      // Skip workers that are busy, already shutting down, or not yet ready
       if (worker.state !== "ready") continue
 
       const inactiveTime = now - worker.lastActivity.getTime()
       const age = now - worker.createdAt.getTime()
 
       if (inactiveTime > this.config.inactivityTimeoutMs) {
-        // Mark as shutting_down immediately (gracefulShutdown does this, but be explicit)
-        // The promise runs in background - we don't need to await
         this.gracefulShutdown(worker, "inactivity").catch(err => {
           console.error(`[pool] Error during inactivity eviction of ${worker.workspaceKey}:`, err)
         })
@@ -1001,6 +1342,59 @@ export class WorkerPoolManager extends EventEmitter {
         this.gracefulShutdown(worker, "max_age").catch(err => {
           console.error(`[pool] Error during max_age eviction of ${worker.workspaceKey}:`, err)
         })
+      }
+    }
+  }
+
+  private async sweepOrphanedCliProcesses(): Promise<void> {
+    if (platform() !== "linux") {
+      return
+    }
+
+    const liveWorkerPids = new Set<number>()
+    for (const worker of this.workers.values()) {
+      const pid = worker.process.pid
+      if (pid && pid > 0) {
+        liveWorkerPids.add(pid)
+      }
+    }
+
+    const { stdout } = await execFileAsync("ps", ["-eo", "pid=,ppid=,etimes=,args="])
+    const lines = stdout.split("\n")
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+
+      const match = trimmed.match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.+)$/)
+      if (!match) continue
+
+      const pid = Number(match[1])
+      const ppid = Number(match[2])
+      const elapsedSeconds = Number(match[3])
+      const args = match[4]
+
+      if (!args.includes("claude-agent-sdk/cli.js")) continue
+
+      const ageMs = elapsedSeconds * 1000
+      if (ageMs < this.config.orphanMaxAgeMs) continue
+
+      if (!this.knownWorkerPids.has(ppid)) continue
+      if (liveWorkerPids.has(ppid)) continue
+
+      this.killProcessTree(pid, "SIGKILL")
+      this.telemetry.orphansReaped += 1
+
+      console.error("[pool] orphan_cli_reaped", {
+        pid,
+        ppid,
+        ageMs,
+      })
+    }
+
+    for (const pid of this.knownWorkerPids) {
+      if (!liveWorkerPids.has(pid)) {
+        this.knownWorkerPids.delete(pid)
       }
     }
   }

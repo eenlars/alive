@@ -46,7 +46,7 @@ export function syncDexieTabsToLocalStorage(
     if (existingTabIds.has(dexieTab.id as TabId)) continue
 
     // Skip closed tabs (they'll be re-synced if reopened)
-    if (dexieTab.closedAt) continue
+    if (dexieTab.closedAt != null) continue
 
     // Convert DbTab to localStorage Tab format
     const tab: Tab = {

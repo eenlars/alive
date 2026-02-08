@@ -1,9 +1,8 @@
 # Referral System
 
-> **Document Type:** SPECIFICATION (not implemented)
-> **Status:** COMPLETE
+> **Document Type:** Feature documentation
+> **Status:** Implemented
 > **Last Updated:** 2025-01-28
-> **Owner:** @anthropic-team
 
 ---
 

@@ -112,6 +112,61 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
     }
   }
 
+  // Standalone mode - resolve workspace from local filesystem
+  if (env.BRIDGE_ENV === "standalone") {
+    const {
+      getStandaloneWorkspacePath,
+      getStandaloneWorkspaceBase,
+      isValidStandaloneWorkspaceName,
+      standaloneWorkspaceExists,
+    } = await import("@/features/workspace/lib/standalone-workspace")
+
+    if (!isValidStandaloneWorkspaceName(customWorkspace)) {
+      console.error(`[Workspace ${requestId}] Invalid standalone workspace name: ${customWorkspace}`)
+      return {
+        success: false,
+        response: NextResponse.json(
+          {
+            ok: false,
+            error: ErrorCodes.WORKSPACE_INVALID,
+            message: `Invalid workspace name: ${customWorkspace}`,
+            details: {
+              workspace: customWorkspace,
+              suggestion: `Create workspace with: mkdir -p ${getStandaloneWorkspaceBase()}/<workspace>/user`,
+            },
+          },
+          { status: 400 },
+        ),
+      }
+    }
+
+    if (standaloneWorkspaceExists(customWorkspace)) {
+      const workspacePath = getStandaloneWorkspacePath(customWorkspace)
+      console.log(`[Workspace ${requestId}] Using standalone workspace: ${workspacePath}`)
+      return {
+        success: true,
+        workspace: workspacePath,
+      }
+    }
+
+    console.error(`[Workspace ${requestId}] Standalone workspace not found: ${customWorkspace}`)
+    return {
+      success: false,
+      response: NextResponse.json(
+        {
+          ok: false,
+          error: ErrorCodes.WORKSPACE_NOT_FOUND,
+          message: `Standalone workspace not found: ${customWorkspace}`,
+          details: {
+            workspace: customWorkspace,
+            suggestion: `Create workspace with: mkdir -p ${getStandaloneWorkspaceBase()}/${customWorkspace}/user`,
+          },
+        },
+        { status: 404 },
+      ),
+    }
+  }
+
   // Allow "test" or "test.alive.local" workspace in local development mode (for E2E tests)
   // Test workspace is created by e2e-tests/genuine-setup.ts
   const testWorkspace = `test.${TEST_CONFIG.EMAIL_DOMAIN}`

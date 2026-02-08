@@ -127,7 +127,7 @@ When a user sends a message in the chat UI, it flows through several layers of a
 ### Admin-Only Tools
 
 ```typescript
-["Bash", "BashOutput", "KillShell"]
+["Bash", "BashOutput", "TaskStop"]
 ```
 
 Only users with emails in the hardcoded `ADMIN_EMAILS` list get these tools.

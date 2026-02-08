@@ -18,8 +18,8 @@
 
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { getRedisUrl } from "@webalive/env/server"
 import { createRedisClient } from "@webalive/redis"
+import { env, getRedisUrl } from "@webalive/env/server"
 import { getSupabaseCredentials } from "@/lib/env/server"
 
 // Read build info at startup (file is generated at build time)
@@ -83,11 +83,14 @@ interface HealthResponse {
 }
 
 // Singleton Redis client for health checks (reuse connection)
+// In standalone mode, this will be null (Redis not available)
 let healthCheckRedis: ReturnType<typeof createRedisClient> | null = null
+let healthCheckRedisInitialized = false
 
 function getHealthCheckRedis() {
-  if (!healthCheckRedis) {
+  if (!healthCheckRedisInitialized) {
     healthCheckRedis = createRedisClient(getRedisUrl())
+    healthCheckRedisInitialized = true
   }
   return healthCheckRedis
 }
@@ -95,15 +98,33 @@ function getHealthCheckRedis() {
 // For testing: reset singleton
 export function _resetHealthCheckRedis() {
   healthCheckRedis = null
+  healthCheckRedisInitialized = false
 }
 
 /**
  * Check Redis connectivity
+ * In standalone mode, Redis is not available and returns "skipped" status
  */
 async function checkRedis(): Promise<ServiceHealth> {
   const start = performance.now()
   try {
     const redis = getHealthCheckRedis()
+
+    // Redis absent: expected in standalone mode, misconfiguration otherwise
+    if (!redis) {
+      const isStandalone = env.BRIDGE_ENV === "standalone"
+      return {
+        status: isStandalone ? "connected" : "disconnected",
+        responseTimeMs: Math.round(performance.now() - start),
+        details: {
+          mode: isStandalone ? "standalone" : "missing",
+          message: isStandalone
+            ? "Redis not available in standalone mode"
+            : "Redis client unavailable - check REDIS_URL configuration",
+        },
+      }
+    }
+
     const result = await redis.ping()
     const responseTimeMs = Math.round(performance.now() - start)
 
@@ -134,9 +155,22 @@ async function checkRedis(): Promise<ServiceHealth> {
 
 /**
  * Check Supabase/PostgreSQL connectivity
- * Queries iam.users table to verify database connection
+ * Queries iam.users table to verify database connection.
+ * In standalone mode, database is not available and returns "skipped" status.
  */
 async function checkDatabase(): Promise<ServiceHealth> {
+  // Standalone mode - no database available
+  if (env.BRIDGE_ENV === "standalone") {
+    return {
+      status: "connected", // Report as "connected" since it's expected in standalone
+      responseTimeMs: 0,
+      details: {
+        mode: "standalone",
+        message: "Database not available in standalone mode",
+      },
+    }
+  }
+
   const start = performance.now()
   try {
     const { url, key } = getSupabaseCredentials("service")

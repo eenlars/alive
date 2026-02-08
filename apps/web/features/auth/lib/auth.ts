@@ -1,5 +1,5 @@
 import { env } from "@webalive/env/server"
-import { SECURITY, SUPERADMIN } from "@webalive/shared"
+import { SECURITY, STANDALONE, SUPERADMIN } from "@webalive/shared"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
@@ -29,6 +29,8 @@ export interface SessionUser {
   isAdmin: boolean
   /** Whether user is a superadmin (can edit Bridge repo itself) */
   isSuperadmin: boolean
+  /** Specific models this user is allowed to use (set via iam.users.metadata.enabled_models) */
+  enabledModels: string[]
 }
 
 /**
@@ -40,28 +42,84 @@ export interface SessionUser {
  *
  * Set via: ADMIN_EMAILS=admin1@example.com,admin2@example.com
  */
-function getAdminEmails(): string[] {
-  const envValue = process.env.ADMIN_EMAILS
-  if (!envValue) return []
-  return envValue
+/** Pre-computed lowercase Sets — parsed once at module load, O(1) lookup */
+const superadminEmails = new Set(SUPERADMIN.EMAILS.map((e: string) => e.toLowerCase()))
+const adminEmails = new Set(
+  (process.env.ADMIN_EMAILS || "")
     .split(",")
-    .map(e => e.trim())
-    .filter(Boolean)
-}
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean),
+)
 
 function isAdminUser(email: string): boolean {
-  // Superadmins are implicitly admins
-  if (isSuperadminUser(email)) return true
-  const adminEmails = getAdminEmails()
-  return adminEmails.some(e => e.toLowerCase() === email.toLowerCase())
+  const lower = email.toLowerCase()
+  return superadminEmails.has(lower) || adminEmails.has(lower)
 }
 
 /**
- * Check if user is a superadmin (can edit Bridge repo).
- * Uses SUPERADMIN.EMAILS from @webalive/shared.
+ * Build a SessionUser from email + enabled models.
+ * Single place that derives isAdmin, isSuperadmin, canSelectAnyModel.
  */
-function isSuperadminUser(email: string): boolean {
-  return SUPERADMIN.EMAILS.some((e: string) => e.toLowerCase() === email.toLowerCase())
+function buildSessionUser(id: string, email: string, name: string | null, enabledModels: string[]): SessionUser {
+  const lower = email.toLowerCase()
+  const isSuperadmin = superadminEmails.has(lower)
+  const isAdmin = isSuperadmin || adminEmails.has(lower)
+  return {
+    id,
+    email,
+    name,
+    isAdmin,
+    isSuperadmin,
+    canSelectAnyModel: isAdmin || enabledModels.length > 0,
+    enabledModels,
+  }
+}
+
+/**
+ * In-memory cache for per-user enabled models.
+ * Avoids a DB round-trip on every getSessionUser() call.
+ * TTL: 30 seconds — short enough to pick up admin changes quickly.
+ */
+const enabledModelsCache = new Map<string, { models: string[]; expiry: number }>()
+const ENABLED_MODELS_CACHE_TTL_MS = 30_000
+
+/**
+ * Fetch per-user enabled models from iam.users.metadata.
+ * Returns empty array if no models are configured.
+ * This allows admins to grant specific model access to individual users
+ * without making them full admins.
+ *
+ * Results are cached in-memory for 30 seconds to avoid a DB query on every request.
+ */
+async function fetchEnabledModels(userId: string): Promise<string[]> {
+  const cached = enabledModelsCache.get(userId)
+  if (cached && cached.expiry > Date.now()) {
+    return cached.models
+  }
+
+  try {
+    const iam = await createIamClient("service")
+    const { data } = await iam.from("users").select("metadata").eq("user_id", userId).single()
+
+    if (!data?.metadata || typeof data.metadata !== "object") {
+      enabledModelsCache.set(userId, { models: [], expiry: Date.now() + ENABLED_MODELS_CACHE_TTL_MS })
+      return []
+    }
+
+    const metadata = data.metadata as Record<string, unknown>
+    const models = metadata.enabled_models
+    if (!Array.isArray(models)) {
+      enabledModelsCache.set(userId, { models: [], expiry: Date.now() + ENABLED_MODELS_CACHE_TTL_MS })
+      return []
+    }
+
+    const result = models.filter((m): m is string => typeof m === "string")
+    enabledModelsCache.set(userId, { models: result, expiry: Date.now() + ENABLED_MODELS_CACHE_TTL_MS })
+    return result
+  } catch {
+    // Don't cache errors — retry on next call
+    return []
+  }
 }
 
 export async function getSessionUser(): Promise<SessionUser | null> {
@@ -72,19 +130,23 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     return null
   }
 
+  // Standalone mode - auto-login without database
+  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+    return {
+      id: STANDALONE.TEST_USER.ID,
+      email: STANDALONE.TEST_USER.EMAIL,
+      name: STANDALONE.TEST_USER.NAME,
+      canSelectAnyModel: true,
+      isAdmin: true,
+      isSuperadmin: false, // No superadmin access in standalone mode
+      enabledModels: [],
+    }
+  }
+
   // Test mode
   if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     const testEmail = SECURITY.LOCAL_TEST.EMAIL
-    const isAdmin = isAdminUser(testEmail)
-    const isSuperadmin = isSuperadminUser(testEmail)
-    return {
-      id: SECURITY.LOCAL_TEST.SESSION_VALUE,
-      email: testEmail,
-      name: "Test User",
-      canSelectAnyModel: isAdmin,
-      isAdmin,
-      isSuperadmin,
-    }
+    return buildSessionUser(SECURITY.LOCAL_TEST.SESSION_VALUE, testEmail, "Test User", [])
   }
 
   // Verify JWT and extract user data (NO DATABASE QUERY - all data in JWT)
@@ -94,18 +156,15 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     return null
   }
 
-  // Return user data directly from JWT (eliminates iam.users query)
-  // Old tokens without email/workspaces will be rejected by verifySessionToken
-  const isAdmin = isAdminUser(payload.email)
-  const isSuperadmin = isSuperadminUser(payload.email)
-  return {
-    id: payload.userId,
-    email: payload.email,
-    name: payload.name,
-    canSelectAnyModel: isAdmin,
-    isAdmin,
-    isSuperadmin,
+  // Skip DB query for admins — they already get canSelectAnyModel: true
+  if (isAdminUser(payload.email)) {
+    return buildSessionUser(payload.userId, payload.email, payload.name, [])
   }
+
+  // Fetch per-user enabled models from DB (lightweight query, cached 30s)
+  const enabledModels = await fetchEnabledModels(payload.userId)
+
+  return buildSessionUser(payload.userId, payload.email, payload.name, enabledModels)
 }
 
 /**
@@ -116,6 +175,17 @@ export async function isWorkspaceAuthenticated(workspace: string): Promise<boole
   const user = await getSessionUser()
   if (!user) {
     return false
+  }
+
+  // Standalone mode - verify workspace exists locally
+  if (env.BRIDGE_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
+    const { isValidStandaloneWorkspaceName, standaloneWorkspaceExists } = await import(
+      "@/features/workspace/lib/standalone-workspace"
+    )
+    if (!isValidStandaloneWorkspaceName(workspace)) {
+      return false
+    }
+    return standaloneWorkspaceExists(workspace)
   }
 
   // Test mode allows all workspaces
@@ -160,6 +230,12 @@ export async function getAuthenticatedWorkspaces(): Promise<string[]> {
 
   if (!sessionCookie?.value) {
     return []
+  }
+
+  // Standalone mode - return all local workspaces
+  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+    const { getStandaloneWorkspaces } = await import("@/features/workspace/lib/standalone-workspace")
+    return getStandaloneWorkspaces()
   }
 
   // Test mode
@@ -220,6 +296,11 @@ export async function getSafeSessionCookie(logPrefix = "[Auth]"): Promise<string
 
   if (!sessionCookie?.value) {
     return undefined
+  }
+
+  // Standalone mode special value
+  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+    return sessionCookie.value
   }
 
   // Test mode special value
@@ -287,6 +368,22 @@ export async function verifyWorkspaceAccess(
   if (user.isSuperadmin) {
     console.log(`${logPrefix} ✅ Superadmin accessing workspace: ${workspace} (user: ${user.email})`)
     return workspace
+  }
+
+  // Standalone mode - verify workspace exists locally
+  if (env.BRIDGE_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
+    const { isValidStandaloneWorkspaceName, standaloneWorkspaceExists } = await import(
+      "@/features/workspace/lib/standalone-workspace"
+    )
+    if (!isValidStandaloneWorkspaceName(workspace)) {
+      console.log(`${logPrefix} Invalid standalone workspace name: ${workspace}`)
+      return null
+    }
+    if (standaloneWorkspaceExists(workspace)) {
+      return workspace
+    }
+    console.log(`${logPrefix} Standalone workspace not found: ${workspace}`)
+    return null
   }
 
   // Test mode allows all workspaces (except alive which is checked above)

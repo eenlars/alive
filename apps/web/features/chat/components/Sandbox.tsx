@@ -256,7 +256,7 @@ export function Sandbox() {
             </>
           )}
           {panel.view === "code" && (
-            <span className="text-[13px] text-neutral-500 dark:text-neutral-500 truncate">
+            <span className="text-[13px] text-neutral-500 truncate">
               {panel.filePath ? `/${panel.filePath}` : "Code"}
             </span>
           )}

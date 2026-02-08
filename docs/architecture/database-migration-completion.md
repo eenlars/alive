@@ -287,13 +287,13 @@ bun scripts/verify-migration.ts
 If absolutely necessary:
 ```bash
 # 1. Find backup
-BACKUP=$(ls -td /var/lib/alive/backups/* | head -1)
+BACKUP=$(ls -td "$(dirname "$SERVER_CONFIG_PATH")"/backups/* | head -1)
 
 # 2. Stop service
 pm2 stop alive
 
 # 3. Restore JSON
-cp "$BACKUP/domain-passwords.json" /var/lib/alive/
+cp "$BACKUP/domain-passwords.json" "$(dirname $SERVER_CONFIG_PATH)/"
 
 # 4. Revert code (commit hash before migration)
 git checkout <pre-migration-commit>

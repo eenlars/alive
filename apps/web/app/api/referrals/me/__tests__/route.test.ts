@@ -50,7 +50,10 @@ const MOCK_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
+
+const ORIGINAL_NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
 // Helper to create chainable mock that simulates Supabase query behavior (cast to unknown to satisfy SupabaseClient type)
 function createDetailedIamMock(options: {
@@ -83,21 +86,17 @@ function createDetailedIamMock(options: {
 }
 
 describe("GET /api/referrals/me", () => {
-  let prevAppUrl: string | undefined
-
   beforeEach(() => {
     vi.clearAllMocks()
-    prevAppUrl = process.env.NEXT_PUBLIC_APP_URL
-    process.env.NEXT_PUBLIC_APP_URL = "https://app.test"
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.example.test"
   })
 
   afterEach(() => {
     vi.clearAllMocks()
-    if (prevAppUrl === undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    if (ORIGINAL_NEXT_PUBLIC_APP_URL === undefined) {
       delete process.env.NEXT_PUBLIC_APP_URL
     } else {
-      process.env.NEXT_PUBLIC_APP_URL = prevAppUrl
+      process.env.NEXT_PUBLIC_APP_URL = ORIGINAL_NEXT_PUBLIC_APP_URL
     }
   })
 

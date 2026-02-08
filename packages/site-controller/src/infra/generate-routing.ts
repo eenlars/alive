@@ -1,7 +1,7 @@
 /**
  * Generate Caddy routing configuration from database
  *
- * Reads server identity from /var/lib/alive/server-config.json
+ * Reads server identity from server-config.json (via SERVER_CONFIG_PATH env var)
  * Queries database for domains assigned to this server
  * Generates Caddyfile.sites and Caddyfile.shell
  *
@@ -15,7 +15,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { createClient } from "@supabase/supabase-js"
-import { DOMAINS } from "@webalive/shared"
+import { DOMAINS, requireEnv } from "@webalive/shared"
 
 // =============================================================================
 // Types
@@ -67,7 +67,7 @@ interface DomainRow {
 // Helpers
 // =============================================================================
 
-const SERVER_CONFIG_PATH = "/var/lib/alive/server-config.json"
+const SERVER_CONFIG_PATH = requireEnv("SERVER_CONFIG_PATH")
 
 function must<T>(v: T | undefined | null, msg: string): T {
   if (v === undefined || v === null) throw new Error(msg)
@@ -398,8 +398,12 @@ run().catch(e => {
   console.error(`\n\x1b[31mError:\x1b[0m ${msg}\n`)
 
   // Provide specific help based on error
-  if (msg.includes("server-config.json") || msg.includes("ENOENT")) {
-    console.error("\x1b[33mFix:\x1b[0m Create /var/lib/alive/server-config.json")
+  if (msg.includes("SERVER_CONFIG_PATH")) {
+    console.error("\x1b[33mFix:\x1b[0m Set SERVER_CONFIG_PATH env var to point to server-config.json")
+    console.error("     Example: export SERVER_CONFIG_PATH=/var/lib/claude-bridge/server-config.json")
+    console.error("     Copy from: ops/server-config.example.json\n")
+  } else if (msg.includes("server-config.json") || msg.includes("ENOENT")) {
+    console.error("\x1b[33mFix:\x1b[0m Ensure server-config.json exists at the SERVER_CONFIG_PATH location")
     console.error("     Copy from: ops/server-config.example.json")
     console.error("     Then edit with this server's configuration\n")
   } else if (msg.includes("SUPABASE_URL")) {

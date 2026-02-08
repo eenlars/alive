@@ -139,6 +139,32 @@ export const WORKER_POOL = {
    *  IMPORTANT: Keep this SHORT (<1s) for good UX - users shouldn't wait long after clicking Stop
    *  The SDK may block on API calls that don't respect abort signals, so we force cleanup quickly */
   CANCEL_TIMEOUT_MS: 500,
+
+  /** Fairness: max concurrent workers attributable to a single owner/user */
+  MAX_WORKERS_PER_USER: 3,
+
+  /** Fairness: max concurrent workers for a single workspace */
+  MAX_WORKERS_PER_WORKSPACE: 6,
+
+  /** Queue limits to prevent unbounded memory growth */
+  MAX_QUEUED_PER_USER: 10,
+  MAX_QUEUED_PER_WORKSPACE: 20,
+  MAX_QUEUED_GLOBAL: 200,
+
+  /** CPU-aware spawning: dynamic cap = min(MAX_WORKERS, floor(cpus * WORKERS_PER_CORE)) */
+  WORKERS_PER_CORE: 1.5,
+
+  /** Load-shed threshold: stop spawning when loadavg(1m) > cpuCount * threshold */
+  LOAD_SHED_THRESHOLD: 2.0,
+
+  /** Grace period between SIGTERM and SIGKILL for worker process trees */
+  KILL_GRACE_MS: 1_500,
+
+  /** How often orphan sweeper runs */
+  ORPHAN_SWEEP_INTERVAL_MS: 60_000,
+
+  /** Kill orphaned claude-agent-sdk subprocesses older than this age */
+  ORPHAN_MAX_AGE_MS: 5 * 60 * 1000,
 } as const
 
 /**

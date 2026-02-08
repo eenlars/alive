@@ -54,6 +54,7 @@ const MOCK_USER: SessionUser = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 function createRequest(url: string, method: string, body?: Record<string, unknown>) {

@@ -1,6 +1,6 @@
-# Claude Bridge Development Guide
+# alive Development Guide
 
-AI assistant guidelines for working on Claude Bridge.
+AI assistant guidelines for working on alive.
 
 **Quick Links:** [Getting Started](./docs/GETTING_STARTED.md) | [Architecture](./docs/architecture/README.md) | [Security](./docs/security/README.md) | [Testing](./docs/testing/README.md)
 
@@ -11,7 +11,7 @@ AI assistant guidelines for working on Claude Bridge.
 3. **GIT HOOKS** - Pre-push hooks run automatically; if they fail, fix the issues (don't force-push)
 4. **NO RANDOM ENV VARS** - Don't add environment variables unless absolutely necessary. Use existing config, constants, or code-level defaults instead. Adding .env variables creates deployment complexity and hidden dependencies.
 5. **NO EXPLORE AGENT** - Never use `Task(subagent_type=Explore)`. Use Glob and Grep directly instead - they're faster and more precise for this codebase.
-6. **CADDYFILE IS LARGE** - The generated sites file at `/root/webalive/alive/ops/caddy/generated/Caddyfile.sites` (synced from `/var/lib/alive/generated/Caddyfile.sites`) is too large to read in one go. Use `Read` with `offset` and `limit` parameters, or use `Grep` to find specific domain configurations.
+6. **CADDYFILE IS LARGE** - The generated sites file at `/root/webalive/claude-bridge/ops/caddy/generated/Caddyfile.sites` (synced from `/var/lib/claude-bridge/generated/Caddyfile.sites`) is too large to read in one go. Use `Read` with `offset` and `limit` parameters, or use `Grep` to find specific domain configurations.
 7. **OWN YOUR CHANGES** - When deploying or committing, NEVER say "these unrelated changes are not mine" or refuse to include changes in the working directory. If changes exist, they are part of the current work. Take responsibility and include them.
 8. **SEEMINGLY UNRELATED ISSUES ARE OFTEN RELATED** - When you see multiple errors or issues, assume they share a common cause until proven otherwise. Type errors in test files often stem from the same interface change. Build failures across packages usually have one root cause. Don't treat each error as isolated - find the pattern first.
 9. **INVESTIGATE BEFORE FIXING** - When something is "broken", first understand what it IS. Not all `*.goalive.nl` domains are Vite websites. Check nginx config, caddy-shell config, and existing services before creating anything new.
@@ -29,7 +29,7 @@ These domains are **NOT** Vite website templates. Do not deploy them as sites:
 
 ## Architecture Smell Detector
 
-12. **ARCHITECTURE SMELL DETECTOR** - Warn when you see these anti-patterns:
+10. **ARCHITECTURE SMELL DETECTOR** - Warn when you see these anti-patterns:
    - Adding more tools/features to solve a problem (instead of one core constraint)
    - "Let the AI figure it out" instead of clear success criteria
    - Flexibility/options when opinionated defaults would work
@@ -55,7 +55,7 @@ These domains are **NOT** Vite website templates. Do not deploy them as sites:
 
 ## Project Overview
 
-Claude Bridge is a **multi-tenant development platform** that enables Claude AI to assist with website development through controlled file system access. Key characteristics:
+alive is a **multi-tenant development platform** that enables Claude AI to assist with website development through controlled file system access. Key characteristics:
 
 - **Multi-tenant architecture**: Each domain gets isolated workspace
 - **Security-first design**: Workspace sandboxing, systemd isolation, process separation

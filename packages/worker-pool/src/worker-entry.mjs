@@ -29,19 +29,9 @@ const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 // IMPORTANT: Import these BEFORE dropping privileges!
 // After privilege drop, the worker can't read /root/alive/node_modules/
 import { query } from "@anthropic-ai/claude-agent-sdk"
-import {
-  allowTool,
-  DEFAULTS,
-  denyTool,
-  formatUncaughtError,
-  GLOBAL_MCP_PROVIDERS,
-  isAbortError,
-  isFatalError,
-  isOAuthMcpTool,
-  isTransientNetworkError,
-  PLAN_MODE_BLOCKED_TOOLS,
-} from "@webalive/shared"
-import { toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
+// biome-ignore format: import checker expects a single-line import statement for this package.
+import { isOAuthMcpTool, GLOBAL_MCP_PROVIDERS, DEFAULTS, PLAN_MODE_BLOCKED_TOOLS, allowTool, denyTool, isHeavyBashCommand, isAbortError, isTransientNetworkError, isFatalError, formatUncaughtError } from "@webalive/shared"
+import { workspaceInternalMcp, toolsInternalMcp } from "@webalive/tools"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts
@@ -551,10 +541,6 @@ async function handleQuery(ipc, requestId, payload) {
     // If payload has cookie, use it; otherwise clear any previous value
     process.env.ALIVE_SESSION_COOKIE = payload.sessionCookie || ""
 
-    // Pass tab context to tools (used by schedule_resumption MCP tool)
-    process.env.ALIVE_TAB_ID = typeof payload.tabId === "string" ? payload.tabId : ""
-    process.env.ALIVE_TAB_GROUP_ID = typeof payload.tabGroupId === "string" ? payload.tabGroupId : ""
-
     // API key handling:
     // - For user-provided API keys: pass via payload.apiKey
     // - For OAuth: SDK reads from CLAUDE_CONFIG_DIR/.credentials.json directly
@@ -630,6 +616,19 @@ async function handleQuery(ipc, requestId, payload) {
         return denyTool(`Tool "${toolName}" is explicitly disallowed for security reasons.`)
       }
 
+      // Protect shared compute from expensive monorepo-wide shell commands.
+      // Superadmins retain unrestricted execution.
+      if (toolName === "Bash" && !agentConfig.isSuperadmin) {
+        const command = typeof input?.command === "string" ? input.command : ""
+        if (isHeavyBashCommand(command)) {
+          console.error("[worker] SECURITY: Blocked heavy Bash command for non-superadmin")
+          return denyTool(
+            "This Bash command is blocked because it is too heavy for shared capacity. " +
+              "Use narrower commands (single package/file) or ask a superadmin to run full builds/checks.",
+          )
+        }
+      }
+
       if (allowedTools.includes(toolName) || isOAuthMcpTool(toolName, connectedProviders)) {
         return allowTool(input)
       }
@@ -684,6 +683,7 @@ async function handleQuery(ipc, requestId, payload) {
         model: payload.model,
         maxTurns: payload.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
         permissionMode,
+        ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
         allowedTools,
         disallowedTools,
         canUseTool,

@@ -38,6 +38,7 @@
     "setup": "./scripts/setup/copy-template.sh",
     "setup:server": "bun scripts/setup/server-setup.ts",
     "setup:server:prod": "bun scripts/setup/server-setup.ts --production --enable",
+    "setup:standalone": "./scripts/setup-standalone.sh",
     "cleanup-test-db": "bun scripts/database/cleanup-test-database.ts",
     "superclean": "bun scripts/database/superclean.ts",
     "gen:db": "./scripts/database/generate-types.sh",
@@ -65,15 +66,14 @@
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx,json}": [
-      "biome format --write"
+      "./scripts/lint-staged-format.sh"
     ]
   },
   "overrides": {
     "vitest": "4.0.17",
-    "@vitest/coverage-v8": "4.0.17"
-  },
-  "resolutions": {
-    "@tanstack/react-query": "5.90.20"
+    "@vitest/coverage-v8": "4.0.17",
+    "@tanstack/react-query": "^5.90.20",
+    "@tanstack/query-core": "^5.90.20"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.13",
@@ -89,7 +89,7 @@
     "turbo": "^2.8.3"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.1.53",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.34",
     "@flowglad/nextjs": "^0.18.0",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-query-devtools": "^5.91.3",

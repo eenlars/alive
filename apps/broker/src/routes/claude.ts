@@ -127,6 +127,8 @@ app.post("/", async c => {
 
       await pool.query(credentials, {
         requestId,
+        ownerKey: userId,
+        workloadClass: "chat",
         payload: {
           message: body.message,
           model: body.model ?? "claude-sonnet-4-20250514",

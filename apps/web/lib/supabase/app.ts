@@ -21,8 +21,17 @@ import { getSupabaseCredentials, type KeyType } from "@/lib/env/server"
 /**
  * Create a Supabase client scoped to the app schema
  * @param keyType - Use "service" for admin operations, "anon" for RLS-protected queries
+ * @throws Error in standalone mode (Supabase not available)
  */
 export async function createAppClient(keyType: KeyType = "service") {
+  // Standalone mode - no Supabase available
+  if (process.env.BRIDGE_ENV === "standalone") {
+    throw new Error(
+      "[Standalone] Supabase is not available in standalone mode. " +
+        "Use in-memory alternatives or ensure code paths avoid database calls.",
+    )
+  }
+
   const { url, key } = getSupabaseCredentials(keyType)
 
   // In test environment, use direct client without cookies

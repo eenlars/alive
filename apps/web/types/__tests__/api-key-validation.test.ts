@@ -11,7 +11,7 @@ import { BodySchema } from "@/types/guards/api"
 describe("API Key Validation - BodySchema", () => {
   // tabId is now required, conversationId is optional
   const validTabId = "660e8400-e29b-41d4-a716-446655440001"
-  const validTabGroupId = "11111111-1111-1111-1111-111111111111"
+  const validTabGroupId = "11111111-1111-4111-8111-111111111111"
   const validMessage = "Hello, Claude"
 
   describe("Valid API Keys", () => {

@@ -40,6 +40,8 @@ export const STREAM_ALLOWED_SDK_TOOLS: string[] = [
   // Shell execution (available to all users)
   "Bash",
   "TaskOutput",
+  // Legacy alias used by older Claude Code SDK versions
+  "BashOutput",
   // Planning & workflow
   // NOTE: ExitPlanMode is intentionally NOT here - it requires user approval
   // When Claude tries to use it, canUseTool() denies with a message asking user to approve
@@ -64,6 +66,7 @@ export type StreamAllowedSDKTool =
   | "Grep"
   | "Bash"
   | "TaskOutput"
+  | "BashOutput"
   // ExitPlanMode intentionally omitted - requires user approval
   | "TodoWrite"
   | "ListMcpResources"
@@ -76,10 +79,10 @@ export type StreamAllowedSDKTool =
 
 /**
  * Admin-only SDK tools.
- * KillShell is admin-only because it can terminate long-running processes.
- * Bash/TaskOutput are in STREAM_ALLOWED_SDK_TOOLS (available to all users).
+ * TaskStop is admin-only because it can terminate background tasks.
+ * Bash/TaskOutput/BashOutput are in STREAM_ALLOWED_SDK_TOOLS (available to all users).
  */
-export const STREAM_ADMIN_ONLY_SDK_TOOLS = ["KillShell"] as const
+export const STREAM_ADMIN_ONLY_SDK_TOOLS = ["TaskStop"] as const
 export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number]
 
 /**
@@ -89,11 +92,10 @@ export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number
  * - Task: Subagent spawning - not supported in Stream architecture
  * - WebSearch: External web access - not needed, cost concerns
  * - ExitPlanMode: Requires user approval - Claude cannot approve its own plan
- * - Config: SDK settings tool - not applicable in Stream mode
  *
  * Note: Superadmins get ALL tools including these.
  */
-export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = ["Task", "WebSearch", "ExitPlanMode", "Config"] as const
+export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = ["Task", "WebSearch", "ExitPlanMode"] as const
 export type StreamAlwaysDisallowedSDKTool = (typeof STREAM_ALWAYS_DISALLOWED_SDK_TOOLS)[number]
 
 /**
@@ -122,8 +124,6 @@ export const PLAN_MODE_BLOCKED_TOOLS = [
   "mcp__alive-workspace__restart_dev_server",
   "mcp__alive-workspace__switch_serve_mode",
   "mcp__alive-workspace__create_website",
-  // TODO: Enable once resume-conversation flow is tested end-to-end
-  // "mcp__alive-workspace__schedule_resumption",
 ] as const
 export type PlanModeBlockedTool = (typeof PLAN_MODE_BLOCKED_TOOLS)[number]
 
@@ -179,6 +179,34 @@ export const STREAM_PERMISSION_MODE = "default" as const
  */
 export const STREAM_SETTINGS_SOURCES = ["project", "user"] as const
 
+const EXACT_HEAVY_BASH_COMMANDS = new Set([
+  "bun run build",
+  "bun run type-check",
+  "bun run lint",
+  "bun run static-check",
+  "bun run check:pre-push",
+  "bun run check:all",
+  "npm run build",
+  "npm run type-check",
+  "npm run lint",
+  "pnpm run build",
+  "pnpm run type-check",
+  "pnpm run lint",
+  "yarn build",
+  "yarn type-check",
+  "yarn lint",
+  "next build",
+  "claude",
+])
+
+const HEAVY_BASH_PATTERNS = [
+  /\b(?:tsc|npx\s+tsc|bunx?\s+tsc|pnpm\s+tsc|yarn\s+tsc)\b/,
+  /(?:^|(?:&&|\|\||\||;)\s*)(?:\.\/)?claude(?:\b|$)/,
+  /(?:^|(?:&&|\|\||\||;)\s*)(?:npx|bunx?|pnpm\s+dlx|yarn\s+dlx)\s+(?:\.\/)?claude(?:\b|$)/,
+  /claude-agent-sdk\/cli\.js/,
+  /\b(turbo|bun run turbo)\s+run\s+(build|type-check|lint|test)\b/,
+]
+
 // =============================================================================
 // TOOL PERMISSION HELPERS
 // =============================================================================
@@ -195,6 +223,18 @@ export function allowTool(input: Record<string, unknown>) {
  */
 export function denyTool(message: string) {
   return { behavior: "deny" as const, message }
+}
+
+/**
+ * Detect shell commands that are known to be expensive at monorepo scope.
+ * This is a conservative deny-list used to protect shared CPU capacity.
+ */
+export function isHeavyBashCommand(command: unknown): boolean {
+  if (typeof command !== "string") return false
+  const normalized = command.toLowerCase().trim().replace(/\s+/g, " ")
+  if (!normalized) return false
+  if (EXACT_HEAVY_BASH_COMMANDS.has(normalized)) return true
+  return HEAVY_BASH_PATTERNS.some(pattern => pattern.test(normalized))
 }
 
 /**

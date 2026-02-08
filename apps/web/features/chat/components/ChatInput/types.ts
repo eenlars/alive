@@ -169,6 +169,14 @@ export interface ChatInputContextValue extends ChatInputState, ChatInputActions 
   config: ChatInputConfig
   /** Register the textarea ref for focus management */
   registerTextareaRef: (ref: HTMLTextAreaElement | null) => void
+  /** Add a skill as an attachment (for @mention autocomplete and toolbar) */
+  onAddSkill?: (
+    skillId: string,
+    displayName: string,
+    description: string,
+    prompt: string,
+    source: "global" | "user" | "project",
+  ) => void
 }
 
 export interface ChatInputProps extends ChatInputActions {

@@ -47,9 +47,9 @@ export const env = createEnv({
   /**
    * Custom error handling
    */
-  onValidationError: error => {
+  onValidationError: issues => {
     console.error("❌ Invalid client environment variables:")
-    console.error(error.flatten().fieldErrors)
+    console.error(issues)
     throw new Error("Invalid client environment variables")
   },
 

@@ -25,18 +25,31 @@ function hasCookie(name: string): boolean {
 /**
  * FlowGlad provider wrapper for billing functionality.
  *
- * ALWAYS renders FlowgladProvider because it sets up its own internal
- * QueryClientProvider (from @flowglad/react's bundled react-query).
- * Without it, useBilling() crashes with "No QueryClient set".
+ * Only renders the FlowgladProvider when the user has a session cookie.
+ * This avoids unnecessary API calls and errors for unauthenticated users.
  *
- * loadBilling is only enabled when the user has a session cookie,
- * avoiding unnecessary API calls for unauthenticated users.
+ * In Playwright E2E tests (window.PLAYWRIGHT_TEST === true), the provider
+ * is skipped entirely because:
+ * 1. Test users don't have Flowglad customer records
+ * 2. The provider's internal QueryClientProvider can conflict with the app's
+ *    if @tanstack/react-query is duplicated across packages
  */
 export function FlowgladProviderWrapper({ children }: FlowgladProviderWrapperProps) {
+  // Only load billing if user has a session cookie
   const hasSession = hasCookie(COOKIE_NAMES.SESSION)
 
+  // Skip FlowgladProvider in E2E tests - test users don't have billing records
+  // and the provider's QueryClientProvider can conflict with the app's
+  const isPlaywrightTest =
+    typeof window !== "undefined" && "PLAYWRIGHT_TEST" in window && window.PLAYWRIGHT_TEST === true
+
+  // Don't render FlowgladProvider for unauthenticated users or E2E tests
+  if (!hasSession || isPlaywrightTest) {
+    return <>{children}</>
+  }
+
   return (
-    <LoadedFlowgladProvider loadBilling={hasSession} serverRoute="/api/flowglad">
+    <LoadedFlowgladProvider loadBilling={true} serverRoute="/api/flowglad">
       {children}
     </LoadedFlowgladProvider>
   )

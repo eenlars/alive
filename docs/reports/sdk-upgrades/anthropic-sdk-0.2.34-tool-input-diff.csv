@@ -1,0 +1,7 @@
+change,type,name
+added,tool_input,export interface ConfigInput {
+added,tool_input,export interface TaskOutputInput {
+added,tool_input,export interface TaskStopInput {
+removed,tool_input,export interface AgentOutputInput {
+removed,tool_input,export interface BashOutputInput {
+removed,tool_input,export interface KillShellInput {

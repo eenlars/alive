@@ -37,7 +37,7 @@ fi
 
 # Get stream root from env or use default
 STREAM_ROOT="${STREAM_ROOT:-/root/alive}"
-SERVER_CONFIG="/var/lib/alive/server-config.json"
+SERVER_CONFIG="${SERVER_CONFIG_PATH:-}"
 
 if [[ -f "$SERVER_CONFIG" ]]; then
     # =========================================================================

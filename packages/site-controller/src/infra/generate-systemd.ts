@@ -3,7 +3,7 @@
 /**
  * Generate systemd service files from server-config.json
  *
- * Single source of truth: /var/lib/alive/server-config.json
+ * Single source of truth: SERVER_CONFIG_PATH env var → server-config.json
  *
  * Usage: bun run gen:systemd
  */
@@ -11,6 +11,7 @@
 import { execSync } from "node:child_process"
 import { constants } from "node:fs"
 import { access, mkdir, readFile, writeFile } from "node:fs/promises"
+import { requireEnv } from "@webalive/shared"
 
 // =============================================================================
 // Types
@@ -43,8 +44,7 @@ interface ServiceConfig {
 // Constants
 // =============================================================================
 
-const CONFIG_PATH = "/var/lib/alive/server-config.json"
-const GENERATED_DIR = "/var/lib/alive/generated"
+const CONFIG_PATH = requireEnv("SERVER_CONFIG_PATH")
 
 const COLORS = {
   red: "\x1b[31m",
@@ -182,7 +182,11 @@ async function main() {
     process.exit(1)
   }
 
-  const generatedDir = config.generated?.dir || GENERATED_DIR
+  const generatedDir = config.generated?.dir
+  if (!generatedDir) {
+    console.error(`${COLORS.red}✗ generated.dir not set in ${CONFIG_PATH}${COLORS.reset}`)
+    process.exit(1)
+  }
   await mkdir(generatedDir, { recursive: true })
 
   console.log(`  aliveRoot: ${aliveRoot}`)

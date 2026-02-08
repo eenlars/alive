@@ -265,34 +265,6 @@ export async function POST(req: NextRequest) {
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
-    // Sync to pg-boss if this is an active cron automation
-    if (data.is_active && data.trigger_type === "cron" && data.cron_schedule && data.action_prompt) {
-      try {
-        const { scheduleAutomation } = await import("@webalive/job-queue")
-        await scheduleAutomation(
-          `automation-${data.id}`,
-          data.cron_schedule,
-          {
-            jobId: data.id,
-            userId: user.id,
-            orgId: domain.org_id,
-            workspace: siteCheck.hostname!,
-            prompt: data.action_prompt,
-            timeoutSeconds: data.action_timeout_seconds || 300,
-            model: data.action_model || undefined,
-            thinkingPrompt: data.action_thinking || undefined,
-            skills: data.skills || undefined,
-            cronSchedule: data.cron_schedule,
-            cronTimezone: data.cron_timezone || "UTC",
-          },
-          { tz: data.cron_timezone || "UTC" },
-        )
-      } catch (err) {
-        console.error("[Automations API] Failed to sync pg-boss schedule:", err)
-        // Don't fail the request — the job is in Supabase, sync will catch it on next restart
-      }
-    }
-
     const response: any = { ok: true, automation: data }
     if (nextRunsDisplay) {
       response.nextRunsPreview = nextRunsDisplay

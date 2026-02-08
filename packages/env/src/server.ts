@@ -66,9 +66,9 @@ export const env = createEnv({
   /**
    * Custom error handling
    */
-  onValidationError: error => {
+  onValidationError: issues => {
     console.error("❌ Invalid environment variables:")
-    console.error(error.flatten().fieldErrors)
+    console.error(issues)
     throw new Error("Invalid environment variables")
   },
 
@@ -111,10 +111,16 @@ const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
  *
  * - Production/Staging: REDIS_URL is REQUIRED (throws if missing)
  * - Local dev (STREAM_ENV=local): Falls back to default dev password
+ * - Standalone (BRIDGE_ENV=standalone): Returns null (Redis not required)
  *
  * This prevents auth mismatches in production while allowing easy local dev.
  */
-export function getRedisUrl(): string {
+export function getRedisUrl(): string | null {
+  // Standalone mode - Redis not available
+  if (env.BRIDGE_ENV === "standalone") {
+    return null
+  }
+
   const redisUrl = env.REDIS_URL
   const isLocalDev = env.STREAM_ENV === "local"
 
@@ -153,7 +159,7 @@ export function getSuperadminEmails(): readonly string[] {
 
   return emailsEnv
     .split(",")
-    .map(e => e.trim().toLowerCase())
+    .map((e: string) => e.trim().toLowerCase())
     .filter(Boolean)
 }
 

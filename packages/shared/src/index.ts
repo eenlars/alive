@@ -15,6 +15,9 @@
 
 export {
   assertConfigValid,
+  BRIDGE_ENV,
+  type BridgeEnv,
+  CONFIG_PATH,
   type ConfigValidationResult,
   DEFAULTS,
   DOMAINS,
@@ -25,7 +28,9 @@ export {
   getSiteUser,
   PATHS,
   PORTS,
+  requireEnv,
   SECURITY,
+  STANDALONE,
   STREAM_ENV,
   type StreamEnv,
   SUPERADMIN,
@@ -174,6 +179,7 @@ export {
   createStreamCanUseTool,
   denyTool,
   filterToolsForPlanMode,
+  isHeavyBashCommand,
   // Helper functions
   getStreamAllowedTools,
   getStreamDisallowedTools,

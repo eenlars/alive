@@ -97,37 +97,13 @@ function ChatPageContent() {
     },
     [dexieSession, ensureTabGroupWithTab],
   )
-  const { toggleSidebar } = useSidebarActions()
+  const { toggleSidebar, openSidebar } = useSidebarActions()
   const isSidebarOpen = useSidebarOpen()
   const isHydrated = useAppHydrated()
   const [subdomainInitialized, setSubdomainInitialized] = useState(false)
   const [worktreeModalOpen, setWorktreeModalOpen] = useState(false)
   const [_showCompletionDots, setShowCompletionDots] = useState(false)
   const modals = useModals()
-
-  // Persist settings overlay across refresh: if settingsTab is in URL, auto-open settings
-  const [settingsTabParam, setSettingsTabParam] = useQueryState(QUERY_KEYS.settingsTab)
-  const settingsRestoredRef = useRef(false)
-  useEffect(() => {
-    if (settingsRestoredRef.current) return
-    settingsRestoredRef.current = true
-    if (settingsTabParam) {
-      modals.openSettings("manual")
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- intentionally run once on mount
-
-  // When settings opens without a URL param, write the default so refresh works
-  useEffect(() => {
-    if (modals.settings && !settingsTabParam) {
-      void setSettingsTabParam(modals.settings === "websites" ? "websites" : "account")
-    }
-  }, [modals.settings, settingsTabParam, setSettingsTabParam])
-
-  // When settings overlay closes, clear settingsTab from URL
-  const handleCloseSettings = useCallback(() => {
-    modals.closeSettings()
-    void setSettingsTabParam(null)
-  }, [modals.closeSettings, setSettingsTabParam]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Smart scroll using Intersection Observer
   const { containerRef, anchorRef, isScrolledAway, scrollToBottom, forceScrollToBottom } = useChatScroll({
@@ -143,7 +119,7 @@ function ChatPageContent() {
   const showTabs = true
   const chatInputRef = useRef<ChatInputHandle | null>(null)
   const photoButtonRef = useRef<HTMLButtonElement>(null)
-  const { setSSETerminal, setSSETerminalMinimized, setSandbox, setSandboxMinimized } = useDebugActions()
+  const { setSSETerminal, setSSETerminalMinimized } = useDebugActions()
   const showSSETerminal = useSSETerminal()
   const showSandboxRaw = useSandbox()
   const isDebugMode = useDebugVisible()
@@ -484,12 +460,9 @@ function ChatPageContent() {
       setSSETerminal(true)
       setSSETerminalMinimized(true)
     }
-    // Only auto-open sandbox on large screens (desktops), not tablets
-    if (window.innerWidth >= 1280) {
-      setSandbox(true)
-      setSandboxMinimized(false)
-    }
-  }, [setSSETerminal, setSSETerminalMinimized, setSandbox, setSandboxMinimized])
+    // Open conversations sidebar by default
+    openSidebar()
+  }, [setSSETerminal, setSSETerminalMinimized, openSidebar])
 
   // Calculate total domain count from organizations
   const totalDomainCount = organizations.reduce((sum, org) => sum + (org.workspace_count || 0), 0)
@@ -725,7 +698,7 @@ function ChatPageContent() {
           )}
 
           {/* Messages */}
-          <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-2">
+          <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-8">
             <div className="p-4 mx-auto w-full md:max-w-[calc(42rem+2rem)] min-w-0">
               {messages.length === 0 && !busy && (
                 <ChatEmptyState
@@ -919,7 +892,7 @@ function ChatPageContent() {
       )}
       {modals.settings && (
         <SettingsOverlay
-          onClose={handleCloseSettings}
+          onClose={modals.closeSettings}
           initialTab={modals.settings === "websites" ? "websites" : undefined}
         />
       )}

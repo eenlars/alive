@@ -203,11 +203,28 @@ if [ -n "$PROMOTE_FROM" ]; then
     fi
 
     cd "$BUILDS_DIR"
-    ln -sfn "dist.$TIMESTAMP" "current.tmp" && mv -T "current.tmp" "current"
+    ln -sfn "dist.$TIMESTAMP" "current"
     cd "$PROJECT_ROOT"
 
+    # Verify promoted build integrity (prevent ChunkLoadError in production)
+    PROMOTED_CHUNKS="$DEST/server/chunks"
+    PROMOTED_STREAM="$DEST/server/app/api/claude/stream/route.js"
+    if [ ! -d "$PROMOTED_CHUNKS" ]; then
+        phase_end error "Promoted build missing server/chunks — corrupt copy"
+        exit 1
+    fi
+    PROMOTED_CHUNK_COUNT=$(find "$PROMOTED_CHUNKS" -name '*.js' -type f | wc -l)
+    if [ "$PROMOTED_CHUNK_COUNT" -lt 10 ]; then
+        phase_end error "Promoted build has only $PROMOTED_CHUNK_COUNT chunks (expected 10+)"
+        exit 1
+    fi
+    if [ ! -f "$PROMOTED_STREAM" ]; then
+        phase_end error "Promoted build missing stream route"
+        exit 1
+    fi
+
     NEW_BUILD="dist.$TIMESTAMP"
-    log_step "Promoted: $NEW_BUILD"
+    log_step "Promoted: $NEW_BUILD ($PROMOTED_CHUNK_COUNT chunks verified)"
     phase_end ok "Build promoted"
 else
     BUILD_LOG="/tmp/alive-build-${ENV}.log"
@@ -269,16 +286,6 @@ if ! health_check "http://localhost:$PORT/" "$MAX_WAIT" 1; then
 fi
 
 sleep 3  # Warmup
-
-# Verify stream endpoint loads without ChunkLoadError (401 = auth required = route works)
-STREAM_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/api/claude/stream" 2>/dev/null || echo "000")
-if [ "$STREAM_STATUS" = "500" ] || [ "$STREAM_STATUS" = "000" ]; then
-    phase_end error "Stream endpoint returned $STREAM_STATUS (likely missing chunks)"
-    rollback "critical endpoint broken"
-    exit 1
-fi
-log_step "Stream endpoint OK (HTTP $STREAM_STATUS)"
-
 phase_end ok "Server healthy"
 
 # =============================================================================

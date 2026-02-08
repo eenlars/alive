@@ -32,15 +32,19 @@ vi.mock("@/lib/credits/add-credits", () => ({
   awardReferralCredits: vi.fn(),
 }))
 
-// Mock shared constants
-vi.mock("@webalive/shared", () => ({
-  REFERRAL: {
-    CREDITS: 500,
-    EXPIRY_DAYS: 30,
-    EMAIL_DAILY_LIMIT: 10,
-    ACCOUNT_AGE_LIMIT_MS: 24 * 60 * 60 * 1000, // 24 hours
-  },
-}))
+// Mock shared constants — use importOriginal to keep SUPERADMIN, SECURITY, etc.
+vi.mock("@webalive/shared", async importOriginal => {
+  const actual = (await importOriginal()) as Record<string, unknown>
+  return {
+    ...actual,
+    REFERRAL: {
+      CREDITS: 500,
+      EXPIRY_DAYS: 30,
+      EMAIL_DAILY_LIMIT: 10,
+      ACCOUNT_AGE_LIMIT_MS: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  }
+})
 
 // Import after mocking
 const { POST } = await import("../route")
@@ -56,6 +60,7 @@ const MOCK_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 const MOCK_REFERRER = {

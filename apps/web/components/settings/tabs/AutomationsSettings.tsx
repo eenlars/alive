@@ -207,10 +207,7 @@ export function AutomationsSettings() {
 
   if (error) {
     return (
-      <SettingsTabLayout
-        title="Automations"
-        description="Let the AI run tasks on a schedule -- like updating content, syncing data, or checking your site automatically."
-      >
+      <SettingsTabLayout title="Automations" description="Schedule recurring tasks">
         <EmptyState icon={Zap} message={error} />
       </SettingsTabLayout>
     )
@@ -220,7 +217,7 @@ export function AutomationsSettings() {
     return (
       <SettingsTabLayout
         title="Automations"
-        description="Let the AI run tasks on a schedule -- like updating content, syncing data, or checking your site automatically."
+        description="Schedule recurring tasks for your websites"
         action={{
           label: "Create Automation",
           icon: <Plus size={16} />,

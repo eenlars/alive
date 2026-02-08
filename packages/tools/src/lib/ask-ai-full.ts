@@ -196,6 +196,7 @@ export async function askAIFull(options: AskAIFullOptions): Promise<AskAIFullRes
       model,
       maxTurns,
       permissionMode,
+      ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
       // Cast needed: "managed" is valid for Claude Code but not in SDK's SettingSource type
       settingSources: settingSources as ("project" | "user")[],
       systemPrompt,

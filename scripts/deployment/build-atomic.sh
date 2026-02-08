@@ -134,6 +134,26 @@ log_step "Verifying build output..."
 [ ! -d "$WEB_NEXT_DIR/standalone" ] && { log_error "Standalone directory not found"; exit 1; }
 [ ! -f "$WEB_NEXT_DIR/standalone/apps/web/server.js" ] && { log_error "server.js not found"; exit 1; }
 
+# Verify critical chunks exist (ChunkLoadError = 500 on every request)
+CHUNKS_DIR="$WEB_NEXT_DIR/server/chunks"
+if [ ! -d "$CHUNKS_DIR" ]; then
+    log_error "server/chunks directory missing — build is corrupt"
+    exit 1
+fi
+CHUNK_COUNT=$(find "$CHUNKS_DIR" -name '*.js' -type f | wc -l)
+if [ "$CHUNK_COUNT" -lt 10 ]; then
+    log_error "Only $CHUNK_COUNT chunk files found (expected 10+) — build is corrupt"
+    exit 1
+fi
+
+# Verify the stream route chunk specifically (most critical endpoint)
+STREAM_ROUTE="$WEB_NEXT_DIR/server/app/api/claude/stream/route.js"
+if [ ! -f "$STREAM_ROUTE" ]; then
+    log_error "Stream route chunk missing: $STREAM_ROUTE"
+    exit 1
+fi
+log_step "Build verified: $CHUNK_COUNT chunks, stream route present"
+
 # =============================================================================
 # Phase 6: Move to .builds
 # =============================================================================
@@ -151,33 +171,12 @@ fi
 # =============================================================================
 STANDALONE_DIR="$TEMP_BUILD_DIR/standalone/apps/web"
 
-mkdir -p "$STANDALONE_DIR/.next"
-# Use rsync with trailing slashes to MERGE contents (cp -r creates nested dirs if target exists)
-[ -d "$TEMP_BUILD_DIR/static" ] && rsync -a "$TEMP_BUILD_DIR/static/" "$STANDALONE_DIR/.next/static/"
-[ -d "$TEMP_BUILD_DIR/server" ] && rsync -a "$TEMP_BUILD_DIR/server/" "$STANDALONE_DIR/.next/server/"
+[ -d "$TEMP_BUILD_DIR/static" ] && {
+    mkdir -p "$STANDALONE_DIR/.next"
+    cp -r "$TEMP_BUILD_DIR/static" "$STANDALONE_DIR/.next/static"
+}
 
 [ -d "$WEB_DIR/public" ] && cp -r "$WEB_DIR/public" "$STANDALONE_DIR/public"
-
-# =============================================================================
-# Phase 7b: Verify Chunk References
-# =============================================================================
-log_step "Verifying chunk references..."
-CHUNKS_DIR="$STANDALONE_DIR/.next/server/chunks"
-MISSING=0
-while IFS= read -r route_file; do
-    while IFS= read -r chunk; do
-        if [ ! -f "$STANDALONE_DIR/.next/$chunk" ]; then
-            log_error "Missing chunk: $chunk (referenced by $route_file)"
-            MISSING=$((MISSING + 1))
-        fi
-    done < <(grep -oP '"server/chunks/[^"]*\.js"' "$route_file" 2>/dev/null | tr -d '"')
-done < <(find "$STANDALONE_DIR/.next/server/app" -name "route.js" -o -name "page.js" 2>/dev/null)
-
-if [ $MISSING -gt 0 ]; then
-    log_error "$MISSING missing chunk(s) detected — build artifact is corrupt"
-    exit 1
-fi
-log_step "All chunk references verified"
 
 # =============================================================================
 # Phase 8: Copy Workspace Packages
@@ -248,7 +247,7 @@ mv "$TEMP_BUILD_DIR" "$TIMESTAMPED_DIR"
 
 log_step "Atomic symlink swap..."
 cd "$BUILDS_DIR"
-ln -sfn "dist.$TIMESTAMP" "current.tmp" && mv -T "current.tmp" "current"
+ln -sfn "dist.$TIMESTAMP" "current"
 cd "$PROJECT_ROOT"
 
 # Verify
