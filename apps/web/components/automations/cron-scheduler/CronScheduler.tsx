@@ -1,8 +1,10 @@
 "use client"
 
+import { Clock } from "lucide-react"
 import { useState, useEffect } from "react"
 import { CronExpressionInput } from "./CronExpressionInput"
 import { CronPresetsPanel } from "./CronPresetsPanel"
+import { describeCron, parseCronExpression } from "./cron-parser"
 
 interface CronSchedulerProps {
   value: string
@@ -64,6 +66,8 @@ export function CronScheduler({
     setIsOneTime(enabled)
     onOneTimeChange?.(enabled)
   }
+
+  const isValidCron = customCron ? parseCronExpression(customCron) !== null : false
 
   return (
     <div className="space-y-0">
@@ -167,7 +171,22 @@ export function CronScheduler({
             )}
 
             {mode === "custom" && (
-              <CronExpressionInput value={customCron} onChange={handleCustomChange} showValidation={true} />
+              <>
+                <CronExpressionInput value={customCron} onChange={handleCustomChange} />
+
+                {/* Live description — shows what the expression means in plain language */}
+                {customCron && isValidCron && (
+                  <div className="px-3 py-2.5 rounded-lg bg-black/[0.03] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.06]">
+                    <div className="flex items-start gap-2">
+                      <Clock size={14} className="text-black/40 dark:text-white/40 mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-black dark:text-white">{describeCron(customCron)}</p>
+                        <p className="text-[11px] text-black/40 dark:text-white/40 mt-0.5 font-mono">{customCron}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>
