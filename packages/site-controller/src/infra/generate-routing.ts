@@ -234,10 +234,8 @@ function renderCaddySites(
   // Generate wildcard catch-all for preview subdomains (preview--{label}.{WILDCARD})
   // Single-level pattern: covered by Cloudflare Universal SSL *.{WILDCARD}
   // Routes through Next.js middleware → preview-router for auth + port lookup
-  const prodEnv = environments.find(e => e.key === "production")
   const wildcardDomain = cfg.domains.previewBase ?? cfg.domains.main
-  const wildcardBlock =
-    prodEnv && wildcardDomain ? renderWildcardPreviewBlock(wildcardDomain, prodEnv.port, frameAncestors) : ""
+  const wildcardBlock = wildcardDomain ? renderWildcardPreviewBlock(wildcardDomain, environments, frameAncestors) : ""
 
   return `${header}${siteBlocks}\n\n${wildcardBlock}`
 }
@@ -254,20 +252,50 @@ function renderCaddySites(
  *
  * On-demand TLS: individual LE certs per subdomain as they're accessed.
  */
-function renderWildcardPreviewBlock(wildcardDomain: string, appPort: number, frameAncestors: string): string {
+function renderWildcardPreviewBlock(
+  wildcardDomain: string,
+  environments: EnvironmentConfig[],
+  frameAncestors: string,
+): string {
+  const prodEnv = environments.find(e => e.key === "production")
+  if (!prodEnv) return ""
+
+  // Build Referer-based routing for non-production environments
+  // Production is the default fallback (no matcher needed)
+  const nonProdEnvs = environments.filter(e => e.key !== "production")
+  const refererRoutes = nonProdEnvs
+    .map(env => {
+      const matcherName = `@${env.key}`
+      return [
+        `    ${matcherName} expression \`{http.request.header.Referer}.contains("${env.domain}")\``,
+        `    reverse_proxy ${matcherName} localhost:${env.port} {`,
+        "        header_up Host {host}",
+        "        header_up X-Real-IP {remote_host}",
+        "        header_up X-Forwarded-For {remote_host}",
+        "        header_up X-Forwarded-Proto {scheme}",
+        "    }",
+      ].join("\n")
+    })
+    .join("\n\n")
+
   return [
     "# ============================================================================",
     `# WILDCARD CATCH-ALL (*.${wildcardDomain})`,
     "# Catches preview subdomains (preview--{label}." + wildcardDomain + ") and routes to",
     "# Next.js. Middleware detects preview-- prefix and rewrites to /api/preview-router.",
     "# Specific domain blocks above take precedence (Caddy routes by specificity).",
+    "# Routes to correct environment based on Referer header.",
     "# Internal TLS: Cloudflare handles public TLS, origin uses Caddy internal CA.",
     "# ============================================================================",
     "",
     `*.${wildcardDomain} {`,
     "    tls internal",
     "",
-    `    reverse_proxy localhost:${appPort} {`,
+    "    # Route to correct environment based on Referer",
+    refererRoutes,
+    "",
+    "    # Default: production",
+    `    reverse_proxy localhost:${prodEnv.port} {`,
     "        header_up Host {host}",
     "        header_up X-Real-IP {remote_host}",
     "        header_up X-Forwarded-For {remote_host}",
