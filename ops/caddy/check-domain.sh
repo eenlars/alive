@@ -3,7 +3,7 @@
 # Returns 200 for domains matching the wildcard domain, 403 otherwise
 
 DOMAIN="$1"
-SERVER_CONFIG="/var/lib/alive/server-config.json"
+SERVER_CONFIG="${SERVER_CONFIG_PATH:-}"
 
 # Read wildcard domain from server config
 if [[ -f "$SERVER_CONFIG" ]] && command -v jq &> /dev/null; then

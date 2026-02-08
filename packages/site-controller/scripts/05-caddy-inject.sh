@@ -11,7 +11,7 @@ source "$(dirname "$0")/lib/common.sh"
 # This ensures the Caddyfile always matches the database state.
 #
 # Prerequisites:
-# - /var/lib/claude-bridge/server-config.json exists with serverId
+# - SERVER_CONFIG_PATH env var points to server-config.json with serverId
 # - Database has server_id column on domains table
 # - SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set
 
@@ -28,7 +28,7 @@ if [[ ! -d "$STREAM_ROOT" ]]; then
 fi
 
 # Check if server-config.json exists (new generator mode)
-SERVER_CONFIG="${SERVER_CONFIG:-/var/lib/claude-bridge/server-config.json}"
+SERVER_CONFIG="${SERVER_CONFIG_PATH:-}"
 if [[ -f "$SERVER_CONFIG" && ! -r "$SERVER_CONFIG" ]]; then
     log_error "SERVER_CONFIG not readable: $SERVER_CONFIG"
     exit 15

@@ -30,7 +30,9 @@ Minor improvements suggested by CodeRabbit.
 
 ### packages/site-controller/scripts/05-caddy-inject.sh
 
-`24-28`: **Add sanity checks / overrides for STREAM_ROOT and SERVER_CONFIG.** Fail fast with a clearer message if the default path is missing, and allow overrides for non-standard installs or tests. ♻️ Suggested tweak ```diff -STREAM_ROOT="${STREAM_ROOT:-/root/alive}" +STREAM_ROOT="${STREAM_ROOT:-/root/alive}" +if [[ ! -d "$STREAM_ROOT" ]]; then + log_error "STREAM_ROOT not found: $STREAM_ROOT" + exit 15 +fi -SERVER_CONFIG="/var/lib/alive/server-config.json" +SERVER_CONFIG="${SERVER_CONFIG:-/var/lib/alive/server-config.json}" +if [[ -f "$SERVER_CONFIG" && ! -r "$SERVER_CONFIG" ]]; then + log_error "SERVER_CONFIG not readable: $SERVER_CONFIG" + exit 15 +fi ```
+**DONE** (Feb 2026) -- All paths now derive from `SERVER_CONFIG_PATH` env var. No hardcoded `/var/lib/*` paths remain.
+
+~~`24-28`: **Add sanity checks / overrides for STREAM_ROOT and SERVER_CONFIG.**~~ Resolved as part of path drift migration.
 
 ---
 
@@ -116,14 +118,9 @@ Systemd fires the timer at **both** times. Remove line 31 to run only at 3 AM as
 
 ### packages/site-controller/scripts/99-teardown.sh
 
-`159`: **Inconsistency: `SITES_ROOT` uses outdated path scheme.**
+**DONE** (Feb 2026) -- Path drift resolved. All paths now derive from `SERVER_CONFIG_PATH` env var -> `server-config.json`.
 
-Within the same script, three different path schemes coexist:
-- `/root/alive` (STREAM_ROOT, line 39)
-- `/var/lib/alive` (SERVER_CONFIG, line 40)
-- `/srv/webalive/sites` (SITES_ROOT, line 159)
-
-If this is part of a broader migration to the new path structure, `SITES_ROOT` should be updated. If these directories serve intentionally separate purposes, document the architectural decision.
+~~`159`: **Inconsistency: `SITES_ROOT` uses outdated path scheme.**~~ Resolved as part of path drift migration. All paths are now derived from `SERVER_CONFIG_PATH`.
 
 ---
 

@@ -246,6 +246,7 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                   value={cronSchedule}
                   onChange={setCronSchedule}
                   showOneTime={true}
+                  isOneTime={isOneTime}
                   onOneTimeChange={setIsOneTime}
                   oneTimeDate={oneTimeDate}
                   oneTimeTime={oneTimeTime}

@@ -68,7 +68,7 @@ function getInfrastructureDomains(): string[] {
 }
 
 function getPortFromRegistry(domain: string): number | null {
-  const registryPath = "/var/lib/alive/domain-passwords.json"
+  const registryPath = PATHS.REGISTRY_PATH
   try {
     const data = JSON.parse(readFileSync(registryPath, "utf-8"))
     return data[domain]?.port ?? null

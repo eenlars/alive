@@ -1,3 +1,5 @@
+> **STATUS: RESOLVED** -- As of Feb 2026, all paths now derive from `SERVER_CONFIG_PATH` env var -> `server-config.json`. No hardcoded `/var/lib/*` paths remain in source code. The migration described below has been completed.
+
 # Future Maintenance Hardening (Deployment Consolidation)
 
 ## Goal
