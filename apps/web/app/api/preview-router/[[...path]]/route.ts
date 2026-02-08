@@ -1,15 +1,15 @@
 /**
  * Preview Router - Dynamic proxy for preview subdomains
  *
- * Handles all requests to *.PREVIEW_BASE (e.g., *.preview.sonno.tech) by:
- * 1. Extracting the subdomain (e.g., windowsxp-sonno-tech)
- * 2. Converting to hostname (e.g., windowsxp.sonno.tech)
+ * Handles all requests to preview--{label}.{WILDCARD_DOMAIN} by:
+ * 1. Extracting the label from the single-level subdomain (e.g., preview--windowsxp-sonno-tech)
+ * 2. Converting label to hostname (e.g., windowsxp.sonno.tech)
  * 3. Looking up port from Supabase app.domains table
  * 4. Proxying to localhost:PORT
  *
  * This enables any new site to work with preview immediately,
  * without requiring manual Caddy configuration per site.
- * PREVIEW_BASE is dynamically configured via server-config.json.
+ * WILDCARD_DOMAIN is dynamically configured via server-config.json.
  */
 
 import { DOMAINS, PREVIEW_MESSAGES } from "@webalive/shared"
@@ -17,7 +17,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser, isWorkspaceAuthenticated } from "@/features/auth/lib/auth"
 import { getDomainPort } from "@/lib/domains"
 import { ErrorCodes } from "@/lib/error-codes"
-import { previewLabelToDomain } from "@/lib/preview-utils"
+import { extractWorkspaceFromPreviewHost } from "@/lib/preview-utils"
 
 // Cache port lookups for 60 seconds to reduce DB queries
 const portCache = new Map<string, { port: number; expires: number }>()
@@ -73,22 +73,12 @@ async function getCachedPort(hostname: string): Promise<number | null> {
 
 /**
  * Extract hostname from preview subdomain
- * e.g., "windowsxp-sonno-tech.preview.sonno.tech" -> "windowsxp.sonno.tech"
+ * Single-level pattern: preview--{label}.{WILDCARD_DOMAIN}
+ * e.g., "preview--windowsxp-sonno-tech.sonno.tech" -> "windowsxp.sonno.tech"
+ * e.g., "preview--mysite-alive-best.alive.best" -> "mysite.alive.best"
  */
 function extractHostnameFromPreviewHost(host: string): string | null {
-  const previewBase = DOMAINS.PREVIEW_BASE // "preview.sonno.tech"
-  const suffix = `.${previewBase}`
-
-  if (!host.endsWith(suffix)) {
-    return null
-  }
-
-  const label = host.slice(0, -suffix.length)
-  if (!label) {
-    return null
-  }
-
-  return previewLabelToDomain(label)
+  return extractWorkspaceFromPreviewHost(host)
 }
 
 async function handleProxy(request: NextRequest): Promise<NextResponse> {
@@ -123,8 +113,15 @@ async function handleProxy(request: NextRequest): Promise<NextResponse> {
   }
 
   // Build target URL
+  // Strip the /api/preview-router prefix added by Next.js middleware rewrite
+  // Middleware rewrites preview--xxx.sonno.tech/about → /api/preview-router/about
+  // but the site's dev server expects just /about
   const url = new URL(request.url)
-  const targetUrl = `http://localhost:${port}${url.pathname}${url.search}`
+  const ROUTE_PREFIX = "/api/preview-router"
+  const originalPath = url.pathname.startsWith(ROUTE_PREFIX)
+    ? url.pathname.slice(ROUTE_PREFIX.length) || "/"
+    : url.pathname
+  const targetUrl = `http://localhost:${port}${originalPath}${url.search}`
 
   try {
     // Forward the request to the target

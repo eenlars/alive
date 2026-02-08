@@ -292,7 +292,14 @@ export const DOMAINS = {
   /** Dev domain suffix */
   DEV_SUFFIX: `.dev.${MAIN_DOMAIN}`,
 
-  /** Preview subdomain base (e.g., workspace-label.preview.sonno.tech) */
+  /**
+   * Preview subdomain prefix. Preview URLs use single-level subdomains:
+   * preview--{label}.{WILDCARD_DOMAIN} (e.g., preview--protino-sonno-tech.sonno.tech)
+   * Single-level keeps them under *.WILDCARD which Cloudflare Universal SSL covers.
+   */
+  PREVIEW_PREFIX: "preview--",
+
+  /** Preview subdomain base (kept for backwards compatibility, equals WILDCARD) */
   PREVIEW_BASE,
 
   /** Authentication forward endpoint for previews (uses dev server URL) */
