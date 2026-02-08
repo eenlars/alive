@@ -24,7 +24,7 @@ Example: `larsvandeneeden.com` becomes `larsvandeneeden-com`
 
 ### 2. Remove from Domain Registry
 
-Edit `/var/lib/alive/domain-passwords.json` and remove the domain entry:
+Edit `domain-passwords.json` (located in the directory specified by `SERVER_CONFIG_PATH` env var / `server-config.json`) and remove the domain entry:
 
 ```json
 {
@@ -105,7 +105,7 @@ ls /etc/sites/domain-slug.env
 ls /srv/webalive/sites/domain.com
 
 # Check domain not in registry
-grep "domain.com" /var/lib/alive/domain-passwords.json
+grep "domain.com" "$(dirname "$SERVER_CONFIG_PATH")/domain-passwords.json"
 
 # Check domain not in Caddyfile
 grep "domain.com" /root/alive/Caddyfile

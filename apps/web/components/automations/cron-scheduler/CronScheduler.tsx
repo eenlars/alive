@@ -4,12 +4,14 @@ import { Clock } from "lucide-react"
 import { useState, useEffect } from "react"
 import { CronExpressionInput } from "./CronExpressionInput"
 import { CronPresetsPanel } from "./CronPresetsPanel"
-import { describeCron } from "./cron-parser"
+import { CRON_PRESETS } from "./cron-presets"
+import { describeCron, parseCronExpression } from "./cron-parser"
 
 interface CronSchedulerProps {
   value: string
   onChange: (cron: string) => void
   showOneTime?: boolean
+  isOneTime?: boolean
   onOneTimeChange?: (isOneTime: boolean) => void
   oneTimeDate?: string
   oneTimeTime?: string
@@ -21,6 +23,7 @@ export function CronScheduler({
   value,
   onChange,
   showOneTime = false,
+  isOneTime: isOneTimeProp,
   onOneTimeChange,
   oneTimeDate,
   oneTimeTime,
@@ -29,26 +32,22 @@ export function CronScheduler({
 }: CronSchedulerProps) {
   const [mode, setMode] = useState<"preset" | "custom">("preset")
   const [customCron, setCustomCron] = useState(value)
-  const [isOneTime, setIsOneTime] = useState(false)
+  const [isOneTime, setIsOneTime] = useState(isOneTimeProp ?? false)
+
+  // Sync isOneTime from parent
+  useEffect(() => {
+    if (isOneTimeProp !== undefined) {
+      setIsOneTime(isOneTimeProp)
+    }
+  }, [isOneTimeProp])
 
   // Initialize based on value prop
   useEffect(() => {
     if (value) {
       setCustomCron(value)
       // Check if it matches any preset
-      const PRESETS = [
-        "*/5 * * * *",
-        "*/10 * * * *",
-        "0 * * * *",
-        "0 9 * * *",
-        "0 9 * * 1-5",
-        "0 9 * * 1",
-        "0 9 * * 0",
-        "0 9 1 * *",
-        "0 */6 * * *",
-        "0 9,18 * * *",
-      ]
-      setMode(PRESETS.includes(value) ? "preset" : "custom")
+      const presetValues = CRON_PRESETS.map(p => p.value)
+      setMode(presetValues.includes(value) ? "preset" : "custom")
     }
   }, [value])
 
@@ -69,34 +68,37 @@ export function CronScheduler({
     onOneTimeChange?.(enabled)
   }
 
+  const isValidCron = customCron ? parseCronExpression(customCron) !== null : false
+
   return (
     <div className="space-y-0">
-      {/* Toggle between one-time and recurring */}
+      {/* Segmented control: Recurring / One-time */}
       {showOneTime && (
         <div className="px-4 pt-4 pb-3 border-b border-black/[0.06] dark:border-white/[0.06]">
-          <button
-            type="button"
-            onClick={() => handleOneTimeToggle(!isOneTime)}
-            className="w-full flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-          >
-            <div
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${
-                isOneTime ? "bg-green-500 dark:bg-green-600" : "bg-black/[0.08] dark:bg-white/[0.12]"
+          <div className="flex rounded-lg bg-black/[0.05] dark:bg-white/[0.06] p-0.5">
+            <button
+              type="button"
+              onClick={() => handleOneTimeToggle(false)}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                !isOneTime
+                  ? "bg-white dark:bg-white/[0.12] text-black dark:text-white shadow-sm"
+                  : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
               }`}
             >
-              <span
-                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                  isOneTime ? "translate-x-4" : "translate-x-0.5"
-                }`}
-              />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-xs font-medium text-black dark:text-white">One-time task</p>
-              <p className="text-[11px] text-black/50 dark:text-white/50 mt-0.5">
-                {isOneTime ? "Runs once on a specific date and time" : "Runs on a recurring schedule"}
-              </p>
-            </div>
-          </button>
+              Recurring
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOneTimeToggle(true)}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                isOneTime
+                  ? "bg-white dark:bg-white/[0.12] text-black dark:text-white shadow-sm"
+                  : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+              }`}
+            >
+              One-time
+            </button>
+          </div>
         </div>
       )}
 
@@ -135,36 +137,32 @@ export function CronScheduler({
       {/* Recurring mode */}
       {!isOneTime && (
         <>
-          {/* Tabs */}
-          <div className="px-4 pt-4 pb-0 flex gap-0 border-b border-black/[0.06] dark:border-white/[0.06]">
-            <button
-              type="button"
-              onClick={() => setMode("preset")}
-              className={`px-3 py-2 text-xs font-medium relative transition-colors ${
-                mode === "preset"
-                  ? "text-black dark:text-white"
-                  : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-              }`}
-            >
-              Presets
-              {mode === "preset" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-t" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("custom")}
-              className={`px-3 py-2 text-xs font-medium relative transition-colors ${
-                mode === "custom"
-                  ? "text-black dark:text-white"
-                  : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-              }`}
-            >
-              Custom
-              {mode === "custom" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-t" />
-              )}
-            </button>
+          {/* Segmented control: Presets / Custom */}
+          <div className="px-4 pt-3 pb-0">
+            <div className="flex rounded-lg bg-black/[0.05] dark:bg-white/[0.06] p-0.5">
+              <button
+                type="button"
+                onClick={() => setMode("preset")}
+                className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  mode === "preset"
+                    ? "bg-white dark:bg-white/[0.12] text-black dark:text-white shadow-sm"
+                    : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+                }`}
+              >
+                Presets
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("custom")}
+                className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  mode === "custom"
+                    ? "bg-white dark:bg-white/[0.12] text-black dark:text-white shadow-sm"
+                    : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+                }`}
+              >
+                Custom
+              </button>
+            </div>
           </div>
 
           {/* Content area */}
@@ -174,20 +172,22 @@ export function CronScheduler({
             )}
 
             {mode === "custom" && (
-              <CronExpressionInput value={customCron} onChange={handleCustomChange} showValidation={true} />
-            )}
+              <>
+                <CronExpressionInput value={customCron} onChange={handleCustomChange} />
 
-            {/* Live description */}
-            {customCron && (
-              <div className="px-3 py-2.5 rounded-lg bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.06]">
-                <div className="flex items-start gap-2">
-                  <Clock size={14} className="text-black/50 dark:text-white/50 mt-1 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-black dark:text-white">{describeCron(customCron)}</p>
-                    <p className="text-xs text-black/50 dark:text-white/50 mt-1 font-mono">{customCron}</p>
+                {/* Live description — shows what the expression means in plain language */}
+                {customCron && isValidCron && (
+                  <div className="px-3 py-2.5 rounded-lg bg-black/[0.03] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.06]">
+                    <div className="flex items-start gap-2">
+                      <Clock size={14} className="text-black/40 dark:text-white/40 mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-black dark:text-white">{describeCron(customCron)}</p>
+                        <p className="text-[11px] text-black/40 dark:text-white/40 mt-0.5 font-mono">{customCron}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                )}
+              </>
             )}
           </div>
         </>

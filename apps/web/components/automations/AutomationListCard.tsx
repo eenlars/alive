@@ -78,10 +78,8 @@ export function AutomationListCard({
   onSelect,
 }: AutomationListCardProps) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer ${
+    <div
+      className={`w-full rounded-lg border transition-all ${
         isSelected
           ? "bg-black/[0.04] dark:bg-white/[0.08] border-black/15 dark:border-white/15"
           : job.is_active
@@ -89,51 +87,51 @@ export function AutomationListCard({
             : "bg-black/[0.02] dark:bg-white/[0.02] border-black/5 dark:border-white/5 opacity-60 hover:opacity-70"
       }`}
     >
-      {/* Title + Action type */}
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-black dark:text-white truncate text-xs">{job.name}</h3>
+      {/* Selection target — a real <button>, no nested buttons inside */}
+      <button type="button" onClick={onSelect} className="w-full text-left p-3 pb-0 cursor-pointer">
+        {/* Title + Action type */}
+        <div className="flex items-start justify-between gap-2 mb-1.5">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-black dark:text-white truncate text-xs">{job.name}</h3>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {job.is_active ? (
+              <Zap size={12} className="text-amber-600 dark:text-amber-400" />
+            ) : (
+              <Zap size={12} className="text-black/30 dark:text-white/30" />
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {job.is_active ? (
-            <Zap size={12} className="text-amber-600 dark:text-amber-400" />
-          ) : (
-            <Zap size={12} className="text-black/30 dark:text-white/30" />
-          )}
-        </div>
-      </div>
 
-      {/* Website */}
-      {job.hostname && (
-        <p className="text-[11px] text-black/50 dark:text-white/50 mb-1 truncate flex items-center gap-1">
-          <Globe size={10} />
-          {job.hostname}
+        {/* Website */}
+        {job.hostname && (
+          <p className="text-[11px] text-black/50 dark:text-white/50 mb-1 truncate flex items-center gap-1">
+            <Globe size={10} />
+            {job.hostname}
+          </p>
+        )}
+
+        {/* Schedule info */}
+        <p className="text-[11px] text-black/60 dark:text-white/60 mb-1.5 flex items-center gap-1">
+          <Calendar size={10} />
+          {formatSchedule(job)}
         </p>
-      )}
 
-      {/* Schedule info */}
-      <p className="text-[11px] text-black/60 dark:text-white/60 mb-1.5 flex items-center gap-1">
-        <Calendar size={10} />
-        {formatSchedule(job)}
-      </p>
+        {/* Last run status */}
+        {job.last_run_at && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <Clock size={10} className="text-black/40 dark:text-white/40" />
+            <span className="text-[11px] text-black/50 dark:text-white/50">{formatRelativeTime(job.last_run_at)}</span>
+            {job.last_run_status && <StatusBadge status={job.last_run_status} />}
+          </div>
+        )}
+      </button>
 
-      {/* Last run status */}
-      {job.last_run_at && (
-        <div className="flex items-center gap-1.5 mb-2">
-          <Clock size={10} className="text-black/40 dark:text-white/40" />
-          <span className="text-[11px] text-black/50 dark:text-white/50">{formatRelativeTime(job.last_run_at)}</span>
-          {job.last_run_status && <StatusBadge status={job.last_run_status} />}
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <div className="flex items-center gap-1.5 pt-1.5 border-t border-black/5 dark:border-white/5">
+      {/* Action buttons — siblings of the selection button, not descendants */}
+      <div className="flex items-center gap-1.5 px-3 pb-3 pt-1.5 border-t border-black/5 dark:border-white/5 mx-0">
         <button
           type="button"
-          onClick={e => {
-            e.stopPropagation()
-            onEdit(job)
-          }}
+          onClick={() => onEdit(job)}
           className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-black/5 dark:bg-white/10 text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
         >
           Edit
@@ -141,10 +139,7 @@ export function AutomationListCard({
 
         <button
           type="button"
-          onClick={e => {
-            e.stopPropagation()
-            onViewRuns(job)
-          }}
+          onClick={() => onViewRuns(job)}
           className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-black/5 dark:bg-white/10 text-black/70 dark:text-white/70 hover:bg-black/10 dark:hover:bg-white/15 transition-colors inline-flex items-center gap-1"
         >
           <History size={10} />
@@ -153,10 +148,7 @@ export function AutomationListCard({
 
         <button
           type="button"
-          onClick={e => {
-            e.stopPropagation()
-            onToggle(job.id, !job.is_active)
-          }}
+          onClick={() => onToggle(job.id, !job.is_active)}
           className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
             job.is_active
               ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40"
@@ -168,15 +160,12 @@ export function AutomationListCard({
 
         <button
           type="button"
-          onClick={e => {
-            e.stopPropagation()
-            onDelete(job.id)
-          }}
+          onClick={() => onDelete(job.id)}
           className="ml-auto px-2.5 py-1 rounded-md text-[11px] font-medium bg-red-100/50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
         >
           Delete
         </button>
       </div>
-    </button>
+    </div>
   )
 }

@@ -105,7 +105,7 @@ export function GeneralSettings() {
   const canSelectAnyModel = user?.canSelectAnyModel ?? false
   const enabledModels = user?.enabledModels ?? []
   const isModelAvailable = (modelId: string): boolean => {
-    if (apiKey || user?.isAdmin) return true
+    if (apiKey || canSelectAnyModel) return true
     if (enabledModels.length > 0) return enabledModels.includes(modelId)
     return modelId === DEFAULT_MODEL
   }
@@ -132,7 +132,7 @@ export function GeneralSettings() {
         setModel(DEFAULT_MODEL)
       }
     }
-  }, [apiKey, user?.isAdmin, enabledModels, model, setModel])
+  }, [apiKey, canSelectAnyModel, enabledModels, model, setModel])
 
   const handleSaveApiKey = () => {
     const trimmedKey = apiKeyInput.trim()

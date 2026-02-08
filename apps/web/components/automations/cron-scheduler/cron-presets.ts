@@ -8,52 +8,32 @@ export const CRON_PRESETS: CronPreset[] = [
   {
     label: "Every 5 minutes",
     value: "*/5 * * * *",
-    description: "Runs every 5 minutes",
-  },
-  {
-    label: "Every 10 minutes",
-    value: "*/10 * * * *",
-    description: "Runs every 10 minutes",
+    description: "Checks constantly — 288 runs per day",
   },
   {
     label: "Hourly",
     value: "0 * * * *",
-    description: "Runs at the top of every hour",
+    description: "Once per hour, on the hour",
   },
   {
-    label: "Daily",
+    label: "Daily at 9 AM",
     value: "0 9 * * *",
-    description: "Runs at 9:00 AM every day",
+    description: "Every morning at 9:00",
   },
   {
-    label: "Monday to Friday",
+    label: "Weekdays at 9 AM",
     value: "0 9 * * 1-5",
-    description: "Weekdays at 9:00 AM",
+    description: "Monday through Friday, skips weekends",
   },
   {
-    label: "Monday",
-    value: "0 9 * * 1",
-    description: "Mondays at 9:00 AM",
-  },
-  {
-    label: "Weekly",
+    label: "Weekly on Sunday",
     value: "0 9 * * 0",
-    description: "Every Sunday at 9:00 AM",
+    description: "Once a week, Sunday morning at 9:00",
   },
   {
-    label: "Monthly",
+    label: "Monthly on the 1st",
     value: "0 9 1 * *",
-    description: "First day of month at 9:00 AM",
-  },
-  {
-    label: "Every 6 hours",
-    value: "0 */6 * * *",
-    description: "At 12:00 AM, 6:00 AM, 12:00 PM, 6:00 PM",
-  },
-  {
-    label: "Twice daily",
-    value: "0 9,18 * * *",
-    description: "At 9:00 AM and 6:00 PM",
+    description: "First day of every month at 9:00",
   },
 ]
 

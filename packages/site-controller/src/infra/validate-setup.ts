@@ -13,6 +13,7 @@
 import { readFile, access, mkdir } from "node:fs/promises"
 import { constants } from "node:fs"
 import { createClient } from "@supabase/supabase-js"
+import { requireEnv } from "@webalive/shared"
 
 // =============================================================================
 // Types
@@ -57,7 +58,7 @@ interface CheckResult {
 // Constants
 // =============================================================================
 
-const SERVER_CONFIG_PATH = "/var/lib/alive/server-config.json"
+const SERVER_CONFIG_PATH = requireEnv("SERVER_CONFIG_PATH")
 const COLORS = {
   reset: "\x1b[0m",
   red: "\x1b[31m",

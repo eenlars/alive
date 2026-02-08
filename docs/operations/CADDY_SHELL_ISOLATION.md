@@ -188,6 +188,7 @@ import /etc/caddy/Caddyfile.staging
 import /root/webalive/claude-bridge/ops/caddy/Caddyfile.snippets
 
 # WebAlive sites (auto-reload safe, generated)
+# Path depends on your server — resolve from SERVER_CONFIG_PATH env var, e.g.:
 import /var/lib/claude-bridge/generated/Caddyfile.sites
 
 # ... other config

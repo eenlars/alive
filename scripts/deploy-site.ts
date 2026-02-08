@@ -51,7 +51,7 @@ Options:
 
 Requirements:
   - DATABASE_URL and DATABASE_PASSWORD in env file
-  - Server must have server-config.json at /var/lib/alive/
+  - SERVER_CONFIG_PATH env var must point to server-config.json
 `)
   process.exit(showHelp ? 0 : 1)
 }
