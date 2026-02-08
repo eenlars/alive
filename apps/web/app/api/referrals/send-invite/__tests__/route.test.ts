@@ -37,7 +37,7 @@ vi.mock("@/lib/email/send-referral-invite", () => ({
 
 // Mock shared constants — use importOriginal to keep SUPERADMIN, SECURITY, etc.
 vi.mock("@webalive/shared", async importOriginal => {
-  const actual = await importOriginal()
+  const actual = (await importOriginal()) as Record<string, unknown>
   return {
     ...actual,
     REFERRAL: {

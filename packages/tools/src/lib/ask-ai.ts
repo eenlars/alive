@@ -55,6 +55,7 @@ export async function askAI(options: AskAIOptions): Promise<string> {
       model,
       maxTurns,
       permissionMode: "bypassPermissions",
+      allowDangerouslySkipPermissions: true,
       allowedTools: [], // No tools by default
     },
   })

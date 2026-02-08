@@ -29,7 +29,7 @@ vi.mock("@webalive/shared", () => ({
     const { resolve } = require("node:path")
     const resolvedFile = resolve(filePath)
     const resolvedBase = resolve(basePath)
-    return resolvedFile === resolvedBase || resolvedFile.startsWith(resolvedBase + "/")
+    return resolvedFile === resolvedBase || resolvedFile.startsWith(`${resolvedBase}/`)
   },
 }))
 
