@@ -7,10 +7,9 @@ alrighty_files=()
 for f in "$@"; do
   if [[ "$f" == packages/alrighty/* || "$f" == */packages/alrighty/* ]]; then
     alrighty_files+=("${f#*packages/alrighty/}")
-  elif [[ "$f" == apps/* || "$f" == packages/* || "$f" == */apps/* || "$f" == */packages/* ]]; then
+  else
     root_files+=("$f")
   fi
-  # Skip files outside apps/packages (e.g. scripts/) — biome ignores them
 done
 
 if [[ ${#root_files[@]} -gt 0 ]]; then
