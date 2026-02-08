@@ -105,7 +105,7 @@ ls /etc/sites/domain-slug.env
 ls /srv/webalive/sites/domain.com
 
 # Check domain not in registry
-grep "domain.com" $(dirname $SERVER_CONFIG_PATH)/domain-passwords.json
+grep "domain.com" "$(dirname "$SERVER_CONFIG_PATH")/domain-passwords.json"
 
 # Check domain not in Caddyfile
 grep "domain.com" /root/alive/Caddyfile

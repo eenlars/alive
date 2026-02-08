@@ -4,6 +4,7 @@ import { Clock } from "lucide-react"
 import { useState, useEffect } from "react"
 import { CronExpressionInput } from "./CronExpressionInput"
 import { CronPresetsPanel } from "./CronPresetsPanel"
+import { CRON_PRESETS } from "./cron-presets"
 import { describeCron, parseCronExpression } from "./cron-parser"
 
 interface CronSchedulerProps {
@@ -45,8 +46,8 @@ export function CronScheduler({
     if (value) {
       setCustomCron(value)
       // Check if it matches any preset
-      const PRESETS = ["*/5 * * * *", "0 * * * *", "0 9 * * *", "0 9 * * 1-5", "0 9 * * 0", "0 9 1 * *"]
-      setMode(PRESETS.includes(value) ? "preset" : "custom")
+      const presetValues = CRON_PRESETS.map(p => p.value)
+      setMode(presetValues.includes(value) ? "preset" : "custom")
     }
   }, [value])
 

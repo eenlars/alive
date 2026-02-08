@@ -100,8 +100,7 @@ function loadServerConfig(): ServerConfigFile {
       return {}
     }
     throw new Error(
-      "FATAL: SERVER_CONFIG_PATH env var is not set. " +
-        "Set it to the absolute path of server-config.json (e.g. /var/lib/claude-bridge/server-config.json).",
+      "FATAL: SERVER_CONFIG_PATH env var is not set. " + "Set it to the absolute path of your server-config.json.",
     )
   }
 

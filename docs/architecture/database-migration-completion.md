@@ -287,7 +287,7 @@ bun scripts/verify-migration.ts
 If absolutely necessary:
 ```bash
 # 1. Find backup
-BACKUP=$(ls -td $(dirname $SERVER_CONFIG_PATH)/backups/* | head -1)
+BACKUP=$(ls -td "$(dirname "$SERVER_CONFIG_PATH")"/backups/* | head -1)
 
 # 2. Stop service
 pm2 stop alive
