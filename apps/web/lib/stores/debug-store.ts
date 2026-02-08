@@ -98,7 +98,7 @@ export const useDebugStoreBase = create<DebugStore>()(
         showSSETerminal: false,
         isSSETerminalMinimized: false,
         showSandbox: false,
-        isSandboxMinimized: false,
+        isSandboxMinimized: true,
         sandboxWidth: null,
         actions,
       }

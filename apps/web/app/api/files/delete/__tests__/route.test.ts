@@ -49,6 +49,7 @@ const MOCK_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 function createMockRequest(body: Record<string, unknown>): NextRequest {

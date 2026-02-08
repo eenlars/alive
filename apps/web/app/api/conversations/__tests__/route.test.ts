@@ -58,6 +58,7 @@ const TEST_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 const TEST_ORG_ID = "org-123"
@@ -82,7 +83,7 @@ const TEST_CONVERSATION_DB = {
     {
       tab_id: "tab-123",
       conversation_id: "conv-123",
-      name: "current",
+      name: "Tab 1",
       position: 0,
       message_count: 5,
       last_message_at: "2026-02-01T10:00:00Z",
@@ -268,7 +269,7 @@ describe("GET /api/conversations", () => {
       expect(data.own[0].tabs[0]).toMatchObject({
         id: "tab-123",
         conversationId: "conv-123",
-        name: "current",
+        name: "Tab 1",
         position: 0,
       })
     })

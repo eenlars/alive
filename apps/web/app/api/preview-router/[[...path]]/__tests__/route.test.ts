@@ -59,6 +59,7 @@ const MOCK_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 function createMockRequest(host: string, method: string = "GET", path: string = "/"): NextRequest {
@@ -172,6 +173,7 @@ describe("Preview Router", () => {
         canSelectAnyModel: false,
         isAdmin: false,
         isSuperadmin: false,
+        enabledModels: [],
       })
 
       // User A tries to access User B's workspace

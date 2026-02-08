@@ -64,6 +64,7 @@ const MOCK_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 // Helper to create mock request

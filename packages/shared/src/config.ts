@@ -25,7 +25,7 @@
 interface ServerConfigFile {
   serverId?: string
   paths?: {
-    streamRoot?: string
+    aliveRoot?: string
     sitesRoot?: string
     imagesStorage?: string
   }
@@ -110,7 +110,7 @@ function requirePath(serverConfigValue: string | undefined, _description: string
   return serverConfigValue || ""
 }
 
-const STREAM_ROOT = requirePath(serverConfig.paths?.streamRoot, "paths.streamRoot")
+const ALIVE_ROOT = requirePath(serverConfig.paths?.aliveRoot, "paths.aliveRoot")
 const SITES_ROOT = requirePath(serverConfig.paths?.sitesRoot, "paths.sitesRoot")
 const IMAGES_STORAGE = requirePath(serverConfig.paths?.imagesStorage, "paths.imagesStorage")
 
@@ -133,16 +133,16 @@ export const PATHS = {
   WEBALIVE_ROOT: "/root/webalive",
 
   /** Claude Stream root directory */
-  STREAM_ROOT,
+  ALIVE_ROOT,
 
   /** Site directory (systemd-managed) */
   SITES_ROOT,
 
   /** Template directory for new sites */
-  TEMPLATE_PATH: `${STREAM_ROOT}/templates/site-template`,
+  TEMPLATE_PATH: `${ALIVE_ROOT}/templates/site-template`,
 
   /** Site controller deployment scripts directory */
-  SCRIPTS_DIR: `${STREAM_ROOT}/packages/site-controller/scripts`,
+  SCRIPTS_DIR: `${ALIVE_ROOT}/packages/site-controller/scripts`,
 
   /** Domain password registry */
   REGISTRY_PATH: "/var/lib/claude-stream/domain-passwords.json",
@@ -154,7 +154,7 @@ export const PATHS = {
   GENERATED_DIR: "/var/lib/claude-stream/generated",
 
   /** Caddyfile location for reverse proxy configuration (legacy - now generated) */
-  CADDYFILE_PATH: `${STREAM_ROOT}/ops/caddy/Caddyfile`,
+  CADDYFILE_PATH: `${ALIVE_ROOT}/ops/caddy/Caddyfile`,
 
   /** Generated Caddyfile for sites */
   CADDYFILE_SITES: "/var/lib/claude-stream/generated/Caddyfile.sites",
@@ -332,7 +332,7 @@ export const DEFAULTS = {
   CLAUDE_MODEL: "claude-sonnet-4-5" as const,
 
   /** Default Claude max turns */
-  CLAUDE_MAX_TURNS: 50,
+  CLAUDE_MAX_TURNS: 100,
 
   /** Default fallback origin for CORS */
   FALLBACK_ORIGIN: `https://app.${WILDCARD_DOMAIN}`,
@@ -369,7 +369,7 @@ export const SUPERADMIN = {
   WORKSPACE_NAME: "alive",
 
   /** Path to Stream repository */
-  WORKSPACE_PATH: STREAM_ROOT,
+  WORKSPACE_PATH: ALIVE_ROOT,
 } as const
 
 // =============================================================================
