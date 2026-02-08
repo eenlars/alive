@@ -27,6 +27,10 @@
 
 - Updated to parity with Claude Code v2.1.29
 
+## 0.2.28
+
+- Published release (no changelog provided)
+
 ## 0.2.27
 
 - Added optional `annotations` support to the `tool()` helper function for specifying MCP tool hints (readOnlyHint, destructiveHint, openWorldHint, idempotentHint)
@@ -36,6 +40,10 @@
 ## 0.2.25
 
 - Updated to parity with Claude Code v2.1.25
+
+## 0.2.24
+
+- Published release (no changelog provided)
 
 ## 0.2.23
 
@@ -82,6 +90,10 @@
 
 - Updated to parity with Claude Code v2.1.14
 
+## 0.2.13
+
+- Published release (no changelog provided)
+
 ## 0.2.12
 
 - Updated to parity with Claude Code v2.1.12
@@ -123,6 +135,14 @@
 
 - Updated to parity with Claude Code v2.1.3
 
+## 0.2.2
+
+- Published release (no changelog provided)
+
+## 0.2.1
+
+- Published release (no changelog provided)
+
 ## 0.2.0 (2026-01-07)
 
 - Added `error` field to `McpServerStatus` for failed MCP server connections
@@ -131,6 +151,10 @@
 ## 0.1.77 (2026-01-05)
 
 - Updated to parity with Claude Code v2.0.78
+
+## 0.1.76
+
+- Published release (no changelog provided)
 
 ## 0.1.75
 
@@ -159,6 +183,10 @@
 - Fixed visible console window appearing when spawning Claude subprocess on Windows
 - Fixed spawn message being sent to stderr callback (anthropics/claude-agent-sdk-typescript#45)
 - Updated to parity with Claude Code v2.0.71
+
+## 0.1.70
+
+- Published release (no changelog provided)
 
 ## 0.1.69
 
@@ -190,6 +218,10 @@
 ## 0.1.63
 
 - Updated to parity with Claude Code v2.0.63
+
+## 0.1.62
+
+- Published release (no changelog provided)
 
 ## 0.1.61
 
