@@ -51,8 +51,6 @@ describe("splitCron", () => {
 
 describe("CronExpressionInput structure", () => {
   it("has exactly 5 input fields (one per cron part)", () => {
-    // Each field generates an <input with a unique cron-{key} id
-    const fieldIds = componentSource.match(/id=\{`cron-\$\{field\.key\}`\}/g)
     // The template renders 5 fields via FIELDS.map
     expect(componentSource).toContain("FIELDS.map")
 

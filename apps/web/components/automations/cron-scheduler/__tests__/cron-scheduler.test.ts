@@ -62,7 +62,7 @@ describe("CronScheduler live description", () => {
 describe("CronScheduler preset detection", () => {
   it("detects if a value matches a known preset", () => {
     // The component should check against known preset values to set mode
-    expect(componentSource).toContain("PRESETS.includes(value)")
+    expect(componentSource).toContain("presetValues.includes(value)")
   })
 
   it("switches to custom mode when value is not a preset", () => {
