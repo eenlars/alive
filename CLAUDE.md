@@ -1,6 +1,6 @@
 # Claude Bridge Development Guide
 
-AI assistant guidelines for working on Claude Bridge.
+AI assistant guidelines for working on Claude Bridge. Our frontpage is at [alive.best](https://alive.best).
 
 **Quick Links:** [Getting Started](./docs/GETTING_STARTED.md) | [Architecture](./docs/architecture/README.md) | [Security](./docs/security/README.md) | [Testing](./docs/testing/README.md)
 
