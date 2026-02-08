@@ -12,7 +12,7 @@
 import { statSync } from "node:fs"
 import { createClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
-import { DEFAULTS, getWorkspacePath, isPathWithinWorkspace, PATHS, WORKER_POOL } from "@webalive/shared"
+import { DEFAULTS, WORKER_POOL } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { resolveWorkspace as resolveWorkspacePath } from "@/features/workspace/lib/workspace-secure"

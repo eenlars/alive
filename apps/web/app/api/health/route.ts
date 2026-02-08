@@ -18,8 +18,8 @@
 
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
-import { createRedisClient } from "@webalive/redis"
 import { env, getRedisUrl } from "@webalive/env/server"
+import { createRedisClient } from "@webalive/redis"
 import { getSupabaseCredentials } from "@/lib/env/server"
 
 // Read build info at startup (file is generated at build time)

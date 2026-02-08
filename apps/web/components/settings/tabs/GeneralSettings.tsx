@@ -1,7 +1,7 @@
 "use client"
 
-import { useBilling } from "@flowglad/nextjs"
 import type { FlowgladContextValues } from "@flowglad/nextjs"
+import { useBilling } from "@flowglad/nextjs"
 import { Eye, EyeOff, LogOut, Moon, Sun } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -10,8 +10,7 @@ import { useAuth } from "@/features/deployment/hooks/useAuth"
 import { getModelDisplayName } from "@/lib/models/claude-models"
 import { useCredits, useCreditsError, useCreditsLoading, useUserActions } from "@/lib/providers/UserStoreProvider"
 import { CLAUDE_MODELS, type ClaudeModel, DEFAULT_MODEL, useLLMStore } from "@/lib/stores/llmStore"
-import { useCurrentWorkspace } from "@/lib/stores/workspaceStore"
-import { useWorkspaceActions } from "@/lib/stores/workspaceStore"
+import { useCurrentWorkspace, useWorkspaceActions } from "@/lib/stores/workspaceStore"
 import {
   dangerButton,
   infoCard,

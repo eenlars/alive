@@ -3,10 +3,9 @@
 import { ChevronDown, RefreshCcw } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Modal } from "@/components/ui/Modal"
+import { buildWorkspaceKey, validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import { ApiError, delly, getty, postty } from "@/lib/api/api-client"
 import { validateRequest } from "@/lib/api/schemas"
-import { buildWorkspaceKey, validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
-import { type ErrorCode, getErrorHelp } from "@/lib/error-codes"
 
 interface WorktreeSwitcherProps {
   workspace: string | null

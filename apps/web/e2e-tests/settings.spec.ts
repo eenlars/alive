@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures"
-import { gotoChat } from "./helpers/assertions"
 import { TEST_TIMEOUTS } from "./fixtures/test-data"
+import { gotoChat } from "./helpers/assertions"
 
 /**
  * Settings overlay E2E tests

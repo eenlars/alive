@@ -4,8 +4,8 @@ import { Clock } from "lucide-react"
 import { useEffect, useState } from "react"
 import { CronExpressionInput } from "./CronExpressionInput"
 import { CronPresetsPanel } from "./CronPresetsPanel"
-import { CRON_PRESETS } from "./cron-presets"
 import { describeCron, parseCronExpression } from "./cron-parser"
+import { CRON_PRESETS } from "./cron-presets"
 
 interface CronSchedulerProps {
   value: string

@@ -9,9 +9,9 @@ import { createClient } from "@supabase/supabase-js"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { runAutomationJob } from "@/lib/automation/executor"
 import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
-import { runAutomationJob } from "@/lib/automation/executor"
 
 interface RouteContext {
   params: Promise<{ id: string }>
