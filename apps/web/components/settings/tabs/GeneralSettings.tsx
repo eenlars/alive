@@ -76,7 +76,7 @@ export function GeneralSettings() {
   const canSelectAnyModel = user?.canSelectAnyModel ?? false
   const enabledModels = user?.enabledModels ?? []
   const isModelAvailable = (modelId: string): boolean => {
-    if (apiKey || user?.isAdmin) return true
+    if (apiKey || canSelectAnyModel) return true
     if (enabledModels.length > 0) return enabledModels.includes(modelId)
     return modelId === DEFAULT_MODEL
   }
@@ -103,7 +103,7 @@ export function GeneralSettings() {
         setModel(DEFAULT_MODEL)
       }
     }
-  }, [apiKey, user?.isAdmin, enabledModels, model, setModel])
+  }, [apiKey, canSelectAnyModel, enabledModels, model, setModel])
 
   const handleSaveApiKey = () => {
     const trimmedKey = apiKeyInput.trim()
@@ -331,7 +331,7 @@ export function GeneralSettings() {
             Model
           </label>
           <p className={`${text.muted} mb-3`}>
-            {apiKey || canSelectAnyModel || user?.isAdmin
+            {apiKey || canSelectAnyModel
               ? "Opus is the smartest but slowest. Sonnet balances speed and quality. Haiku is fastest for simple tasks."
               : `You're using ${getModelDisplayName(DEFAULT_MODEL)}. Add your own API key above to switch models.`}
           </p>
@@ -339,7 +339,7 @@ export function GeneralSettings() {
             id="claude-model"
             value={model}
             onChange={handleModelChange}
-            disabled={!apiKey && !canSelectAnyModel && !user?.isAdmin}
+            disabled={!apiKey && !canSelectAnyModel}
             className={select}
             aria-label="Claude Model Selection"
           >
