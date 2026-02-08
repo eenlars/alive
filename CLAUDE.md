@@ -680,49 +680,6 @@ const { data } = await iam.rpc('deduct_credits', {
 
 **Documentation**: `docs/architecture/atomic-credit-charging.md`
 
-### Issue: TLS Certificates Not Loading (Caddy v2.10.x)
-
-**Symptom**: `cert_cache_fill: 0.0001` in Caddy logs, TLS handshake failures for ALL explicit domains, "no certificate available" errors. Domains served by the `*.sonno.tech` wildcard (on-demand TLS) still work.
-
-**Cause**: Caddy v2.10.x bug ([#6996](https://github.com/caddyserver/caddy/issues/6996)). When `on_demand_tls { ask ... }` is in the global block AND a wildcard like `*.sonno.tech` uses `tls { on_demand }`, Caddy silently skips proactive cert management for ALL explicit domain blocks that match the wildcard (e.g., `dev.sonno.tech`, `sentry.sonno.tech`).
-
-**Fix**: Add `tls force_automate` to every explicit domain block matching the wildcard:
-```caddy
-# WRONG — cert silently never obtained
-dev.sonno.tech {
-    reverse_proxy localhost:8997
-}
-
-# CORRECT
-dev.sonno.tech {
-    tls force_automate
-    reverse_proxy localhost:8997
-}
-```
-
-**Where to apply**:
-- `/etc/caddy/Caddyfile.staging` — sonno.tech, app, staging, dev
-- `/etc/caddy/sites/*.caddy` — midday, sentry, monitor, mail, supabase-*
-- Generated `Caddyfile.sites` — template in `packages/site-controller/src/infra/generate-routing.ts`
-- The wildcard block (`*.sonno.tech`) does NOT need it — it uses `tls { on_demand }` instead
-
-**Debugging commands**:
-```bash
-# Check cert cache fill (should be > 0)
-curl -s localhost:2019/metrics | grep cert_cache_fill
-
-# Enable debug logging
-curl -X POST localhost:2019/config/logging/logs/default/level -H "Content-Type: application/json" -d '"DEBUG"'
-
-# Check runtime TLS config
-curl -s localhost:2019/config/apps/tls | jq .
-
-# Test TLS handshake with SNI
-curl -vk --resolve dev.sonno.tech:8444:127.0.0.1 https://dev.sonno.tech:8444/
-```
-
-**See also**: `ops/caddy/README.md` for full documentation.
-
 ### Template Sites Maintenance
 
 **Template sites** are live sites used as deployment sources. They need `node_modules` to run their previews, but these MUST NOT be copied during deployment.
