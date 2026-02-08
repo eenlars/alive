@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Build and Deploy Claude Bridge
+# Build and Deploy Alive
 # =============================================================================
 # Usage: ./build-and-serve.sh <staging|production>
 #

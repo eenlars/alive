@@ -65,7 +65,7 @@
     "ship": "bash -c 'git add -A && git commit -m \"$1\" && git push' --"
   },
   "lint-staged": {
-    "**/*.{ts,tsx,js,jsx,json}": [
+    "{apps,packages}/**/*.{ts,tsx,js,jsx,json}": [
       "./scripts/lint-staged-format.sh"
     ]
   },

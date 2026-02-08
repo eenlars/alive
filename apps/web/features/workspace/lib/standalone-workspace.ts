@@ -10,7 +10,7 @@ import { STANDALONE } from "@webalive/shared"
 
 /**
  * Get the base directory for standalone workspaces
- * Uses WORKSPACE_BASE env var or defaults to ~/.claude-bridge/workspaces
+ * Uses WORKSPACE_BASE env var or defaults to ~/.alive/workspaces
  */
 export function getStandaloneWorkspaceBase(): string {
   return process.env.WORKSPACE_BASE || join(homedir(), STANDALONE.DEFAULT_WORKSPACE_DIR)

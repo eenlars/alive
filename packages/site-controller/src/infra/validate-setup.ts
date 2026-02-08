@@ -1,5 +1,5 @@
 /**
- * Validate server setup for Claude Bridge
+ * Validate server setup for Alive
  *
  * Checks all prerequisites before running the platform:
  * - Server config file exists and is valid
@@ -407,7 +407,7 @@ async function checkSnippetsExist(aliveRoot: string | undefined): Promise<CheckR
 async function main() {
   print("")
   print(`${COLORS.blue}╔══════════════════════════════════════════════════════════════╗${COLORS.reset}`)
-  print(`${COLORS.blue}║          Claude Bridge - Server Setup Validation             ║${COLORS.reset}`)
+  print(`${COLORS.blue}║          Alive - Server Setup Validation                      ║${COLORS.reset}`)
   print(`${COLORS.blue}╚══════════════════════════════════════════════════════════════╝${COLORS.reset}`)
   print("")
 
@@ -494,7 +494,7 @@ async function main() {
     print("")
     process.exit(0)
   } else {
-    print(`${COLORS.green}Setup complete! Ready to run Claude Bridge.${COLORS.reset}`)
+    print(`${COLORS.green}Setup complete! Ready to run Alive.${COLORS.reset}`)
     print("")
     print("Next steps:")
     print("  1. Generate routing: bun run --cwd packages/site-controller routing:generate")

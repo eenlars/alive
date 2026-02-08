@@ -489,7 +489,7 @@ TypeScript provides:
    - Mark as deprecated, point users to site-controller orchestrator
 
 5. **Update Build Script** (`scripts/deployment/build-and-serve.sh`)
-   - Consider using `getCaddyStatus()` and `reloadCaddy()` (optional, as this is for Claude Bridge deployment, not sites)
+   - Consider using `getCaddyStatus()` and `reloadCaddy()` (optional, as this is for Alive deployment, not sites)
 
 ### Future Enhancements
 

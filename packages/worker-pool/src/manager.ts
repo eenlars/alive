@@ -147,6 +147,7 @@ export class WorkerPoolManager extends EventEmitter {
   private config: WorkerPoolConfig
   private evictionTimer: ReturnType<typeof setInterval> | null = null
   private orphanSweepTimer: ReturnType<typeof setInterval> | null = null
+  private queueDrainTimer: ReturnType<typeof setInterval> | null = null
   private isShuttingDown = false
   private credentialsVersion: string | null = null
   private lastCredentialsCheckMs = 0
@@ -426,6 +427,13 @@ export class WorkerPoolManager extends EventEmitter {
       }, this.config.orphanSweepIntervalMs)
       this.orphanSweepTimer.unref()
     }
+
+    if (!this.queueDrainTimer) {
+      this.queueDrainTimer = setInterval(() => {
+        this.drainQueueIfLoadDropped()
+      }, 5_000)
+      this.queueDrainTimer.unref()
+    }
   }
 
   stopEvictionTimer(): void {
@@ -436,6 +444,10 @@ export class WorkerPoolManager extends EventEmitter {
     if (this.orphanSweepTimer) {
       clearInterval(this.orphanSweepTimer)
       this.orphanSweepTimer = null
+    }
+    if (this.queueDrainTimer) {
+      clearInterval(this.queueDrainTimer)
+      this.queueDrainTimer = null
     }
   }
 
@@ -1091,7 +1103,7 @@ export class WorkerPoolManager extends EventEmitter {
     worker.pendingQueries.clear()
   }
 
-  private runProcessQueue(workspaceKey: string, source: "worker_idle" | "worker_exit"): void {
+  private runProcessQueue(workspaceKey: string, source: "worker_idle" | "worker_exit" | "drain_timer"): void {
     this.processQueue(workspaceKey).catch(error => {
       const err = error instanceof Error ? error : new Error(String(error))
       console.error("[pool] process_queue_failed", {
@@ -1104,6 +1116,31 @@ export class WorkerPoolManager extends EventEmitter {
         context: `processQueue:${source}:${workspaceKey}`,
       })
     })
+  }
+
+  /**
+   * Periodically retry queued requests when system load drops.
+   * Prevents starvation when requests are queued during load shedding
+   * but no workers exist to trigger queue processing via worker_idle/worker_exit.
+   */
+  private drainQueueIfLoadDropped(): void {
+    if (this.totalQueued === 0) return
+    if (this.shouldLoadShed()) return
+
+    const workspaceKeys = [...this.requestQueues.keys()]
+    for (const workspaceKey of workspaceKeys) {
+      const queue = this.requestQueues.get(workspaceKey)
+      if (!queue || queue.total === 0) continue
+
+      console.log("[pool] queue_drain_retry", {
+        workspaceKey,
+        queued: queue.total,
+        totalQueued: this.totalQueued,
+        load1m: loadavg()[0].toFixed(2),
+      })
+
+      this.runProcessQueue(workspaceKey, "drain_timer")
+    }
   }
 
   private rejectAllQueuedRequests(reason: string): void {

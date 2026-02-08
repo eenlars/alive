@@ -282,7 +282,7 @@ dig protino-alive-best.preview.terminal.goalive.nl
 
 ### 401 Unauthorized in iframe
 **Check authentication:**
-- Ensure you're logged into Claude Bridge
+- Ensure you're logged into Alive
 - Check session cookie exists in DevTools (Application → Cookies)
 - Verify preview-guard endpoint works: `curl -I http://localhost:8998/api/auth/preview-guard -H "Cookie: session=<jwt>"`
 

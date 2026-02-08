@@ -459,7 +459,7 @@ echo "OK (baseline: ${BASELINE}s, during: ${DURING_BUILD}s)"
 
 # Check 5: Zero production restarts in 14 days
 echo -n "✓ Checking production stability (14d)... "
-RESTARTS=$(journalctl -u alive-prod --since "14 days ago" | grep -c "Started Claude Bridge Production" || echo 0)
+RESTARTS=$(journalctl -u alive-prod --since "14 days ago" | grep -c "Started Alive Production" || echo 0)
 if [ $RESTARTS -gt 1 ]; then
     echo "FAIL: $RESTARTS restarts in 14 days"
     exit 1

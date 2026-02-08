@@ -1,4 +1,4 @@
-# Claude Bridge Web - Development Notes
+# Alive Web - Development Notes
 
 **⚠️ See [/CLAUDE.md](../../CLAUDE.md) for main AI assistant guidelines.**
 

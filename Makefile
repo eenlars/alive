@@ -1,5 +1,5 @@
 # =============================================================================
-# Claude Bridge Makefile
+# Alive Makefile
 # =============================================================================
 #
 # Main commands:
@@ -29,7 +29,7 @@ NC := \033[0m
 # Help
 # =============================================================================
 help:
-	@echo "$(BLUE)Claude Bridge$(NC)"
+	@echo "$(BLUE)Alive$(NC)"
 	@echo ""
 	@echo "$(GREEN)Deployment:$(NC)"
 	@echo "  make ship            🚀 Full pipeline: staging → production"
@@ -112,7 +112,7 @@ static-check:
 # =============================================================================
 
 status:
-	@echo "$(BLUE)Claude Bridge Status$(NC)"
+	@echo "$(BLUE)Alive Status$(NC)"
 	@echo ""
 	@echo "$(GREEN)Services:$(NC)"
 	@systemctl is-active claude-bridge-dev >/dev/null 2>&1 && echo "  Dev (8997):        $(GREEN)running$(NC)" || echo "  Dev (8997):        $(RED)stopped$(NC)"

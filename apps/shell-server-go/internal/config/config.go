@@ -225,22 +225,22 @@ When you run the shell server and access the terminal, this is your working dire
 	}
 
 	// Build editable directories
-	claudeBridgeRoot := filepath.Join(cwd, "..", "..")
+	aliveRoot := filepath.Join(cwd, "..", "..")
 	editableDirs := []EditableDirectory{
 		{
 			ID:    "docs",
-			Label: "Claude Bridge Docs",
-			Path:  filepath.Join(claudeBridgeRoot, "docs"),
+			Label: "Alive Docs",
+			Path:  filepath.Join(aliveRoot, "docs"),
 		},
 		{
 			ID:    "workflows",
 			Label: "Workflows",
-			Path:  filepath.Join(claudeBridgeRoot, "packages", "tools", "workflows"),
+			Path:  filepath.Join(aliveRoot, "packages", "tools", "workflows"),
 		},
 		{
 			ID:    "plans",
 			Label: "Plans",
-			Path:  filepath.Join(claudeBridgeRoot, "docs", "plans"),
+			Path:  filepath.Join(aliveRoot, "docs", "plans"),
 		},
 		{
 			ID:    "uploads",

@@ -8,9 +8,9 @@ import { getSafeSessionCookie } from "@/features/auth/lib/auth"
 import { getSupabaseCredentials } from "@/lib/env/server"
 
 /**
- * Create Supabase client with RLS enforcement using Claude Bridge's workspace JWT.
+ * Create Supabase client with RLS enforcement using Alive's workspace JWT.
  *
- * Requires Supabase JWT secret to match Claude Bridge's JWT_SECRET.
+ * Requires Supabase JWT secret to match Alive's JWT_SECRET.
  * Configure in Supabase: Authentication > Settings > JWT Settings
  */
 export async function createRLSClient() {

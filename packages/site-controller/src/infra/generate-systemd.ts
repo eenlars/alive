@@ -197,7 +197,7 @@ async function main() {
   const services: ServiceConfig[] = [
     {
       name: "alive-dev",
-      description: "Claude Bridge Development",
+      description: "Alive Development",
       workingDir: `${aliveRoot}/apps/web`,
       execStart: `${bunPath} run dev`,
       port: 8997,
@@ -209,7 +209,7 @@ async function main() {
     },
     {
       name: "alive-staging",
-      description: "Claude Bridge Staging",
+      description: "Alive Staging",
       workingDir: `${aliveRoot}/.builds/staging/current/standalone`,
       execStart: `${bunPath} ${aliveRoot}/.builds/staging/current/standalone/apps/web/server.js`,
       port: 8998,
@@ -221,7 +221,7 @@ async function main() {
     },
     {
       name: "alive-production",
-      description: "Claude Bridge Production",
+      description: "Alive Production",
       workingDir: `${aliveRoot}/.builds/production/current/standalone`,
       execStart: `${bunPath} ${aliveRoot}/.builds/production/current/standalone/apps/web/server.js`,
       port: 9000,
@@ -233,7 +233,7 @@ async function main() {
     },
     {
       name: "alive-broker",
-      description: "Claude Bridge Broker",
+      description: "Alive Broker",
       workingDir: `${aliveRoot}/apps/broker`,
       execStart: `${bunPath} run start`,
       port: 3001,

@@ -138,7 +138,7 @@ class MessageDatabase extends Dexie {
 
     // Handle blocked events during schema upgrades
     this.on("blocked", () => {
-      console.warn("[dexie] Upgrade blocked by another tab - please close other Claude Bridge tabs")
+      console.warn("[dexie] Upgrade blocked by another tab - please close other Alive tabs")
     })
   }
 }

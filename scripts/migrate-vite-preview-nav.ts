@@ -19,7 +19,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync, lstatSync, existsSy
 import { join } from "node:path"
 
 // The NEW previewNavSync plugin code (with sendStart for loading state)
-const NEW_PREVIEW_NAV_PLUGIN = `// Plugin to inject preview navigation sync script for Claude Bridge sandbox
+const NEW_PREVIEW_NAV_PLUGIN = `// Plugin to inject preview navigation sync script for Alive sandbox
 // IMPORTANT: Message types MUST match PREVIEW_MESSAGES in @webalive/shared/constants.ts
 // - NAVIGATION_START = "preview-navigation-start"
 // - NAVIGATION = "preview-navigation"

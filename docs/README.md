@@ -1,6 +1,6 @@
-# Claude Bridge Documentation
+# Alive Documentation
 
-**Production-grade technical documentation for the Claude Bridge AI development platform.**
+**Production-grade technical documentation for the Alive AI development platform.**
 
 ## Essential Reading (Start Here)
 
@@ -60,4 +60,4 @@ Historical documentation, completed work, and open investigations:
 
 ---
 
-**Last updated**: 2026-02-03 | **Maintainer**: Claude Bridge Team
+**Last updated**: 2026-02-03 | **Maintainer**: Alive Team
