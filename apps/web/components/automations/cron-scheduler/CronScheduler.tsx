@@ -1,10 +1,8 @@
 "use client"
 
-import { Clock } from "lucide-react"
 import { useState, useEffect } from "react"
 import { CronExpressionInput } from "./CronExpressionInput"
 import { CronPresetsPanel } from "./CronPresetsPanel"
-import { describeCron } from "./cron-parser"
 
 interface CronSchedulerProps {
   value: string
@@ -169,22 +167,7 @@ export function CronScheduler({
             )}
 
             {mode === "custom" && (
-              <>
-                <CronExpressionInput value={customCron} onChange={handleCustomChange} showValidation={true} />
-
-                {/* Live description - only in custom mode */}
-                {customCron && (
-                  <div className="px-3 py-2.5 rounded-lg bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.06]">
-                    <div className="flex items-start gap-2">
-                      <Clock size={14} className="text-black/50 dark:text-white/50 mt-1 shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-black dark:text-white">{describeCron(customCron)}</p>
-                        <p className="text-xs text-black/50 dark:text-white/50 mt-1 font-mono">{customCron}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
+              <CronExpressionInput value={customCron} onChange={handleCustomChange} showValidation={true} />
             )}
           </div>
         </>
