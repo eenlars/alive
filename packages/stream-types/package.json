@@ -1,7 +1,7 @@
 {
   "name": "@webalive/stream-types",
   "version": "1.0.0",
-  "description": "Shared types for Claude Bridge streaming protocol",
+  "description": "Shared types for Alive streaming protocol",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

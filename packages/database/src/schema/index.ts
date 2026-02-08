@@ -1,7 +1,7 @@
 /**
  * Database Schema Index
  *
- * Exports all Drizzle schema definitions for Claude Bridge.
+ * Exports all Drizzle schema definitions for Alive.
  *
  * Schemas:
  * - iam: Identity and access management (users, orgs, sessions)

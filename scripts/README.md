@@ -1,11 +1,11 @@
-# Claude Bridge Scripts Organization
+# Alive Scripts Organization
 
-This directory contains all scripts for managing the Claude Bridge multi-tenant development platform. Scripts are organized by category for easy maintenance and discoverability.
+This directory contains all scripts for managing the Alive multi-tenant development platform. Scripts are organized by category for easy maintenance and discoverability.
 
 ## Directory Structure
 
-### `deployment/` - Claude Bridge Environment Deployment
-Scripts for building, deploying, and managing the three Claude Bridge environments (production, staging, dev).
+### `deployment/` - Alive Environment Deployment
+Scripts for building, deploying, and managing the three Alive environments (production, staging, dev).
 
 **Key Scripts:**
 - `deploy-prod.sh` - Deploy to production (port 9000)

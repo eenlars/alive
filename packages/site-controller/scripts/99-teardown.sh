@@ -157,7 +157,7 @@ fi
 if [[ "$REMOVE_FILES" == "true" ]]; then
     # Get sites root from env or use default
     # Note: SITES_ROOT (/srv/webalive/sites) is separate from BRIDGE_ROOT (/root/alive)
-    # BRIDGE_ROOT = Claude Bridge application code
+    # BRIDGE_ROOT = Alive application code
     # SITES_ROOT = Deployed website files and workspaces
     SITES_ROOT="${SITES_ROOT:-/srv/webalive/sites}"
     TARGET_DIR="${SITES_ROOT}/${SITE_DOMAIN}"

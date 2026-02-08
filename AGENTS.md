@@ -548,7 +548,7 @@ tail -f /tmp/staging-deploy.log
 
 ### Site Deployment (Different)
 
-To deploy individual websites (not the Claude Bridge itself), use the API endpoint:
+To deploy individual websites (not Alive itself), use the API endpoint:
 ```bash
 # Via web UI at /deploy (recommended)
 # Or via API:

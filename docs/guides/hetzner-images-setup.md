@@ -1,6 +1,6 @@
 # Image Storage Setup on Hetzner Server
 
-This document explains the image storage system for Claude Bridge on the Hetzner server.
+This document explains the image storage system for Alive on the Hetzner server.
 
 ## Architecture Overview
 
@@ -9,7 +9,7 @@ The image storage system provides:
 - **Content-addressed storage**: Images are stored by hash to prevent duplicates
 - **Multiple variants**: Automatic generation of different sizes (orig, w640, w1280, thumb)
 - **Fast static serving**: Direct file serving via Caddy
-- **Workspace integration**: Images are scoped to Claude Bridge workspaces
+- **Workspace integration**: Images are scoped to Alive workspaces
 
 ## Storage Structure
 

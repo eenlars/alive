@@ -1,4 +1,4 @@
-# Claude Bridge Deployment Environments
+# Alive Deployment Environments
 
 ## Production
 

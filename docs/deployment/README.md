@@ -45,7 +45,7 @@ make rollback                # Interactive rollback to previous build
 
 ## Site Deployment
 
-Deploy individual websites (not Claude Bridge itself):
+Deploy individual websites (not Alive itself):
 
 ```bash
 bun run deploy-site <domain.com>

@@ -131,7 +131,7 @@ Examples:
 
 /**
  * Get list of enabled MCP tool names with mcp__ prefixes
- * Used by Claude Bridge to configure allowedTools
+ * Used by Alive to configure allowedTools
  */
 export function getEnabledMcpToolNames(): string[] {
   return TOOL_REGISTRY.filter(tool => tool.enabled).map(tool => {

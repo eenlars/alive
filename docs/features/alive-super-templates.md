@@ -1,6 +1,6 @@
 # Alive Super Templates System
 
-This document describes the Alive Super Templates feature implementation in Claude Bridge.
+This document describes the Alive Super Templates feature implementation in Alive.
 
 ## Overview
 

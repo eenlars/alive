@@ -1,6 +1,6 @@
-# Claude Bridge Development Guide
+# Alive Development Guide
 
-AI assistant guidelines for working on Claude Bridge. Our frontpage is at [alive.best](https://alive.best).
+AI assistant guidelines for working on Alive. Our frontpage is at [alive.best](https://alive.best).
 
 **Quick Links:** [Getting Started](./docs/GETTING_STARTED.md) | [Architecture](./docs/architecture/README.md) | [Security](./docs/security/README.md) | [Testing](./docs/testing/README.md)
 
@@ -87,7 +87,7 @@ These domains are **NOT** Vite website templates. Do not deploy them as sites:
 
 ## Project Overview
 
-Claude Bridge is a **multi-tenant development platform** that enables Claude AI to assist with website development through controlled file system access. Key characteristics:
+Alive is a **multi-tenant development platform** that enables Claude AI to assist with website development through controlled file system access. Key characteristics:
 
 - **Multi-tenant architecture**: Each domain gets isolated workspace
 - **Security-first design**: Workspace sandboxing, systemd isolation, process separation
@@ -567,7 +567,7 @@ See **Core Rules 12-14** at the top of this file. Summary: clean orphans, check 
 
 ### Site Deployment (Different)
 
-To deploy individual websites (not the Claude Bridge itself), use the API endpoint:
+To deploy individual websites (not the Alive itself), use the API endpoint:
 ```bash
 # Via web UI at /deploy (recommended)
 # Or via API:

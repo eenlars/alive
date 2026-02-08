@@ -1,13 +1,13 @@
 /**
  * Alive Tagger Client
  *
- * Beautiful element selection UI for the Claude Bridge sandbox.
+ * Beautiful element selection UI for the Alive sandbox.
  * Inspired by React Grab's polished visual design.
  *
  * Usage:
  * - Hold Cmd (Mac) or Ctrl (Windows/Linux)
  * - Hover over elements to see highlights with crosshair
- * - Click to select and send context to Claude Bridge
+ * - Click to select and send context to Alive
  */
 
 import {

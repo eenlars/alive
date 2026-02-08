@@ -1,7 +1,7 @@
 /**
  * @webalive/tools
  *
- * Comprehensive MCP tool suite for Claude Bridge development platform.
+ * Comprehensive MCP tool suite for Alive development platform.
  * Provides guides, debugging tools, and diagnostic capabilities.
  *
  * @example

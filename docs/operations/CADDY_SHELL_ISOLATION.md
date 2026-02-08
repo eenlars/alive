@@ -192,7 +192,7 @@ import /root/webalive/alive/ops/caddy/Caddyfile.snippets
 import /var/lib/alive/generated/Caddyfile.sites
 =======
 # Path depends on your server — resolve from SERVER_CONFIG_PATH env var, e.g.:
-import /var/lib/claude-bridge/generated/Caddyfile.sites
+import /var/lib/alive/generated/Caddyfile.sites
 >>>>>>> origin/main
 
 # ... other config

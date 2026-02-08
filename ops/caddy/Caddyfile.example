@@ -1,4 +1,4 @@
-# Legacy example Caddyfile for Claude Bridge
+# Legacy example Caddyfile for Alive
 # Prefer generated routing via /var/lib/alive/generated/Caddyfile.sites
 # See: ops/caddy/etc/Caddyfile.example
 

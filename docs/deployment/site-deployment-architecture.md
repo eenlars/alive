@@ -377,7 +377,7 @@ See: **[CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md)**
 ### **Authentication Flow**
 
 ```
-User → Claude Bridge Login → Supabase Auth
+User → Alive Login → Supabase Auth
   ↓
 JWT token issued (with user ID)
   ↓

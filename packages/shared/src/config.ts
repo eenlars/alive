@@ -485,11 +485,11 @@ export type BridgeEnv = StreamEnv
 
 /**
  * Standalone mode configuration
- * For running Claude Bridge locally without external dependencies
+ * For running Alive locally without external dependencies
  */
 export const STANDALONE = {
   /** Default workspace directory relative to home */
-  DEFAULT_WORKSPACE_DIR: ".claude-bridge/workspaces",
+  DEFAULT_WORKSPACE_DIR: ".alive/workspaces",
   /** Test user for auto-login in standalone mode */
   TEST_USER: {
     EMAIL: "local@standalone",

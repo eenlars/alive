@@ -65,9 +65,9 @@ const { data } = await supabase.from("admin_logs").insert({ action: "cleanup" })
 | `server.ts` (anon) | Server | Anon | ✅ |
 | `server.ts` (service) | Admin | Service | ❌ |
 
-## RLS with Claude Bridge JWT
+## RLS with Alive JWT
 
-Configure Supabase to accept Claude Bridge JWT:
+Configure Supabase to accept Alive JWT:
 1. Project Settings → Authentication → JWT Settings
 2. Set JWT Secret to match your `JWT_SECRET`
 

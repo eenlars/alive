@@ -1,7 +1,7 @@
 /**
  * @webalive/alive-tagger
  *
- * Element selection and source tagging for Claude Bridge sandbox.
+ * Element selection and source tagging for Alive sandbox.
  *
  * This package provides:
  * 1. A Vite plugin that attaches source info to all React elements
