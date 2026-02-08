@@ -15,7 +15,7 @@
     "type-check": "tsc --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "ci": "biome ci ."
+    "ci": "biome ci src/"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",

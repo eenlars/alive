@@ -104,6 +104,7 @@ devchat:
 # Run all quality checks
 static-check:
 	@echo "$(BLUE)Running static checks...$(NC)"
+	@bun install --frozen-lockfile
 	@NODE_OPTIONS="--max-old-space-size=4096" bun run static-check
 
 # =============================================================================
