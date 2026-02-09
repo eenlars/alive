@@ -9,6 +9,19 @@
 import type { DeployConfig } from "@webalive/site-controller"
 import { describe, expect, it, vi } from "vitest"
 
+// Mock DEFAULTS so tests don't depend on server-config.json
+vi.mock("@webalive/shared", async importOriginal => {
+  const actual = await importOriginal<typeof import("@webalive/shared")>()
+  return {
+    ...actual,
+    DEFAULTS: {
+      ...actual.DEFAULTS,
+      SERVER_IP: "127.0.0.1",
+      WILDCARD_DOMAIN: "test.local",
+    },
+  }
+})
+
 // Capture deploy calls for assertion
 const deployCalls: DeployConfig[] = []
 
