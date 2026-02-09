@@ -6,7 +6,7 @@ Coding models can now run for 8+ hours, close the deployment loop, discover and 
 
 But where do they actually run? In a chat window you can't close. On your laptop that goes to sleep. In someone else's cloud with someone else's constraints. On platforms designed for humans typing prompts, not agents running autonomously.
 
-Alive is the infrastructure layer. Open-source. Self-hosted. Give every agent an isolated workspace with a filesystem, dev server, deployment pipeline, skills, and scheduled automation. Start a run, walk away, come back to working software.
+Alive is the infrastructure layer. Open-source. Self-hosted. Give every agent an isolated workspace with a filesystem, dev server, deployment pipeline, skills, and scheduled automation. Start a run before bed. Wake up to working software.
 
 <a href="https://alive.best"><strong>alive.best</strong></a> &nbsp;&middot;&nbsp; <a href="./docs/README.md">Docs</a> &nbsp;&middot;&nbsp; <a href="./docs/GETTING_STARTED.md">Get Started</a>
 
@@ -28,7 +28,7 @@ That's what Alive is.
 
 ### Always-on agents
 
-Schedule recurring tasks with cron. "Every morning, check for broken links and fix them." "After every deploy, run the accessibility audit." Start a run, walk away, come back to results. Agents don't stop when you close the browser. This is what always-on actually looks like.
+Schedule recurring tasks with cron. "Every morning, check for broken links and fix them." "After every deploy, run the accessibility audit." Agents don't stop when you close the browser. Start a run before bed, wake up to results. This is what always-on actually looks like.
 
 ### Skill discovery and MCP
 
@@ -44,7 +44,7 @@ Multiple agents can work on the same server, in isolated workspaces, on differen
 
 ### Real isolation, not Docker theater
 
-Every project gets a dedicated Linux user via systemd. Filesystem boundary. Process separation. Path validation on every operation. The kernel enforces isolation. No amount of prompt injection escapes a filesystem boundary. This is how you let agents run autonomously and actually sleep at night.
+Every project gets a dedicated Linux user via systemd. Filesystem boundary. Process separation. Path validation on every operation. The kernel enforces isolation. No amount of prompt injection escapes a filesystem boundary. This is how you let agents run unsupervised and actually sleep at night.
 
 ### Self-hosted. Multi-tenant. Yours.
 
@@ -65,7 +65,7 @@ Agent reads your code → edits 4 files → restarts dev server
 ```
 Automation: "Every Monday at 9am"
 → Agent audits homepage → fixes 2 broken links → commits
-→ Results waiting in your dashboard when you wake up
+→ Results waiting when you wake up
 ```
 
 ```
