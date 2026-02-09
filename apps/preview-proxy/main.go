@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,8 +21,10 @@ import (
 )
 
 const (
-	previewPrefix  = "preview--"
-	portMapRefresh = 30 * time.Second
+	previewPrefix     = "preview--"
+	portMapRefresh    = 30 * time.Second
+	sessionCookieName = "__alive_preview"
+	sessionMaxAge     = 300 // 5 minutes (matches JWT expiry)
 )
 
 // portMap caches hostname→port mappings, refreshed periodically from a JSON file
@@ -167,15 +172,21 @@ func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify preview_token JWT
+	// Authenticate: accept preview_token JWT (query param) or session cookie.
+	// The initial iframe load sends ?preview_token=..., but sub-resource requests
+	// (CSS, JS, fonts, API calls) won't have the token — they use the cookie instead.
 	token := r.URL.Query().Get("preview_token")
-	if token == "" {
-		http.Error(w, "Missing preview_token", http.StatusUnauthorized)
+	hasValidToken := token != "" && h.verifyToken(token)
+	hasValidCookie := !hasValidToken && h.verifySessionCookie(r, hostname)
+
+	if !hasValidToken && !hasValidCookie {
+		http.Error(w, "Missing or invalid preview_token", http.StatusUnauthorized)
 		return
 	}
-	if !h.verifyToken(token) {
-		http.Error(w, "Invalid or expired preview_token", http.StatusUnauthorized)
-		return
+
+	// On first request with a valid token, set a session cookie for sub-resources
+	if hasValidToken {
+		h.setSessionCookie(w, hostname)
 	}
 
 	// Look up port
@@ -297,6 +308,55 @@ func (h *previewHandler) injectNavScript(resp *http.Response) error {
 	resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
 	resp.Header.Del("Content-Encoding") // We decoded it
 	return nil
+}
+
+// Session cookie: HMAC-SHA256(hostname + "|" + expiryUnix, jwtSecret)
+// Binds the cookie to a specific preview hostname and time window.
+func (h *previewHandler) makeSessionValue(hostname string, expiry int64) string {
+	mac := hmac.New(sha256.New, h.cfg.JWTSecret)
+	mac.Write([]byte(fmt.Sprintf("%s|%d", hostname, expiry)))
+	return fmt.Sprintf("%d.%s", expiry, hex.EncodeToString(mac.Sum(nil)))
+}
+
+func (h *previewHandler) setSessionCookie(w http.ResponseWriter, hostname string) {
+	expiry := time.Now().Add(time.Duration(sessionMaxAge) * time.Second).Unix()
+	value := h.makeSessionValue(hostname, expiry)
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   sessionMaxAge,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	})
+}
+
+func (h *previewHandler) verifySessionCookie(r *http.Request, hostname string) bool {
+	cookie, err := r.Cookie(sessionCookieName)
+	if err != nil || cookie.Value == "" {
+		return false
+	}
+
+	// Parse "expiry.hmac" format
+	parts := strings.SplitN(cookie.Value, ".", 2)
+	if len(parts) != 2 {
+		return false
+	}
+
+	var expiry int64
+	if _, err := fmt.Sscanf(parts[0], "%d", &expiry); err != nil {
+		return false
+	}
+
+	// Check expiry
+	if time.Now().Unix() > expiry {
+		return false
+	}
+
+	// Verify HMAC
+	expected := h.makeSessionValue(hostname, expiry)
+	return hmac.Equal([]byte(cookie.Value), []byte(expected))
 }
 
 func requireEnv(key string) string {
