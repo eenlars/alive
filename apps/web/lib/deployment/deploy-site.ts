@@ -15,6 +15,10 @@ export interface DeploySiteResult {
   serviceName: string
 }
 
+/**
+ * Infrastructure-only deployment wrapper.
+ * API routes should call runStrictDeployment() to guarantee deploy+DB+Caddy ordering.
+ */
 export async function deploySite(options: DeploySiteOptions): Promise<DeploySiteResult> {
   const domain = options.domain.toLowerCase() // Always lowercase domain
   const templatePath = options.templatePath || PATHS.TEMPLATE_PATH
