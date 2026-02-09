@@ -102,14 +102,12 @@ export async function POST(request: NextRequest) {
       return createErrorResponse(ErrorCodes.FILE_READ_ERROR, 500, {
         requestId,
         filePath: targetPath,
-        error: "Failed to read directory",
       })
     }
   } catch (error) {
     console.error("[Filespace] List API error:", error)
     return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
       requestId,
-      error: "Internal server error",
     })
   }
 }
