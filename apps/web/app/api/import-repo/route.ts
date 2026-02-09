@@ -17,6 +17,7 @@ import { ErrorCodes } from "@/lib/error-codes"
 import { errorLogger } from "@/lib/error-logger"
 import { getOAuthInstance } from "@/lib/oauth/oauth-instances"
 import { siteMetadataStore } from "@/lib/siteMetadataStore"
+import { QUERY_KEYS } from "@/lib/url/queryState"
 import { loadDomainPasswords } from "@/types/guards/api"
 
 function getPortFromRegistry(domain: string): number | null {
@@ -99,21 +100,15 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Get user's GitHub PAT
-    const githubOAuthKey = getOAuthKeyForProvider("github")
-    const githubOAuth = getOAuthInstance(githubOAuthKey)
     let githubToken: string | null = null
     try {
+      // Best effort token lookup: use PAT when connected (supports private repos),
+      // but allow unauthenticated clone for public repositories.
+      const githubOAuthKey = getOAuthKeyForProvider("github")
+      const githubOAuth = getOAuthInstance(githubOAuthKey)
       githubToken = await githubOAuth.getAccessToken(sessionUser.id, githubOAuthKey)
     } catch {
-      // Token fetch failed - user may not be connected
-    }
-
-    if (!githubToken) {
-      return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
-        status: 400,
-        details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
-      })
+      // OAuth not connected or unavailable - continue with public clone
     }
 
     // Clone and prepare the repo
@@ -196,7 +191,7 @@ export async function POST(request: NextRequest) {
       message: `Site ${fullDomain} deployed from GitHub repository!`,
       domain: fullDomain,
       orgId,
-      chatUrl: `/chat?slug=${slug}`,
+      chatUrl: `/chat?${QUERY_KEYS.workspace}=${encodeURIComponent(fullDomain)}`,
     })
 
     // Regenerate JWT with the new workspace
@@ -207,7 +202,7 @@ export async function POST(request: NextRequest) {
       const payload = await verifySessionToken(sessionCookie.value)
       if (payload) {
         const existingWorkspaces = Array.isArray(payload.workspaces) ? payload.workspaces : []
-        const updatedWorkspaces = [...existingWorkspaces, fullDomain]
+        const updatedWorkspaces = Array.from(new Set([...existingWorkspaces, fullDomain]))
         const newToken = await createSessionToken(
           sessionUser.id,
           sessionUser.email,

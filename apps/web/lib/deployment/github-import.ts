@@ -16,6 +16,17 @@ import { join, resolve } from "node:path"
 
 const CLONE_TIMEOUT_MS = 60_000
 const GITHUB_IMPORT_PREFIX = "/tmp/github-import-"
+const MAX_CLONE_ATTEMPTS = 2
+const RETRYABLE_GIT_ERROR_PATTERNS = [
+  /timed out/i,
+  /connection (?:timed out|reset|refused)/i,
+  /temporary failure/i,
+  /could not resolve host/i,
+  /unexpected disconnect/i,
+  /rpc failed/i,
+  /http\/2 stream/i,
+  /\b(?:502|503|504)\b/,
+]
 
 /**
  * Parsed GitHub repository reference
@@ -36,32 +47,68 @@ interface ParsedRepo {
  * @throws Error if the format is not recognized
  */
 export function parseGithubRepo(repoUrl: string): ParsedRepo {
-  // Try HTTPS URL format
-  const httpsMatch = repoUrl.match(/^https:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_-]+)(?:\.git)?$/)
-  if (httpsMatch) {
-    const owner = httpsMatch[1]
-    const repo = httpsMatch[2]
-    if (!owner || !repo) {
+  const input = repoUrl.trim()
+  const invalidFormatMessage =
+    `Invalid GitHub repo format: "${repoUrl}". ` +
+    'Expected "https://github.com/owner/repo", "https://github.com/owner/repo.git", "git@github.com:owner/repo.git", or "owner/repo".'
+
+  if (!input) {
+    throw new Error(invalidFormatMessage)
+  }
+
+  const validName = (value: string) => /^[a-zA-Z0-9_.-]+$/.test(value)
+  const normalizeRepo = (value: string) => value.replace(/\.git$/i, "")
+
+  // SSH URL format: git@github.com:owner/repo(.git)
+  const sshMatch = input.match(/^git@github\.com:([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+?)(?:\.git)?$/)
+  if (sshMatch) {
+    const owner = sshMatch[1]
+    const repo = normalizeRepo(sshMatch[2] ?? "")
+    if (!owner || !repo || !validName(owner) || !validName(repo)) {
       throw new Error(`Invalid GitHub URL: could not extract owner/repo from "${repoUrl}"`)
     }
     return { owner, repo }
   }
 
-  // Try owner/repo shorthand
-  const shorthandMatch = repoUrl.match(/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/)
+  // HTTPS URL format: https://github.com/owner/repo(.git)[/...]
+  if (input.startsWith("https://")) {
+    let parsedUrl: URL
+    try {
+      parsedUrl = new URL(input)
+    } catch {
+      throw new Error(invalidFormatMessage)
+    }
+
+    if (parsedUrl.hostname.toLowerCase() !== "github.com") {
+      throw new Error(invalidFormatMessage)
+    }
+
+    const pathnameParts = parsedUrl.pathname
+      .split("/")
+      .map(part => part.trim())
+      .filter(Boolean)
+
+    const owner = pathnameParts[0] ?? ""
+    const repo = normalizeRepo(pathnameParts[1] ?? "")
+    if (!owner || !repo || !validName(owner) || !validName(repo)) {
+      throw new Error(`Invalid GitHub URL: could not extract owner/repo from "${repoUrl}"`)
+    }
+
+    return { owner, repo }
+  }
+
+  // owner/repo shorthand
+  const shorthandMatch = input.match(/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+?)(?:\.git)?$/)
   if (shorthandMatch) {
     const owner = shorthandMatch[1]
-    const repo = shorthandMatch[2]
+    const repo = normalizeRepo(shorthandMatch[2] ?? "")
     if (!owner || !repo) {
       throw new Error(`Invalid GitHub repo shorthand: could not extract owner/repo from "${repoUrl}"`)
     }
     return { owner, repo }
   }
 
-  throw new Error(
-    `Invalid GitHub repo format: "${repoUrl}". ` +
-      'Expected "https://github.com/owner/repo", "https://github.com/owner/repo.git", or "owner/repo".',
-  )
+  throw new Error(invalidFormatMessage)
 }
 
 /**
@@ -75,47 +122,59 @@ export function parseGithubRepo(repoUrl: string): ParsedRepo {
  */
 export function cloneGithubRepo(repoUrl: string, githubToken: string | null, branch?: string): string {
   const { owner, repo } = parseGithubRepo(repoUrl)
-
-  const tempDir = `${GITHUB_IMPORT_PREFIX}${crypto.randomUUID()}`
-  mkdirSync(tempDir, { recursive: true })
-
   const cloneUrl = githubToken
     ? `https://${githubToken}@github.com/${owner}/${repo}.git`
     : `https://github.com/${owner}/${repo}.git`
+  let lastError: Error | null = null
 
-  const args = ["clone", "--depth", "1"]
-  if (branch) {
-    args.push("--branch", branch)
-  }
-  args.push(cloneUrl, `${tempDir}/repo`)
+  for (let attempt = 1; attempt <= MAX_CLONE_ATTEMPTS; attempt += 1) {
+    const tempDir = `${GITHUB_IMPORT_PREFIX}${crypto.randomUUID()}`
+    mkdirSync(tempDir, { recursive: true })
 
-  try {
-    execFileSync("git", args, {
-      timeout: CLONE_TIMEOUT_MS,
-      stdio: "pipe", // suppress output (token in URL)
-    })
-  } catch (error: unknown) {
-    // Clean up on failure
-    cleanupImportDir(tempDir)
-
-    if (error instanceof Error && "killed" in error && error.killed) {
-      throw new Error(`Git clone timed out after ${CLONE_TIMEOUT_MS / 1000} seconds for ${owner}/${repo}`)
+    const args = ["clone", "--depth", "1"]
+    if (branch) {
+      args.push("--branch", branch)
     }
+    args.push(cloneUrl, `${tempDir}/repo`)
 
-    // Sanitize error message to avoid leaking tokens
-    const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr) : ""
-    const sanitizedStderr = stderr.replace(/https:\/\/[^@]+@/g, "https://***@")
+    try {
+      execFileSync("git", args, {
+        timeout: CLONE_TIMEOUT_MS,
+        stdio: "pipe", // suppress output (token in URL)
+      })
 
-    throw new Error(`Git clone failed for ${owner}/${repo}: ${sanitizedStderr}`)
+      const clonedDir = join(tempDir, "repo")
+      if (!existsSync(clonedDir)) {
+        cleanupImportDir(tempDir)
+        throw new Error(`Git clone produced no output directory for ${owner}/${repo}`)
+      }
+
+      return clonedDir
+    } catch (error: unknown) {
+      cleanupImportDir(tempDir)
+
+      if (error instanceof Error && "killed" in error && error.killed) {
+        throw new Error(`Git clone timed out after ${CLONE_TIMEOUT_MS / 1000} seconds for ${owner}/${repo}`)
+      }
+
+      const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr) : ""
+      const sanitizedStderr = stderr.replace(/https:\/\/[^@]+@/g, "https://***@")
+      const isRetryable = RETRYABLE_GIT_ERROR_PATTERNS.some(pattern => pattern.test(sanitizedStderr))
+
+      if (isRetryable && attempt < MAX_CLONE_ATTEMPTS) {
+        lastError = new Error(`Git clone failed for ${owner}/${repo}: ${sanitizedStderr}`)
+        continue
+      }
+
+      throw new Error(`Git clone failed for ${owner}/${repo}: ${sanitizedStderr}`)
+    }
   }
 
-  const clonedDir = join(tempDir, "repo")
-  if (!existsSync(clonedDir)) {
-    cleanupImportDir(tempDir)
-    throw new Error(`Git clone produced no output directory for ${owner}/${repo}`)
+  if (lastError) {
+    throw lastError
   }
 
-  return clonedDir
+  throw new Error(`Git clone failed for ${owner}/${repo}: unknown error`)
 }
 
 /**
