@@ -114,13 +114,13 @@ const navScript = `<script>
 (function() {
   if (window.parent === window) return;
   function s(t, d) { window.parent.postMessage(Object.assign({type: t}, d), '*'); }
-  s('preview:navigation', {path: location.pathname});
+  s('preview-navigation', {path: location.pathname});
   var P = history.pushState, R = history.replaceState;
-  history.pushState = function() { s('preview:navigation_start'); P.apply(this, arguments); s('preview:navigation', {path: location.pathname}); };
-  history.replaceState = function() { s('preview:navigation_start'); R.apply(this, arguments); s('preview:navigation', {path: location.pathname}); };
-  window.addEventListener('popstate', function() { s('preview:navigation_start'); s('preview:navigation', {path: location.pathname}); });
-  document.addEventListener('click', function(e) { var a = e.target.closest && e.target.closest('a[href]'); if (a && a.href && !a.target && a.origin === location.origin) s('preview:navigation_start'); }, true);
-  window.addEventListener('beforeunload', function() { s('preview:navigation_start'); });
+  history.pushState = function() { s('preview-navigation-start'); P.apply(this, arguments); s('preview-navigation', {path: location.pathname}); };
+  history.replaceState = function() { s('preview-navigation-start'); R.apply(this, arguments); s('preview-navigation', {path: location.pathname}); };
+  window.addEventListener('popstate', function() { s('preview-navigation-start'); s('preview-navigation', {path: location.pathname}); });
+  document.addEventListener('click', function(e) { var a = e.target.closest && e.target.closest('a[href]'); if (a && a.href && !a.target && a.origin === location.origin) s('preview-navigation-start'); }, true);
+  window.addEventListener('beforeunload', function() { s('preview-navigation-start'); });
 })();
 </script>`
 
