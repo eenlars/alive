@@ -15,7 +15,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { createClient } from "@supabase/supabase-js"
-import { DOMAINS, requireEnv } from "@webalive/shared"
+import { requireEnv } from "@webalive/shared"
 
 // =============================================================================
 // Types
@@ -31,6 +31,7 @@ interface ServerConfig {
   domains: {
     main: string // Base domain - all env domains derived from this
     cookieDomain: string
+    previewBase?: string // e.g., "sonno.tech" — the wildcard domain for preview subdomains
   }
   shell: {
     domains: string[]
@@ -72,10 +73,6 @@ const SERVER_CONFIG_PATH = requireEnv("SERVER_CONFIG_PATH")
 function must<T>(v: T | undefined | null, msg: string): T {
   if (v === undefined || v === null) throw new Error(msg)
   return v
-}
-
-function sanitizeLabel(domain: string): string {
-  return domain.replace(/\./g, "-")
 }
 
 function filterReservedDomains(domains: DomainRow[], environments: EnvironmentConfig[]): DomainRow[] {
@@ -180,6 +177,7 @@ function renderCaddySites(
   domains: DomainRow[],
 ): string {
   const filteredDomains = filterReservedDomains(domains, environments)
+  const previewBase = cfg.domains.previewBase
 
   const header = [
     "# GENERATED FILE - DO NOT EDIT",
@@ -187,6 +185,7 @@ function renderCaddySites(
     `# generated: ${new Date().toISOString()}`,
     `# domains: ${filteredDomains.length}`,
     `# environments: ${environments.map(e => e.key).join(", ")}`,
+    `# previewBase: ${previewBase || "(not configured)"}`,
     "",
     "# NOTE: Snippets (common_headers, image_serving) are imported globally",
     "# by the main Caddyfile (see ops/caddy/Caddyfile.snippets)",
@@ -194,14 +193,15 @@ function renderCaddySites(
   ].join("\n")
 
   // Build frame-ancestors from all environment domains (+ production URL)
-  const frameAncestors = `${environments.map(e => `https://${e.domain}`).join(" ")} ${DOMAINS.STREAM_PROD}`
+  const prodOrigin = `https://app.${cfg.domains.main}`
+  const frameAncestors = `${environments.map(e => `https://${e.domain}`).join(" ")} ${prodOrigin}`
 
-  // Generate site blocks
+  // Generate site blocks (main domain only — preview is handled by wildcard below)
   const siteBlocks = filteredDomains
     .map(({ hostname, port }) => {
-      // Main domain block
-      const mainBlock = [
+      return [
         `${hostname} {`,
+        "    tls force_automate",
         "    import common_headers",
         "    import image_serving",
         "",
@@ -229,57 +229,91 @@ function renderCaddySites(
         "    }",
         "}",
       ].join("\n")
-
-      // Generate preview subdomain blocks for EACH environment
-      const previewBlocks = environments.map(env => {
-        const previewLabel = sanitizeLabel(hostname)
-        const previewDomain = `${previewLabel}.${env.previewBase}`
-
-        return [
-          `${previewDomain} {`,
-          "    import image_serving",
-          "",
-          "    # Serve user work files directly from disk",
-          "    handle_path /files/* {",
-          `        root * ${cfg.paths.sitesRoot}/${hostname}/user/.alive/files`,
-          '        header Cache-Control "no-cache"',
-          "        file_server",
-          "    }",
-          "",
-          `    reverse_proxy localhost:${port} {`,
-          "        header_up Host localhost",
-          "    }",
-          "",
-          "    header {",
-          "        -X-Frame-Options",
-          `        Content-Security-Policy "frame-ancestors ${frameAncestors}"`,
-          "        X-Content-Type-Options nosniff",
-          "        Referrer-Policy strict-origin-when-cross-origin",
-          "        -Server",
-          "        -X-Powered-By",
-          "    }",
-          "",
-          "    # SECURITY: Strip any client-supplied X-Preview-Set-Cookie header to prevent cookie injection",
-          "    request_header -X-Preview-Set-Cookie",
-          "",
-          `    # Auth check via forward_auth (routes to ${env.key} environment)`,
-          `    forward_auth localhost:${env.port} {`,
-          "        uri /api/auth/preview-guard?{query}",
-          "        copy_headers Cookie X-Preview-Set-Cookie",
-          "    }",
-          "",
-          "    # Map X-Preview-Set-Cookie from forward_auth to Set-Cookie response header",
-          "    @has_preview_cookie header X-Preview-Set-Cookie *",
-          '    header @has_preview_cookie +Set-Cookie "{http.request.header.X-Preview-Set-Cookie}"',
-          "}",
-        ].join("\n")
-      })
-
-      return [mainBlock, ...previewBlocks].join("\n\n")
     })
     .join("\n\n")
 
-  return `${header}${siteBlocks}\n`
+  // Generate wildcard catch-all for preview subdomains (preview--{label}.{WILDCARD})
+  // Single-level pattern: covered by Cloudflare Universal SSL *.{WILDCARD}
+  // Routes through Next.js middleware → preview-router for auth + port lookup
+  const wildcardDomain = cfg.domains.previewBase ?? cfg.domains.main
+  const wildcardBlock = wildcardDomain ? renderWildcardPreviewBlock(wildcardDomain, environments, frameAncestors) : ""
+
+  return `${header}${siteBlocks}\n\n${wildcardBlock}`
+}
+
+/**
+ * Generate a wildcard catch-all block for the domain.
+ *
+ * Catches preview subdomains (preview--{label}.{WILDCARD}) and routes to Next.js.
+ * Next.js middleware detects the preview-- prefix and rewrites to /api/preview-router.
+ * Specific domain blocks take precedence over this wildcard (Caddy routes by specificity).
+ *
+ * Uses single-level subdomain pattern (preview--{label}.{WILDCARD}) so that
+ * Cloudflare Universal SSL covers them (it only supports one-level wildcards).
+ *
+ * On-demand TLS: individual LE certs per subdomain as they're accessed.
+ */
+function renderWildcardPreviewBlock(
+  wildcardDomain: string,
+  environments: EnvironmentConfig[],
+  frameAncestors: string,
+): string {
+  const prodEnv = environments.find(e => e.key === "production")
+  if (!prodEnv) return ""
+
+  // Build Referer-based routing for non-production environments
+  // Production is the default fallback (no matcher needed)
+  const nonProdEnvs = environments.filter(e => e.key !== "production")
+  const refererRoutes = nonProdEnvs
+    .map(env => {
+      const matcherName = `@${env.key}`
+      return [
+        `    ${matcherName} expression \`{http.request.header.Referer}.contains("${env.domain}")\``,
+        `    reverse_proxy ${matcherName} localhost:${env.port} {`,
+        "        header_up Host {host}",
+        "        header_up X-Real-IP {remote_host}",
+        "        header_up X-Forwarded-For {remote_host}",
+        "        header_up X-Forwarded-Proto {scheme}",
+        "    }",
+      ].join("\n")
+    })
+    .join("\n\n")
+
+  return [
+    "# ============================================================================",
+    `# WILDCARD CATCH-ALL (*.${wildcardDomain})`,
+    "# Catches preview subdomains (preview--{label}." + wildcardDomain + ") and routes to",
+    "# Next.js. Middleware detects preview-- prefix and rewrites to /api/preview-router.",
+    "# Specific domain blocks above take precedence (Caddy routes by specificity).",
+    "# Routes to correct environment based on Referer header.",
+    "# Internal TLS: Cloudflare handles public TLS, origin uses Caddy internal CA.",
+    "# ============================================================================",
+    "",
+    `*.${wildcardDomain} {`,
+    "    tls internal",
+    "",
+    "    # Route to correct environment based on Referer",
+    refererRoutes,
+    "",
+    "    # Default: production",
+    `    reverse_proxy localhost:${prodEnv.port} {`,
+    "        header_up Host {host}",
+    "        header_up X-Real-IP {remote_host}",
+    "        header_up X-Forwarded-For {remote_host}",
+    "        header_up X-Forwarded-Proto {scheme}",
+    "    }",
+    "",
+    "    header {",
+    "        -X-Frame-Options",
+    `        Content-Security-Policy "frame-ancestors ${frameAncestors}"`,
+    "        X-Content-Type-Options nosniff",
+    "        Referrer-Policy strict-origin-when-cross-origin",
+    "        -Server",
+    "        -X-Powered-By",
+    "    }",
+    "}",
+    "",
+  ].join("\n")
 }
 
 function renderCaddyShell(cfg: ServerConfig): string {
@@ -337,6 +371,7 @@ async function run() {
   console.log(`  serverId: ${cfg.serverId}`)
   console.log(`  aliveRoot: ${cfg.paths.aliveRoot}`)
   console.log(`  mainDomain: ${cfg.domains.main}`)
+  console.log(`  previewBase: ${cfg.domains.previewBase || "(not configured)"}`)
 
   console.log("\nLoading environments (domains derived from server config)...")
   const environments = await loadEnvironments(cfg.paths.aliveRoot, cfg.domains.main)
@@ -356,11 +391,13 @@ async function run() {
   const domains = await queryDomains(cfg.serverId)
   const filteredDomains = filterReservedDomains(domains, environments)
   console.log(`  Found ${domains.length} domains for this server`)
-  console.log(`  Will generate ${filteredDomains.length * (1 + environments.length)} blocks total`)
+  console.log(`  Will generate ${filteredDomains.length + (cfg.domains.previewBase ? 1 : 0)} blocks total`)
   console.log(`    - ${filteredDomains.length} main domain blocks`)
-  console.log(
-    `    - ${filteredDomains.length * environments.length} preview blocks (${environments.length} envs × ${filteredDomains.length} domains)`,
-  )
+  if (cfg.domains.previewBase) {
+    console.log(`    - 1 wildcard preview block (*.${cfg.domains.previewBase})`)
+  } else {
+    console.log("    - 0 preview blocks (previewBase not configured)")
+  }
 
   console.log("\nGenerating files...")
 

@@ -22,6 +22,7 @@ export {
   DEFAULTS,
   DOMAINS,
   getEnvFilePath,
+  getLocalTemplatePath,
   getServerId,
   getServiceName,
   getSiteHome,

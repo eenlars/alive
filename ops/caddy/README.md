@@ -74,6 +74,34 @@ caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
 | caddy (main) | 8081 | 8444 | All domains except shell |
 | caddy-shell | - | 8443 | Shell domains only |
 
+## CRITICAL: `tls force_automate` on explicit domains
+
+**Bug**: Caddy v2.10.x has a bug ([#6996](https://github.com/caddyserver/caddy/issues/6996)) where the `on_demand_tls { ask ... }` global block + a wildcard `*.sonno.tech` with `tls { on_demand }` prevents cert management for explicit domains that match the wildcard (e.g., `dev.sonno.tech`, `staging.sonno.tech`).
+
+**Symptom**: TLS handshake fails for all explicit domains, `cert_cache_fill: 0.0001` in logs, "no certificate available" errors.
+
+**Fix**: Every explicit domain block that matches the wildcard MUST have `tls force_automate`:
+
+```caddy
+# WRONG — will silently fail to get a cert
+dev.sonno.tech {
+    reverse_proxy localhost:8997
+}
+
+# CORRECT
+dev.sonno.tech {
+    tls force_automate
+    reverse_proxy localhost:8997
+}
+```
+
+**Where to add it**:
+- `/etc/caddy/Caddyfile.staging` — sonno.tech, app, staging, dev
+- `/etc/caddy/sites/*.caddy` — midday, sentry, monitor, mail, supabase-*
+- Generated `Caddyfile.sites` — template is in `packages/site-controller/src/infra/generate-routing.ts`
+
+The wildcard block (`*.sonno.tech`) does NOT need it — it uses `tls { on_demand }` instead.
+
 ## Related Docs
 
 - [CADDY_SHELL_ISOLATION.md](../../docs/operations/CADDY_SHELL_ISOLATION.md) - Full architecture

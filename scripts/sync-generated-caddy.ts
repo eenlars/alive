@@ -11,31 +11,65 @@ function sanitizeLabel(domain: string): string {
   return domain.replace(/\./g, "-")
 }
 
+const serverConfigPath = process.env.SERVER_CONFIG_PATH || PATHS.SERVER_CONFIG
+const serverConfig = JSON.parse(readFileSync(serverConfigPath, "utf-8"))
+const mainDomain: string = serverConfig.domains?.main
+if (!mainDomain) {
+  throw new Error(`Missing domains.main in ${serverConfigPath}`)
+}
+const previewBase: string = serverConfig.domains?.previewBase
+if (!previewBase) {
+  throw new Error(`Missing domains.previewBase in ${serverConfigPath}`)
+}
+
 const envConfig = JSON.parse(readFileSync(ENV_PATH, "utf-8"))
 const environments = Object.values(envConfig.environments || {}) as Array<{
   key: string
-  domain: string
-  previewBase: string
+  subdomain: string
 }>
 
 const reserved = new Set<string>()
 const previewForReserved = new Set<string>()
 
 for (const env of environments) {
-  reserved.add(env.domain)
-  reserved.add(env.previewBase)
+  const domain = `${env.subdomain}.${mainDomain}`
+  reserved.add(domain)
 }
 
 // Also exclude preview domains generated for reserved environment domains
 for (const envDomain of reserved) {
   if (!envDomain.includes(".")) continue
   const label = sanitizeLabel(envDomain)
-  for (const env of environments) {
-    previewForReserved.add(`${label}.${env.previewBase}`)
+  previewForReserved.add(`${label}.${previewBase}`)
+}
+
+// Extract domains from existing Caddy configs to avoid conflicts
+function extractHostsFromCaddyfile(filePath: string): string[] {
+  try {
+    const content = readFileSync(filePath, "utf-8")
+    const hosts: string[] = []
+    for (const line of content.split(/\r?\n/)) {
+      const m = line.trim().match(/^([^#{(][^{]*)\{/)
+      if (m) {
+        for (const h of m[1].split(",")) {
+          const host = h.trim()
+          if (host) hosts.push(host)
+        }
+      }
+    }
+    return hosts
+  } catch {
+    return []
   }
 }
 
-const blocked = new Set([...reserved, ...previewForReserved])
+const existingHosts = [
+  ...extractHostsFromCaddyfile("/etc/caddy/Caddyfile.prod"),
+  ...extractHostsFromCaddyfile("/etc/caddy/Caddyfile.staging"),
+  ...extractHostsFromCaddyfile("/etc/caddy/Caddyfile"),
+]
+
+const blocked = new Set([...reserved, ...previewForReserved, ...existingHosts])
 
 const lines = readFileSync(SRC, "utf-8").split(/\r?\n/)
 const blocks: string[] = []
@@ -59,7 +93,7 @@ while (i < lines.length) {
     continue
   }
 
-  const match = /^([A-Za-z0-9.-]+)\s*\{/.exec(trimmed)
+  const match = /^([*A-Za-z0-9.-]+)\s*\{/.exec(trimmed)
   if (!match) {
     i += 1
     continue

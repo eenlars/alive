@@ -11,7 +11,7 @@
  *   stderr: Diagnostic logs
  */
 
-import { chownSync, copyFileSync, existsSync, mkdirSync } from "node:fs"
+import { chownSync, existsSync, mkdirSync } from "node:fs"
 import { join } from "node:path"
 import process from "node:process"
 import { query } from "@anthropic-ai/claude-agent-sdk"
@@ -39,30 +39,27 @@ async function readStdinJson() {
     const targetGid = process.env.TARGET_GID && Number(process.env.TARGET_GID)
     const targetCwd = process.env.TARGET_CWD
 
-    // Copy Claude credentials to temp location BEFORE dropping privileges
-    const originalHome = process.env.HOME || "/root"
-    const tempHome = `/tmp/claude-home-${targetUid}`
-    const credSource = join(originalHome, ".claude", ".credentials.json")
-    const credDest = join(tempHome, ".claude", ".credentials.json")
-
-    if (existsSync(credSource)) {
-      mkdirSync(join(tempHome, ".claude"), { recursive: true, mode: 0o755 })
-      copyFileSync(credSource, credDest)
-      // Chown the entire temp home directory and all contents
-      chownSync(tempHome, targetUid, targetGid)
-      chownSync(join(tempHome, ".claude"), targetUid, targetGid)
-      chownSync(credDest, targetUid, targetGid)
-      process.env.HOME = tempHome
-      // Ensure temp directory is writable by the workspace user
-      const tempDir = join(tempHome, "tmp")
-      if (!existsSync(tempDir)) {
-        mkdirSync(tempDir, { recursive: true, mode: 0o700 })
+    // Set HOME to workspace user's actual home directory.
+    // TARGET_HOME is set by agent-child-runner.ts (e.g. /srv/webalive/sites/domain.com).
+    // This is where the user's own tool configs (gh, git, etc.) live.
+    // For superadmin, HOME stays as-is (inherited from parent = /root).
+    const targetHome = process.env.TARGET_HOME
+    if (targetHome) {
+      process.env.HOME = targetHome
+      // Ensure the SDK can write its .claude/ session dir inside the workspace home
+      const claudeDir = join(targetHome, ".claude")
+      if (!existsSync(claudeDir)) {
+        try {
+          mkdirSync(claudeDir, { recursive: true, mode: 0o700 })
+          if (targetUid && targetGid) {
+            chownSync(claudeDir, targetUid, targetGid)
+          }
+        } catch {
+          // Non-fatal: SDK will fall back to ANTHROPIC_API_KEY auth
+          console.error(`[runner] Could not create ${claudeDir}, continuing`)
+        }
       }
-      chownSync(tempDir, targetUid, targetGid)
-      process.env.TMPDIR = tempDir
-      process.env.TMP = tempDir
-      process.env.TEMP = tempDir
-      console.error(`[runner] Copied credentials to ${tempHome}`)
+      console.error(`[runner] HOME set to workspace: ${targetHome}`)
     }
 
     // SUPERADMIN MODE: uid/gid = 0 means skip privilege drop (run as root)
@@ -90,7 +87,6 @@ async function readStdinJson() {
     console.error(`[runner] Working directory: ${process.cwd()}`)
     console.error(`[runner] Running as UID:${process.getuid()} GID:${process.getgid()}`)
     console.error(`[runner] HOME: ${process.env.HOME}`)
-    console.error(`[runner] Using OAuth credentials from ${process.env.HOME}/.claude/.credentials.json`)
 
     const request = await readStdinJson()
     console.error(`[runner] Received request: ${request.message?.substring(0, 50)}...`)
