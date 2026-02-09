@@ -4,6 +4,16 @@ AI assistant guidelines for working on Alive. Our frontpage is at [alive.best](h
 
 **Quick Links:** [Getting Started](./docs/GETTING_STARTED.md) | [Architecture](./docs/architecture/README.md) | [Security](./docs/security/README.md) | [Testing](./docs/testing/README.md)
 
+## Project Management
+
+Use the `/roadmap` skill to manage issues, milestones, and the project board. This is the source of truth for what we're building and what's next.
+
+- **GitHub Project**: [Alive Roadmap](https://github.com/users/eenlars/projects/1) (board #1, owner: eenlars)
+- **Repo**: `eenlars/alive`
+- When creating issues, always assign a milestone and add to the project board
+- When fixing a bug or completing a feature, close the related issue with a comment
+- Use `/roadmap` to check project state before starting work
+
 ## Core Rules
 
 1. **SHORTEST FEEDBACK LOOP** - The best way to test something is by creating a feedback loop that is as short as possible. The easiest way for testing functionality is creating something for yourself to be able to OBSERVE something quickly if working on it. For example, directly calling an API, or creating some flow/script to quickly grasp the workings. Be relentlessly resourceful.
