@@ -101,6 +101,9 @@
     "apps/mcp-servers/ocr": {
       "name": "@webalive/mcp-ocr",
     },
+    "apps/preview-proxy": {
+      "name": "@webalive/preview-proxy",
+    },
     "apps/shell-server-go": {
       "name": "@webalive/shell-server-go",
     },
@@ -1034,6 +1037,8 @@
     "@webalive/mcp-ocr": ["@webalive/mcp-ocr@workspace:apps/mcp-servers/ocr"],
 
     "@webalive/oauth-core": ["@webalive/oauth-core@workspace:packages/oauth-core"],
+
+    "@webalive/preview-proxy": ["@webalive/preview-proxy@workspace:apps/preview-proxy"],
 
     "@webalive/redis": ["@webalive/redis@workspace:packages/redis"],
 

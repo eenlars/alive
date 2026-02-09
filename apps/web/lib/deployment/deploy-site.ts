@@ -15,6 +15,10 @@ export interface DeploySiteResult {
   serviceName: string
 }
 
+/**
+ * Infrastructure-only deployment wrapper.
+ * API routes should call runStrictDeployment() to guarantee deploy+DB+Caddy ordering.
+ */
 export async function deploySite(options: DeploySiteOptions): Promise<DeploySiteResult> {
   const domain = options.domain.toLowerCase() // Always lowercase domain
   const templatePath = options.templatePath || PATHS.TEMPLATE_PATH
@@ -45,6 +49,7 @@ export async function deploySite(options: DeploySiteOptions): Promise<DeploySite
       serverIp,
       wildcardDomain,
       rollbackOnFailure: true, // Automatic rollback on failure
+      skipCaddy: true, // Caller (route.ts) handles Caddy after DB write to avoid race condition
     })
 
     if (!result.success) {

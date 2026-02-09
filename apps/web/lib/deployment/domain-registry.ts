@@ -316,6 +316,39 @@ async function createDomainEntry(hostname: string, port: number, orgId: string):
 }
 
 /**
+ * Check whether a domain is already registered in app.domains
+ */
+export async function isDomainRegistered(hostname: string): Promise<boolean> {
+  try {
+    const app = await getAppClient()
+    const { data, error } = await app.from("domains").select("hostname").eq("hostname", hostname).single()
+
+    if (data) {
+      return true
+    }
+
+    if (error && error.code !== "PGRST116") {
+      throw new DomainRegistrationError(
+        ErrorCodes.DEPLOYMENT_FAILED,
+        `Failed to check if domain exists: ${error.message}`,
+        { domain: hostname },
+      )
+    }
+
+    return false
+  } catch (error) {
+    if (error instanceof DomainRegistrationError) {
+      throw error
+    }
+    throw new DomainRegistrationError(
+      ErrorCodes.DEPLOYMENT_FAILED,
+      error instanceof Error ? error.message : "Unknown error checking domain registration",
+      { domain: hostname },
+    )
+  }
+}
+
+/**
  * Register a new domain in Supabase
  * Creates user (if needed) and upserts organization, then creates domain entry
  *
@@ -332,25 +365,9 @@ export async function registerDomain(config: DomainRegistration): Promise<boolea
   const { hostname, email, password, port, orgId: providedOrgId } = config
 
   try {
-    const app = await getAppClient()
-
     // Check if domain already exists
-    const { data: existingDomain, error: domainCheckError } = await app
-      .from("domains")
-      .select("hostname")
-      .eq("hostname", hostname)
-      .single()
-
-    if (existingDomain) {
+    if (await isDomainRegistered(hostname)) {
       return true
-    }
-
-    if (domainCheckError && domainCheckError.code !== "PGRST116") {
-      throw new DomainRegistrationError(
-        ErrorCodes.DEPLOYMENT_FAILED,
-        `Failed to check if domain exists: ${domainCheckError.message}`,
-        { domain: hostname },
-      )
     }
 
     // Get or create user (validates password if provided)

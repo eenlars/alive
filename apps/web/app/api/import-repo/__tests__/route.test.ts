@@ -1,110 +1,108 @@
-import { existsSync } from "node:fs"
 import { NextRequest } from "next/server"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ErrorCodes } from "@/lib/error-codes"
 
-const { mockCookieStore, mockGetAccessToken } = vi.hoisted(() => ({
-  mockCookieStore: {
-    get: vi.fn(() => ({ value: "session-cookie" })),
-  },
-  mockGetAccessToken: vi.fn(),
-}))
-
-vi.mock("node:fs", () => ({
-  existsSync: vi.fn(() => false),
-}))
-
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => mockCookieStore),
-}))
+const getSessionUserMock = vi.fn()
+const validateUserOrgAccessMock = vi.fn()
+const getUserQuotaMock = vi.fn()
+const parseGithubRepoMock = vi.fn((_url: string) => ({ owner: "example", repo: "repo" }))
+const importGithubRepoMock = vi.fn()
+const cleanupImportDirMock = vi.fn()
+const getAccessTokenMock = vi.fn()
+const runStrictDeploymentMock = vi.fn()
+const siteMetadataExistsMock = vi.fn((_slug: string) => false)
 
 vi.mock("@/features/auth/lib/auth", () => ({
-  getSessionUser: vi.fn(),
+  getSessionUser: () => getSessionUserMock(),
 }))
 
 vi.mock("@/features/auth/lib/jwt", () => ({
-  createSessionToken: vi.fn(),
-  verifySessionToken: vi.fn(),
+  createSessionToken: vi.fn(() => "new-session-token"),
+  verifySessionToken: vi.fn(() => ({
+    workspaces: ["existing.alive.best"],
+  })),
 }))
 
-vi.mock("@/lib/deployment/org-resolver", () => ({
-  validateUserOrgAccess: vi.fn(),
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(() => ({
+    get: vi.fn(() => ({ value: "session-cookie" })),
+  })),
 }))
 
-vi.mock("@/lib/deployment/user-quotas", () => ({
-  getUserQuota: vi.fn(),
+vi.mock("@/lib/api/server", () => ({
+  handleBody: vi.fn(() => ({
+    slug: "testsite",
+    repoUrl: "https://github.com/example/repo",
+    orgId: "org-1",
+    siteIdeas: "imported site",
+  })),
+  isHandleBodyError: vi.fn(() => false),
+  alrighty: vi.fn((_endpoint: string, payload: Record<string, unknown>) => {
+    const response = new Response(JSON.stringify(payload), { status: 200 })
+    ;(response as Response & { cookies: { set: typeof vi.fn } }).cookies = { set: vi.fn() }
+    return response
+  }),
+}))
+
+vi.mock("@/lib/api/responses", () => ({
+  structuredErrorResponse: vi.fn(
+    (code: string, opts: { status: number; details?: Record<string, unknown> }) =>
+      new Response(JSON.stringify({ ok: false, error: code, ...opts.details }), { status: opts.status }),
+  ),
 }))
 
 vi.mock("@/lib/config", () => ({
-  buildSubdomain: vi.fn(),
+  buildSubdomain: vi.fn((slug: string) => `${slug}.alive.best`),
 }))
 
-vi.mock("@/lib/siteMetadataStore", () => ({
-  siteMetadataStore: {
-    exists: vi.fn(),
-    setSite: vi.fn(),
-  },
+vi.mock("@/lib/deployment/org-resolver", () => ({
+  validateUserOrgAccess: (...args: unknown[]) => validateUserOrgAccessMock(...args),
+}))
+
+vi.mock("@/lib/deployment/user-quotas", () => ({
+  getUserQuota: (...args: unknown[]) => getUserQuotaMock(...args),
 }))
 
 vi.mock("@/lib/deployment/github-import", () => ({
-  parseGithubRepo: vi.fn(),
-  importGithubRepo: vi.fn(),
-  cleanupImportDir: vi.fn(),
+  parseGithubRepo: (url: string) => parseGithubRepoMock(url),
+  importGithubRepo: (...args: unknown[]) => importGithubRepoMock(...args),
+  cleanupImportDir: (...args: unknown[]) => cleanupImportDirMock(...args),
 }))
 
-vi.mock("@/lib/deployment/deploy-site", () => ({
-  deploySite: vi.fn(),
+vi.mock("@/lib/deployment/deploy-pipeline", () => ({
+  runStrictDeployment: (...args: unknown[]) => runStrictDeploymentMock(...args),
 }))
 
-vi.mock("@/lib/deployment/domain-registry", () => ({
-  DomainRegistrationError: class DomainRegistrationError extends Error {
-    errorCode = "DOMAIN_ALREADY_EXISTS"
-    details = {}
-  },
-  registerDomain: vi.fn(),
+vi.mock("@/lib/deployment/ssl-validation", () => ({
+  validateSSLCertificate: vi.fn(() => Promise.resolve()),
 }))
 
 vi.mock("@/lib/oauth/oauth-instances", () => ({
   getOAuthInstance: vi.fn(() => ({
-    getAccessToken: mockGetAccessToken,
+    getAccessToken: (...args: unknown[]) => getAccessTokenMock(...args),
   })),
 }))
 
-vi.mock("@/types/guards/api", () => ({
-  loadDomainPasswords: vi.fn(),
-}))
-
-vi.mock("@/lib/deployment/ssl-validation", () => ({
-  validateSSLCertificate: vi.fn(),
-}))
-
 vi.mock("@/lib/error-logger", () => ({
-  errorLogger: {
-    capture: vi.fn(),
+  errorLogger: { capture: vi.fn() },
+}))
+
+vi.mock("@/lib/siteMetadataStore", () => ({
+  siteMetadataStore: {
+    exists: (slug: string) => siteMetadataExistsMock(slug),
+    setSite: vi.fn(() => Promise.resolve()),
   },
 }))
 
-const { POST } = await import("../route")
-const { getSessionUser } = await import("@/features/auth/lib/auth")
-const { createSessionToken, verifySessionToken } = await import("@/features/auth/lib/jwt")
-const { validateUserOrgAccess } = await import("@/lib/deployment/org-resolver")
-const { getUserQuota } = await import("@/lib/deployment/user-quotas")
-const { buildSubdomain } = await import("@/lib/config")
-const { siteMetadataStore } = await import("@/lib/siteMetadataStore")
-const { parseGithubRepo, importGithubRepo, cleanupImportDir } = await import("@/lib/deployment/github-import")
-const { deploySite } = await import("@/lib/deployment/deploy-site")
-const { registerDomain } = await import("@/lib/deployment/domain-registry")
-const { loadDomainPasswords } = await import("@/types/guards/api")
+vi.mock("@webalive/shared", async importOriginal => {
+  const actual = await importOriginal<typeof import("@webalive/shared")>()
+  return {
+    ...actual,
+    getOAuthKeyForProvider: vi.fn(() => "github"),
+  }
+})
 
-const TEST_USER = {
-  id: "user-1",
-  email: "user@example.com",
-  name: "User One",
-  canSelectAnyModel: false,
-  isAdmin: false,
-  isSuperadmin: false,
-  enabledModels: [],
-}
+const { POST } = await import("../route")
 
 function createRequest(body: Record<string, unknown>): NextRequest {
   return new NextRequest("http://localhost/api/import-repo", {
@@ -117,143 +115,144 @@ function createRequest(body: Record<string, unknown>): NextRequest {
 describe("POST /api/import-repo", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    process.env.SKIP_SSL_VALIDATION = "true"
-
-    vi.mocked(existsSync).mockReturnValue(false)
-    vi.mocked(getSessionUser).mockResolvedValue(TEST_USER)
-    vi.mocked(validateUserOrgAccess).mockResolvedValue(true)
-    vi.mocked(getUserQuota).mockResolvedValue({
+    getSessionUserMock.mockResolvedValue({
+      id: "user-1",
+      email: "owner@example.com",
+      name: "Owner",
+    })
+    validateUserOrgAccessMock.mockResolvedValue(true)
+    getUserQuotaMock.mockResolvedValue({
       canCreateSite: true,
       maxSites: 10,
       currentSites: 1,
     })
-    vi.mocked(buildSubdomain).mockReturnValue("imported.alive.test")
-    vi.mocked(siteMetadataStore.exists).mockResolvedValue(false)
-    vi.mocked(siteMetadataStore.setSite).mockResolvedValue(undefined)
-    vi.mocked(parseGithubRepo).mockReturnValue({ owner: "octocat", repo: "Hello-World" })
-    vi.mocked(importGithubRepo).mockReturnValue({
-      templatePath: "/tmp/import-template",
-      cleanupDir: "/tmp/github-import-test",
+    getAccessTokenMock.mockResolvedValue("github-token")
+    siteMetadataExistsMock.mockReturnValue(false)
+    parseGithubRepoMock.mockReturnValue({ owner: "example", repo: "repo" })
+    importGithubRepoMock.mockReturnValue({
+      templatePath: "/tmp/import/template",
+      cleanupDir: "/tmp/import",
     })
-    vi.mocked(deploySite).mockResolvedValue({
-      port: 3888,
-      domain: "imported.alive.test",
-      serviceName: "site-imported",
+    runStrictDeploymentMock.mockResolvedValue({
+      domain: "testsite.alive.best",
+      port: 3700,
+      serviceName: "site@testsite-alive-best.service",
     })
-    vi.mocked(registerDomain).mockResolvedValue(true)
-    vi.mocked(loadDomainPasswords).mockReturnValue({
-      "imported.alive.test": { port: 3888 },
-    })
-    vi.mocked(verifySessionToken).mockResolvedValue({
-      sub: TEST_USER.id,
-      userId: TEST_USER.id,
-      email: TEST_USER.email,
-      name: TEST_USER.name,
-      workspaces: ["existing.alive.test"],
-      iat: 1,
-      exp: 2,
-    })
-    vi.mocked(createSessionToken).mockResolvedValue("new-session-token")
-    mockGetAccessToken.mockResolvedValue(null)
-    mockCookieStore.get.mockReturnValue({ value: "session-cookie" })
   })
 
-  afterEach(() => {
-    delete process.env.SKIP_SSL_VALIDATION
-  })
+  it("requires authentication", async () => {
+    getSessionUserMock.mockResolvedValueOnce(null)
 
-  it("returns 401 when unauthenticated", async () => {
-    vi.mocked(getSessionUser).mockResolvedValue(null)
-
-    const response = await POST(
-      createRequest({
-        slug: "my-repo",
-        repoUrl: "octocat/Hello-World",
-      }),
-    )
-    const data = await response.json()
+    const response = await POST(createRequest({ slug: "testsite", repoUrl: "https://github.com/example/repo" }))
 
     expect(response.status).toBe(401)
-    expect(data.error).toBe(ErrorCodes.UNAUTHORIZED)
+    const payload = (await response.json()) as { error: string }
+    expect(payload.error).toBe(ErrorCodes.UNAUTHORIZED)
+    expect(runStrictDeploymentMock).not.toHaveBeenCalled()
   })
 
-  it("imports public repositories when GitHub token is missing", async () => {
-    vi.mocked(verifySessionToken).mockResolvedValue({
-      sub: TEST_USER.id,
-      userId: TEST_USER.id,
-      email: TEST_USER.email,
-      name: TEST_USER.name,
-      workspaces: ["existing.alive.test", "imported.alive.test"],
-      iat: 1,
-      exp: 2,
+  it("uses the strict deployment pipeline for GitHub imports", async () => {
+    const response = await POST(
+      createRequest({
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
+        orgId: "org-1",
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(runStrictDeploymentMock).toHaveBeenCalledOnce()
+    expect(runStrictDeploymentMock.mock.calls[0][0]).toMatchObject({
+      domain: "testsite.alive.best",
+      email: "owner@example.com",
+      orgId: "org-1",
+      templatePath: "/tmp/import/template",
+    })
+    expect(cleanupImportDirMock).toHaveBeenCalledWith("/tmp/import")
+  })
+
+  it("returns 403 when site quota is exceeded", async () => {
+    getUserQuotaMock.mockResolvedValueOnce({
+      canCreateSite: false,
+      maxSites: 3,
+      currentSites: 3,
     })
 
     const response = await POST(
       createRequest({
-        slug: "my-repo",
-        repoUrl: "octocat/Hello-World",
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
+        orgId: "org-1",
       }),
     )
-    const data = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(data.ok).toBe(true)
-    expect(data.domain).toBe("imported.alive.test")
-    expect(data.chatUrl).toBe("/chat?wk=imported.alive.test")
-    expect(importGithubRepo).toHaveBeenCalledWith("octocat/Hello-World", null, undefined)
-    expect(createSessionToken).toHaveBeenCalledWith(TEST_USER.id, TEST_USER.email, TEST_USER.name, [
-      "existing.alive.test",
-      "imported.alive.test",
-    ])
-    expect(cleanupImportDir).toHaveBeenCalledWith("/tmp/github-import-test")
+    expect(response.status).toBe(403)
+    expect(runStrictDeploymentMock).not.toHaveBeenCalled()
+    expect(cleanupImportDirMock).not.toHaveBeenCalled()
   })
 
   it("returns 409 when slug already exists", async () => {
-    vi.mocked(siteMetadataStore.exists).mockResolvedValue(true)
+    siteMetadataExistsMock.mockReturnValueOnce(true)
 
     const response = await POST(
       createRequest({
-        slug: "my-repo",
-        repoUrl: "octocat/Hello-World",
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
       }),
     )
-    const data = await response.json()
 
     expect(response.status).toBe(409)
-    expect(data.error).toBe(ErrorCodes.SLUG_TAKEN)
+    const payload = (await response.json()) as { error: string }
+    expect(payload.error).toBe(ErrorCodes.SLUG_TAKEN)
+    expect(runStrictDeploymentMock).not.toHaveBeenCalled()
   })
 
   it("returns 400 when repository format is invalid", async () => {
-    vi.mocked(parseGithubRepo).mockImplementation(() => {
+    parseGithubRepoMock.mockImplementationOnce(() => {
       throw new Error("Invalid GitHub repo format")
     })
 
     const response = await POST(
       createRequest({
-        slug: "my-repo",
+        slug: "testsite",
         repoUrl: "invalid-input",
       }),
     )
-    const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toBe(ErrorCodes.VALIDATION_ERROR)
+    const payload = (await response.json()) as { error: string }
+    expect(payload.error).toBe(ErrorCodes.VALIDATION_ERROR)
+    expect(runStrictDeploymentMock).not.toHaveBeenCalled()
   })
 
   it("returns 400 when clone fails", async () => {
-    vi.mocked(importGithubRepo).mockImplementation(() => {
+    importGithubRepoMock.mockImplementationOnce(() => {
       throw new Error("Git clone failed: not found")
     })
 
     const response = await POST(
       createRequest({
-        slug: "my-repo",
-        repoUrl: "octocat/Hello-World",
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
       }),
     )
-    const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data.error).toBe(ErrorCodes.GITHUB_CLONE_FAILED)
+    const payload = (await response.json()) as { error: string }
+    expect(payload.error).toBe(ErrorCodes.GITHUB_CLONE_FAILED)
+  })
+
+  it("proceeds without token when GitHub OAuth is not connected", async () => {
+    getAccessTokenMock.mockRejectedValueOnce(new Error("OAuth not configured"))
+
+    const response = await POST(
+      createRequest({
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(importGithubRepoMock).toHaveBeenCalledWith("https://github.com/example/repo", null, undefined)
   })
 })
