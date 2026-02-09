@@ -165,7 +165,6 @@ describe("runStrictDeployment", () => {
     expect(teardownMock).toHaveBeenCalledWith("testsite.alive.best", {
       removeFiles: true,
       removeUser: true,
-      removePort: true,
     })
   })
 
@@ -203,7 +202,6 @@ describe("runStrictDeployment", () => {
     expect(teardownMock).toHaveBeenCalledWith("testsite.alive.best", {
       removeFiles: true,
       removeUser: true,
-      removePort: true,
     })
   })
 
@@ -223,7 +221,6 @@ describe("runStrictDeployment", () => {
     expect(teardownMock).toHaveBeenCalledWith("testsite.alive.best", {
       removeFiles: true,
       removeUser: true,
-      removePort: true,
     })
     expect(checkDomainInCaddyMock).not.toHaveBeenCalled()
   })
@@ -247,7 +244,6 @@ describe("runStrictDeployment", () => {
     expect(teardownMock).toHaveBeenCalledWith("testsite.alive.best", {
       removeFiles: true,
       removeUser: true,
-      removePort: true,
     })
   })
 
