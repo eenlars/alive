@@ -97,7 +97,7 @@ function ChatPageContent() {
     },
     [dexieSession, ensureTabGroupWithTab],
   )
-  const { toggleSidebar, openSidebar } = useSidebarActions()
+  const { toggleSidebar } = useSidebarActions()
   const isSidebarOpen = useSidebarOpen()
   const isHydrated = useAppHydrated()
   const [subdomainInitialized, setSubdomainInitialized] = useState(false)
@@ -460,9 +460,7 @@ function ChatPageContent() {
       setSSETerminal(true)
       setSSETerminalMinimized(true)
     }
-    // Open conversations sidebar by default
-    openSidebar()
-  }, [setSSETerminal, setSSETerminalMinimized, openSidebar])
+  }, [setSSETerminal, setSSETerminalMinimized])
 
   // Calculate total domain count from organizations
   const totalDomainCount = organizations.reduce((sum, org) => sum + (org.workspace_count || 0), 0)
