@@ -17,17 +17,6 @@ import { ErrorCodes } from "@/lib/error-codes"
 import { errorLogger } from "@/lib/error-logger"
 import { getOAuthInstance } from "@/lib/oauth/oauth-instances"
 import { siteMetadataStore } from "@/lib/siteMetadataStore"
-import { loadDomainPasswords } from "@/types/guards/api"
-
-function getPortFromRegistry(domain: string): number | null {
-  try {
-    const registry = loadDomainPasswords()
-    const entry = registry[domain]
-    return entry?.port ?? null
-  } catch {
-    return null
-  }
-}
 
 export async function POST(request: NextRequest) {
   let cleanupDir: string | null = null
@@ -131,23 +120,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Deploy using the existing pipeline
-    await deploySite({
+    const deployResult = await deploySite({
       domain: fullDomain,
       email: sessionUser.email,
       orgId,
       templatePath,
     })
 
-    // Read the assigned port
-    const port = getPortFromRegistry(fullDomain)
-    if (!port) {
-      return structuredErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, {
-        status: 500,
-        details: {
-          message: "Deployment succeeded but port assignment could not be verified. Please contact support.",
-        },
-      })
-    }
+    const port = deployResult.port
 
     // Register domain in Supabase
     try {

@@ -1,9 +1,5 @@
-import { existsSync, readFileSync } from "node:fs"
-import { join } from "node:path"
-import { PATHS } from "@webalive/shared"
 import bcrypt from "bcrypt"
 import { z } from "zod"
-import type { DomainPasswords } from "@/types/domain"
 
 // Re-export schemas for backward compatibility
 export { OptionalWorktreeSchema, WorktreeSlugSchema } from "./worktree-schemas"
@@ -85,47 +81,4 @@ export async function hashPassword(plaintext: string): Promise<string> {
 
 export async function verifyPassword(plaintext: string, hash: string): Promise<boolean> {
   return bcrypt.compare(plaintext, hash)
-}
-
-function getDomainPasswordsPath(): string {
-  // PRODUCTION: Use persistent location outside of git and build process
-  // This ensures the file survives deployments and doesn't require rebuilds
-  const persistentPath = PATHS.REGISTRY_PATH
-
-  // Always prefer persistent location if it exists
-  if (existsSync(persistentPath)) {
-    return persistentPath
-  }
-
-  // Fallback paths for development/testing
-  const devPaths = [join(process.cwd(), "domain-passwords.json"), join(PATHS.ALIVE_ROOT, "domain-passwords.json")]
-
-  for (const path of devPaths) {
-    if (existsSync(path)) {
-      console.log("Found domain passwords at:", path)
-      return path
-    }
-  }
-
-  console.log("Domain passwords file not found, using persistent path:", persistentPath)
-  return persistentPath // Return persistent path for creation
-}
-
-/**
- * Load port registry from domain-passwords.json
- *
- * Only used for port assignment lookups. All user/auth data is in Supabase.
- *
- * @returns Port registry object (domain → {port, createdAt})
- */
-export function loadDomainPasswords(): DomainPasswords {
-  try {
-    const filePath = getDomainPasswordsPath()
-    if (existsSync(filePath)) {
-      return JSON.parse(readFileSync(filePath, "utf8"))
-    }
-  } catch (error) {
-    console.warn("Failed to read domain passwords file:", error)
-  }
-  return {}
 }

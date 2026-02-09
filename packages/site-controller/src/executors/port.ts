@@ -3,7 +3,6 @@ import { runScript } from "./common.js"
 
 export interface AssignPortParams {
   domain: string
-  registryPath: string
 }
 
 /**
@@ -23,7 +22,6 @@ export async function assignPort(params: AssignPortParams): Promise<PortAssignme
 
   const stdout = await runScript("00-assign-port.sh", {
     SITE_DOMAIN: params.domain,
-    REGISTRY_PATH: params.registryPath,
     DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_PASSWORD: process.env.DATABASE_PASSWORD,
   })

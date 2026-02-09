@@ -35,8 +35,8 @@ The WebAlive infrastructure provides **secure, isolated, multi-tenant website de
 - **Workspace Access**: Users linked to domains they own
 
 ### 6. **Port Registry**
-- **Location**: `domain-passwords.json` (path derived from `SERVER_CONFIG_PATH` env var)
-- **Format**: JSON with domain → port/password mappings
+- **Location**: Supabase `app.domains` table
+- **Format**: SQL table with hostname, port, org_id
 - **Auto-increment**: Starts at 3333, increments for each new site
 
 ---
@@ -95,22 +95,13 @@ Set permissions: chmod -R 755 (readable/executable by all, writable by owner)
 ### **Phase 4: Port Assignment**
 
 ```
-Load registry: domain-passwords.json (from SERVER_CONFIG_PATH dir)
+Query Supabase: app.domains WHERE hostname = domain
   ↓
 Check if domain exists:
   - YES → Reuse existing port
   - NO  → Assign next available port (max + 1)
   ↓
-Generate password: "supersecret" (default) or auto-generated
-  ↓
-Save to registry:
-{
-  "example.com": {
-    "port": 3338,
-    "password": "supersecret",
-    "deployedAt": "2025-11-20T10:30:00Z"
-  }
-}
+Save to Supabase: INSERT INTO app.domains (hostname, port, org_id)
 ```
 
 ### **Phase 5: Systemd Service Creation**
@@ -283,16 +274,11 @@ The deployment flow currently executes in this order:
    - Bash script (408 lines, manual deployments only)
    - Maintenance burden, feature parity challenges
 
-3. **Port Registry Divergence**: Two sources of truth for port assignments
-   - JSON file (`domain-passwords.json`) written during infrastructure deploy
-   - Supabase (`app.domains.port`) written during registration
-   - No sync mechanism if they diverge
-
-4. **No Rollback**: Partial failures leave inconsistent state
+3. **No Rollback**: Partial failures leave inconsistent state
    - No cleanup of infrastructure if Supabase fails
    - No cleanup of Supabase if infrastructure fails
 
-5. **Concurrent Conflicts**: Limited locking mechanisms
+4. **Concurrent Conflicts**: Limited locking mechanisms
    - Caddy file locking only (30s timeout)
    - No distributed locks for port assignment
    - Potential race conditions
@@ -328,7 +314,7 @@ See: **[CURRENT_ARCHITECTURE.md](./CURRENT_ARCHITECTURE.md)**
 | **Caddy Routing** | `generated/Caddyfile.sites` (from `SERVER_CONFIG_PATH` dir) | Generated site routing |
 | **Caddy Shim** | `<ALIVE_ROOT>/ops/caddy/Caddyfile` | Imports generated routing |
 | **Caddy System** | `/etc/caddy/Caddyfile` | System config + imports |
-| **Port Registry** | `domain-passwords.json` (from `SERVER_CONFIG_PATH` dir) | Port assignments |
+| **Port Registry** | Supabase `app.domains` table | Port assignments |
 | **DNS Verification** | `{domain}/.well-known/bridge-verify.txt` | IP verification (YOUR_SERVER_IP) |
 
 ---

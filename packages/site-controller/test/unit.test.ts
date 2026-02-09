@@ -6,11 +6,6 @@ describe("Configuration Constants", () => {
     expect(PATHS.SITES_ROOT).toMatch(/^\//)
   })
 
-  it("should have valid registry path", () => {
-    expect(PATHS.REGISTRY_PATH).toMatch(/\.json$/)
-    expect(PATHS.REGISTRY_PATH).toContain("domain-passwords")
-  })
-
   it("should have valid Caddyfile path", () => {
     expect(PATHS.CADDYFILE_PATH).toMatch(/Caddyfile$/)
   })

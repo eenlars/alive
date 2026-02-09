@@ -205,9 +205,6 @@ export const PATHS = {
   /** Site controller deployment scripts directory */
   SCRIPTS_DIR: `${ALIVE_ROOT}/packages/site-controller/scripts`,
 
-  /** Domain password registry (derived from SERVER_CONFIG_PATH dir) */
-  REGISTRY_PATH: CONFIG_PATH ? `${CONFIG_PATH.substring(0, CONFIG_PATH.lastIndexOf("/"))}/domain-passwords.json` : "",
-
   /** Server config path (from SERVER_CONFIG_PATH env var) */
   SERVER_CONFIG: CONFIG_PATH,
 

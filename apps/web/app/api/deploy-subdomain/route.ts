@@ -17,17 +17,6 @@ import { getUserQuota, getUserQuotaByEmail } from "@/lib/deployment/user-quotas"
 import { ErrorCodes } from "@/lib/error-codes"
 import { errorLogger } from "@/lib/error-logger"
 import { siteMetadataStore } from "@/lib/siteMetadataStore"
-import { loadDomainPasswords } from "@/types/guards/api"
-
-function getPortFromRegistry(domain: string): number | null {
-  try {
-    const registry = loadDomainPasswords()
-    const entry = registry[domain]
-    return entry?.port ?? null
-  } catch {
-    return null
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -129,7 +118,7 @@ export async function POST(request: NextRequest) {
     const template = templateValidation.template
 
     // Execute deployment (systemd + Caddy setup + port assignment)
-    await deploySite({
+    const deployResult = await deploySite({
       domain: fullDomain,
       email: deploymentEmail,
       password: sessionUser ? undefined : password,
@@ -137,17 +126,7 @@ export async function POST(request: NextRequest) {
       templatePath: template.source_path,
     })
 
-    // Read the port that was assigned by the bash script
-    const port = getPortFromRegistry(fullDomain)
-
-    if (!port) {
-      return structuredErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, {
-        status: 500,
-        details: {
-          message: "Deployment succeeded but port assignment could not be verified. Please contact support.",
-        },
-      })
-    }
+    const port = deployResult.port
 
     // Register domain in Supabase
     try {

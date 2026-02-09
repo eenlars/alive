@@ -160,7 +160,6 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
-domain-passwords.json
 feedback.json
 
 # Cryptographic keys (NEVER COMMIT)
@@ -183,7 +182,6 @@ apps/shell-server/.env*
 # These are server-specific and should not be committed
 # Location: /var/lib/alive/generated/
 .uploads/
-domain-passwords.json.lock
 
 # Live Caddy configurations (contain customer domains)
 # Keep example files, ignore production configs
