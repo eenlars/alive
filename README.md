@@ -1,52 +1,54 @@
 # Alive
 
-**AI coding tools solved the wrong problem.**
+**The cloud was not built for agents.**
 
-Cursor and Copilot made autocomplete smarter. Lovable and v0 generate throwaway prototypes. Devin charges $500/month to run agents you can't see in a cloud you don't control.
+Coding models can now run for 8+ hours, close the deployment loop, discover and use tools on their own, and collaborate with other agents. They don't need hand-holding. They need infrastructure.
 
-None of them give you an agent that keeps working after you close the tab. None of them run on your infrastructure. None of them let you extend what the agent can do.
+But where do they actually run? In a chat window you can't close. On your laptop that goes to sleep. In someone else's cloud with someone else's constraints. On platforms designed for humans typing prompts, not agents running autonomously.
 
-Alive is an open-source agent workspace. Self-hosted. Sandboxed. Extensible. Agents that build, deploy, and maintain your projects — on your server, on your terms.
+Alive is the infrastructure layer. Open-source. Self-hosted. Give every agent an isolated workspace with a filesystem, dev server, deployment pipeline, skills, and scheduled automation. Start a run, walk away, come back to working software.
 
 <a href="https://alive.best"><strong>alive.best</strong></a> &nbsp;&middot;&nbsp; <a href="./docs/README.md">Docs</a> &nbsp;&middot;&nbsp; <a href="./docs/GETTING_STARTED.md">Get Started</a>
 
 ---
 
-## Not a coding assistant. An agent workspace.
+## Make something agents want
 
-Most AI tools are single-player and single-session. You prompt, you get output, you're done.
+Devin, Lovable, Replit, v0 — they figured out the model part. But they're closed platforms. Your code lives on their infrastructure, on their terms.
 
-Alive is infrastructure. Agents get a real workspace — isolated filesystem, live dev server, deployment pipeline, terminal, MCP integrations — and they keep working. Schedule an agent to audit your site every Monday. Connect it to Linear and let it triage bugs. Give it a custom skill that runs your test suite.
+Claude Code and Codex CLI are incredibly powerful — but they're terminal sessions. Close the tab, the agent dies. No persistence. No scheduling. No skill discovery. No multi-tenant. No deployment loop.
 
-The chat is one surface. The workspace is the product.
+What agents actually need is what any good employee needs: their own workspace, their own tools, their own identity, and the ability to keep working when you're not watching.
+
+That's what Alive is.
 
 ---
 
 ## What makes this different
 
-### Agents that don't stop
+### Always-on agents
 
-Schedule recurring tasks with cron expressions. "Every morning, check for broken links and fix them." "After every deploy, run the accessibility audit." Agents run in the background, results stream in real-time. This isn't a chatbot — it's an always-on workforce.
+Schedule recurring tasks with cron. "Every morning, check for broken links and fix them." "After every deploy, run the accessibility audit." Start a run, walk away, come back to results. Agents don't stop when you close the browser. This is what always-on actually looks like.
 
-### Custom skills and MCP integrations
+### Skill discovery and MCP
 
-Agents ship with Read, Write, Edit, Glob, Grep. But the tool system is open. Connect any MCP server — Linear, Stripe, Google Maps, Supabase, or your own. Build custom skills that extend what agents can do. The platform is a runtime, not a walled garden.
+Agents ship with core tools (Read, Write, Edit, Glob, Grep). But the system is open. Connect any MCP server — Linear, Stripe, Google Maps, Supabase — or build your own. Agents discover and use available skills without being told. The platform is a runtime for skills, not a walled garden.
+
+### Close the loop: code → deploy → verify → iterate
+
+Agents don't just write code. They restart the dev server, check the live preview, read the logs, and keep iterating until it actually works. With validation targets, they'll grind for hours without drifting. Without them, they're still excellent — but with clear pass/fail tests, they become a different class of tool entirely.
+
+### Multi-agent ready
+
+Multiple agents can work on the same server, in isolated workspaces, on different projects — or collaborate on the same one. The multi-tenant architecture and workspace isolation were built for this from day one. Multi-agent orchestration finally works when agents have real environments to run in.
 
 ### Real isolation, not Docker theater
 
-Every project gets a dedicated Linux user via systemd. Filesystem boundary. Process separation. Path validation on every operation. The kernel enforces isolation — no amount of prompt injection escapes it. This is how you run untrusted agents safely.
+Every project gets a dedicated Linux user via systemd. Filesystem boundary. Process separation. Path validation on every operation. The kernel enforces isolation. No amount of prompt injection escapes a filesystem boundary. This is how you let agents run autonomously and actually sleep at night.
 
-### Live preview
+### Self-hosted. Multi-tenant. Yours.
 
-Split-pane: chat on the left, your site on the right. Changes appear as the agent makes them. Click any element to reference it in your next message. You see everything the agent does, in real-time.
-
-### Self-hosted, multi-tenant
-
-One server. Your whole team. No per-seat pricing, no cloud lock-in, no "contact sales." Deploy on a $20 VPS or your enterprise infrastructure. You own the data, the code, and the agents.
-
-### Human-in-the-loop ready
-
-Real-time streaming shows exactly what agents are doing. Multi-tenant auth with org memberships. The foundation for approval workflows — full autonomy for safe operations, human oversight for everything that matters.
+One server. Your whole team. No per-seat pricing, no cloud lock-in, no "contact sales." Deploy on a $20 VPS or your enterprise infrastructure. The same build runs anywhere. You own the data, the code, and the agents.
 
 ---
 
@@ -56,18 +58,20 @@ Real-time streaming shows exactly what agents are doing. Multi-tenant auth with 
 You: "Redesign the pricing section with a comparison table"
 
 Agent reads your code → edits 4 files → restarts dev server
-→ Live preview updates instantly in the side panel
+→ Live preview updates in the side panel
+→ You see every change as it happens
 ```
 
 ```
 Automation: "Every Monday at 9am"
-→ Agent audits homepage → fixes 2 broken links → commits changes
-→ Results in your dashboard when you arrive
+→ Agent audits homepage → fixes 2 broken links → commits
+→ Results waiting in your dashboard when you wake up
 ```
 
 ```
-Skill: "Run Lighthouse audit"
-→ Agent runs custom MCP tool → scores 94 → opens issue for remaining 6 points
+Skill: Linear connected via MCP
+→ Agent triages new issues → assigns priority → updates board
+→ No prompt needed. It just runs.
 ```
 
 ---
@@ -75,14 +79,14 @@ Skill: "Run Lighthouse audit"
 ## Architecture
 
 ```
-Browser (Chat · Preview · Terminal · Editor)
+Browser (Chat · Live Preview · Terminal · File Editor)
          │
          │ SSE + REST
          ▼
 Next.js 16 (Auth · Streaming · Sessions · Credits)
          │
          │ Claude Agent SDK + MCP
-         │ Built-in tools + custom skills + integrations
+         │ Core tools + custom skills + integrations
          │
          │ path validation (every operation)
          ▼
@@ -91,7 +95,7 @@ Workspace Sandboxes (systemd isolation)
   /srv/webalive/sites/project-b/  →  user: site-project-b
 ```
 
-**Security model:** each site = a Linux user. Agent runs as that user. Kernel enforces the boundary.
+**Security model:** each project = a Linux user. Agent runs as that user. Kernel enforces the boundary.
 
 ### Project structure
 
@@ -121,7 +125,6 @@ git clone https://github.com/user/alive.git && cd alive
 bun install
 bun run setup
 
-# Add your API key
 echo 'ANTHROPIC_API_KEY=your_key' > apps/web/.env.local
 echo 'ALIVE_ENV=local' >> apps/web/.env.local
 
@@ -134,8 +137,8 @@ Open `localhost:8997`. Login: `test@alive.local` / `test`.
 
 ```bash
 bun run setup:server:prod   # First-time server setup
-make ship                   # Deploy to production (port 9000)
-make staging                # Deploy to staging (port 8998)
+make ship                   # Production (port 9000)
+make staging                # Staging (port 8998)
 ```
 
 One Linux server. Caddy for TLS. Systemd for everything. [Deployment guide →](./docs/deployment/deployment.md)
