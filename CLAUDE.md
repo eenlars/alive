@@ -2,6 +2,20 @@
 
 AI assistant guidelines for working on Alive. Our frontpage is at [alive.best](https://alive.best).
 
+## Two Servers
+
+This repo is deployed on two servers. Check which one you're on:
+
+| | **Server 1 (alive.best)** | **Server 2 (sonno.tech)** |
+|---|---|---|
+| **IP** | 65.109.137.38 | 95.217.89.48 |
+| **Domains** | `alive.best`, `*.goalive.nl` | `sonno.tech`, `*.sonno.tech` |
+| **Production** | `app.alive.best` (port 9000) | `sonno.tech` (port 9000) |
+| **Staging** | `staging.alive.best` (port 8998) | `staging.sonno.tech` (port 8998) |
+| **Shared services on Server 2** | — | PostHog (`posthog.homecatch.nl`), Sentry (`sentry.sonno.tech`) |
+
+Both servers run the same codebase. Server 1 is primary production, Server 2 is the replica. PostHog and Sentry are only on Server 2 but serve both.
+
 **Quick Links:** [Getting Started](./docs/GETTING_STARTED.md) | [Architecture](./docs/architecture/README.md) | [Security](./docs/security/README.md) | [Testing](./docs/testing/README.md)
 
 ## Core Rules
