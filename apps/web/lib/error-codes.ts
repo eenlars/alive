@@ -106,6 +106,11 @@ export const ErrorCodes = {
   INVALID_TEMPLATE: "INVALID_TEMPLATE",
   TEMPLATE_NOT_FOUND: "TEMPLATE_NOT_FOUND",
 
+  // GitHub import errors (9.3xxx)
+  GITHUB_NOT_CONNECTED: "GITHUB_NOT_CONNECTED",
+  GITHUB_REPO_NOT_FOUND: "GITHUB_REPO_NOT_FOUND",
+  GITHUB_CLONE_FAILED: "GITHUB_CLONE_FAILED",
+
   // Permission errors (9.5xxx)
   PERMISSION_CHECK_FAILED: "PERMISSION_CHECK_FAILED",
   PERMISSION_FIX_FAILED: "PERMISSION_FIX_FAILED",
@@ -444,6 +449,19 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
       return details?.templateId
         ? `Template '${details.templateId}' exists but its source directory is missing at '${details.path || "unknown path"}'. Please contact support.`
         : "Template source directory is missing. Please contact support."
+
+    case ErrorCodes.GITHUB_NOT_CONNECTED:
+      return "You need to connect your GitHub account first. Go to Settings > Integrations to connect GitHub."
+
+    case ErrorCodes.GITHUB_REPO_NOT_FOUND:
+      return details?.repoUrl
+        ? `Could not access GitHub repository "${details.repoUrl}". Check that the repo exists and your GitHub account has access.`
+        : "Could not access the GitHub repository. Check that it exists and your account has access."
+
+    case ErrorCodes.GITHUB_CLONE_FAILED:
+      return details?.message
+        ? `Failed to clone GitHub repository: ${details.message}`
+        : "Failed to clone the GitHub repository. Please try again."
 
     case ErrorCodes.PERMISSION_CHECK_FAILED:
       return details?.domain
