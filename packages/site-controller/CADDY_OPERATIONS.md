@@ -82,7 +82,7 @@ interface TeardownParams {
   caddyfilePath?: string    // Optional: Path to Caddyfile
   caddyLockPath?: string    // Optional: Path to lock file
   envFilePath?: string      // Optional: Path to env file
-  // Port cleanup handled via Supabase app.domains
+  // Note: Port entries in app.domains are NOT deleted on teardown — they persist and are reused on redeploy
 }
 ```
 
