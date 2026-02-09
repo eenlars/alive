@@ -11,6 +11,8 @@ export interface SiteMetadata {
   templateId?: string // Template ID from Supabase (e.g., "tmpl_gallery")
   /** @deprecated Use templateId instead */
   selectedTemplate?: "landing" | "recipe" // Kept for backward compatibility
+  source?: "github-import" // How the site was created (undefined = template deployment)
+  sourceRepo?: string // GitHub repo URL (when source is "github-import")
   createdAt: number
   port?: number
 }
