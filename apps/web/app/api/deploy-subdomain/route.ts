@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs"
-import { COOKIE_NAMES, PATHS } from "@webalive/shared"
+import { COOKIE_NAMES, DEFAULTS, PATHS } from "@webalive/shared"
+import { configureCaddy } from "@webalive/site-controller"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -170,6 +171,16 @@ export async function POST(request: NextRequest) {
       // Fallback for unexpected errors
       throw registrationError
     }
+
+    // Now that domain is in DB, regenerate Caddy routing (avoids race condition
+    // where Phase 7 runs before registerDomain writes the domain to Supabase)
+    await configureCaddy({
+      domain: fullDomain,
+      port,
+      caddyfilePath: PATHS.CADDYFILE_PATH,
+      caddyLockPath: PATHS.CADDY_LOCK,
+      flockTimeout: DEFAULTS.FLOCK_TIMEOUT,
+    })
 
     // Save metadata
     await siteMetadataStore.setSite(slug, {

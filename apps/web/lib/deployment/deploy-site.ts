@@ -45,6 +45,7 @@ export async function deploySite(options: DeploySiteOptions): Promise<DeploySite
       serverIp,
       wildcardDomain,
       rollbackOnFailure: true, // Automatic rollback on failure
+      skipCaddy: true, // Caller (route.ts) handles Caddy after DB write to avoid race condition
     })
 
     if (!result.success) {
