@@ -366,10 +366,7 @@ export const apiSchemas = {
   /**
    * POST /api/deploy-subdomain
    * Create a new website deployment
-   *
-   * Supports both authenticated and anonymous users:
-   * - Authenticated: email from session, password optional
-   * - Anonymous: email and password required to create account
+   * Requires authenticated session.
    */
   "deploy-subdomain": {
     req: z
@@ -382,8 +379,6 @@ export const apiSchemas = {
           .refine(slug => !RESERVED_SLUGS.some(r => r === slug), {
             message: "This slug is reserved and cannot be used. Please choose a different name.",
           }),
-        email: z.string().email("Please enter a valid email address").optional(),
-        password: z.string().optional(),
         orgId: z.string().min(1, "Organization ID cannot be empty").optional(),
         siteIdeas: z
           .string()
@@ -398,6 +393,7 @@ export const apiSchemas = {
           })
           .optional(),
       })
+      .strict()
       .brand<"DeploySubdomainRequest">(),
     res: z.object({
       ok: z.literal(true),
@@ -434,6 +430,7 @@ export const apiSchemas = {
           .optional()
           .default(""),
       })
+      .strict()
       .brand<"ImportRepoRequest">(),
     res: z.object({
       ok: z.literal(true),

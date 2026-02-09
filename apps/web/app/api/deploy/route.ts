@@ -1,11 +1,10 @@
-import { existsSync } from "node:fs"
 import { DEFAULTS, DOMAINS, PATHS } from "@webalive/shared"
 import { DeploymentError } from "@webalive/site-controller"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, requireSessionUser } from "@/features/auth/lib/auth"
+import { AuthenticationError, createErrorResponse, requireSessionUser } from "@/features/auth/lib/auth"
 import { normalizeAndValidateDomain } from "@/features/manager/lib/domain-utils"
-import { deploySite } from "@/lib/deployment/deploy-site"
-import { DomainRegistrationError, registerDomain } from "@/lib/deployment/domain-registry"
+import { runStrictDeployment } from "@/lib/deployment/deploy-pipeline"
+import { DomainRegistrationError } from "@/lib/deployment/domain-registry"
 import { validateUserOrgAccess } from "@/lib/deployment/org-resolver"
 import { validateSSLCertificate } from "@/lib/deployment/ssl-validation"
 import { validateTemplateFromDb } from "@/lib/deployment/template-validation"
@@ -105,42 +104,13 @@ export async function POST(request: NextRequest) {
       `📋 [DEPLOY API] Request: domain=${body.domain} → normalized: ${domain}, template: ${template.template_id}`,
     )
 
-    // Check if site already exists
-    const sitePath = `${PATHS.SITES_ROOT}/${domain}`
-    const siteExists = existsSync(sitePath)
-
-    if (siteExists) {
-      console.log(`⚠️  [DEPLOY API] Site already exists at: ${sitePath}`)
-    } else {
-      console.log(`📁 [DEPLOY API] Creating new site at: ${sitePath}`)
-    }
-
-    // Execute deployment script (SECURE: uses systemd isolation)
-    const deployResult = await deploySite({
+    // Execute strict deployment pipeline (deploy -> register -> caddy -> verify)
+    await runStrictDeployment({
       domain,
       email: user.email, // User email (authenticated)
       orgId, // Organization to deploy to
       templatePath: template.source_path, // Template to copy from
     })
-
-    // Register domain in Supabase with deployment info
-    console.log("📝 [DEPLOY API] Registering domain in database...")
-    try {
-      await registerDomain({
-        hostname: domain,
-        email: user.email,
-        port: deployResult.port,
-        orgId,
-      })
-      console.log("✅ [DEPLOY API] Domain registered successfully")
-    } catch (registrationError) {
-      if (registrationError instanceof DomainRegistrationError) {
-        console.error(`⚠️  [DEPLOY API] Domain registration warning: ${registrationError.message}`)
-        // Don't fail deployment if registration fails - infrastructure is up
-      } else {
-        throw registrationError
-      }
-    }
 
     // Wait for SSL certificate to be provisioned and validate deployment
     console.log(`🔒 [DEPLOY API] Validating SSL certificate for ${domain}...`)
@@ -168,6 +138,10 @@ export async function POST(request: NextRequest) {
     } as DeployResponse)
   } catch (error: unknown) {
     const duration = Date.now() - startTime
+    if (error instanceof AuthenticationError) {
+      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    }
+
     console.error(`💥 [DEPLOY API] Error after ${duration}ms:`, error)
 
     let errorMessage = "Deployment failed"
