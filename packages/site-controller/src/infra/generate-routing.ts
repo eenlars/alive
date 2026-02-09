@@ -44,6 +44,11 @@ interface ServerConfig {
     caddyShell: string
     nginxMap: string
   }
+  // Go preview proxy — when set, wildcard preview routing goes to this port
+  // instead of each environment's Next.js port. Enables native WebSocket support.
+  previewProxy?: {
+    port: number // e.g., 5055
+  }
 }
 
 interface EnvironmentConfigRaw {
@@ -234,9 +239,12 @@ function renderCaddySites(
 
   // Generate wildcard catch-all for preview subdomains (preview--{label}.{WILDCARD})
   // Single-level pattern: covered by Cloudflare Universal SSL *.{WILDCARD}
-  // Routes through Next.js middleware → preview-router for auth + port lookup
+  // When previewProxy is configured, routes to Go preview-proxy for native WebSocket support.
+  // Otherwise routes through Next.js middleware → preview-router.
   const wildcardDomain = cfg.domains.previewBase ?? cfg.domains.main
-  const wildcardBlock = wildcardDomain ? renderWildcardPreviewBlock(wildcardDomain, environments, frameAncestors) : ""
+  const wildcardBlock = wildcardDomain
+    ? renderWildcardPreviewBlock(wildcardDomain, environments, frameAncestors, cfg.previewProxy?.port)
+    : ""
 
   return `${header}${siteBlocks}\n\n${wildcardBlock}`
 }
@@ -244,25 +252,50 @@ function renderCaddySites(
 /**
  * Generate a wildcard catch-all block for the domain.
  *
- * Catches preview subdomains (preview--{label}.{WILDCARD}) and routes to Next.js.
- * Next.js middleware detects the preview-- prefix and rewrites to /api/preview-router.
- * Specific domain blocks take precedence over this wildcard (Caddy routes by specificity).
+ * When previewProxyPort is set, routes ALL preview traffic to the Go preview-proxy
+ * which handles JWT auth, port lookup, and native WebSocket support.
+ * When not set, routes to each environment's Next.js port (legacy behavior).
  *
+ * Specific domain blocks take precedence over this wildcard (Caddy routes by specificity).
  * Uses single-level subdomain pattern (preview--{label}.{WILDCARD}) so that
  * Cloudflare Universal SSL covers them (it only supports one-level wildcards).
- *
- * On-demand TLS: individual LE certs per subdomain as they're accessed.
  */
 function renderWildcardPreviewBlock(
   wildcardDomain: string,
   environments: EnvironmentConfig[],
   frameAncestors: string,
+  previewProxyPort?: number,
 ): string {
   const prodEnv = environments.find(e => e.key === "production")
   if (!prodEnv) return ""
 
-  // Build Referer-based routing for non-production environments
-  // Production is the default fallback (no matcher needed)
+  // When Go preview-proxy is configured, route everything there.
+  // The proxy handles JWT auth, port lookup, CSP headers, and WebSocket natively.
+  if (previewProxyPort) {
+    return [
+      "# ============================================================================",
+      `# WILDCARD CATCH-ALL (*.${wildcardDomain})`,
+      `# Routes to Go preview-proxy on port ${previewProxyPort} for native WebSocket support.`,
+      "# The proxy handles JWT auth, hostname→port lookup, CSP headers, and script injection.",
+      "# Specific domain blocks above take precedence (Caddy routes by specificity).",
+      "# Internal TLS: Cloudflare handles public TLS, origin uses Caddy internal CA.",
+      "# ============================================================================",
+      "",
+      `*.${wildcardDomain} {`,
+      "    tls internal",
+      "",
+      `    reverse_proxy localhost:${previewProxyPort} {`,
+      "        header_up X-Forwarded-Host {host}",
+      "        header_up X-Forwarded-Proto {scheme}",
+      "        header_up X-Real-IP {remote_host}",
+      "        header_up X-Forwarded-For {remote_host}",
+      "    }",
+      "}",
+      "",
+    ].join("\n")
+  }
+
+  // Legacy: Referer-based routing to each environment's Next.js port
   const nonProdEnvs = environments.filter(e => e.key !== "production")
   const refererRoutes = nonProdEnvs
     .map(env => {
@@ -372,6 +405,9 @@ async function run() {
   console.log(`  aliveRoot: ${cfg.paths.aliveRoot}`)
   console.log(`  mainDomain: ${cfg.domains.main}`)
   console.log(`  previewBase: ${cfg.domains.previewBase || "(not configured)"}`)
+  console.log(
+    `  previewProxy: ${cfg.previewProxy ? `localhost:${cfg.previewProxy.port}` : "(not configured, using Next.js)"}`,
+  )
 
   console.log("\nLoading environments (domains derived from server config)...")
   const environments = await loadEnvironments(cfg.paths.aliveRoot, cfg.domains.main)

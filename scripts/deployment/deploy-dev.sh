@@ -110,3 +110,12 @@ else
     echo "⚠️  Shell-server build failed"
 fi
 cd ../..
+
+# Rebuild and restart preview-proxy (if configured)
+echo ""
+echo "🔄 Rebuilding preview-proxy..."
+if "$SCRIPT_DIR/deploy-preview-proxy.sh" 2>&1; then
+    echo "✅ Preview proxy deployed"
+else
+    echo "⚠️  Preview proxy deploy skipped"
+fi
