@@ -169,9 +169,9 @@ export async function runStrictDeployment(input: StrictDeploymentInput): Promise
     templatePath: validated.templatePath,
   })
 
-  const port = validatePort(validated.domain, deployResult.port)
-
   try {
+    const port = validatePort(validated.domain, deployResult.port)
+
     await registerDomain({
       hostname: validated.domain,
       email: validated.email,

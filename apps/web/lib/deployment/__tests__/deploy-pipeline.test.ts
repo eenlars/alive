@@ -162,6 +162,11 @@ describe("runStrictDeployment", () => {
 
     expect(registerDomainMock).not.toHaveBeenCalled()
     expect(configureCaddyMock).not.toHaveBeenCalled()
+    expect(teardownMock).toHaveBeenCalledWith("testsite.alive.best", {
+      removeFiles: true,
+      removeUser: true,
+      removePort: true,
+    })
   })
 
   it("verifies routing after caddy reload when a verification file exists", async () => {

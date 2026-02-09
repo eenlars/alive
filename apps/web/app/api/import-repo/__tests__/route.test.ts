@@ -166,4 +166,24 @@ describe("POST /api/import-repo", () => {
     })
     expect(cleanupImportDirMock).toHaveBeenCalledWith("/tmp/import")
   })
+
+  it("returns 403 when site quota is exceeded", async () => {
+    getUserQuotaMock.mockResolvedValueOnce({
+      canCreateSite: false,
+      maxSites: 3,
+      currentSites: 3,
+    })
+
+    const response = await POST(
+      createRequest({
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
+        orgId: "org-1",
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(runStrictDeploymentMock).not.toHaveBeenCalled()
+    expect(cleanupImportDirMock).not.toHaveBeenCalled()
+  })
 })

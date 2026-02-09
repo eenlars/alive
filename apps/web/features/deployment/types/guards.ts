@@ -58,7 +58,7 @@ export const DeploySubdomainSchema = z
       .min(3, "Slug must be at least 3 characters")
       .max(20, "Slug must be no more than 20 characters")
       .regex(/^[a-z0-9]([a-z0-9-]{1,18}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
-      .refine(slug => !RESERVED_SLUGS.includes(slug as any), {
+      .refine(slug => !RESERVED_SLUGS.some(r => r === slug), {
         message: "This slug is reserved and cannot be used. Please choose a different name.",
       }),
     orgId: z.string().min(1, "Organization ID cannot be empty").optional(), // Optional: If not provided, user's default org is created/used

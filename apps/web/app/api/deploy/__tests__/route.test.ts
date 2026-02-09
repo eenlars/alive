@@ -129,4 +129,23 @@ describe("POST /api/deploy", () => {
     expect(payload.error).toBe(ErrorCodes.UNAUTHORIZED)
     expect(runStrictDeploymentMock).not.toHaveBeenCalled()
   })
+
+  it("returns 403 when site quota is exceeded", async () => {
+    getUserQuotaMock.mockResolvedValueOnce({
+      canCreateSite: false,
+      maxSites: 3,
+      currentSites: 3,
+    })
+
+    const response = await POST(
+      createRequest({
+        domain: "example.com",
+        orgId: "org-1",
+        templateId: "tmpl_blank",
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    expect(runStrictDeploymentMock).not.toHaveBeenCalled()
+  })
 })
