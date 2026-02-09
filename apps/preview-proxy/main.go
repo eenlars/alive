@@ -108,21 +108,8 @@ func loadConfig() config {
 	}
 }
 
-// Navigation sync script injected into HTML responses.
-// Communicates iframe navigation events to the parent (Alive chat UI).
-const navScript = `<script>
-(function() {
-  if (window.parent === window) return;
-  function s(t, d) { window.parent.postMessage(Object.assign({type: t}, d), '*'); }
-  s('preview-navigation', {path: location.pathname});
-  var P = history.pushState, R = history.replaceState;
-  history.pushState = function() { s('preview-navigation-start'); P.apply(this, arguments); s('preview-navigation', {path: location.pathname}); };
-  history.replaceState = function() { s('preview-navigation-start'); R.apply(this, arguments); s('preview-navigation', {path: location.pathname}); };
-  window.addEventListener('popstate', function() { s('preview-navigation-start'); s('preview-navigation', {path: location.pathname}); });
-  document.addEventListener('click', function(e) { var a = e.target.closest && e.target.closest('a[href]'); if (a && a.href && !a.target && a.origin === location.origin) s('preview-navigation-start'); }, true);
-  window.addEventListener('beforeunload', function() { s('preview-navigation-start'); });
-})();
-</script>`
+// navScript is defined in nav_script_gen.go (generated from @webalive/shared PREVIEW_MESSAGES).
+// Run `bun run generate` to regenerate after changing PREVIEW_MESSAGES constants.
 
 func main() {
 	cfg := loadConfig()
