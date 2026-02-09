@@ -3,7 +3,7 @@ import { PREVIEW_MESSAGES } from "@webalive/shared"
 import { motion } from "framer-motion"
 import { RotateCw, Square, X } from "lucide-react"
 import type { ReactNode } from "react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { usePanelContext } from "@/features/chat/lib/sandbox-context"
 import { useWorkspace } from "@/features/workspace/hooks/useWorkspace"
 import { getPreviewUrl } from "@/lib/preview-utils"
@@ -36,18 +36,21 @@ export function SandboxMobile({ onClose, children, busy, statusText, onStop }: S
     }
   }
 
-  const handleIframeLoad = () => {
-    setIsLoading(false)
-    // Sync selector state to newly loaded iframe
-    if (selectorActive && iframeRef.current?.contentWindow) {
+  // Callback ref to store iframe element (load event is unreliable for cross-origin iframes)
+  const setIframeRef = useCallback((iframe: HTMLIFrameElement | null) => {
+    iframeRef.current = iframe
+  }, [])
+
+  // Sync selector state after iframe loads
+  useEffect(() => {
+    if (!isLoading && selectorActive && iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage({ type: "alive-tagger-activate" }, "*")
     }
-  }
+  }, [isLoading, selectorActive])
 
-  // Reset loading state when path changes
-  useEffect(() => {
-    setIsLoading(true)
-  }, [path])
+  // NOTE: Loading state is managed entirely via postMessage from the injected nav script:
+  // - NAVIGATION_START sets isLoading=true (SPA navigation began)
+  // - NAVIGATION sets isLoading=false (page loaded and script executed)
 
   // Listen for postMessage from iframe (preview sites send navigation events + element selection)
   useEffect(() => {
@@ -57,12 +60,13 @@ export function SandboxMobile({ onClose, children, busy, statusText, onStop }: S
         setIsLoading(true)
         return
       }
-      // Navigation completed - update path (loading cleared by onLoad)
+      // Navigation completed - update path and clear loading
       if (event.data?.type === PREVIEW_MESSAGES.NAVIGATION && typeof event.data.path === "string") {
         const newPath = event.data.path || "/"
         if (newPath !== path) {
           setPath(newPath)
         }
+        setIsLoading(false)
         return
       }
       // Element selected via alive-tagger (Cmd+Click in dev mode)
@@ -142,12 +146,11 @@ export function SandboxMobile({ onClose, children, busy, statusText, onStop }: S
               </div>
             )}
             <iframe
-              ref={iframeRef}
+              ref={setIframeRef}
               src={previewUrl}
               className="w-full h-full border-0"
               title={`Preview: ${workspace}`}
               referrerPolicy="no-referrer-when-downgrade"
-              onLoad={handleIframeLoad}
             />
           </>
         ) : (

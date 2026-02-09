@@ -111,18 +111,22 @@ export function Sandbox() {
     }
   }
 
-  const handleIframeLoad = () => {
-    setIsLoading(false)
-    // Sync selector state to newly loaded iframe
-    if (selectorActive && iframeRef.current?.contentWindow) {
+  // Callback ref to store iframe element (load event is unreliable for cross-origin iframes)
+  const setIframeRef = useCallback((iframe: HTMLIFrameElement | null) => {
+    iframeRef.current = iframe
+  }, [])
+
+  // Sync selector state after iframe loads
+  useEffect(() => {
+    if (!isLoading && selectorActive && iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage({ type: "alive-tagger-activate" }, "*")
     }
-  }
+  }, [isLoading, selectorActive])
 
-  // Reset loading state when path changes
-  useEffect(() => {
-    setIsLoading(true)
-  }, [path])
+  // NOTE: Loading state is managed entirely via postMessage from the injected nav script:
+  // - NAVIGATION_START sets isLoading=true (SPA navigation began)
+  // - NAVIGATION sets isLoading=false (page loaded and script executed)
+  // The iframe 'load' event is unreliable for cross-origin iframes in React 19.
 
   const handlePathSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputRef.current) {
@@ -167,10 +171,13 @@ export function Sandbox() {
         setIsLoading(true)
         return
       }
-      // Navigation completed - update path and input (only if input not focused)
+      // Navigation completed - update path and clear loading
+      // This is the definitive "iframe content loaded" signal: the injected script
+      // executed sendPath(), which means the page is rendered and running JS.
       if (event.data?.type === PREVIEW_MESSAGES.NAVIGATION && typeof event.data.path === "string") {
         const newPath = event.data.path || "/"
         setPath(newPath)
+        setIsLoading(false)
         // Only update input if it's not focused (user not typing)
         if (inputRef.current && document.activeElement !== inputRef.current) {
           inputRef.current.value = newPath
@@ -302,12 +309,11 @@ export function Sandbox() {
             )}
             {previewToken && (
               <iframe
-                ref={iframeRef}
+                ref={setIframeRef}
                 src={previewUrl}
                 className="w-full h-full border-0"
                 title={`Preview: ${workspace}`}
                 referrerPolicy="no-referrer-when-downgrade"
-                onLoad={handleIframeLoad}
               />
             )}
           </div>

@@ -8,7 +8,7 @@
  */
 
 import { env } from "@webalive/env/server"
-import { SignJWT, jwtVerify } from "jose"
+import { jwtVerify, SignJWT } from "jose"
 
 const PREVIEW_TOKEN_SECRET = new TextEncoder().encode(env.JWT_SECRET || "INSECURE_DEV_SECRET_CHANGE_IN_PRODUCTION")
 const PREVIEW_TOKEN_EXPIRY = "5m"
