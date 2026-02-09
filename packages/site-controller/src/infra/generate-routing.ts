@@ -15,7 +15,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { createClient } from "@supabase/supabase-js"
-import { DOMAINS, requireEnv } from "@webalive/shared"
+import { requireEnv } from "@webalive/shared"
 
 // =============================================================================
 // Types
@@ -193,7 +193,8 @@ function renderCaddySites(
   ].join("\n")
 
   // Build frame-ancestors from all environment domains (+ production URL)
-  const frameAncestors = `${environments.map(e => `https://${e.domain}`).join(" ")} ${DOMAINS.STREAM_PROD}`
+  const prodOrigin = `https://app.${cfg.domains.main}`
+  const frameAncestors = `${environments.map(e => `https://${e.domain}`).join(" ")} ${prodOrigin}`
 
   // Generate site blocks (main domain only — preview is handled by wildcard below)
   const siteBlocks = filteredDomains

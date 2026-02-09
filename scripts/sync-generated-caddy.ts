@@ -13,8 +13,14 @@ function sanitizeLabel(domain: string): string {
 
 const serverConfigPath = process.env.SERVER_CONFIG_PATH || PATHS.SERVER_CONFIG
 const serverConfig = JSON.parse(readFileSync(serverConfigPath, "utf-8"))
-const mainDomain: string = serverConfig.domains?.main ?? "alive.best"
-const previewBase: string = serverConfig.domains?.previewBase ?? mainDomain
+const mainDomain: string = serverConfig.domains?.main
+if (!mainDomain) {
+  throw new Error(`Missing domains.main in ${serverConfigPath}`)
+}
+const previewBase: string = serverConfig.domains?.previewBase
+if (!previewBase) {
+  throw new Error(`Missing domains.previewBase in ${serverConfigPath}`)
+}
 
 const envConfig = JSON.parse(readFileSync(ENV_PATH, "utf-8"))
 const environments = Object.values(envConfig.environments || {}) as Array<{
@@ -38,7 +44,6 @@ for (const envDomain of reserved) {
 }
 
 // Extract domains from existing Caddy configs to avoid conflicts
-const HOST_RE = /^([*A-Za-z0-9.-]+)(?:,\s*([*A-Za-z0-9.-]+))*\s*\{/
 function extractHostsFromCaddyfile(filePath: string): string[] {
   try {
     const content = readFileSync(filePath, "utf-8")
