@@ -14,11 +14,11 @@
  * - Handles non-existent paths
  */
 
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { NextRequest, NextResponse } from "next/server"
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Mock auth functions
 vi.mock("@/features/auth/lib/auth", async () => {
@@ -232,6 +232,56 @@ describe("POST /api/filespace/list", () => {
       expect(data.files).toEqual([])
 
       rmSync(emptyDir, { recursive: true })
+    })
+  })
+
+  describe("Symlink Handling", () => {
+    afterEach(() => {
+      const outside = path.join(TEST_WORKSPACE, "symlink-outside")
+      const inside = path.join(TEST_WORKSPACE, "symlink-inside")
+      if (existsSync(outside)) rmSync(outside)
+      if (existsSync(inside)) rmSync(inside)
+    })
+
+    it("should skip metadata for symlinks pointing outside workspace", async () => {
+      const symlinkPath = path.join(TEST_WORKSPACE, "symlink-outside")
+      try {
+        symlinkSync("/etc/passwd", symlinkPath)
+      } catch {
+        console.log("Skipping symlink test - cannot create symlink")
+        return
+      }
+
+      const req = createMockRequest({ workspace: "test" })
+      const response = await POST(req)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      const entry = data.files.find((f: { name: string }) => f.name === "symlink-outside")
+      expect(entry).toBeDefined()
+      expect(entry.size).toBe(0)
+      expect(entry.modified).toBe("")
+    })
+
+    it("should populate metadata for symlinks pointing inside workspace", async () => {
+      const targetFile = path.join(TEST_WORKSPACE, "hello.txt") // already exists (11 bytes)
+      const symlinkPath = path.join(TEST_WORKSPACE, "symlink-inside")
+      try {
+        symlinkSync(targetFile, symlinkPath)
+      } catch {
+        console.log("Skipping symlink test - cannot create symlink")
+        return
+      }
+
+      const req = createMockRequest({ workspace: "test" })
+      const response = await POST(req)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      const entry = data.files.find((f: { name: string }) => f.name === "symlink-inside")
+      expect(entry).toBeDefined()
+      // lstat on symlink itself returns symlink size, not zero
+      expect(entry.modified).toBeTruthy()
     })
   })
 
