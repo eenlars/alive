@@ -33,18 +33,9 @@ export function SettingsOverlay({ onClose, initialTab }: SettingsOverlayProps) {
     return () => document.removeEventListener("keydown", onKeyDown)
   }, [onClose])
 
-  // Lock body scroll while overlay is open (prevents background scroll on mobile)
-  useEffect(() => {
-    const original = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    return () => {
-      document.body.style.overflow = original
-    }
-  }, [])
-
   return (
     <div
-      className="fixed inset-0 z-50 bg-white dark:bg-zinc-950 overflow-hidden"
+      className="fixed inset-0 z-50 bg-white dark:bg-zinc-950"
       role="dialog"
       aria-modal="true"
       aria-label="Settings"
