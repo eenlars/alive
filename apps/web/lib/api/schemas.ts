@@ -408,6 +408,42 @@ export const apiSchemas = {
     }),
   },
 
+  /**
+   * POST /api/import-repo
+   * Import a GitHub repository as a new site
+   * Requires authenticated session with GitHub integration connected
+   */
+  "import-repo": {
+    req: z
+      .object({
+        slug: z
+          .string()
+          .min(3, "Slug must be at least 3 characters")
+          .max(20, "Slug must be no more than 20 characters")
+          .regex(/^[a-z0-9]([a-z0-9-]{1,18}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
+          .refine(slug => !RESERVED_SLUGS.some(r => r === slug), {
+            message: "This slug is reserved and cannot be used. Please choose a different name.",
+          }),
+        repoUrl: z.string().min(1, "Repository URL is required"),
+        branch: z.string().optional(),
+        orgId: z.string().min(1, "Organization ID cannot be empty").optional(),
+        siteIdeas: z
+          .string()
+          .max(5000, "Site ideas must be less than 5000 characters")
+          .transform(val => val || "")
+          .optional()
+          .default(""),
+      })
+      .brand<"ImportRepoRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      message: z.string(),
+      domain: z.string(),
+      chatUrl: z.string(),
+      orgId: z.string().optional(),
+    }),
+  },
+
   // ============================================================================
   // AUTOMATIONS & SITES (used by TanStack Query)
   // ============================================================================
