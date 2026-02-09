@@ -22,9 +22,48 @@ export function SandboxMobile({ onClose, children, busy, statusText, onStop }: S
   const { setSelectedElement, selectorActive, deactivateSelector } = usePanelContext()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [path, setPath] = useState("/")
+  const pathRef = useRef(path)
+  pathRef.current = path
   const [isLoading, setIsLoading] = useState(true)
+  const [previewToken, setPreviewToken] = useState<string | null>(null)
+  const tokenFetchRef = useRef<AbortController | null>(null)
 
-  const previewUrl = workspace ? getPreviewUrl(workspace, { path }) : ""
+  const previewUrl = workspace ? getPreviewUrl(workspace, { path, token: previewToken ?? undefined }) : ""
+
+  // Fetch preview token for iframe authentication
+  const fetchPreviewToken = useCallback(async () => {
+    tokenFetchRef.current?.abort()
+    tokenFetchRef.current = new AbortController()
+    try {
+      const response = await fetch("/api/auth/preview-token", {
+        method: "POST",
+        signal: tokenFetchRef.current.signal,
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setPreviewToken(data.token)
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== "AbortError") {
+        console.error("[SandboxMobile] Failed to fetch preview token:", error)
+      }
+    }
+  }, [])
+
+  // Fetch token on mount and when workspace changes
+  useEffect(() => {
+    if (workspace) {
+      fetchPreviewToken()
+    }
+    return () => tokenFetchRef.current?.abort()
+  }, [workspace, fetchPreviewToken])
+
+  // Refresh token every 4 minutes (tokens expire in 5 minutes)
+  useEffect(() => {
+    if (!workspace) return
+    const interval = setInterval(fetchPreviewToken, 4 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [workspace, fetchPreviewToken])
 
   const handleRefresh = () => {
     if (iframeRef.current) {
@@ -52,18 +91,35 @@ export function SandboxMobile({ onClose, children, busy, statusText, onStop }: S
   // - NAVIGATION_START sets isLoading=true (SPA navigation began)
   // - NAVIGATION sets isLoading=false (page loaded and script executed)
 
+  // Safety timeout: if NAVIGATION doesn't arrive within 8s of NAVIGATION_START, clear loading.
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearLoadingTimeout = useCallback(() => {
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current)
+      loadingTimeoutRef.current = null
+    }
+  }, [])
+
   // Listen for postMessage from iframe (preview sites send navigation events + element selection)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Navigation started - show loading
+      // Only accept messages from our iframe
+      if (event.source !== iframeRef.current?.contentWindow) return
+
+      // Navigation started - show loading with safety timeout
       if (event.data?.type === PREVIEW_MESSAGES.NAVIGATION_START) {
         setIsLoading(true)
+        clearLoadingTimeout()
+        loadingTimeoutRef.current = setTimeout(() => {
+          setIsLoading(false)
+        }, 8000)
         return
       }
       // Navigation completed - update path and clear loading
       if (event.data?.type === PREVIEW_MESSAGES.NAVIGATION && typeof event.data.path === "string") {
+        clearLoadingTimeout()
         const newPath = event.data.path || "/"
-        if (newPath !== path) {
+        if (newPath !== pathRef.current) {
           setPath(newPath)
         }
         setIsLoading(false)
@@ -89,8 +145,11 @@ export function SandboxMobile({ onClose, children, busy, statusText, onStop }: S
     }
 
     window.addEventListener("message", handleMessage)
-    return () => window.removeEventListener("message", handleMessage)
-  }, [path, setSelectedElement])
+    return () => {
+      window.removeEventListener("message", handleMessage)
+      clearLoadingTimeout()
+    }
+  }, [setSelectedElement, clearLoadingTimeout])
 
   // Close on escape key
   useEffect(() => {
@@ -133,7 +192,7 @@ export function SandboxMobile({ onClose, children, busy, statusText, onStop }: S
         {workspace && workspace.length > 0 && workspace.includes(".") ? (
           <>
             {/* Loading overlay */}
-            {isLoading && (
+            {(isLoading || !previewToken) && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-900">
                 <div className="flex flex-col items-center gap-4">
                   <div className="relative w-12 h-12">
@@ -145,13 +204,15 @@ export function SandboxMobile({ onClose, children, busy, statusText, onStop }: S
                 </div>
               </div>
             )}
-            <iframe
-              ref={setIframeRef}
-              src={previewUrl}
-              className="w-full h-full border-0"
-              title={`Preview: ${workspace}`}
-              referrerPolicy="no-referrer-when-downgrade"
-            />
+            {previewToken && (
+              <iframe
+                ref={setIframeRef}
+                src={previewUrl}
+                className="w-full h-full border-0"
+                title={`Preview: ${workspace}`}
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            )}
           </>
         ) : (
           <div className="flex items-center justify-center h-full text-neutral-700 bg-neutral-900">

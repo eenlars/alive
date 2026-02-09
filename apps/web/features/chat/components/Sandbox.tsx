@@ -163,18 +163,36 @@ export function Sandbox() {
     }
   }, [selectorActive])
 
+  // Safety timeout: if NAVIGATION doesn't arrive within 8s of NAVIGATION_START, clear loading.
+  // This prevents permanent spinner from hash navigations, network errors, external links, etc.
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearLoadingTimeout = useCallback(() => {
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current)
+      loadingTimeoutRef.current = null
+    }
+  }, [])
+
   // Listen for postMessage from iframe (preview sites send navigation events + element selection)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Navigation started - show loading
+      // Only accept messages from our iframe
+      if (event.source !== iframeRef.current?.contentWindow) return
+
+      // Navigation started - show loading with safety timeout
       if (event.data?.type === PREVIEW_MESSAGES.NAVIGATION_START) {
         setIsLoading(true)
+        clearLoadingTimeout()
+        loadingTimeoutRef.current = setTimeout(() => {
+          setIsLoading(false)
+        }, 8000)
         return
       }
       // Navigation completed - update path and clear loading
       // This is the definitive "iframe content loaded" signal: the injected script
       // executed sendPath(), which means the page is rendered and running JS.
       if (event.data?.type === PREVIEW_MESSAGES.NAVIGATION && typeof event.data.path === "string") {
+        clearLoadingTimeout()
         const newPath = event.data.path || "/"
         setPath(newPath)
         setIsLoading(false)
@@ -198,8 +216,11 @@ export function Sandbox() {
     }
 
     window.addEventListener("message", handleMessage)
-    return () => window.removeEventListener("message", handleMessage)
-  }, [setSelectedElement])
+    return () => {
+      window.removeEventListener("message", handleMessage)
+      clearLoadingTimeout()
+    }
+  }, [setSelectedElement, clearLoadingTimeout])
 
   return (
     <div
