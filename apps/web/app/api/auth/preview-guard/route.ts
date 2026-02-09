@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import { verifySessionToken } from "@/features/auth/lib/jwt"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
+import { verifyPreviewToken } from "@/lib/auth/preview-token"
 
 /**
  * Preview Guard - Authentication endpoint for Caddy forward_auth
@@ -34,24 +35,6 @@ import { COOKIE_NAMES } from "@/lib/auth/cookies"
 const PREVIEW_TOKEN_SECRET = new TextEncoder().encode(env.JWT_SECRET || "INSECURE_DEV_SECRET_CHANGE_IN_PRODUCTION")
 const PREVIEW_SESSION_COOKIE = "preview_session"
 const PREVIEW_SESSION_MAX_AGE = 5 * 60 // 5 minutes (matches preview token expiry)
-
-/**
- * Verify a short-lived preview token and extract userId
- */
-async function verifyPreviewToken(token: string): Promise<string | null> {
-  try {
-    const { payload } = await jwtVerify(token, PREVIEW_TOKEN_SECRET, {
-      algorithms: ["HS256"],
-    })
-    // Verify it's a preview token and return userId
-    if (payload.type === "preview" && typeof payload.userId === "string") {
-      return payload.userId
-    }
-    return null
-  } catch {
-    return null
-  }
-}
 
 /**
  * Verify preview session cookie (simple signed value)
