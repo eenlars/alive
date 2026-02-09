@@ -37,6 +37,12 @@ type portMap struct {
 func newPortMap(filePath string) *portMap {
 	pm := &portMap{filePath: filePath, ports: make(map[string]int)}
 	pm.reload()
+	pm.mu.RLock()
+	count := len(pm.ports)
+	pm.mu.RUnlock()
+	if count == 0 {
+		log.Printf("[port-map] WARNING: port map is empty at startup — all requests will 404 until next refresh")
+	}
 	go pm.refreshLoop()
 	return pm
 }
@@ -118,6 +124,10 @@ func main() {
 	handler := &previewHandler{
 		cfg:   cfg,
 		ports: ports,
+		transport: &http.Transport{
+			ForceAttemptHTTP2:  false, // HTTP/1.1 for WebSocket compatibility
+			DisableCompression: true,  // Don't add Accept-Encoding; we handle encoding ourselves
+		},
 	}
 
 	server := &http.Server{
@@ -135,8 +145,9 @@ func main() {
 }
 
 type previewHandler struct {
-	cfg   config
-	ports *portMap
+	cfg       config
+	ports     *portMap
+	transport http.RoundTripper // shared transport for connection pooling
 }
 
 func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -199,11 +210,11 @@ func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pr.Out.Host = "localhost"
 			pr.Out.Header.Set("X-Forwarded-Host", hostname)
 			pr.Out.Header.Set("X-Forwarded-Proto", "https")
+			// Strip Accept-Encoding so upstream sends uncompressed responses.
+			// We inject a nav script into HTML — compressed bodies would be corrupted.
+			pr.Out.Header.Del("Accept-Encoding")
 		},
-		Transport: &http.Transport{
-			ForceAttemptHTTP2:  false, // HTTP/1.1 for WebSocket compatibility
-			DisableCompression: true,  // Pass-through, don't manipulate
-		},
+		Transport: h.transport,
 		ModifyResponse: func(resp *http.Response) error {
 			// Remove X-Frame-Options so iframe embedding works
 			resp.Header.Del("X-Frame-Options")
