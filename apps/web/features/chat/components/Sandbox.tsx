@@ -7,7 +7,7 @@ import { useWorkspace } from "@/features/workspace/hooks/useWorkspace"
 import { useResizablePanel } from "@/lib/hooks/useResizablePanel"
 import { getPreviewUrl, getSiteUrl } from "@/lib/preview-utils"
 import { useDebugActions, useSandboxWidth } from "@/lib/stores/debug-store"
-import { PanelViewMenu, SandboxCodePanel } from "./sandbox/index"
+import { FilespacePanel, PanelViewMenu, SandboxCodePanel } from "./sandbox/index"
 import { PulsingDot } from "./ui/PulsingDot"
 
 export function Sandbox() {
@@ -288,6 +288,7 @@ export function Sandbox() {
               {panel.filePath ? `/${panel.filePath}` : "Code"}
             </span>
           )}
+          {panel.view === "files" && <span className="text-[13px] text-neutral-500 truncate">Files</span>}
           {panel.view === "terminal" && (
             <div className="flex items-center gap-1.5">
               <Terminal size={12} strokeWidth={1.5} className="text-neutral-400 dark:text-neutral-600" />
@@ -352,6 +353,8 @@ export function Sandbox() {
             onSetTreeWidth={setTreeWidth}
             onToggleTreeCollapsed={toggleTreeCollapsed}
           />
+        ) : panel.view === "files" ? (
+          <FilespacePanel workspace={workspace} worktree={worktree} />
         ) : panel.view === "terminal" ? (
           <div className="h-full bg-neutral-50 dark:bg-[#1e1e1e] flex items-center justify-center">
             <div className="text-center text-neutral-400 dark:text-neutral-500">

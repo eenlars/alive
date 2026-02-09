@@ -669,6 +669,56 @@ export const apiSchemas = {
       username: z.string().optional(),
     }),
   },
+  // ============================================================================
+  // FILESPACE (file explorer panel)
+  // ============================================================================
+
+  /**
+   * POST /api/filespace/list
+   * List files in a workspace directory
+   */
+  "filespace/list": {
+    req: z
+      .object({
+        workspace: z.string().min(1),
+        path: z.string().default(""),
+        worktree: z.string().optional(),
+      })
+      .brand<"FilespaceListRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      path: z.string(),
+      files: z.array(
+        z.object({
+          name: z.string(),
+          type: z.enum(["file", "directory"]),
+          size: z.number(),
+          modified: z.string(),
+          path: z.string(),
+        }),
+      ),
+    }),
+  },
+
+  /**
+   * POST /api/filespace/delete
+   * Delete a file or directory in the workspace
+   */
+  "filespace/delete": {
+    req: z
+      .object({
+        workspace: z.string().min(1),
+        path: z.string().min(1),
+        worktree: z.string().optional(),
+        recursive: z.boolean().optional(),
+      })
+      .brand<"FilespaceDeleteRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      deleted: z.string(),
+      type: z.enum(["file", "directory"]),
+    }),
+  },
 } as const
 
 // ============================================================================

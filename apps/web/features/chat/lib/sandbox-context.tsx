@@ -17,8 +17,8 @@ export interface ElementSelection {
   columnNumber?: number
 }
 
-/** View mode for the right panel (site preview, code editor, terminal) */
-export type PanelView = "site" | "code" | "terminal"
+/** View mode for the right panel (site preview, code editor, terminal, files) */
+export type PanelView = "site" | "code" | "terminal" | "files"
 
 /** State for the right panel */
 export interface PanelState {
