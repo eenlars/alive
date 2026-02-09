@@ -262,6 +262,13 @@ fi
 phase_end ok "Skills synced"
 
 # =============================================================================
+# Build & Deploy Go Preview Proxy (if configured)
+# =============================================================================
+if [ -f "$SCRIPT_DIR/deploy-preview-proxy.sh" ]; then
+    "$SCRIPT_DIR/deploy-preview-proxy.sh" || log_warn "Preview proxy deploy skipped"
+fi
+
+# =============================================================================
 # Deploy & Health Check
 # =============================================================================
 phase_start "Deploying"

@@ -10,7 +10,7 @@
 #
 # =============================================================================
 
-.PHONY: help ship ship-fast staging production deploy-status dev devchat static-check status logs-staging logs-production logs-dev rollback shell deploy-go
+.PHONY: help ship ship-fast staging production deploy-status dev devchat static-check status logs-staging logs-production logs-dev rollback shell deploy-go preview-proxy
 
 # Load environment variables
 ifneq (,$(wildcard .env))
@@ -52,6 +52,7 @@ help:
 	@echo "$(GREEN)Other:$(NC)"
 	@echo "  make rollback        Interactive rollback to previous build"
 	@echo "  make shell           Build and deploy shell-server-go"
+	@echo "  make preview-proxy   Build and deploy preview-proxy (Go)"
 	@echo ""
 
 .DEFAULT_GOAL := help
@@ -118,6 +119,7 @@ status:
 	@systemctl is-active alive-dev >/dev/null 2>&1 && echo "  Dev (8997):        $(GREEN)running$(NC)" || echo "  Dev (8997):        $(RED)stopped$(NC)"
 	@systemctl is-active alive-staging >/dev/null 2>&1 && echo "  Staging (8998):    $(GREEN)running$(NC)" || echo "  Staging (8998):    $(RED)stopped$(NC)"
 	@systemctl is-active alive-production >/dev/null 2>&1 && echo "  Production (9000): $(GREEN)running$(NC)" || echo "  Production (9000): $(RED)stopped$(NC)"
+	@systemctl is-active preview-proxy >/dev/null 2>&1 && echo "  Preview proxy (5055): $(GREEN)running$(NC)" || echo "  Preview proxy (5055): $(RED)stopped$(NC)"
 	@echo ""
 	@echo "$(GREEN)Deployment Lock:$(NC)"
 	@./scripts/deployment/ship.sh --status || true
@@ -150,3 +152,10 @@ shell:
 
 deploy-go:
 	@./scripts/deployment/deploy-go-server.sh
+
+# =============================================================================
+# Preview Proxy (Go)
+# =============================================================================
+
+preview-proxy:
+	@./scripts/deployment/deploy-preview-proxy.sh
