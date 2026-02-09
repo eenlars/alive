@@ -2,10 +2,9 @@ import { z } from "zod"
 
 export interface DeploySubdomainForm {
   slug: string
-  email: string
   siteIdeas?: string
-  selectedTemplate?: "landing" | "recipe"
-  password: string
+  orgId?: string
+  templateId?: string
 }
 
 export const DeployResponseSchema = z.object({

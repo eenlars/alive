@@ -26,7 +26,7 @@ export class SiteOrchestrator {
    * @returns Deployment result
    */
   static async deploy(config: DeployConfig): Promise<DeployResult> {
-    const { domain, slug, templatePath, rollbackOnFailure = true, serverIp, wildcardDomain } = config
+    const { domain, slug, templatePath, rollbackOnFailure = true, skipCaddy = false, serverIp, wildcardDomain } = config
 
     // Require serverIp and wildcardDomain - no fallbacks
     if (!serverIp) {
@@ -106,15 +106,19 @@ export class SiteOrchestrator {
       console.log(`✓ Service started: ${serviceName}\n`)
 
       // Phase 7: Configure Caddy
-      console.log("[Phase 7/7] Configuring Caddy...")
-      await configureCaddy({
-        domain,
-        port: deployedPort,
-        caddyfilePath: PATHS.CADDYFILE_PATH,
-        caddyLockPath: PATHS.CADDY_LOCK,
-        flockTimeout: DEFAULTS.FLOCK_TIMEOUT,
-      })
-      console.log("✓ Caddy configured\n")
+      if (!skipCaddy) {
+        console.log("[Phase 7/7] Configuring Caddy...")
+        await configureCaddy({
+          domain,
+          port: deployedPort,
+          caddyfilePath: PATHS.CADDYFILE_PATH,
+          caddyLockPath: PATHS.CADDY_LOCK,
+          flockTimeout: DEFAULTS.FLOCK_TIMEOUT,
+        })
+        console.log("✓ Caddy configured\n")
+      } else {
+        console.log("[Phase 7/7] Skipping Caddy configuration (caller will handle)\n")
+      }
 
       console.log(`\n=== Deployment successful: ${domain} ===`)
       console.log(`Site URL: https://${domain}`)

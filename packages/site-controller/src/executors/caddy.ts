@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { readFile } from "node:fs/promises"
 import { runScript } from "./common.js"
 
 export interface ConfigureCaddyParams {
@@ -138,7 +138,7 @@ export async function validateCaddyConfig(caddyfilePath: string): Promise<CaddyV
  */
 export async function checkDomainInCaddy(domain: string, caddyfilePath: string): Promise<boolean> {
   try {
-    const content = readFileSync(caddyfilePath, "utf-8")
+    const content = await readFile(caddyfilePath, "utf-8")
     // Check for domain block (e.g., "example.com {")
     const domainBlockRegex = new RegExp(`^${domain.replace(/\./g, "\\.")} \\{`, "m")
     return domainBlockRegex.test(content)

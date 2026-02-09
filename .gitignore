@@ -195,6 +195,9 @@ ops/caddy/Caddyfile.shell
 !ops/caddy/etc/
 
 
+# Caddy runtime data (PKI, certs - server-specific)
+caddy/
+
 # Operations infrastructure (ops-only, never distribute)
 # These are server management scripts, not part of the npm package
 ops/scripts/site-modes.json

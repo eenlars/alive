@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs"
 import { COOKIE_NAMES, getOAuthKeyForProvider, PATHS } from "@webalive/shared"
+import { DeploymentError } from "@webalive/site-controller"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -7,8 +8,8 @@ import { createSessionToken, verifySessionToken } from "@/features/auth/lib/jwt"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { buildSubdomain } from "@/lib/config"
-import { deploySite } from "@/lib/deployment/deploy-site"
-import { DomainRegistrationError, registerDomain } from "@/lib/deployment/domain-registry"
+import { runStrictDeployment } from "@/lib/deployment/deploy-pipeline"
+import { DomainRegistrationError } from "@/lib/deployment/domain-registry"
 import { cleanupImportDir, importGithubRepo, parseGithubRepo } from "@/lib/deployment/github-import"
 import { validateUserOrgAccess } from "@/lib/deployment/org-resolver"
 import { validateSSLCertificate } from "@/lib/deployment/ssl-validation"
@@ -119,33 +120,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Deploy using the existing pipeline
-    const deployResult = await deploySite({
+    // Deploy using the strict shared pipeline (deploy -> register -> caddy -> verify)
+    await runStrictDeployment({
       domain: fullDomain,
       email: sessionUser.email,
       orgId,
       templatePath,
     })
 
-    const port = deployResult.port
-
-    // Register domain in Supabase
-    try {
-      await registerDomain({
-        hostname: fullDomain,
-        email: sessionUser.email,
-        port,
-        orgId,
-      })
-    } catch (registrationError) {
-      if (registrationError instanceof DomainRegistrationError) {
-        return structuredErrorResponse(registrationError.errorCode, {
-          status: 400,
-          details: registrationError.details,
-        })
-      }
-      throw registrationError
-    }
 
     // Save metadata (indicate source is github import)
     await siteMetadataStore.setSite(slug, {
@@ -206,6 +188,21 @@ export async function POST(request: NextRequest) {
 
     return res
   } catch (error: unknown) {
+    if (error instanceof DomainRegistrationError) {
+      const status = error.errorCode === ErrorCodes.DOMAIN_ALREADY_EXISTS ? 409 : 400
+      return structuredErrorResponse(error.errorCode, {
+        status,
+        details: error.details,
+      })
+    }
+
+    if (error instanceof DeploymentError) {
+      return structuredErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, {
+        status: error.statusCode,
+        details: { message: error.message, code: error.code },
+      })
+    }
+
     console.error("[Import-Repo] Unexpected error:", error)
 
     let status = 500
