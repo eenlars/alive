@@ -10,9 +10,9 @@
  *   /user/               (repo files go here)
  */
 
-import { execSync } from "node:child_process"
+import { execFileSync } from "node:child_process"
 import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 
 const CLONE_TIMEOUT_MS = 60_000
 const GITHUB_IMPORT_PREFIX = "/tmp/github-import-"
@@ -37,7 +37,7 @@ interface ParsedRepo {
  */
 export function parseGithubRepo(repoUrl: string): ParsedRepo {
   // Try HTTPS URL format
-  const httpsMatch = repoUrl.match(/^https:\/\/github\.com\/([^/]+)\/([^/.]+)(?:\.git)?$/)
+  const httpsMatch = repoUrl.match(/^https:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_-]+)(?:\.git)?$/)
   if (httpsMatch) {
     const owner = httpsMatch[1]
     const repo = httpsMatch[2]
@@ -83,11 +83,14 @@ export function cloneGithubRepo(repoUrl: string, githubToken: string | null, bra
     ? `https://${githubToken}@github.com/${owner}/${repo}.git`
     : `https://github.com/${owner}/${repo}.git`
 
-  const branchArgs = branch ? `--branch ${branch}` : ""
-  const cloneCmd = `git clone --depth 1 ${branchArgs} ${cloneUrl} ${tempDir}/repo`
+  const args = ["clone", "--depth", "1"]
+  if (branch) {
+    args.push("--branch", branch)
+  }
+  args.push(cloneUrl, `${tempDir}/repo`)
 
   try {
-    execSync(cloneCmd, {
+    execFileSync("git", args, {
       timeout: CLONE_TIMEOUT_MS,
       stdio: "pipe", // suppress output (token in URL)
     })
@@ -174,13 +177,14 @@ export function prepareImportedRepo(clonedDir: string): string {
  * @param tempDir - Path to the temp directory to remove
  */
 export function cleanupImportDir(tempDir: string): void {
+  const resolved = resolve(tempDir)
   // Safety check: only remove directories under our known prefix
-  if (!tempDir.startsWith(GITHUB_IMPORT_PREFIX)) {
+  if (!resolved.startsWith(GITHUB_IMPORT_PREFIX)) {
     throw new Error(`Refusing to remove directory outside of import prefix: ${tempDir}`)
   }
 
-  if (existsSync(tempDir)) {
-    rmSync(tempDir, { recursive: true, force: true })
+  if (existsSync(resolved)) {
+    rmSync(resolved, { recursive: true, force: true })
   }
 }
 

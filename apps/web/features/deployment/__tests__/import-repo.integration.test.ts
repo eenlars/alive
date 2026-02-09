@@ -87,8 +87,7 @@ describe("GitHub Import Integration", () => {
     let cleanupDir: string
 
     test("clones and prepares a repo that has package.json", () => {
-      // sveltejs/template is a small public repo with package.json
-      const result = importGithubRepo("https://github.com/sveltejs/template.git", null)
+      const result = importGithubRepo("https://github.com/vitejs/vite-plugin-react.git", null)
       templatePath = result.templatePath
       cleanupDir = result.cleanupDir
       cleanupDirs.push(cleanupDir)
@@ -111,7 +110,6 @@ describe("GitHub Import Integration", () => {
       expect(existsSync(userPkgPath)).toBe(true)
 
       const userPkg = JSON.parse(readFileSync(userPkgPath, "utf-8"))
-      // sveltejs/template package.json should have a name
       expect(userPkg.name).toBeTruthy()
     })
   })

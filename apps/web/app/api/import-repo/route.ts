@@ -206,7 +206,8 @@ export async function POST(request: NextRequest) {
     if (sessionCookie?.value) {
       const payload = await verifySessionToken(sessionCookie.value)
       if (payload) {
-        const updatedWorkspaces = [...payload.workspaces, fullDomain]
+        const existingWorkspaces = Array.isArray(payload.workspaces) ? payload.workspaces : []
+        const updatedWorkspaces = [...existingWorkspaces, fullDomain]
         const newToken = await createSessionToken(
           sessionUser.id,
           sessionUser.email,
@@ -231,7 +232,8 @@ export async function POST(request: NextRequest) {
     if (error && typeof error === "object") {
       if ("code" in error && error.code === "ETIMEDOUT") {
         status = 408
-      } else if (("code" in error && error.code === 12) || "stderr" in error) {
+      } else if ("stderr" in error) {
+        // Git clone failure with stderr output indicates a client-side issue (bad repo, auth, etc.)
         status = 400
       }
     }

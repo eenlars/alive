@@ -245,6 +245,12 @@ describe("cleanupImportDir", () => {
     expect(() => cleanupImportDir("/root")).toThrow("Refusing to remove directory outside of import prefix")
   })
 
+  test("throws for path traversal that starts with the import prefix", () => {
+    expect(() => cleanupImportDir("/tmp/github-import-../../etc")).toThrow(
+      "Refusing to remove directory outside of import prefix",
+    )
+  })
+
   test("does not throw when directory does not exist (already cleaned up)", () => {
     const nonExistent = `/tmp/github-import-${crypto.randomUUID()}`
     // Should not throw - just a no-op
