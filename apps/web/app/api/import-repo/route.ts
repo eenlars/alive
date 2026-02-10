@@ -125,11 +125,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Deploy using the strict shared pipeline (deploy -> register -> caddy -> verify)
+    // Skip build: imported repos are arbitrary — user builds via chat
     await runStrictDeployment({
       domain: fullDomain,
       email: sessionUser.email,
       orgId,
       templatePath,
+      skipBuild: true,
     })
 
     // Save metadata (indicate source is github import)

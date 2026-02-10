@@ -12,6 +12,7 @@ export interface StrictDeploymentInput {
   password?: string
   orgId?: string
   templatePath: string
+  skipBuild?: boolean
 }
 
 export interface StrictDeploymentResult {
@@ -167,6 +168,7 @@ export async function runStrictDeployment(input: StrictDeploymentInput): Promise
     password: validated.password,
     orgId: validated.orgId,
     templatePath: validated.templatePath,
+    skipBuild: input.skipBuild,
   })
 
   try {

@@ -50,7 +50,16 @@ export class SiteOrchestrator {
    * @returns Deployment result
    */
   static async deploy(config: DeployConfig): Promise<DeployResult> {
-    const { domain, slug, templatePath, rollbackOnFailure = true, skipCaddy = false, serverIp, wildcardDomain } = config
+    const {
+      domain,
+      slug,
+      templatePath,
+      rollbackOnFailure = true,
+      skipBuild = false,
+      skipCaddy = false,
+      serverIp,
+      wildcardDomain,
+    } = config
 
     // Preflight: verify system dependencies exist
     SiteOrchestrator.checkSystemDependencies()
@@ -112,16 +121,20 @@ export class SiteOrchestrator {
       console.log(`✓ Filesystem ready: ${siteHome}\n`)
 
       // Phase 5: Build Site
-      console.log("[Phase 5/7] Building site...")
-      await buildSite({
-        user: siteUser,
-        domain,
-        port: deployedPort,
-        slug,
-        targetDir: siteHome,
-        envFilePath: getEnvFilePath(slug),
-      })
-      console.log("✓ Site built successfully\n")
+      if (!skipBuild) {
+        console.log("[Phase 5/7] Building site...")
+        await buildSite({
+          user: siteUser,
+          domain,
+          port: deployedPort,
+          slug,
+          targetDir: siteHome,
+          envFilePath: getEnvFilePath(slug),
+        })
+        console.log("✓ Site built successfully\n")
+      } else {
+        console.log("[Phase 5/7] Skipping build (raw import)\n")
+      }
 
       // Phase 6: Start Service
       console.log("[Phase 6/7] Starting systemd service...")
