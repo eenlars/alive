@@ -17,9 +17,9 @@ import {
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useDexieArchivedConversations, useDexieConversations, useDexieSession } from "@/lib/db/dexieMessageStore"
-import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import type { DbConversation } from "@/lib/db/messageDb"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
+import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import { useStreamingStore } from "@/lib/stores/streamingStore"
 import { useWorkspaceTabs } from "@/lib/stores/tabStore"
 
