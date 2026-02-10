@@ -56,8 +56,8 @@ export const DeploySubdomainSchema = z
     slug: z
       .string()
       .min(3, "Slug must be at least 3 characters")
-      .max(20, "Slug must be no more than 20 characters")
-      .regex(/^[a-z0-9]([a-z0-9-]{1,18}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
+      .max(16, "Slug must be no more than 16 characters")
+      .regex(/^[a-z0-9]([a-z0-9-]{1,14}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
       .refine(slug => !RESERVED_SLUGS.some(r => r === slug), {
         message: "This slug is reserved and cannot be used. Please choose a different name.",
       }),

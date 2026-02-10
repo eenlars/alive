@@ -315,7 +315,7 @@ function renderWildcardPreviewBlock(
   return [
     "# ============================================================================",
     `# WILDCARD CATCH-ALL (*.${wildcardDomain})`,
-    "# Catches preview subdomains (preview--{label}." + wildcardDomain + ") and routes to",
+    `# Catches preview subdomains (preview--{label}.${wildcardDomain}) and routes to`,
     "# Next.js. Middleware detects preview-- prefix and rewrites to /api/preview-router.",
     "# Specific domain blocks above take precedence (Caddy routes by specificity).",
     "# Routes to correct environment based on Referer header.",
