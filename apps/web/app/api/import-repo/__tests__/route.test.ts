@@ -129,7 +129,7 @@ describe("POST /api/import-repo", () => {
     getAccessTokenMock.mockResolvedValue("github-token")
     siteMetadataExistsMock.mockReturnValue(false)
     parseGithubRepoMock.mockReturnValue({ owner: "example", repo: "repo" })
-    importGithubRepoMock.mockReturnValue({
+    importGithubRepoMock.mockResolvedValue({
       templatePath: "/tmp/import/template",
       cleanupDir: "/tmp/import",
     })
@@ -225,10 +225,8 @@ describe("POST /api/import-repo", () => {
     expect(runStrictDeploymentMock).not.toHaveBeenCalled()
   })
 
-  it("returns 400 when clone fails", async () => {
-    importGithubRepoMock.mockImplementationOnce(() => {
-      throw new Error("Git clone failed: not found")
-    })
+  it("returns 400 when download fails", async () => {
+    importGithubRepoMock.mockRejectedValueOnce(new Error("Repository example/repo not found"))
 
     const response = await POST(
       createRequest({
@@ -242,7 +240,7 @@ describe("POST /api/import-repo", () => {
     expect(payload.error).toBe(ErrorCodes.GITHUB_CLONE_FAILED)
   })
 
-  it("proceeds without token when GitHub OAuth is not connected", async () => {
+  it("returns 400 when GitHub OAuth is not connected", async () => {
     getAccessTokenMock.mockRejectedValueOnce(new Error("OAuth not configured"))
 
     const response = await POST(
@@ -252,7 +250,9 @@ describe("POST /api/import-repo", () => {
       }),
     )
 
-    expect(response.status).toBe(200)
-    expect(importGithubRepoMock).toHaveBeenCalledWith("https://github.com/example/repo", null, undefined)
+    expect(response.status).toBe(400)
+    const payload = (await response.json()) as { error: string }
+    expect(payload.error).toBe(ErrorCodes.GITHUB_NOT_CONNECTED)
+    expect(importGithubRepoMock).not.toHaveBeenCalled()
   })
 })

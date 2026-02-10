@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process"
 import { assertServerOnly } from "./guards.js"
 
 // Prevent this module from being imported in browser environments
@@ -20,6 +21,29 @@ import type { DeployConfig, DeployResult } from "./types.js"
  */
 export class SiteOrchestrator {
   /**
+   * Verify that required system commands are available before deployment.
+   * Fails fast with a clear message instead of cryptic errors mid-deployment.
+   */
+  private static checkSystemDependencies(): void {
+    const required = ["jq", "tar", "useradd", "systemctl", "rsync"]
+    const missing: string[] = []
+
+    for (const cmd of required) {
+      try {
+        execFileSync("which", [cmd], { stdio: "pipe" })
+      } catch {
+        missing.push(cmd)
+      }
+    }
+
+    if (missing.length > 0) {
+      throw DeploymentError.configurationMissing(
+        `Required system commands not found: ${missing.join(", ")}. Install them before deploying (e.g. apt-get install ${missing.join(" ")}).`,
+      )
+    }
+  }
+
+  /**
    * Deploy a site with automatic rollback on failure
    *
    * @param config - Deployment configuration
@@ -27,6 +51,9 @@ export class SiteOrchestrator {
    */
   static async deploy(config: DeployConfig): Promise<DeployResult> {
     const { domain, slug, templatePath, rollbackOnFailure = true, skipCaddy = false, serverIp, wildcardDomain } = config
+
+    // Preflight: verify system dependencies exist
+    SiteOrchestrator.checkSystemDependencies()
 
     // Require serverIp and wildcardDomain - no fallbacks
     if (!serverIp) {

@@ -90,25 +90,34 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    let githubToken: string | null = null
+    // Require GitHub OAuth token — we use the API tarball endpoint which needs auth
+    let githubToken: string
     try {
-      // Best effort token lookup: use PAT when connected (supports private repos),
-      // but allow unauthenticated clone for public repositories.
       const githubOAuthKey = getOAuthKeyForProvider("github")
       const githubOAuth = getOAuthInstance(githubOAuthKey)
-      githubToken = await githubOAuth.getAccessToken(sessionUser.id, githubOAuthKey)
+      const token = await githubOAuth.getAccessToken(sessionUser.id, githubOAuthKey)
+      if (!token) {
+        return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
+          status: 400,
+          details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
+        })
+      }
+      githubToken = token
     } catch {
-      // OAuth not connected or unavailable - continue with public clone
+      return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
+        status: 400,
+        details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
+      })
     }
 
-    // Clone and prepare the repo
+    // Download and prepare the repo via GitHub API
     let templatePath: string
     try {
-      const result = importGithubRepo(repoUrl, githubToken, branch)
+      const result = await importGithubRepo(repoUrl, githubToken, branch)
       templatePath = result.templatePath
       cleanupDir = result.cleanupDir
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown clone error"
+      const message = error instanceof Error ? error.message : "Unknown download error"
       return structuredErrorResponse(ErrorCodes.GITHUB_CLONE_FAILED, {
         status: 400,
         details: { message, repoUrl },
@@ -203,9 +212,6 @@ export async function POST(request: NextRequest) {
     if (error && typeof error === "object") {
       if ("code" in error && error.code === "ETIMEDOUT") {
         status = 408
-      } else if ("stderr" in error) {
-        // Git clone failure with stderr output indicates a client-side issue (bad repo, auth, etc.)
-        status = 400
       }
     }
 
