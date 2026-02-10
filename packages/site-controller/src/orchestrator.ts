@@ -213,14 +213,18 @@ WantedBy=multi-user.target
       }
 
       // Phase 6: Start Service
-      console.log("[Phase 6/7] Starting systemd service...")
-      await startService({
-        slug,
-        port: deployedPort,
-        domain,
-        serviceName,
-      })
-      console.log(`✓ Service started: ${serviceName}\n`)
+      if (!skipBuild) {
+        console.log("[Phase 6/7] Starting systemd service...")
+        await startService({
+          slug,
+          port: deployedPort,
+          domain,
+          serviceName,
+        })
+        console.log(`✓ Service started: ${serviceName}\n`)
+      } else {
+        console.log("[Phase 6/7] Skipping service start (raw import — user starts after setup)\n")
+      }
 
       // Phase 7: Configure Caddy
       if (!skipCaddy) {
