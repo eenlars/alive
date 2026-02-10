@@ -128,7 +128,6 @@ export async function POST(request: NextRequest) {
       templatePath,
     })
 
-
     // Save metadata (indicate source is github import)
     await siteMetadataStore.setSite(slug, {
       slug,

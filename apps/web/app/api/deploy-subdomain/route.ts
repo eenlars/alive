@@ -99,7 +99,6 @@ export async function POST(request: NextRequest) {
       templatePath: template.source_path,
     })
 
-
     // Save metadata
     await siteMetadataStore.setSite(slug, {
       slug,
