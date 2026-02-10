@@ -93,7 +93,6 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       .eq("id", job.id)
       .is("running_at", null)
       .select("id")
-      .limit(1)
 
     if (claimError) {
       console.error("[Automation Trigger] Failed to claim job:", claimError)
