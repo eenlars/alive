@@ -17,13 +17,14 @@
  * Provides typed error information for handling in components
  */
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly code?: string,
-  ) {
+  readonly status: number
+  readonly code?: string
+
+  constructor(message: string, status: number, code?: string) {
     super(message)
     this.name = "ApiError"
+    this.status = status
+    this.code = code
   }
 
   get isUnauthorized(): boolean {

@@ -106,7 +106,7 @@ export function TestComponent() {
 
   it("documents TypeScript strict mode is enabled", () => {
     // Use resolved compiler settings (includes inherited settings via "extends")
-    const resolvedConfigRaw = execSync("bun tsc --showConfig", {
+    const resolvedConfigRaw = execSync("npx tsc --showConfig", {
       cwd: process.cwd(),
       encoding: "utf-8",
       stdio: "pipe",

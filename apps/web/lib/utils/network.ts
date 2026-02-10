@@ -1,11 +1,12 @@
 export class NetworkError extends Error {
-  constructor(
-    message: string,
-    public type: "offline" | "timeout" | "server" | "unknown",
-    public status?: number,
-  ) {
+  type: "offline" | "timeout" | "server" | "unknown"
+  status?: number
+
+  constructor(message: string, type: "offline" | "timeout" | "server" | "unknown", status?: number) {
     super(message)
     this.name = "NetworkError"
+    this.type = type
+    this.status = status
   }
 }
 

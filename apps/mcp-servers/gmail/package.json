@@ -28,7 +28,7 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsgo --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "ci": "biome ci ."

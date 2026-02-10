@@ -17,23 +17,26 @@ export interface UploadOptions {
   maxRetries?: number
 }
 
-export enum UploadErrorType {
-  NETWORK_ERROR = "NETWORK_ERROR",
-  FILE_TOO_LARGE = "FILE_TOO_LARGE",
-  UNAUTHORIZED = "UNAUTHORIZED",
-  SERVER_ERROR = "SERVER_ERROR",
-  ABORTED = "ABORTED",
-  UNKNOWN = "UNKNOWN",
-}
+export const UploadErrorType = {
+  NETWORK_ERROR: "NETWORK_ERROR",
+  FILE_TOO_LARGE: "FILE_TOO_LARGE",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  SERVER_ERROR: "SERVER_ERROR",
+  ABORTED: "ABORTED",
+  UNKNOWN: "UNKNOWN",
+} as const
+
+export type UploadErrorType = (typeof UploadErrorType)[keyof typeof UploadErrorType]
 
 export class UploadError extends Error {
-  constructor(
-    message: string,
-    public type: UploadErrorType,
-    public originalError?: unknown,
-  ) {
+  type: UploadErrorType
+  originalError?: unknown
+
+  constructor(message: string, type: UploadErrorType, originalError?: unknown) {
     super(message)
     this.name = "UploadError"
+    this.type = type
+    this.originalError = originalError
   }
 }
 
