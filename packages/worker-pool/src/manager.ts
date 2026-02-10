@@ -24,6 +24,7 @@ import type {
   WorkerPoolConfig,
   WorkerPoolEventListener,
   WorkerPoolEvents,
+  WorkerQueryFailureDiagnostics,
   WorkerToParentMessage,
   WorkspaceCredentials,
 } from "./types.js"
@@ -42,6 +43,11 @@ interface PendingQuery {
   cleanupAccounting: () => void
   sessionId?: string
   result?: unknown
+}
+
+interface WorkerPoolQueryError extends Error {
+  stderr?: string
+  diagnostics?: WorkerQueryFailureDiagnostics
 }
 
 /** Internal worker handle with IPC and pending queries */
@@ -1044,7 +1050,23 @@ export class WorkerPoolManager extends EventEmitter {
           pending.cleanup()
           const errorMessage = "error" in msg && typeof msg.error === "string" ? msg.error : "Unknown error"
           const stderr = "stderr" in msg && typeof msg.stderr === "string" ? msg.stderr : undefined
-          const error = stderr ? Object.assign(new Error(errorMessage), { stderr }) : new Error(errorMessage)
+          const diagnostics =
+            "diagnostics" in msg && msg.diagnostics && typeof msg.diagnostics === "object"
+              ? (msg.diagnostics as WorkerQueryFailureDiagnostics)
+              : undefined
+          const workerStack = "stack" in msg && typeof msg.stack === "string" ? msg.stack : undefined
+
+          const error: WorkerPoolQueryError = new Error(errorMessage)
+          if (workerStack) {
+            error.stack = workerStack
+          }
+          if (stderr) {
+            error.stderr = stderr
+          }
+          if (diagnostics) {
+            error.diagnostics = diagnostics
+          }
+
           pending.reject(error)
         }
         break
