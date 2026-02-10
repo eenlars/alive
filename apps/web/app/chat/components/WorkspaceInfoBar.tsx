@@ -3,6 +3,7 @@
 import { AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from "lucide-react"
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher"
 import { WorktreeSwitcher } from "@/components/workspace/WorktreeSwitcher"
+import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 
 interface WorkspaceInfoBarProps {
   workspace: string | null
@@ -36,6 +37,7 @@ export function WorkspaceInfoBar({
   showTabsToggle = false,
   tabsExpanded = false,
 }: WorkspaceInfoBarProps) {
+  const worktreesEnabled = useFeatureFlag("WORKTREES")
   // Show warning state only when mounted AND no workspace - avoids hydration mismatch
   const showWarning = mounted && !workspace
 
@@ -59,7 +61,7 @@ export function WorkspaceInfoBar({
             {isTerminal ? (
               <div className="flex items-center min-w-0">
                 <WorkspaceSwitcher currentWorkspace={workspace} onOpenSettings={onSelectSite} />
-                {!isSuperadminWorkspace && (
+                {worktreesEnabled && !isSuperadminWorkspace && (
                   <WorktreeSwitcher
                     workspace={workspace}
                     currentWorktree={worktree}

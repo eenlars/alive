@@ -180,22 +180,13 @@ export const STREAM_PERMISSION_MODE = "default" as const
 export const STREAM_SETTINGS_SOURCES = ["project", "user"] as const
 
 const EXACT_HEAVY_BASH_COMMANDS = new Set([
-  "bun run build",
-  "bun run type-check",
-  "bun run lint",
+  // Monorepo-specific scripts (don't exist in site workspaces)
   "bun run static-check",
   "bun run check:pre-push",
   "bun run check:all",
-  "npm run build",
-  "npm run type-check",
-  "npm run lint",
-  "pnpm run build",
-  "pnpm run type-check",
-  "pnpm run lint",
-  "yarn build",
-  "yarn type-check",
-  "yarn lint",
+  // Next.js build (sites use Vite, not Next.js)
   "next build",
+  // Never allow spawning Claude inside Claude
   "claude",
 ])
 

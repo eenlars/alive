@@ -5,9 +5,10 @@
 
 export function isValidSlug(slug: string): boolean {
   if (!slug || typeof slug !== "string") return false
-  // 3-20 chars: lowercase letters, numbers, hyphens
+  // 3-16 chars: lowercase letters, numbers, hyphens
   // Cannot start or end with hyphen
-  return /^[a-z0-9]([a-z0-9-]{1,18}[a-z0-9])?$/.test(slug)
+  // Max 16 because Linux username limit is 32: site- (5) + slug (16) + -alive-best (11) = 32
+  return /^[a-z0-9]([a-z0-9-]{1,14}[a-z0-9])?$/.test(slug)
 }
 
 const RESERVED_SLUGS = new Set([
@@ -51,7 +52,7 @@ export function validateSlug(slug: string): { valid: boolean; error?: string } {
     return {
       valid: false,
       error:
-        "Slug must be 3-20 characters: lowercase letters, numbers, and hyphens only (cannot start/end with hyphen)",
+        "Slug must be 3-16 characters: lowercase letters, numbers, and hyphens only (cannot start/end with hyphen)",
     }
   }
 

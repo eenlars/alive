@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useDexieArchivedConversations, useDexieConversations, useDexieSession } from "@/lib/db/dexieMessageStore"
 import type { DbConversation } from "@/lib/db/messageDb"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
+import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import { useStreamingStore } from "@/lib/stores/streamingStore"
 import { useWorkspaceTabs } from "@/lib/stores/tabStore"
 
@@ -60,8 +61,16 @@ function CloseButton({ onClick, isMobile }: { onClick: () => void; isMobile?: bo
   )
 }
 
-// New Chat dropdown with Chat/Worktree options
-function NewChatDropdown({ onNewChat, onNewWorktree }: { onNewChat: () => void; onNewWorktree: () => void }) {
+// New Chat button — shows dropdown with Worktree option only when WORKTREES flag is enabled
+function NewChatDropdown({
+  onNewChat,
+  onNewWorktree,
+  worktreeEnabled,
+}: {
+  onNewChat: () => void
+  onNewWorktree: () => void
+  worktreeEnabled: boolean
+}) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -90,6 +99,19 @@ function NewChatDropdown({ onNewChat, onNewWorktree }: { onNewChat: () => void; 
   const handleSelect = (action: () => void) => {
     setIsOpen(false)
     action()
+  }
+
+  // Simple button when worktrees are disabled
+  if (!worktreeEnabled) {
+    return (
+      <button
+        type="button"
+        onClick={onNewChat}
+        className={`w-full flex items-center justify-center py-2 px-3 rounded-lg text-sm ${styles.activeFill} ${styles.hoverFillStrong} ${styles.transition} ${styles.textPrimary}`}
+      >
+        New Chat
+      </button>
+    )
   }
 
   return (
@@ -249,6 +271,8 @@ export function ConversationSidebar({
     [streamingConversationIds],
   )
 
+  const worktreeEnabled = useFeatureFlag("WORKTREES")
+
   // Shared sidebar content - rendered in both desktop and mobile
   const renderContent = (isMobile: boolean) => (
     <div className={`flex flex-col h-full ${isMobile ? "w-screen" : "w-[280px]"}`}>
@@ -269,6 +293,7 @@ export function ConversationSidebar({
             {/* New Chat dropdown */}
             <div className="px-2 py-3 shrink-0">
               <NewChatDropdown
+                worktreeEnabled={worktreeEnabled}
                 onNewChat={() => {
                   onNewConversation()
                   if (isMobile) closeSidebar()

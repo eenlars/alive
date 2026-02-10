@@ -18,10 +18,15 @@
  * applying credit charges, and sending typed messages to client.
  */
 
-import type { OAuthWarning } from "@webalive/shared"
+import { type OAuthWarning, STREAMING } from "@webalive/shared"
 import { sessionStore, type TabSessionKey } from "@/features/auth/lib/sessionStore"
 import type { BridgeErrorMessage, StreamMessage } from "@/features/chat/lib/streaming/ndjson"
-import { BridgeStreamType, createWarningMessage, encodeNDJSON } from "@/features/chat/lib/streaming/ndjson"
+import {
+  BridgeStreamType,
+  createPingMessage,
+  createWarningMessage,
+  encodeNDJSON,
+} from "@/features/chat/lib/streaming/ndjson"
 import { isAssistantMessageWithUsage, isBridgeMessageEvent } from "@/features/chat/types/guards"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
 import { logStreamError } from "@/lib/error-logger"
@@ -403,6 +408,16 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
         }
       }
 
+      // Heartbeat to keep Cloudflare connection alive during long tool executions.
+      // setInterval runs via the event loop while `await reader.read()` is suspended.
+      const heartbeatInterval = setInterval(() => {
+        try {
+          controller.enqueue(encodeNDJSON(createPingMessage(requestId)))
+        } catch {
+          clearInterval(heartbeatInterval)
+        }
+      }, STREAMING.HEARTBEAT_INTERVAL_MS)
+
       try {
         while (true) {
           // Check if explicitly cancelled via cancel endpoint or client abort
@@ -518,6 +533,7 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
         }
         controller.enqueue(encodeNDJSON(errorMessage))
       } finally {
+        clearInterval(heartbeatInterval)
         // Guaranteed cleanup: runs on success, error, or cancellation
         // Close the stream so client knows we're done
         // NOTE: When stream is cancelled, controller may already be closed. Wrap in try-catch
