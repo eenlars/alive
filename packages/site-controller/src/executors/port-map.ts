@@ -12,7 +12,7 @@ import { execSync } from "node:child_process"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { createClient } from "@supabase/supabase-js"
-import type { AppDatabase } from "@webalive/database"
+import { retryAsync } from "@webalive/shared"
 import { PATHS } from "../constants.js"
 
 const PORT_MAP_FILENAME = "port-map.json"
@@ -32,7 +32,7 @@ function getSupabaseClient() {
   if (!url || !key) {
     throw new Error("[port-map] SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
   }
-  return createClient<AppDatabase>(url, key, { db: { schema: "app" } })
+  return createClient(url, key, { db: { schema: "app" } })
 }
 
 /**
@@ -76,35 +76,42 @@ function signalPreviewProxy(): void {
  * @throws Error if Supabase query fails, required hostname missing, or signal fails
  */
 export async function regeneratePortMap(requiredHostname?: string): Promise<number> {
-  const app = getSupabaseClient()
-  const { data, error } = await app.from("domains").select("hostname, port")
+  const portMap = await retryAsync(
+    async () => {
+      const app = getSupabaseClient()
+      const { data, error } = await app.from("domains").select("hostname, port")
 
-  if (error) {
-    throw new Error(`[port-map] Failed to fetch domains: ${error.message}`)
-  }
+      if (error) {
+        throw new Error(`[port-map] Failed to fetch domains: ${error.message}`)
+      }
 
-  const portMap: Record<string, number> = {}
-  for (const row of data || []) {
-    if (row.hostname && row.port) {
-      portMap[row.hostname] = row.port
-    }
-  }
+      const map: Record<string, number> = {}
+      for (const row of data || []) {
+        if (row.hostname && row.port) {
+          map[row.hostname] = row.port
+        }
+      }
 
-  // Strict: if a hostname was just deployed, it MUST be in the DB result
-  if (requiredHostname && !(requiredHostname in portMap)) {
-    throw new Error(
-      `[port-map] Required hostname "${requiredHostname}" not found in domains table. ` +
-        `registerDomain() may have failed silently. Got ${Object.keys(portMap).length} domains.`,
-    )
-  }
+      // Strict: if a hostname was just deployed, it MUST be in the DB result
+      if (requiredHostname && !(requiredHostname in map)) {
+        throw new Error(
+          `[port-map] Required hostname "${requiredHostname}" not found in domains table. ` +
+            `registerDomain() may have failed silently. Got ${Object.keys(map).length} domains.`,
+        )
+      }
+
+      return map
+    },
+    { attempts: requiredHostname ? 3 : 1, minDelayMs: 500, label: "port-map" },
+  )
 
   const outputPath = getOutputPath()
   mkdirSync(dirname(outputPath), { recursive: true })
   writeFileSync(outputPath, JSON.stringify(portMap, null, 2), "utf-8")
 
   // Read back and verify the file was written correctly
-  const written = JSON.parse(readFileSync(outputPath, "utf-8")) as Record<string, number>
-  if (requiredHostname && !(requiredHostname in written)) {
+  const written: unknown = JSON.parse(readFileSync(outputPath, "utf-8"))
+  if (requiredHostname && (typeof written !== "object" || written === null || !(requiredHostname in written))) {
     throw new Error(`[port-map] Write verification failed: "${requiredHostname}" not in ${outputPath}`)
   }
 

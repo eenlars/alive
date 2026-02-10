@@ -45,19 +45,12 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
     return true
   })
 
-  // Force back to site view if on mobile and in code/terminal/files view
+  // Redirect when current view is no longer available (flag toggled off, mobile, superadmin)
   useEffect(() => {
-    if (isMobile && (currentView === "code" || currentView === "terminal" || currentView === "drive")) {
-      onViewChange("site")
+    if (!availableViews.some(v => v.view === currentView)) {
+      onViewChange(isMobile ? "site" : (availableViews[0]?.view ?? "code"))
     }
-  }, [isMobile, currentView, onViewChange])
-
-  // For superadmin, default to code view if somehow on site view
-  useEffect(() => {
-    if (isSuperadmin && currentView === "site") {
-      onViewChange("code")
-    }
-  }, [isSuperadmin, currentView, onViewChange])
+  }, [availableViews, currentView, isMobile, onViewChange])
 
   // Close on click outside
   useEffect(() => {
