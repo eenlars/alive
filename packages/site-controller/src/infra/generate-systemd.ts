@@ -340,7 +340,7 @@ async function main() {
       description: "Alive Preview Proxy (Go)",
       workingDir: `${aliveRoot}/apps/preview-proxy`,
       execStart: `${aliveRoot}/apps/preview-proxy/dist/preview-proxy`,
-      envFiles: [`${aliveRoot}/.env.local`],
+      envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.local`, `${aliveRoot}/apps/web/.env.staging`],
       envVars: {
         PREVIEW_BASE: previewBase,
         LISTEN_ADDR: `:${previewPort}`,
