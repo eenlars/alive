@@ -1,15 +1,20 @@
 /**
  * Automation Job Executor
  *
- * Runs automation jobs by sending prompts to Claude via worker pool or child process.
- * This is a simplified version of the main Claude stream endpoint,
- * designed for background automation without SSE streaming.
+ * Runs automation jobs by sending prompts to Claude via worker pool with
+ * automatic retry and child process fallback for reliability.
+ *
+ * Execution strategy:
+ * 1. Try worker pool (fast, pre-warmed)
+ * 2. On transient failure (disconnect/crash), retry once after 2s delay
+ * 3. If worker pool still fails, fall back to child process runner
  *
  * Uses OAuth credentials from ~/.claude/.credentials.json when org has credits,
- * same as the main chat flow. Falls back to ANTH_API_SECRET if OAuth unavailable.
+ * same as the main chat flow.
  */
 
 import { statSync } from "node:fs"
+import { setTimeout as sleep } from "node:timers/promises"
 import { DEFAULTS, WORKER_POOL } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
@@ -26,6 +31,20 @@ import { getOrgCredits } from "@/lib/credits/supabase-credits"
 import { DEFAULT_MODEL } from "@/lib/models/claude-models"
 import { generateRequestId } from "@/lib/utils"
 import { runAgentChild } from "@/lib/workspace-execution/agent-child-runner"
+
+/** Errors that indicate transient worker pool issues worth retrying */
+const TRANSIENT_WORKER_ERRORS = [
+  "Worker disconnected unexpectedly",
+  "crashed before becoming ready",
+  "Worker spawn error",
+  "Worker exited",
+  "Socket connection timed out",
+]
+
+function isTransientWorkerError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error)
+  return TRANSIENT_WORKER_ERRORS.some(pattern => msg.includes(pattern))
+}
 
 export interface AutomationJobParams {
   jobId: string
@@ -77,12 +96,183 @@ export interface AutomationJobResult {
   messages?: unknown[]
 }
 
+// =============================================================================
+// Worker Pool Query (with error capture instead of throw)
+// =============================================================================
+
+interface WorkerPoolParams {
+  requestId: string
+  cwd: string
+  workspace: string
+  userId: string
+  fullPrompt: string
+  selectedModel: string
+  systemPrompt: string
+  timeoutSeconds: number
+  onMessage: (msg: Record<string, unknown>) => void
+}
+
+/**
+ * Try executing via worker pool. Returns null on success, or the error on failure.
+ */
+async function tryWorkerPool(params: WorkerPoolParams): Promise<Error | null> {
+  const { requestId, cwd, workspace, userId, fullPrompt, selectedModel, systemPrompt, timeoutSeconds, onMessage } =
+    params
+
+  try {
+    const { getWorkerPool } = await import("@webalive/worker-pool")
+
+    const st = statSync(cwd)
+    const credentials = {
+      uid: st.uid,
+      gid: st.gid,
+      cwd,
+      workspaceKey: workspace,
+    }
+
+    const allowedTools = getAllowedTools(cwd, false, false)
+    const disallowedTools = getDisallowedTools(false, false)
+
+    const agentConfig = {
+      allowedTools,
+      disallowedTools,
+      permissionMode: PERMISSION_MODE,
+      settingSources: SETTINGS_SOURCES,
+      oauthMcpServers: {} as Record<string, unknown>,
+      bridgeStreamTypes: STREAM_TYPES,
+      isAdmin: false,
+      isSuperadmin: false,
+    }
+
+    const pool = getWorkerPool()
+    const abortController = new AbortController()
+    const timeoutId = setTimeout(() => abortController.abort(), timeoutSeconds * 1000)
+
+    try {
+      await pool.query(credentials, {
+        requestId,
+        ownerKey: userId,
+        workloadClass: "automation",
+        payload: {
+          message: fullPrompt,
+          model: selectedModel,
+          maxTurns: DEFAULTS.CLAUDE_MAX_TURNS,
+          systemPrompt,
+          oauthTokens: {},
+          userEnvKeys: {},
+          agentConfig,
+        },
+        onMessage: (msg: Record<string, unknown>) => {
+          console.log(`[Automation ${requestId}] Message:`, JSON.stringify(msg).substring(0, 500))
+          onMessage(msg)
+        },
+        signal: abortController.signal,
+      })
+      return null // Success
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+}
+
+// =============================================================================
+// Child Process Runner (reliable fallback)
+// =============================================================================
+
+interface ChildProcessParams {
+  requestId: string
+  cwd: string
+  fullPrompt: string
+  selectedModel: string
+  systemPrompt: string
+  timeoutSeconds: number
+  apiKey: string
+  allMessages: unknown[]
+  textMessages: string[]
+  onFinalResponse: (text: string) => void
+}
+
+async function runChildProcess(params: ChildProcessParams): Promise<void> {
+  const {
+    requestId,
+    cwd,
+    fullPrompt,
+    selectedModel,
+    systemPrompt,
+    timeoutSeconds,
+    apiKey,
+    allMessages,
+    textMessages,
+    onFinalResponse,
+  } = params
+
+  console.log(`[Automation ${requestId}] Using child process runner`)
+
+  const childStream = runAgentChild(cwd, {
+    message: fullPrompt,
+    model: selectedModel,
+    maxTurns: DEFAULTS.CLAUDE_MAX_TURNS,
+    systemPrompt,
+    apiKey,
+    isAdmin: false,
+    isSuperadmin: false,
+  })
+
+  const reader = childStream.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+
+  const timeoutPromise = new Promise<void>((_, reject) => {
+    setTimeout(() => reject(new Error("Automation timeout")), timeoutSeconds * 1000)
+  })
+
+  const readPromise = (async () => {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() || ""
+
+      for (const line of lines) {
+        if (!line.trim()) continue
+        try {
+          const msg = JSON.parse(line)
+          allMessages.push(msg)
+
+          if (msg.role === "assistant" && Array.isArray(msg.content)) {
+            for (const block of msg.content) {
+              if (block.type === "text") {
+                textMessages.push(block.text)
+              }
+            }
+          }
+          if (msg.type === "result" && msg.data?.resultText) {
+            onFinalResponse(msg.data.resultText)
+          }
+        } catch {
+          // Skip non-JSON lines
+        }
+      }
+    }
+  })()
+
+  await Promise.race([readPromise, timeoutPromise])
+}
+
+// =============================================================================
+// Main Entry Point
+// =============================================================================
+
 /**
  * Run an automation job (pure execution, no DB side effects)
  *
  * This function:
  * 1. Validates workspace, credits, and OAuth
- * 2. Sends the prompt to Claude via worker pool or child process
+ * 2. Sends the prompt to Claude via worker pool (with retry) or child process fallback
  * 3. Collects the response
  *
  * Callers (CronService, trigger routes) own all DB state updates.
@@ -205,166 +395,155 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     // Use specified model or default
     const selectedModel = model || DEFAULT_MODEL
 
-    // Use worker pool if enabled, otherwise fall back to child process
-    const useWorkerPool = WORKER_POOL.ENABLED
-
     // Collect messages (text only for response assembly)
     const textMessages: string[] = []
     let finalResponse = ""
 
-    if (useWorkerPool) {
-      // === Worker Pool Mode ===
-      const { getWorkerPool } = await import("@webalive/worker-pool")
+    // Message handler shared between worker pool and child process modes
+    const collectWorkerMessage = (msg: Record<string, unknown>) => {
+      // Store ALL messages for full conversation log
+      if (msg.type === "message" && "content" in msg) {
+        allMessages.push(msg.content)
 
-      const st = statSync(cwd)
-      const credentials = {
-        uid: st.uid,
-        gid: st.gid,
-        cwd,
-        workspaceKey: workspace,
-      }
-
-      const allowedTools = getAllowedTools(cwd, false, false)
-      const disallowedTools = getDisallowedTools(false, false)
-
-      const agentConfig = {
-        allowedTools,
-        disallowedTools,
-        permissionMode: PERMISSION_MODE,
-        settingSources: SETTINGS_SOURCES,
-        oauthMcpServers: {} as Record<string, unknown>,
-        bridgeStreamTypes: STREAM_TYPES,
-        isAdmin: false,
-        isSuperadmin: false,
-      }
-
-      const pool = getWorkerPool()
-      const abortController = new AbortController()
-
-      const timeoutId = setTimeout(() => {
-        abortController.abort()
-      }, timeoutSeconds * 1000)
-
-      try {
-        await pool.query(credentials, {
-          requestId,
-          ownerKey: params.userId,
-          workloadClass: "automation",
-          payload: {
-            message: fullPrompt,
-            model: selectedModel,
-            maxTurns: DEFAULTS.CLAUDE_MAX_TURNS,
-            systemPrompt,
-            // Don't pass apiKey - worker uses ~/.claude/.credentials.json
-            oauthTokens: {},
-            userEnvKeys: {},
-            agentConfig,
-          },
-          onMessage: (msg: any) => {
-            console.log(`[Automation ${requestId}] Message:`, JSON.stringify(msg).substring(0, 500))
-
-            // Store ALL messages for full conversation log
-            if (msg.type === "message" && "content" in msg) {
-              allMessages.push(msg.content)
-
-              const content = msg.content as any
-              // Check both direct content and nested content structure
-              if (content.role === "assistant" && Array.isArray(content.content)) {
-                for (const block of content.content) {
-                  if (block.type === "text") {
-                    textMessages.push(block.text)
-                  }
-                }
-              }
-              // Also check for messageType === "assistant" with nested content
-              if (content.messageType === "assistant" && content.content?.content) {
-                for (const block of content.content.content) {
-                  if (block.type === "text") {
-                    textMessages.push(block.text)
-                  }
-                }
-              }
-            } else if (msg.type === "complete" && "result" in msg) {
-              const result = msg.result as any
-              if (result.result?.subtype === "success" && result.result?.data?.resultText) {
-                finalResponse = result.result.data.resultText
-              } else if (result.type === "result" && result.data?.resultText) {
-                finalResponse = result.data.resultText
-              }
-            }
-          },
-          signal: abortController.signal,
-        })
-      } finally {
-        clearTimeout(timeoutId)
-      }
-    } else {
-      // === Child Process Mode (fallback) ===
-      console.log(`[Automation ${requestId}] Using child process runner (worker pool not enabled)`)
-
-      const childStream = runAgentChild(cwd, {
-        message: fullPrompt,
-        model: selectedModel,
-        maxTurns: DEFAULTS.CLAUDE_MAX_TURNS,
-        systemPrompt,
-        // Don't pass apiKey - child process uses ~/.claude/.credentials.json
-        isAdmin: false,
-        isSuperadmin: false,
-      })
-
-      // Read the NDJSON stream and collect messages
-      const reader = childStream.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ""
-
-      const timeoutPromise = new Promise<void>((_, reject) => {
-        setTimeout(() => reject(new Error("Automation timeout")), timeoutSeconds * 1000)
-      })
-
-      const readPromise = (async () => {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split("\n")
-          buffer = lines.pop() || ""
-
-          for (const line of lines) {
-            if (!line.trim()) continue
-            try {
-              const msg = JSON.parse(line)
-              // Store ALL messages for full conversation log
-              allMessages.push(msg)
-
-              // Extract text from assistant messages
-              if (msg.role === "assistant" && Array.isArray(msg.content)) {
-                for (const block of msg.content) {
-                  if (block.type === "text") {
-                    textMessages.push(block.text)
-                  }
-                }
-              }
-              // Check for result/complete messages
-              if (msg.type === "result" && msg.data?.resultText) {
-                finalResponse = msg.data.resultText
-              }
-            } catch {
-              // Skip non-JSON lines
+        const content = msg.content as Record<string, unknown>
+        // Check both direct content and nested content structure
+        if (content.role === "assistant" && Array.isArray(content.content)) {
+          for (const block of content.content) {
+            if (block.type === "text") {
+              textMessages.push(block.text)
             }
           }
         }
-      })()
+        // Also check for messageType === "assistant" with nested content
+        if (content.messageType === "assistant" && (content.content as Record<string, unknown>)?.content) {
+          for (const block of (content.content as Record<string, unknown>).content as Array<Record<string, unknown>>) {
+            if (block.type === "text") {
+              textMessages.push(block.text as string)
+            }
+          }
+        }
+      } else if (msg.type === "complete" && "result" in msg) {
+        const result = msg.result as Record<string, unknown>
+        const nested = result.result as Record<string, unknown> | undefined
+        if (nested?.subtype === "success") {
+          const data = nested.data as Record<string, unknown> | undefined
+          if (data?.resultText) finalResponse = data.resultText as string
+        } else {
+          const data = result.data as Record<string, unknown> | undefined
+          if (result.type === "result" && data?.resultText) {
+            finalResponse = data.resultText as string
+          }
+        }
+      }
+    }
 
-      await Promise.race([readPromise, timeoutPromise])
+    // === PHASE 5: Execute via worker pool with retry + child process fallback ===
+    const workerPoolEnabled = WORKER_POOL.ENABLED
+    let usedChildProcess = false
+
+    if (workerPoolEnabled) {
+      const workerPoolError = await tryWorkerPool({
+        requestId,
+        cwd,
+        workspace,
+        userId: params.userId,
+        fullPrompt,
+        selectedModel,
+        systemPrompt,
+        timeoutSeconds,
+        onMessage: collectWorkerMessage,
+      })
+
+      if (workerPoolError && isTransientWorkerError(workerPoolError)) {
+        // Transient failure — retry once after a brief delay
+        console.warn(
+          `[Automation ${requestId}] Worker pool failed (transient): ${workerPoolError.message}. Retrying in 2s...`,
+        )
+        await sleep(2000)
+
+        const retryError = await tryWorkerPool({
+          requestId: `${requestId}-retry`,
+          cwd,
+          workspace,
+          userId: params.userId,
+          fullPrompt,
+          selectedModel,
+          systemPrompt,
+          timeoutSeconds,
+          onMessage: collectWorkerMessage,
+        })
+
+        if (retryError) {
+          // Retry also failed — fall back to child process
+          console.warn(
+            `[Automation ${requestId}] Worker pool retry failed: ${retryError.message}. Falling back to child process.`,
+          )
+          await runChildProcess({
+            requestId,
+            cwd,
+            fullPrompt,
+            selectedModel,
+            systemPrompt,
+            timeoutSeconds,
+            apiKey: oauthResult.accessToken,
+            allMessages,
+            textMessages,
+            onFinalResponse: (text: string) => {
+              finalResponse = text
+            },
+          })
+          usedChildProcess = true
+        }
+      } else if (workerPoolError) {
+        // Non-transient error (e.g., validation) — fall back immediately
+        console.warn(
+          `[Automation ${requestId}] Worker pool failed (non-transient): ${workerPoolError.message}. Using child process.`,
+        )
+        await runChildProcess({
+          requestId,
+          cwd,
+          fullPrompt,
+          selectedModel,
+          systemPrompt,
+          timeoutSeconds,
+          apiKey: oauthResult.accessToken,
+          allMessages,
+          textMessages,
+          onFinalResponse: (text: string) => {
+            finalResponse = text
+          },
+        })
+        usedChildProcess = true
+      }
+    } else {
+      // Worker pool disabled — use child process directly
+      console.log(`[Automation ${requestId}] Using child process runner (worker pool not enabled)`)
+      await runChildProcess({
+        requestId,
+        cwd,
+        fullPrompt,
+        selectedModel,
+        systemPrompt,
+        timeoutSeconds,
+        apiKey: oauthResult.accessToken,
+        allMessages,
+        textMessages,
+        onFinalResponse: (text: string) => {
+          finalResponse = text
+        },
+      })
+      usedChildProcess = true
     }
 
     const durationMs = Date.now() - startTime
 
     // Use final response or concatenate text messages
     const response = finalResponse || textMessages.join("\n\n")
+    const mode = usedChildProcess ? "child-process" : "worker-pool"
 
-    console.log(`[Automation ${requestId}] Completed in ${durationMs}ms, ${allMessages.length} messages captured`)
+    console.log(
+      `[Automation ${requestId}] Completed in ${durationMs}ms via ${mode}, ${allMessages.length} messages captured`,
+    )
 
     return {
       success: true,
