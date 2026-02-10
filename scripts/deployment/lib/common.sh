@@ -120,8 +120,8 @@ get_port() {
 get_service() {
     case "$1" in
         dev)        echo "alive-dev" ;;
-        staging)    echo "claude-bridge-staging" ;;
-        production) echo "claude-bridge-production" ;;
+        staging)    echo "alive-staging" ;;
+        production) echo "alive-production" ;;
     esac
 }
 

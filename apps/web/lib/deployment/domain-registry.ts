@@ -94,13 +94,11 @@ export async function getAllDomains(includeTestData = false, thisServerOnly = tr
     const serverId = getServerId()
     try {
       assertValidServerId(serverId)
+      query = query.eq("server_id", serverId)
     } catch (err) {
       console.warn(
         `[Domain Registry] ${err instanceof Error ? err.message : "Invalid serverId"} — returning all domains`,
       )
-    }
-    if (serverId) {
-      query = query.eq("server_id", serverId)
     }
   }
 

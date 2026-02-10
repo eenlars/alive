@@ -1,12 +1,13 @@
 "use client"
 
 import { Loader2, X } from "lucide-react"
-import { type FormEvent, useMemo, useState } from "react"
+import { type FormEvent, useEffect, useMemo, useState } from "react"
 import {
   buildGithubSlugAttempt,
   deriveGithubImportSlug,
   isSupportedGithubRepoInput,
 } from "@/features/deployment/lib/github-import-client"
+import { ErrorCodes } from "@/lib/error-codes"
 
 interface GithubImportModalProps {
   onClose: () => void
@@ -43,6 +44,16 @@ export function GithubImportModal({ onClose, onImported, orgId }: GithubImportMo
   const slugPreview = useMemo(() => deriveGithubImportSlug(trimmedRepoUrl), [trimmedRepoUrl])
 
   const submitDisabled = !trimmedRepoUrl || !isValidRepoInput || isImporting
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isImporting) {
+        onClose()
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [isImporting, onClose])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -84,7 +95,7 @@ export function GithubImportModal({ onClose, onImported, orgId }: GithubImportMo
           return
         }
 
-        if (data.error === "SLUG_TAKEN" && attempt < MAX_IMPORT_ATTEMPTS) {
+        if (data.error === ErrorCodes.SLUG_TAKEN && attempt < MAX_IMPORT_ATTEMPTS) {
           continue
         }
 

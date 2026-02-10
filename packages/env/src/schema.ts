@@ -110,7 +110,7 @@ export const serverSchema = {
   // Server identity
   SERVER_IP: z
     .string()
-    .regex(/^[\d.:a-f]+$/i, "Must be a valid IP address")
+    .regex(/^(?:(?:\d{1,3}\.){3}\d{1,3}|[0-9a-f:]{2,39})$/i, "Must be a valid IP address")
     .optional(),
 
   // Admin configuration (comma-separated emails)

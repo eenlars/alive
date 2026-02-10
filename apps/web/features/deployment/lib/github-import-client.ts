@@ -45,7 +45,7 @@ export function extractGithubRepoName(input: string): string | null {
   }
 
   const shorthandMatch = trimmed.match(/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+?)(?:\.git)?$/)
-  if (shorthandMatch) {
+  if (shorthandMatch && !trimmed.startsWith("github.com/")) {
     return shorthandMatch[2] ?? null
   }
 

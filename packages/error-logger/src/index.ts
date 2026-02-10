@@ -37,13 +37,17 @@ export function createErrorLogger(sink: ErrorLogSink = defaultSink) {
     error?: unknown,
     context?: ErrorLogContext,
   ): Promise<void> => {
-    await sink({
-      level,
-      message,
-      error,
-      context,
-      timestamp: new Date().toISOString(),
-    })
+    try {
+      await sink({
+        level,
+        message,
+        error,
+        context,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (sinkError) {
+      console.error("[error-logger] sink failed", sinkError)
+    }
   }
 
   return {
