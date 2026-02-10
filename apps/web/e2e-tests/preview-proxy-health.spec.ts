@@ -14,7 +14,6 @@
  */
 
 import jwt from "jsonwebtoken"
-import type { StringValue } from "ms"
 import { expect, test } from "./fixtures"
 import { isLocalTestServer } from "./lib/test-env"
 
@@ -51,7 +50,7 @@ describeProxy("Preview Proxy Health", () => {
   /**
    * Create a preview token (same format the app's /api/auth/preview-token generates)
    */
-  function createPreviewToken(expiresIn: StringValue = "5m"): string {
+  function createPreviewToken(expiresIn: jwt.SignOptions["expiresIn"] = "5m"): string {
     if (!jwtSecret) throw new Error("JWT_SECRET is not set")
     return jwt.sign({ type: "preview", userId: "e2e-test-user", iat: Math.floor(Date.now() / 1000) }, jwtSecret, {
       expiresIn,

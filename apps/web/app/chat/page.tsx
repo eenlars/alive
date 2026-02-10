@@ -6,6 +6,7 @@ import { useQueryState } from "nuqs"
 import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import toast, { Toaster } from "react-hot-toast"
 import { FeedbackModal } from "@/components/modals/FeedbackModal"
+import { GithubImportModal } from "@/components/modals/GithubImportModal"
 import { InviteModal } from "@/components/modals/InviteModal"
 import { SessionExpiredModal } from "@/components/modals/SessionExpiredModal"
 import { SuperTemplatesModal } from "@/components/modals/SuperTemplatesModal"
@@ -102,6 +103,7 @@ function ChatPageContent() {
   const isHydrated = useAppHydrated()
   const [subdomainInitialized, setSubdomainInitialized] = useState(false)
   const [worktreeModalOpen, setWorktreeModalOpen] = useState(false)
+  const [githubImportOpen, setGithubImportOpen] = useState(false)
   const [_showCompletionDots, setShowCompletionDots] = useState(false)
   const modals = useModals()
 
@@ -501,6 +503,17 @@ function ChatPageContent() {
     setSubdomainInitialized(true)
   }
 
+  const handleGithubImported = useCallback(
+    (newWorkspace: string) => {
+      const targetOrgId = selectedOrgId || organizations[0]?.org_id
+      setWorkspace(newWorkspace, targetOrgId)
+      setWorktree(null)
+      setGithubImportOpen(false)
+      toast.success(`Opened ${newWorkspace}`)
+    },
+    [selectedOrgId, organizations, setWorkspace, setWorktree],
+  )
+
   const handleNewTabGroup = useCallback(async () => {
     if (!tabWorkspace) return
 
@@ -704,6 +717,8 @@ function ChatPageContent() {
                   totalDomainCount={totalDomainCount}
                   isLoading={organizationsLoading}
                   onTemplatesClick={modals.openTemplates}
+                  onImportGithub={() => setGithubImportOpen(true)}
+                  onSelectSite={() => modals.openSettings("websites")}
                 />
               )}
 
@@ -898,6 +913,13 @@ function ChatPageContent() {
         <SuperTemplatesModal onClose={modals.closeTemplates} onInsertTemplate={handleInsertTemplate} />
       )}
       {modals.invite && <InviteModal onClose={modals.closeInvite} />}
+      {githubImportOpen && (
+        <GithubImportModal
+          onClose={() => setGithubImportOpen(false)}
+          onImported={handleGithubImported}
+          orgId={selectedOrgId || organizations[0]?.org_id}
+        />
+      )}
       {isSessionExpired && <SessionExpiredModal />}
     </div>
   )

@@ -1,8 +1,8 @@
 /**
  * GitHub Repository Import
  *
- * Clones a GitHub repo, restructures it to match the site template layout,
- * and returns the path to use as templatePath for deploySite().
+ * Downloads a GitHub repo via the API tarball endpoint, extracts it,
+ * and restructures it to match the site template layout.
  *
  * Template layout:
  *   /package.json        (workspaces: ["user"], scripts delegate to user/)
@@ -11,10 +11,10 @@
  */
 
 import { execFileSync } from "node:child_process"
-import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 
-const CLONE_TIMEOUT_MS = 60_000
+const DOWNLOAD_TIMEOUT_MS = 60_000
 const GITHUB_IMPORT_PREFIX = "/tmp/github-import-"
 
 /**
@@ -36,108 +36,171 @@ interface ParsedRepo {
  * @throws Error if the format is not recognized
  */
 export function parseGithubRepo(repoUrl: string): ParsedRepo {
-  // Try HTTPS URL format
-  const httpsMatch = repoUrl.match(/^https:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_-]+)(?:\.git)?$/)
-  if (httpsMatch) {
-    const owner = httpsMatch[1]
-    const repo = httpsMatch[2]
-    if (!owner || !repo) {
+  const input = repoUrl.trim()
+  const invalidFormatMessage =
+    `Invalid GitHub repo format: "${repoUrl}". ` +
+    'Expected "https://github.com/owner/repo", "https://github.com/owner/repo.git", "git@github.com:owner/repo.git", or "owner/repo".'
+
+  if (!input) {
+    throw new Error(invalidFormatMessage)
+  }
+
+  const validName = (value: string) => /^[a-zA-Z0-9_.-]+$/.test(value)
+  const normalizeRepo = (value: string) => value.replace(/\.git$/i, "")
+
+  // SSH URL format: git@github.com:owner/repo(.git)
+  const sshMatch = input.match(/^git@github\.com:([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+?)(?:\.git)?$/)
+  if (sshMatch) {
+    const owner = sshMatch[1]
+    const repo = normalizeRepo(sshMatch[2] ?? "")
+    if (!owner || !repo || !validName(owner) || !validName(repo)) {
       throw new Error(`Invalid GitHub URL: could not extract owner/repo from "${repoUrl}"`)
     }
     return { owner, repo }
   }
 
-  // Try owner/repo shorthand
-  const shorthandMatch = repoUrl.match(/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/)
+  // HTTPS URL format: https://github.com/owner/repo(.git)[/...]
+  if (input.startsWith("https://")) {
+    let parsedUrl: URL
+    try {
+      parsedUrl = new URL(input)
+    } catch {
+      throw new Error(invalidFormatMessage)
+    }
+
+    if (parsedUrl.hostname.toLowerCase() !== "github.com") {
+      throw new Error(invalidFormatMessage)
+    }
+
+    const pathnameParts = parsedUrl.pathname
+      .split("/")
+      .map(part => part.trim())
+      .filter(Boolean)
+
+    const owner = pathnameParts[0] ?? ""
+    const repo = normalizeRepo(pathnameParts[1] ?? "")
+    if (!owner || !repo || !validName(owner) || !validName(repo)) {
+      throw new Error(`Invalid GitHub URL: could not extract owner/repo from "${repoUrl}"`)
+    }
+
+    return { owner, repo }
+  }
+
+  // owner/repo shorthand
+  const shorthandMatch = input.match(/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+?)(?:\.git)?$/)
   if (shorthandMatch) {
     const owner = shorthandMatch[1]
-    const repo = shorthandMatch[2]
+    const repo = normalizeRepo(shorthandMatch[2] ?? "")
     if (!owner || !repo) {
       throw new Error(`Invalid GitHub repo shorthand: could not extract owner/repo from "${repoUrl}"`)
     }
     return { owner, repo }
   }
 
-  throw new Error(
-    `Invalid GitHub repo format: "${repoUrl}". ` +
-      'Expected "https://github.com/owner/repo", "https://github.com/owner/repo.git", or "owner/repo".',
-  )
+  throw new Error(invalidFormatMessage)
 }
 
 /**
- * Clone a GitHub repository to a temporary directory.
+ * Download and extract a GitHub repository tarball via the API.
+ *
+ * Uses GET /repos/{owner}/{repo}/tarball/{ref} with Bearer token auth.
+ * No git CLI required — pure HTTP + tar extraction.
  *
  * @param repoUrl - GitHub repo URL or owner/repo shorthand
- * @param githubToken - Optional PAT for private repos
- * @param branch - Optional branch to clone (defaults to repo default branch)
- * @returns Path to the cloned repo directory
- * @throws Error if clone fails or times out
+ * @param githubToken - GitHub OAuth token (required for API access)
+ * @param branch - Optional branch/ref (defaults to repo default branch)
+ * @returns Path to the extracted repo directory
+ * @throws Error if download or extraction fails
  */
-export function cloneGithubRepo(repoUrl: string, githubToken: string | null, branch?: string): string {
+export async function downloadGithubRepo(repoUrl: string, githubToken: string, branch?: string): Promise<string> {
   const { owner, repo } = parseGithubRepo(repoUrl)
+  const ref = branch || ""
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/tarball/${ref}`
 
   const tempDir = `${GITHUB_IMPORT_PREFIX}${crypto.randomUUID()}`
   mkdirSync(tempDir, { recursive: true })
 
-  const cloneUrl = githubToken
-    ? `https://${githubToken}@github.com/${owner}/${repo}.git`
-    : `https://github.com/${owner}/${repo}.git`
-
-  const args = ["clone", "--depth", "1"]
-  if (branch) {
-    args.push("--branch", branch)
-  }
-  args.push(cloneUrl, `${tempDir}/repo`)
+  const tarballPath = join(tempDir, "repo.tar.gz")
+  const extractDir = join(tempDir, "extracted")
+  mkdirSync(extractDir, { recursive: true })
 
   try {
-    execFileSync("git", args, {
-      timeout: CLONE_TIMEOUT_MS,
-      stdio: "pipe", // suppress output (token in URL)
+    // Download tarball via GitHub API
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
+
+    const response = await fetch(apiUrl, {
+      headers: {
+        Authorization: `Bearer ${githubToken}`,
+        Accept: "application/vnd.github+json",
+      },
+      signal: controller.signal,
     })
-  } catch (error: unknown) {
+
+    clearTimeout(timeout)
+
+    if (!response.ok) {
+      const status = response.status
+      if (status === 404) {
+        throw new Error(
+          `Repository ${owner}/${repo} not found. Check the name and ensure your GitHub account has access.`,
+        )
+      }
+      if (status === 401 || status === 403) {
+        throw new Error(`Access denied to ${owner}/${repo}. Reconnect your GitHub account in Settings > Integrations.`)
+      }
+      throw new Error(`GitHub API returned ${status} for ${owner}/${repo}`)
+    }
+
+    // Write tarball to disk
+    const arrayBuffer = await response.arrayBuffer()
+    await Bun.write(tarballPath, arrayBuffer)
+
+    // Extract tarball (tar is universally available, unlike git)
+    execFileSync("tar", ["xzf", tarballPath, "-C", extractDir, "--strip-components=1"], {
+      timeout: 30_000,
+    })
+
+    // The extracted files are now directly in extractDir
+    const repoDir = join(tempDir, "repo")
+    renameSync(extractDir, repoDir)
+
+    if (!existsSync(repoDir) || readdirSync(repoDir).length === 0) {
+      throw new Error(`Downloaded tarball was empty for ${owner}/${repo}`)
+    }
+
+    return repoDir
+  } catch (error) {
     // Clean up on failure
     cleanupImportDir(tempDir)
 
-    if (error instanceof Error && "killed" in error && error.killed) {
-      throw new Error(`Git clone timed out after ${CLONE_TIMEOUT_MS / 1000} seconds for ${owner}/${repo}`)
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Download timed out after ${DOWNLOAD_TIMEOUT_MS / 1000}s for ${owner}/${repo}`)
     }
 
-    // Sanitize error message to avoid leaking tokens
-    const stderr = error && typeof error === "object" && "stderr" in error ? String(error.stderr) : ""
-    const sanitizedStderr = stderr.replace(/https:\/\/[^@]+@/g, "https://***@")
-
-    throw new Error(`Git clone failed for ${owner}/${repo}: ${sanitizedStderr}`)
+    throw error
   }
-
-  const clonedDir = join(tempDir, "repo")
-  if (!existsSync(clonedDir)) {
-    cleanupImportDir(tempDir)
-    throw new Error(`Git clone produced no output directory for ${owner}/${repo}`)
-  }
-
-  return clonedDir
 }
 
 /**
- * Restructure a cloned repo directory into the site template layout.
+ * Restructure a downloaded repo directory into the site template layout.
  *
  * Moves repo files into a `user/` subdirectory and creates the root
  * package.json with workspace config (only if user/package.json exists).
  *
- * @param clonedDir - Path to the cloned repo (e.g., /tmp/github-import-<uuid>/repo)
- * @returns Path to the prepared template directory (parent of clonedDir)
+ * @param repoDir - Path to the repo files (e.g., /tmp/github-import-<uuid>/repo)
+ * @returns Path to the prepared template directory (parent of repoDir)
  */
-export function prepareImportedRepo(clonedDir: string): string {
-  // The template dir is the parent of the cloned repo dir
-  const templateDir = join(clonedDir, "..")
+export function prepareImportedRepo(repoDir: string): string {
+  // The template dir is the parent of the repo dir
+  const templateDir = join(repoDir, "..")
 
   const userDir = join(templateDir, "user")
 
-  // Move cloned repo to user/ directory
-  // First, rename the cloned dir to user/
-  renameSync(clonedDir, userDir)
+  // Move repo to user/ directory
+  renameSync(repoDir, userDir)
 
-  // Remove .git directory from user/ (not needed for deployment)
+  // Remove .git directory from user/ if present (shouldn't be with tarball, but safety)
   const gitDir = join(userDir, ".git")
   if (existsSync(gitDir)) {
     rmSync(gitDir, { recursive: true, force: true })
@@ -189,27 +252,27 @@ export function cleanupImportDir(tempDir: string): void {
 }
 
 /**
- * Full import flow: clone, restructure, return template path.
+ * Full import flow: download, restructure, return template path.
  *
- * The caller is responsible for calling cleanupImportDir() after deploySite() completes.
+ * The caller is responsible for calling cleanupImportDir() after deployment completes.
  *
  * @param repoUrl - GitHub repo URL or owner/repo shorthand
- * @param githubToken - Optional PAT for private repos
- * @param branch - Optional branch to clone
+ * @param githubToken - GitHub OAuth token (required)
+ * @param branch - Optional branch to download
  * @returns Object with templatePath and cleanupDir for post-deployment cleanup
  */
-export function importGithubRepo(
+export async function importGithubRepo(
   repoUrl: string,
-  githubToken: string | null,
+  githubToken: string,
   branch?: string,
-): { templatePath: string; cleanupDir: string } {
-  const clonedDir = cloneGithubRepo(repoUrl, githubToken, branch)
+): Promise<{ templatePath: string; cleanupDir: string }> {
+  const repoDir = await downloadGithubRepo(repoUrl, githubToken, branch)
 
   // The cleanup dir is the parent (the /tmp/github-import-<uuid>/ dir)
-  const cleanupDir = join(clonedDir, "..")
+  const cleanupDir = join(repoDir, "..")
 
   try {
-    const templatePath = prepareImportedRepo(clonedDir)
+    const templatePath = prepareImportedRepo(repoDir)
     return { templatePath, cleanupDir }
   } catch (error) {
     // Clean up on preparation failure

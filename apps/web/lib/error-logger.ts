@@ -188,6 +188,19 @@ export interface StreamErrorContext {
   error: unknown
 }
 
+interface ErrorWithWorkerDebug extends Error {
+  stderr?: string
+  diagnostics?: unknown
+}
+
+function safeJsonForLog(value: unknown): string {
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return '"[unserializable]"'
+  }
+}
+
 /**
  * Log a stream error with full context for debugging
  *
@@ -203,8 +216,10 @@ export function logStreamError(context: StreamErrorContext): void {
 
   const errorMessage = error instanceof Error ? error.message : String(error)
   const errorStack = error instanceof Error ? error.stack : undefined
-  // Check for stderr attached by worker-pool (contains actual Claude subprocess output)
-  const stderr = error instanceof Error && "stderr" in error ? (error as Error & { stderr?: string }).stderr : undefined
+  // Check for backend worker diagnostics attached by worker-pool
+  const stderr = error instanceof Error && "stderr" in error ? (error as ErrorWithWorkerDebug).stderr : undefined
+  const diagnostics =
+    error instanceof Error && "diagnostics" in error ? (error as ErrorWithWorkerDebug).diagnostics : undefined
 
   // Structured log line for easy grep in journalctl
   console.error(
@@ -215,6 +230,10 @@ export function logStreamError(context: StreamErrorContext): void {
   // Claude subprocess stderr - THE ACTUAL ERROR (if available)
   if (stderr) {
     console.error(`[STREAM_ERROR:${requestId}] Claude stderr:\n${stderr}`)
+  }
+
+  if (diagnostics) {
+    console.error(`[STREAM_ERROR:${requestId}] Worker diagnostics: ${safeJsonForLog(diagnostics)}`)
   }
 
   // Stack trace on separate line if available
@@ -234,6 +253,7 @@ export function logStreamError(context: StreamErrorContext): void {
       build: `${info.branch}@${info.buildTime}`,
       env: info.env,
       stderr, // Include stderr in queryable buffer too
+      diagnostics,
     },
     stack: errorStack,
   })

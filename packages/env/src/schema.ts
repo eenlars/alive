@@ -9,29 +9,23 @@ import { z } from "zod"
 
 /**
  * Custom validators for common patterns
+ *
+ * IMPORTANT: Do NOT use .refine() here — it wraps the schema in ZodEffects
+ * which breaks type inference in @t3-oss/env-nextjs (all fields resolve to {}).
+ * Use .regex() or other ZodString chainable methods instead.
  */
 export const httpsUrl = z
   .string()
   .url()
-  .refine(u => u.startsWith("https://"), "Must use HTTPS")
+  .regex(/^https:\/\//, "Must use HTTPS")
 
-export const jwt = z
-  .string()
-  .min(1)
-  .refine(key => key.startsWith("eyJ"), "Must be valid JWT")
+export const jwt = z.string().regex(/^eyJ/, "Must be valid JWT")
 
-export const anthropicApiKey = z
-  .string()
-  .min(1)
-  .refine(key => key.startsWith("sk-ant-"), "Must be valid Anthropic API key")
+export const anthropicApiKey = z.string().regex(/^sk-ant-/, "Must be valid Anthropic API key")
 
 export const flowgladSecretKey = z
   .string()
-  .min(1)
-  .refine(
-    key => key.startsWith("sk_test_") || key.startsWith("sk_live_"),
-    "Must be valid Flowglad secret key (sk_test_* or sk_live_*)",
-  )
+  .regex(/^sk_(test|live)_/, "Must be valid Flowglad secret key (sk_test_* or sk_live_*)")
 
 /**
  * Custom validators for domain configuration
@@ -114,7 +108,10 @@ export const serverSchema = {
   WILDCARD_TLD: z.string().optional(), // Deprecated: use WILDCARD_DOMAIN
 
   // Server identity
-  SERVER_IP: z.union([z.ipv4(), z.ipv6()]).optional(),
+  SERVER_IP: z
+    .string()
+    .regex(/^(?:(?:\d{1,3}\.){3}\d{1,3}|[0-9a-f:]{2,39})$/i, "Must be a valid IP address")
+    .optional(),
 
   // Admin configuration (comma-separated emails)
   ADMIN_EMAILS: z.string().optional(),
@@ -126,10 +123,7 @@ export const serverSchema = {
   // Validated at runtime by getRedisUrl() helper
   REDIS_URL: z
     .string()
-    .refine(
-      url => url.startsWith("redis://") || url.startsWith("rediss://"),
-      "Must be a valid Redis URL (redis:// or rediss://)",
-    )
+    .regex(/^rediss?:\/\//, "Must be a valid Redis URL (redis:// or rediss://)")
     .optional(),
 
   // Node environment

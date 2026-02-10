@@ -49,10 +49,9 @@ describe("parseGithubRepo", () => {
       expect(result).toEqual({ owner: "my-org", repo: "my-project" })
     })
 
-    test("rejects URL with dots in repo name (ambiguous with .git suffix)", () => {
-      // The HTTPS regex uses [^/.] so dots in repo names are not supported via URL
-      // Use owner/repo shorthand instead for repos with dots
-      expect(() => parseGithubRepo("https://github.com/my-org/my.project")).toThrow("Invalid GitHub repo format")
+    test("parses URL with dots in repo name", () => {
+      const result = parseGithubRepo("https://github.com/my-org/my.project")
+      expect(result).toEqual({ owner: "my-org", repo: "my.project" })
     })
 
     test("parses URL with underscores in owner/repo", () => {
@@ -63,6 +62,16 @@ describe("parseGithubRepo", () => {
     test("parses URL with numeric owner/repo", () => {
       const result = parseGithubRepo("https://github.com/user123/repo456")
       expect(result).toEqual({ owner: "user123", repo: "repo456" })
+    })
+
+    test("parses URL with trailing slash", () => {
+      const result = parseGithubRepo("https://github.com/octocat/Hello-World/")
+      expect(result).toEqual({ owner: "octocat", repo: "Hello-World" })
+    })
+
+    test("parses URL with extra path segments like /tree/main", () => {
+      const result = parseGithubRepo("https://github.com/owner/repo/tree/main")
+      expect(result).toEqual({ owner: "owner", repo: "repo" })
     })
   })
 
@@ -92,12 +101,9 @@ describe("parseGithubRepo", () => {
       expect(() => parseGithubRepo("http://github.com/owner/repo")).toThrow("Invalid GitHub repo format")
     })
 
-    test("throws on SSH URL format", () => {
-      expect(() => parseGithubRepo("git@github.com:owner/repo.git")).toThrow("Invalid GitHub repo format")
-    })
-
-    test("throws on URL with trailing path segments", () => {
-      expect(() => parseGithubRepo("https://github.com/owner/repo/tree/main")).toThrow("Invalid GitHub repo format")
+    test("parses SSH URL format", () => {
+      const result = parseGithubRepo("git@github.com:owner/repo.git")
+      expect(result).toEqual({ owner: "owner", repo: "repo" })
     })
 
     test("throws on empty string", () => {
@@ -109,7 +115,7 @@ describe("parseGithubRepo", () => {
     })
 
     test("throws on URL without repo name", () => {
-      expect(() => parseGithubRepo("https://github.com/owner")).toThrow("Invalid GitHub repo format")
+      expect(() => parseGithubRepo("https://github.com/owner")).toThrow("could not extract owner/repo")
     })
   })
 })
