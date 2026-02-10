@@ -1,18 +1,36 @@
 #!/usr/bin/env bun
+/**
+ * Sync generated Caddyfile.sites → filtered copy in ops/caddy/generated/
+ *
+ * Self-contained: reads server-config.json directly (no workspace package deps)
+ * so it can run from repo root scripts/ directory where bun workspace resolution
+ * doesn't apply.
+ */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
-import { PATHS } from "@webalive/shared"
 
-const SRC = PATHS.CADDYFILE_SITES
-const DEST = resolve(PATHS.ALIVE_ROOT, "ops/caddy/generated/Caddyfile.sites")
-const ENV_PATH = resolve(PATHS.ALIVE_ROOT, "packages/shared/environments.json")
+const serverConfigPath = process.env.SERVER_CONFIG_PATH
+if (!serverConfigPath) {
+  throw new Error("SERVER_CONFIG_PATH env var is required")
+}
+const serverConfig = JSON.parse(readFileSync(serverConfigPath, "utf-8"))
+
+const aliveRoot: string = serverConfig.paths?.aliveRoot
+if (!aliveRoot) {
+  throw new Error(`Missing paths.aliveRoot in ${serverConfigPath}`)
+}
+const caddySitesPath: string = serverConfig.generated?.caddySites
+if (!caddySitesPath) {
+  throw new Error(`Missing generated.caddySites in ${serverConfigPath}`)
+}
+
+const SRC = caddySitesPath
+const DEST = resolve(aliveRoot, "ops/caddy/generated/Caddyfile.sites")
+const ENV_PATH = resolve(aliveRoot, "packages/shared/environments.json")
 
 function sanitizeLabel(domain: string): string {
   return domain.replace(/\./g, "-")
 }
-
-const serverConfigPath = process.env.SERVER_CONFIG_PATH || PATHS.SERVER_CONFIG
-const serverConfig = JSON.parse(readFileSync(serverConfigPath, "utf-8"))
 const mainDomain: string = serverConfig.domains?.main
 if (!mainDomain) {
   throw new Error(`Missing domains.main in ${serverConfigPath}`)

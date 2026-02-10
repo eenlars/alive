@@ -694,6 +694,7 @@ async function handleQuery(ipc, requestId, payload) {
         resumeSessionAt: payload.resumeSessionAt,
         abortSignal: signal,
         stderr: stderrHandler,
+        strictMcpConfig: true,
       },
     })
 
