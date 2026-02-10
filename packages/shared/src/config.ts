@@ -542,11 +542,35 @@ export function getEnvFilePath(slug: string): string {
 }
 
 /**
+ * Minimum requirements for a valid server ID:
+ * - starts with "srv_"
+ * - at least 10 characters total
+ * This catches placeholder / garbage values early.
+ */
+const SERVER_ID_RE = /^srv_.{6,}$/
+
+/**
  * Get the current server ID (from server-config.json)
  * Returns undefined if not configured
  */
 export function getServerId(): string | undefined {
   return serverConfig.serverId
+}
+
+/**
+ * Validate that the server ID looks legitimate (not a placeholder).
+ * Throws a descriptive error if the value is missing or malformed.
+ */
+export function assertValidServerId(serverId: string | undefined): asserts serverId is string {
+  if (!serverId) {
+    throw new Error("serverId is not configured in server-config.json (via SERVER_CONFIG_PATH)")
+  }
+  if (!SERVER_ID_RE.test(serverId)) {
+    throw new Error(
+      `serverId "${serverId}" looks invalid (must match srv_<6+ chars>). ` +
+        "Check server-config.json referenced by SERVER_CONFIG_PATH.",
+    )
+  }
 }
 
 /**
@@ -594,6 +618,11 @@ export function validateConfig(): ConfigValidationResult {
   // SERVER_ID is recommended for multi-server deployments
   if (!serverConfig.serverId) {
     warnings.push("SERVER_ID is not configured. Set serverId in server-config.json (via SERVER_CONFIG_PATH env var)")
+  } else if (!SERVER_ID_RE.test(serverConfig.serverId)) {
+    errors.push(
+      `serverId "${serverConfig.serverId}" looks invalid (must match srv_<6+ chars>). ` +
+        "Check server-config.json referenced by SERVER_CONFIG_PATH.",
+    )
   }
 
   return {

@@ -15,6 +15,7 @@
 
 export {
   assertConfigValid,
+  assertValidServerId,
   BRIDGE_ENV,
   type BridgeEnv,
   CONFIG_PATH,
