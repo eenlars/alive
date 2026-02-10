@@ -31,6 +31,7 @@ const navScript = `<script>
   };
   window.addEventListener('popstate', function() { sendStart(); sendPath(); });
   document.addEventListener('click', function(e) {
+    if (!e.target || !e.target.closest) return;
     var a = e.target.closest('a[href]');
     if (a && a.href && !a.target && a.origin === location.origin) {
       sendStart();

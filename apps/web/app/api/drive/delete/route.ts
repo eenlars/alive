@@ -34,7 +34,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const host = request.headers.get("host") || "localhost"
+    const host = request.headers.get("host")
+    if (!host) {
+      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
+        requestId,
+        message: "Missing host header",
+      })
+    }
     const body = { workspace: parsed.workspace, worktree: parsed.worktree }
     const workspaceResult = await getWorkspace({ host, body, requestId })
     if (!workspaceResult.success) {

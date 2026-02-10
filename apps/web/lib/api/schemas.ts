@@ -698,6 +698,28 @@ export const apiSchemas = {
   },
 
   /**
+   * POST /api/drive/read
+   * Read a file from the drive directory
+   */
+  "drive/read": {
+    req: z
+      .object({
+        workspace: z.string().min(1),
+        path: z.string().min(1),
+        worktree: z.string().optional(),
+      })
+      .brand<"DriveReadRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      path: z.string(),
+      filename: z.string(),
+      content: z.string(),
+      language: z.string(),
+      size: z.number(),
+    }),
+  },
+
+  /**
    * POST /api/drive/delete
    * Delete a file or directory in the drive
    */

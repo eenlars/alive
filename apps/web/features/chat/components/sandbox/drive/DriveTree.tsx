@@ -111,16 +111,40 @@ function TreeLevel({
     }
   }, [workspace, worktree, path, cacheKey, refreshKey])
 
-  if (loading && depth === 0) {
-    return <div className="px-3 py-2 text-neutral-400 dark:text-neutral-600">Loading...</div>
+  if (loading) {
+    const style = depth === 0 ? "px-3 py-2" : "py-1"
+    return (
+      <div
+        className={`${style} text-neutral-400 dark:text-neutral-600`}
+        style={depth > 0 ? { paddingLeft: 8 + depth * 12 } : undefined}
+      >
+        Loading...
+      </div>
+    )
   }
 
-  if (error && depth === 0) {
-    return <div className="px-3 py-2 text-neutral-400 dark:text-neutral-500">{error}</div>
+  if (error) {
+    const style = depth === 0 ? "px-3 py-2" : "py-1"
+    return (
+      <div
+        className={`${style} text-neutral-400 dark:text-neutral-500`}
+        style={depth > 0 ? { paddingLeft: 8 + depth * 12 } : undefined}
+      >
+        {depth === 0 ? error : "Failed to load"}
+      </div>
+    )
   }
 
-  if (files.length === 0 && depth === 0 && !loading) {
-    return <div className="px-3 py-2 text-neutral-400 dark:text-neutral-600">Empty</div>
+  if (files.length === 0 && !loading) {
+    const style = depth === 0 ? "px-3 py-2" : "py-1"
+    return (
+      <div
+        className={`${style} text-neutral-400 dark:text-neutral-600`}
+        style={depth > 0 ? { paddingLeft: 8 + depth * 12 } : undefined}
+      >
+        Empty
+      </div>
+    )
   }
 
   return (

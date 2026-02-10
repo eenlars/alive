@@ -36,13 +36,22 @@ export async function deleteDriveItem(
   return postty("drive/delete", body)
 }
 
+export async function readDriveFile(workspace: string, filePath: string, worktree?: string | null) {
+  const body = validateRequest("drive/read", {
+    workspace,
+    path: filePath,
+    worktree: worktree || undefined,
+  })
+  return postty("drive/read", body)
+}
+
 export async function uploadDriveItem(workspace: string, file: File, worktree?: string | null) {
   const formData = new FormData()
   formData.append("file", file)
   formData.append("workspace", workspace)
   if (worktree) formData.append("worktree", worktree)
 
-  const res = await fetch("/api/files/upload", {
+  const res = await fetch("/api/drive/upload", {
     method: "POST",
     credentials: "include",
     body: formData,

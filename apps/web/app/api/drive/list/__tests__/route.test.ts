@@ -64,7 +64,7 @@ const MOCK_USER = {
 function createMockRequest(body: Record<string, unknown>): NextRequest {
   return new NextRequest("http://localhost/api/drive/list", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", host: "localhost" },
     body: JSON.stringify(body),
   })
 }

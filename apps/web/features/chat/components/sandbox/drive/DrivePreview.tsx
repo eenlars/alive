@@ -1,10 +1,11 @@
 "use client"
 
 import { File, Image, X } from "lucide-react"
-import { useFileContent } from "../hooks/useFileContent"
+import { useCallback, useEffect, useState } from "react"
 import { getFileColor } from "../lib/file-colors"
 import { getExtension, getFileName } from "../lib/file-path"
 import { ErrorMessage, LoadingSpinner } from "../ui"
+import { readDriveFile } from "./drive-api"
 
 interface DrivePreviewProps {
   workspace: string
@@ -65,6 +66,12 @@ function ImagePreviewPlaceholder({ filename }: { filename: string }) {
   )
 }
 
+interface DriveFileContent {
+  content: string
+  language: string
+  size: number
+}
+
 function TextPreview({
   workspace,
   worktree,
@@ -74,7 +81,25 @@ function TextPreview({
   worktree?: string | null
   filePath: string
 }) {
-  const { file, loading, error } = useFileContent(workspace, filePath, worktree)
+  const [file, setFile] = useState<DriveFileContent | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await readDriveFile(workspace, filePath, worktree)
+      setFile({ content: result.content, language: result.language, size: result.size })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load file")
+    }
+    setLoading(false)
+  }, [workspace, filePath, worktree])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   if (loading) return <LoadingSpinner />
   if (error) return <ErrorMessage message={error} />
