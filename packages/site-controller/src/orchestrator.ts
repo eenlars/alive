@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process"
+import { existsSync, writeFileSync } from "node:fs"
 import { assertServerOnly } from "./guards.js"
 
 // Prevent this module from being imported in browser environments
@@ -20,6 +21,80 @@ import type { DeployConfig, DeployResult } from "./types.js"
  * Implements the Shell-Operator Pattern with sequential execution and rollback
  */
 export class SiteOrchestrator {
+  private static readonly SYSTEMD_TEMPLATE_PATH = "/etc/systemd/system/site@.service"
+
+  /**
+   * Generate and install the site@.service systemd template unit.
+   * Uses PATHS from server-config.json so it works on any server.
+   * Only writes the file if it doesn't already exist.
+   */
+  private static ensureSystemdTemplate(): void {
+    if (existsSync(SiteOrchestrator.SYSTEMD_TEMPLATE_PATH)) {
+      return
+    }
+
+    const sitesRoot = PATHS.SITES_ROOT
+    const envDir = PATHS.SYSTEMD_ENV_DIR
+
+    if (!sitesRoot) {
+      throw DeploymentError.configurationMissing("SITES_ROOT not configured — cannot generate systemd template")
+    }
+
+    const unit = `[Unit]
+Description=WebAlive Site: %i
+After=network.target
+Wants=network.target
+
+[Service]
+Type=exec
+User=site-%i
+Group=site-%i
+WorkingDirectory=${sitesRoot}/%i/user
+EnvironmentFile=-${envDir}/%i.env
+Environment=NODE_ENV=production
+ExecStart=/bin/sh -c 'exec /usr/local/bin/bun run dev'
+
+Restart=always
+RestartSec=5
+StartLimitInterval=300s
+StartLimitBurst=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=site-%i
+
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=${sitesRoot}/%i
+MemoryDenyWriteExecute=no
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+RestrictSUIDSGID=yes
+
+LimitNOFILE=65536
+LimitNPROC=100
+MemoryMax=512M
+CPUQuota=50%
+
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
+`
+
+    console.log("[Preflight] Installing site@.service systemd template...")
+    writeFileSync(SiteOrchestrator.SYSTEMD_TEMPLATE_PATH, unit, { mode: 0o644 })
+    execFileSync("systemctl", ["daemon-reload"], { stdio: "pipe" })
+  }
+
   /**
    * Verify that required system commands are available before deployment.
    * Fails fast with a clear message instead of cryptic errors mid-deployment.
@@ -61,8 +136,9 @@ export class SiteOrchestrator {
       wildcardDomain,
     } = config
 
-    // Preflight: verify system dependencies exist
+    // Preflight: verify system dependencies and systemd template
     SiteOrchestrator.checkSystemDependencies()
+    SiteOrchestrator.ensureSystemdTemplate()
 
     // Require serverIp and wildcardDomain - no fallbacks
     if (!serverIp) {
