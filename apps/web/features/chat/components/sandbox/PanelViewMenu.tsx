@@ -1,6 +1,6 @@
 "use client"
 
-import { Code, Globe, Terminal } from "lucide-react"
+import { Code, FolderOpen, Globe, Terminal } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { PanelView } from "../../lib/sandbox-context"
 
@@ -13,6 +13,7 @@ interface PanelViewMenuProps {
 const VIEW_OPTIONS: { view: PanelView; label: string; icon: typeof Globe }[] = [
   { view: "site", label: "Preview", icon: Globe },
   { view: "code", label: "Code", icon: Code },
+  { view: "drive", label: "Drive", icon: FolderOpen },
   { view: "terminal", label: "Terminal", icon: Terminal },
 ]
 
@@ -36,11 +37,11 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Get available views based on workspace type
-  const availableViews = isSuperadmin ? VIEW_OPTIONS.filter(o => o.view !== "site") : VIEW_OPTIONS
+  const availableViews = isSuperadmin ? VIEW_OPTIONS.filter(o => o.view !== "site" && o.view !== "drive") : VIEW_OPTIONS
 
-  // Force back to site view if on mobile and in code/terminal view
+  // Force back to site view if on mobile and in code/terminal/files view
   useEffect(() => {
-    if (isMobile && (currentView === "code" || currentView === "terminal")) {
+    if (isMobile && (currentView === "code" || currentView === "terminal" || currentView === "drive")) {
       onViewChange("site")
     }
   }, [isMobile, currentView, onViewChange])

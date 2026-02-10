@@ -82,7 +82,7 @@ interface TeardownParams {
   caddyfilePath?: string    // Optional: Path to Caddyfile
   caddyLockPath?: string    // Optional: Path to lock file
   envFilePath?: string      // Optional: Path to env file
-  registryPath?: string     // Optional: Path to port registry
+  // Note: Port entries in app.domains are NOT deleted on teardown — they persist and are reused on redeploy
 }
 ```
 
@@ -93,9 +93,8 @@ interface TeardownParams {
 4. Reloads Caddy
 5. Releases lock
 6. Removes environment file (if envFilePath provided)
-7. Removes port from registry (if registryPath provided)
-8. Optionally removes system user (if removeUser=true)
-9. Optionally removes site files (if removeFiles=true)
+7. Optionally removes system user (if removeUser=true)
+8. Optionally removes site files (if removeFiles=true)
 
 **Example**:
 ```typescript
@@ -110,7 +109,6 @@ await teardown({
   caddyfilePath: PATHS.CADDYFILE_PATH,
   caddyLockPath: PATHS.CADDY_LOCK,
   envFilePath: '/etc/sites/example-com.env',
-  registryPath: PATHS.REGISTRY_PATH,
 })
 ```
 

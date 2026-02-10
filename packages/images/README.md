@@ -133,15 +133,9 @@ IMAGES_SIGNATURE_SECRET=your-secret-key
 
 ### Tenant ID Mapping
 
-Add to `domain-passwords.json`:
-```json
-{
-  "demo.goalive.nl": {
-    "tenantId": "550e8400-...",
-    "password": "supersecret",
-    "port": 3333
-  }
-}
+Tenant IDs are stored in Supabase `app.domains`:
+```sql
+SELECT tenant_id FROM app.domains WHERE hostname = 'demo.goalive.nl';
 ```
 
 ## Serving Images

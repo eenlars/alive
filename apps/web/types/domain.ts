@@ -4,18 +4,8 @@
  */
 
 /**
- * Port registry entry - maps domain to port assignment
- * Legacy fields (passwordHash, tenantId, email, credits) removed 2024-12-01
- * All user/auth data now in Supabase
- */
-export interface DomainConfig {
-  port: number
-  createdAt?: string
-}
-
-/**
  * Domain info for client/manager UI
- * Populated from Supabase, not from port registry
+ * Populated from Supabase
  */
 export interface DomainConfigClient {
   port?: number
@@ -59,5 +49,3 @@ export interface ViteConfigInfo {
   systemdOverridePort: number | null
   error?: string
 }
-
-export type DomainPasswords = Record<string, DomainConfig>

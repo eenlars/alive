@@ -666,6 +666,78 @@ export const apiSchemas = {
       username: z.string().optional(),
     }),
   },
+  // ============================================================================
+  // DRIVE (file storage panel)
+  // ============================================================================
+
+  /**
+   * POST /api/drive/list
+   * List files in the drive directory
+   */
+  "drive/list": {
+    req: z
+      .object({
+        workspace: z.string().min(1),
+        path: z.string().default(""),
+        worktree: z.string().optional(),
+      })
+      .brand<"DriveListRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      path: z.string(),
+      files: z.array(
+        z.object({
+          name: z.string(),
+          type: z.enum(["file", "directory"]),
+          size: z.number(),
+          modified: z.string(),
+          path: z.string(),
+        }),
+      ),
+    }),
+  },
+
+  /**
+   * POST /api/drive/read
+   * Read a file from the drive directory
+   */
+  "drive/read": {
+    req: z
+      .object({
+        workspace: z.string().min(1),
+        path: z.string().min(1),
+        worktree: z.string().optional(),
+      })
+      .brand<"DriveReadRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      path: z.string(),
+      filename: z.string(),
+      content: z.string(),
+      language: z.string(),
+      size: z.number(),
+    }),
+  },
+
+  /**
+   * POST /api/drive/delete
+   * Delete a file or directory in the drive
+   */
+  "drive/delete": {
+    req: z
+      .object({
+        workspace: z.string().min(1),
+        path: z.string().min(1),
+        worktree: z.string().optional(),
+        recursive: z.boolean().optional(),
+      })
+      .brand<"DriveDeleteRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      deleted: z.string(),
+      type: z.enum(["file", "directory"]),
+    }),
+  },
 } as const
 
 // ============================================================================

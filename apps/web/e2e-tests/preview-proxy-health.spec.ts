@@ -85,27 +85,27 @@ describeProxy("Preview Proxy Health", () => {
 
   test.describe("Authentication", () => {
     test("rejects request without preview_token", async () => {
-      const url = previewUrl("blank." + PREVIEW_BASE)
+      const url = previewUrl(`blank.${PREVIEW_BASE}`)
       const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(10000) })
       expect(res.status).toBe(401)
     })
 
     test("rejects request with expired token", async () => {
       const expiredToken = createPreviewToken("-1h")
-      const url = previewUrl("blank." + PREVIEW_BASE, `/?preview_token=${expiredToken}`)
+      const url = previewUrl(`blank.${PREVIEW_BASE}`, `/?preview_token=${expiredToken}`)
       const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(10000) })
       expect(res.status).toBe(401)
     })
 
     test("rejects request with invalid token", async () => {
-      const url = previewUrl("blank." + PREVIEW_BASE, "/?preview_token=not-a-valid-jwt")
+      const url = previewUrl(`blank.${PREVIEW_BASE}`, "/?preview_token=not-a-valid-jwt")
       const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(10000) })
       expect(res.status).toBe(401)
     })
 
     test("accepts request with valid token and sets session cookie", async () => {
       const token = createPreviewToken()
-      const url = previewUrl("blank." + PREVIEW_BASE, `/?preview_token=${token}`)
+      const url = previewUrl(`blank.${PREVIEW_BASE}`, `/?preview_token=${token}`)
       const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(15000) })
 
       // Should succeed (200 or redirect, not 401)
@@ -276,7 +276,7 @@ describeProxy("Preview Proxy Health", () => {
     test("Go proxy health check responds", async () => {
       // The health endpoint doesn't require a preview subdomain host
       // but it does need to reach the proxy. Use a preview URL.
-      const url = previewUrl("health-check." + PREVIEW_BASE, "/health")
+      const url = previewUrl(`health-check.${PREVIEW_BASE}`, "/health")
       try {
         const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
         // Health endpoint returns 200 even without auth

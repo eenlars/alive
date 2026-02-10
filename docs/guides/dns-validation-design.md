@@ -17,7 +17,7 @@ if [ "$DOMAIN_IP" != "$SERVER_IP" ]; then
 fi
 
 # 2. Port assignment
-# 3. Add to domain-passwords.json
+# 3. Register in Supabase app.domains
 # 4. Create user, directories, etc.
 ```
 
@@ -42,7 +42,7 @@ Early DNS validation prevents a catastrophic failure mode. Consider what happens
 #### Bad Design (Late or No Validation):
 ```bash
 # 1. ✅ Port assignment (modifies state)
-# 2. ✅ Add to domain-passwords.json (modifies state)
+# 2. ✅ Register in Supabase app.domains (modifies state)
 # 3. ✅ Create system user (modifies state)
 # 4. ✅ Create directories (modifies state)
 # 5. ✅ Install dependencies (modifies state)
@@ -52,7 +52,7 @@ Early DNS validation prevents a catastrophic failure mode. Consider what happens
 **Result:** Polluted system state with partial deployment
 
 #### Consequences of Polluted State:
-- Domain claimed in registry with port assignment
+- Domain claimed in database with port assignment
 - System user exists (`site-domain-com`)
 - Directories created in `/srv/webalive/sites/`
 - Environment files written
@@ -69,7 +69,7 @@ Early DNS validation prevents a catastrophic failure mode. Consider what happens
 ```bash
 # 1. ✅ DNS validation (fails fast, clean exit)
 # 2. Port assignment
-# 3. Add to domain registry
+# 3. Register in Supabase app.domains
 # 4. Create user, directories, etc.
 ```
 

@@ -190,7 +190,7 @@ func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Look up port
 	port, ok := h.ports.lookup(hostname)
 	if !ok {
-		http.Error(w, fmt.Sprintf("Site not found: %s", hostname), http.StatusNotFound)
+		http.Error(w, "Site not found", http.StatusNotFound)
 		return
 	}
 

@@ -114,8 +114,8 @@ cd ../..
 # Rebuild and restart preview-proxy (if configured)
 echo ""
 echo "🔄 Rebuilding preview-proxy..."
-if "$SCRIPT_DIR/deploy-preview-proxy.sh" 2>&1; then
+if "$SCRIPT_DIR/deploy-preview-proxy.sh"; then
     echo "✅ Preview proxy deployed"
 else
-    echo "⚠️  Preview proxy deploy skipped"
+    echo "⚠️  Preview proxy deploy failed"
 fi

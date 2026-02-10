@@ -140,7 +140,6 @@ async function rollbackAfterPipelineFailure(params: {
       await SiteOrchestrator.teardown(params.domain, {
         removeFiles: true,
         removeUser: true,
-        removePort: true,
       })
     } catch (error) {
       rollbackErrors.push(`infra-teardown: ${error instanceof Error ? error.message : String(error)}`)

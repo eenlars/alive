@@ -62,7 +62,6 @@ export class SiteOrchestrator {
       console.log("[Phase 2/7] Assigning port...")
       const portResult = await assignPort({
         domain,
-        registryPath: PATHS.REGISTRY_PATH,
       })
       deployedPort = portResult.port
       console.log(`✓ Port assigned: ${deployedPort}${portResult.isNew ? " (new)" : " (existing)"}\n`)
@@ -161,7 +160,6 @@ export class SiteOrchestrator {
           await SiteOrchestrator.teardown(domain, {
             removeFiles: true,
             removeUser: true,
-            removePort: true,
           })
           console.log("✓ Rollback successful - site fully cleaned up\n")
         } catch (rollbackError) {
@@ -198,7 +196,6 @@ export class SiteOrchestrator {
     options: {
       removeUser?: boolean
       removeFiles?: boolean
-      removePort?: boolean
     } = {},
   ): Promise<void> {
     const slug = domain.replace(/\./g, "-")
@@ -212,11 +209,9 @@ export class SiteOrchestrator {
       serviceName,
       removeUser: options.removeUser,
       removeFiles: options.removeFiles,
-      removePort: options.removePort,
       caddyfilePath: PATHS.CADDYFILE_PATH,
       caddyLockPath: PATHS.CADDY_LOCK,
       envFilePath: getEnvFilePath(slug),
-      registryPath: PATHS.REGISTRY_PATH,
     })
 
     console.log(`\n=== Teardown complete: ${domain} ===\n`)

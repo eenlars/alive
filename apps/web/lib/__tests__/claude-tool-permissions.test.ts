@@ -256,7 +256,7 @@ describe("Tool Permission System", () => {
     it("should block reading alive configuration", async () => {
       const canUseTool = createToolPermissionHandler(mockWorkspace, requestId)
 
-      const attacks = ["/root/.env", "/var/lib/domain-passwords.json", "/etc/passwd"]
+      const attacks = ["/root/.env", "/var/lib/server-config.json", "/etc/passwd"]
 
       for (const attack of attacks) {
         const result = await canUseTool("Read", { file_path: attack }, mockOptions)

@@ -134,7 +134,7 @@ stateDiagram-v2
 4. **Line 27**: `SetOldSiteDir` - Legacy PM2 location `/root/webalive/sites/$DOMAIN`
 5. **Line 28**: `SetNewSiteDir` - Secure systemd location `/srv/webalive/sites/$DOMAIN`
 6. **Line 29**: `SetCaddyfile` - Path to WebAlive routing config
-7. **Line 30**: `SetDomainPasswordsFile` - Port registry location
+7. **Line 30**: `SetDomainPasswordsFile` - Port registry location (legacy, now uses Supabase `app.domains`)
 8. **Line 31**: `SetServerIP` - `YOUR_SERVER_IP` (server's public IP)
 9. **Line 32**: `ReadPassword` - From `DEPLOY_PASSWORD` env var (optional)
 10. **Line 33**: `ReadEmail` - From `DEPLOY_EMAIL` env var (required)
@@ -362,7 +362,7 @@ stateDiagram-v2
 
     note right of FnCheckRegistryExists
         Line 127: if [ -f "$DOMAIN_PASSWORDS_FILE" ]
-        Registry might not exist on first deploy
+        Legacy JSON registry (now replaced by Supabase app.domains)
         Skip read if missing
     end note
 
@@ -440,7 +440,7 @@ stateDiagram-v2
 
     note right of CheckRegistryFileExists
         Line 163: if [ ! -f "$DOMAIN_PASSWORDS_FILE" ]
-        Create file if missing
+        Legacy JSON registry (now replaced by Supabase app.domains)
         First-time deployment scenario
     end note
 
@@ -463,8 +463,8 @@ stateDiagram-v2
     end note
 
     note right of PrintAddedRegistry
-        Line 173: echo "✅ Added $DOMAIN to domain-passwords.json (port $PORT)"
-        Confirmation message
+        Line 173: echo "✅ Added $DOMAIN to port registry (port $PORT)"
+        Confirmation message (legacy JSON registry, now Supabase app.domains)
         Shows domain and port
     end note
 

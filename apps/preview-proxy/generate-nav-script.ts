@@ -109,6 +109,7 @@ const script = `<script>
   };
   window.addEventListener('popstate', function() { sendStart(); sendPath(); });
   document.addEventListener('click', function(e) {
+    if (!e.target || !e.target.closest) return;
     var a = e.target.closest('a[href]');
     if (a && a.href && !a.target && a.origin === location.origin) {
       sendStart();
@@ -166,11 +167,21 @@ if (!written.includes("const navScript")) {
 
 // 9. If Go is available, verify the generated file compiles
 try {
-  execSync("go vet ./...", { cwd: import.meta.dir, stdio: "pipe" })
-  console.log("[generate-nav-script] go vet passed")
+  execSync("command -v go", { stdio: "pipe" })
+  try {
+    execSync("go vet ./...", { cwd: import.meta.dir, stdio: "pipe" })
+    console.log("[generate-nav-script] go vet passed")
+  } catch (e: unknown) {
+    const error = e as { stderr?: Buffer }
+    throw new Error(`[generate-nav-script] FATAL: Generated Go file fails 'go vet': ${error.stderr?.toString()}`)
+  }
 } catch (e: unknown) {
-  const error = e as { stderr?: Buffer }
-  throw new Error(`[generate-nav-script] FATAL: Generated Go file fails 'go vet': ${error.stderr?.toString()}`)
+  // Check if Go is simply not installed vs go vet failed
+  const error = e as { message?: string }
+  if (error.message?.includes("go vet")) {
+    throw e
+  }
+  console.log("[generate-nav-script] Go not installed, skipping go vet")
 }
 
 console.log(`[generate-nav-script] wrote ${outPath}`)

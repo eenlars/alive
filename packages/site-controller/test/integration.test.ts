@@ -33,7 +33,6 @@ describe("Configuration", () => {
 
   it("should derive dynamic paths from SERVER_CONFIG_PATH", () => {
     // Dynamic paths come from server-config.json — empty in test without config
-    expect(typeof PATHS.REGISTRY_PATH).toBe("string")
     expect(typeof PATHS.SERVER_CONFIG).toBe("string")
     expect(typeof PATHS.GENERATED_DIR).toBe("string")
     expect(typeof PATHS.CADDYFILE_SITES).toBe("string")

@@ -42,6 +42,9 @@ describe("API Schema Type System", () => {
         | "integrations/available"
         | "integrations/disconnect"
         | "integrations/connect"
+        | "drive/list"
+        | "drive/read"
+        | "drive/delete"
       >()
     })
 
