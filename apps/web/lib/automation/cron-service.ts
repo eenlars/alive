@@ -208,7 +208,8 @@ async function armTimer(): Promise<void> {
     return
   }
 
-  const delay = Math.max(0, nextWakeMs - Date.now())
+  // Floor at 1s to prevent hot-looping when next_run_at is in the past
+  const delay = Math.max(1000, nextWakeMs - Date.now())
   const clampedDelay = Math.min(delay, MAX_TIMEOUT_MS)
   const nextWakeDate = new Date(nextWakeMs)
 
@@ -228,6 +229,7 @@ async function getNextWakeTime(): Promise<number | null> {
     .from("automation_jobs")
     .select("next_run_at")
     .eq("is_active", true)
+    .is("running_at", null)
     .not("next_run_at", "is", null)
     .order("next_run_at", { ascending: true })
     .limit(1)
