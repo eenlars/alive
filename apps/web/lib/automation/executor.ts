@@ -32,6 +32,10 @@ import { DEFAULT_MODEL } from "@/lib/models/claude-models"
 import { generateRequestId } from "@/lib/utils"
 import { runAgentChild } from "@/lib/workspace-execution/agent-child-runner"
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
 /** Errors that indicate transient worker pool issues worth retrying */
 const TRANSIENT_WORKER_ERRORS = [
   "Worker disconnected unexpectedly",
@@ -163,7 +167,7 @@ async function tryWorkerPool(params: WorkerPoolParams): Promise<Error | null> {
           agentConfig,
         },
         onMessage: (msg: Record<string, unknown>) => {
-          console.log(`[Automation ${requestId}] Message:`, JSON.stringify(msg).substring(0, 500))
+          console.log(`[Automation ${requestId}] Message: type=${String(msg.type ?? "unknown")}`)
           onMessage(msg)
         },
         signal: abortController.signal,
@@ -224,10 +228,6 @@ async function runChildProcess(params: ChildProcessParams): Promise<void> {
   const decoder = new TextDecoder()
   let buffer = ""
 
-  const timeoutPromise = new Promise<void>((_, reject) => {
-    setTimeout(() => reject(new Error("Automation timeout")), timeoutSeconds * 1000)
-  })
-
   const readPromise = (async () => {
     while (true) {
       const { done, value } = await reader.read()
@@ -260,7 +260,15 @@ async function runChildProcess(params: ChildProcessParams): Promise<void> {
     }
   })()
 
-  await Promise.race([readPromise, timeoutPromise])
+  const timeoutId = setTimeout(() => {
+    reader.cancel("Automation timeout").catch(() => {})
+  }, timeoutSeconds * 1000)
+
+  try {
+    await readPromise
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 // =============================================================================
@@ -402,37 +410,39 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     // Message handler shared between worker pool and child process modes
     const collectWorkerMessage = (msg: Record<string, unknown>) => {
       // Store ALL messages for full conversation log
-      if (msg.type === "message" && "content" in msg) {
+      if (msg.type === "message" && typeof msg.content === "object" && msg.content !== null) {
         allMessages.push(msg.content)
 
-        const content = msg.content as Record<string, unknown>
+        const content = msg.content
+        if (!isRecord(content)) return
+
         // Check both direct content and nested content structure
         if (content.role === "assistant" && Array.isArray(content.content)) {
           for (const block of content.content) {
-            if (block.type === "text") {
+            if (isRecord(block) && block.type === "text" && typeof block.text === "string") {
               textMessages.push(block.text)
             }
           }
         }
         // Also check for messageType === "assistant" with nested content
-        if (content.messageType === "assistant" && (content.content as Record<string, unknown>)?.content) {
-          for (const block of (content.content as Record<string, unknown>).content as Array<Record<string, unknown>>) {
-            if (block.type === "text") {
-              textMessages.push(block.text as string)
+        if (content.messageType === "assistant" && isRecord(content.content)) {
+          const inner = content.content
+          if (Array.isArray(inner.content)) {
+            for (const block of inner.content) {
+              if (isRecord(block) && block.type === "text" && typeof block.text === "string") {
+                textMessages.push(block.text)
+              }
             }
           }
         }
-      } else if (msg.type === "complete" && "result" in msg) {
-        const result = msg.result as Record<string, unknown>
-        const nested = result.result as Record<string, unknown> | undefined
-        if (nested?.subtype === "success") {
-          const data = nested.data as Record<string, unknown> | undefined
-          if (data?.resultText) finalResponse = data.resultText as string
-        } else {
-          const data = result.data as Record<string, unknown> | undefined
-          if (result.type === "result" && data?.resultText) {
-            finalResponse = data.resultText as string
+      } else if (msg.type === "complete" && isRecord(msg.result)) {
+        const result = msg.result
+        if (isRecord(result.result) && result.result.subtype === "success") {
+          if (isRecord(result.result.data) && typeof result.result.data.resultText === "string") {
+            finalResponse = result.result.data.resultText
           }
+        } else if (result.type === "result" && isRecord(result.data) && typeof result.data.resultText === "string") {
+          finalResponse = result.data.resultText
         }
       }
     }
@@ -461,6 +471,11 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
         )
         await sleep(2000)
 
+        // Clear partial messages from the failed attempt
+        textMessages.length = 0
+        allMessages.length = 0
+        finalResponse = ""
+
         const retryError = await tryWorkerPool({
           requestId: `${requestId}-retry`,
           cwd,
@@ -478,6 +493,10 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
           console.warn(
             `[Automation ${requestId}] Worker pool retry failed: ${retryError.message}. Falling back to child process.`,
           )
+          // Clear partial messages before child process attempt
+          textMessages.length = 0
+          allMessages.length = 0
+          finalResponse = ""
           await runChildProcess({
             requestId,
             cwd,
@@ -499,6 +518,10 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
         console.warn(
           `[Automation ${requestId}] Worker pool failed (non-transient): ${workerPoolError.message}. Using child process.`,
         )
+        // Clear partial messages before child process attempt
+        textMessages.length = 0
+        allMessages.length = 0
+        finalResponse = ""
         await runChildProcess({
           requestId,
           cwd,
