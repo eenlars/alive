@@ -14,6 +14,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
+import { getServerId } from "@webalive/shared"
 import { getSupabaseCredentials } from "@/lib/env/server"
 import { appendRunLog } from "./run-log"
 
@@ -74,6 +75,7 @@ type ServiceState = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, "public", any>
   config: Required<CronServiceConfig>
+  serverId: string
   timer: NodeJS.Timeout | null
   runningJobs: Set<string>
   started: boolean
@@ -105,8 +107,14 @@ export async function startCronService(config: CronServiceConfig = {}): Promise<
     return
   }
 
+  const serverId = getServerId()
+  if (!serverId) {
+    throw new Error("[CronService] Cannot start: serverId not configured in server-config.json")
+  }
+
   state = {
     supabase,
+    serverId,
     config: {
       maxConcurrent: config.maxConcurrent ?? 3,
       maxRetries: config.maxRetries ?? 3,
@@ -120,7 +128,7 @@ export async function startCronService(config: CronServiceConfig = {}): Promise<
     stopping: false,
   }
 
-  console.log("[CronService] Starting...")
+  console.log(`[CronService] Starting (server: ${serverId})...`)
   await armTimer()
   console.log("[CronService] Started")
 }
@@ -227,10 +235,11 @@ async function getNextWakeTime(): Promise<number | null> {
 
   const { data: jobs } = await state.supabase
     .from("automation_jobs")
-    .select("next_run_at")
+    .select("next_run_at, domains!inner(server_id)")
     .eq("is_active", true)
     .is("running_at", null)
     .not("next_run_at", "is", null)
+    .eq("domains.server_id", state.serverId)
     .order("next_run_at", { ascending: true })
     .limit(1)
 
@@ -261,13 +270,14 @@ async function runDueJobs(): Promise<void> {
   const now = Date.now()
 
   // Reap stale jobs: if running_at is older than 1 hour, the executor likely crashed.
-  // Clear running_at so the job can be picked up again.
+  // Clear running_at so the job can be picked up again. Scoped to this server.
   const staleThreshold = new Date(now - 60 * 60 * 1000).toISOString()
   const { data: staleJobs } = await state.supabase
     .from("automation_jobs")
-    .select("id, name, running_at")
+    .select("id, name, running_at, domains!inner(server_id)")
     .eq("is_active", true)
     .not("running_at", "is", null)
+    .eq("domains.server_id", state.serverId)
     .lt("running_at", staleThreshold)
 
   if (staleJobs?.length) {
@@ -277,12 +287,13 @@ async function runDueJobs(): Promise<void> {
     }
   }
 
-  // Get due jobs that aren't already running
+  // Get due jobs that aren't already running (scoped to this server)
   const { data: dueJobs } = await state.supabase
     .from("automation_jobs")
-    .select("*")
+    .select("*, domains!inner(server_id)")
     .eq("is_active", true)
     .is("running_at", null)
+    .eq("domains.server_id", state.serverId)
     .lte("next_run_at", new Date(now).toISOString())
     .order("next_run_at", { ascending: true })
 
