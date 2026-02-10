@@ -10,8 +10,8 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { DeploymentError } from "./errors.js"
 import { PATHS } from "@webalive/shared"
+import { DeploymentError } from "./errors.js"
 
 // Configuration
 const REPO_DIR = PATHS.BACKUP_REPO

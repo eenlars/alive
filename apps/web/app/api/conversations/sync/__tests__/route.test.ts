@@ -54,6 +54,7 @@ const TEST_USER = {
   canSelectAnyModel: false,
   isAdmin: false,
   isSuperadmin: false,
+  enabledModels: [],
 }
 
 const TEST_CONVERSATION = {
@@ -75,7 +76,7 @@ const TEST_CONVERSATION = {
 const TEST_TAB = {
   id: "tab-123",
   conversationId: "conv-123",
-  name: "current",
+  name: "Tab 1",
   position: 0,
   messageCount: 5,
   lastMessageAt: Date.now(),

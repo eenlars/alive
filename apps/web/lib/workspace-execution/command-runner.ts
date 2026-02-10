@@ -8,11 +8,14 @@
  *
  * Why: Ensures correct file ownership and permissions automatically.
  * Pattern: Same as agent-child-runner.ts but for arbitrary commands.
+ *
+ * SECURITY: Uses sandboxed env — see sandbox-env.ts for details.
  */
 
 import { spawn } from "node:child_process"
 import { readFileSync, statSync } from "node:fs"
 import { basename, dirname, resolve } from "node:path"
+import { createSandboxEnv } from "./sandbox-env"
 
 interface WorkspaceCredentials {
   uid: number
@@ -125,7 +128,9 @@ export async function runAsWorkspaceUser(options: CommandOptions): Promise<Comma
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [runnerPath], {
       env: {
-        ...process.env,
+        // SECURITY: Explicit allowlist — no bridge secrets
+        ...createSandboxEnv(),
+        NODE_ENV: process.env.NODE_ENV, // Satisfy Next.js ProcessEnv augmentation
         TARGET_UID: String(uid),
         TARGET_GID: String(gid),
         TARGET_CWD: workspaceRoot,

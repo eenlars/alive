@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# SHIP - Claude Bridge Deployment Pipeline
+# SHIP - Alive Deployment Pipeline
 # =============================================================================
 #
 # Usage:
@@ -96,7 +96,7 @@ fi
 cd "$PROJECT_ROOT"
 timer_start
 
-banner "🚀 SHIP: Claude Bridge Deployment"
+banner "🚀 SHIP: Alive Deployment"
 
 echo -e "Target: ${BOLD}$TARGET_DISPLAY${NC}"
 [ "$SKIP_E2E" = true ] && echo -e "${YELLOW}⚠️  Skipping E2E tests${NC}"

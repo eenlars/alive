@@ -12,11 +12,11 @@
 
 "use client"
 
+import { TEMPLATES } from "@webalive/shared"
 import { X } from "lucide-react"
 import { useState } from "react"
-import { TEMPLATES } from "@webalive/shared"
-import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import { WebsiteConfig, type WebsiteConfigResult } from "@/components/ai/WebsiteConfig"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 
 interface AddWebsiteModalProps {
   onClose: () => void

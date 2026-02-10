@@ -2003,7 +2003,7 @@ bun add -d @biomejs/biome
     "hono": "^4.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "zod": "^3.24.0",
+    "zod": "^4.1.5",
     "zustand": "^5.0.0",
     "better-sqlite3": "^11.0.0",
     "jose": "^5.0.0"

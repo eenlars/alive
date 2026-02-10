@@ -14,6 +14,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
+import { getServerId } from "@webalive/shared"
 import { getSupabaseCredentials } from "@/lib/env/server"
 import { appendRunLog } from "./run-log"
 
@@ -74,6 +75,7 @@ type ServiceState = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: SupabaseClient<any, "public", any>
   config: Required<CronServiceConfig>
+  serverId: string
   timer: NodeJS.Timeout | null
   runningJobs: Set<string>
   started: boolean
@@ -105,8 +107,14 @@ export async function startCronService(config: CronServiceConfig = {}): Promise<
     return
   }
 
+  const serverId = getServerId()
+  if (!serverId) {
+    throw new Error("[CronService] Cannot start: serverId not configured in server-config.json")
+  }
+
   state = {
     supabase,
+    serverId,
     config: {
       maxConcurrent: config.maxConcurrent ?? 3,
       maxRetries: config.maxRetries ?? 3,
@@ -120,7 +128,7 @@ export async function startCronService(config: CronServiceConfig = {}): Promise<
     stopping: false,
   }
 
-  console.log("[CronService] Starting...")
+  console.log(`[CronService] Starting (server: ${serverId})...`)
   await armTimer()
   console.log("[CronService] Started")
 }
@@ -208,7 +216,8 @@ async function armTimer(): Promise<void> {
     return
   }
 
-  const delay = Math.max(0, nextWakeMs - Date.now())
+  // Floor at 1s to prevent hot-looping when next_run_at is in the past
+  const delay = Math.max(1000, nextWakeMs - Date.now())
   const clampedDelay = Math.min(delay, MAX_TIMEOUT_MS)
   const nextWakeDate = new Date(nextWakeMs)
 
@@ -226,9 +235,11 @@ async function getNextWakeTime(): Promise<number | null> {
 
   const { data: jobs } = await state.supabase
     .from("automation_jobs")
-    .select("next_run_at")
+    .select("next_run_at, domains!inner(server_id)")
     .eq("is_active", true)
+    .is("running_at", null)
     .not("next_run_at", "is", null)
+    .eq("domains.server_id", state.serverId)
     .order("next_run_at", { ascending: true })
     .limit(1)
 
@@ -258,29 +269,62 @@ async function runDueJobs(): Promise<void> {
 
   const now = Date.now()
 
-  // Get due jobs that aren't already running
+  // Reap stale jobs: if running_at is older than 1 hour, the executor likely crashed.
+  // Clear running_at so the job can be picked up again. Scoped to this server.
+  const staleThreshold = new Date(now - 60 * 60 * 1000).toISOString()
+  const { data: staleJobs } = await state.supabase
+    .from("automation_jobs")
+    .select("id, name, running_at, domains!inner(server_id)")
+    .eq("is_active", true)
+    .not("running_at", "is", null)
+    .eq("domains.server_id", state.serverId)
+    .lt("running_at", staleThreshold)
+
+  if (staleJobs?.length) {
+    for (const stale of staleJobs) {
+      console.warn(`[CronService] Reaping stale job "${stale.name}" (${stale.id}), stuck since ${stale.running_at}`)
+      await state.supabase.from("automation_jobs").update({ running_at: null }).eq("id", stale.id)
+    }
+  }
+
+  // Get due jobs that aren't already running (scoped to this server)
   const { data: dueJobs } = await state.supabase
     .from("automation_jobs")
-    .select("*")
+    .select("*, domains!inner(server_id)")
     .eq("is_active", true)
     .is("running_at", null)
+    .eq("domains.server_id", state.serverId)
     .lte("next_run_at", new Date(now).toISOString())
     .order("next_run_at", { ascending: true })
 
   if (!dueJobs?.length) return
 
-  const jobNames = dueJobs.map(j => `"${j.name}"`).join(", ")
-  console.log(`[CronService] Found ${dueJobs.length} due job(s): ${jobNames}`)
+  const jobDetails = dueJobs.map(j => `"${j.name}" (${j.id})`).join(", ")
+  console.log(`[CronService] Found ${dueJobs.length} due job(s): ${jobDetails}`)
+
+  // Deduplicate by job ID (PostgREST joins can theoretically return duplicates)
+  const seen = new Set<string>()
+  const uniqueJobs = dueJobs.filter(j => {
+    if (seen.has(j.id)) return false
+    seen.add(j.id)
+    return true
+  })
+
+  if (uniqueJobs.length < dueJobs.length) {
+    console.warn(`[CronService] Deduplicated ${dueJobs.length} → ${uniqueJobs.length} jobs`)
+  }
 
   // Filter out already running and respect concurrency limit
   const availableSlots = state.config.maxConcurrent - state.runningJobs.size
-  const jobsToRun = dueJobs.filter(j => !state!.runningJobs.has(j.id)).slice(0, availableSlots)
+  const jobsToRun = uniqueJobs.filter(j => !state!.runningJobs.has(j.id)).slice(0, availableSlots)
 
-  if (jobsToRun.length < dueJobs.length) {
+  if (jobsToRun.length < uniqueJobs.length) {
     console.log(
-      `[CronService] Concurrency limit: executing ${jobsToRun.length}/${dueJobs.length} jobs (${state.runningJobs.size}/${state.config.maxConcurrent} slots in use)`,
+      `[CronService] Concurrency limit: executing ${jobsToRun.length}/${uniqueJobs.length} jobs (${state.runningJobs.size}/${state.config.maxConcurrent} slots in use)`,
     )
   }
+
+  console.log(`[CronService] Executing ${jobsToRun.length} job(s): ${jobsToRun.map(j => j.id).join(", ")}`)
 
   // Execute jobs concurrently
   await Promise.all(jobsToRun.map(job => executeJob(job, { forced: false })))
@@ -290,6 +334,28 @@ async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promi
   if (!state) return
 
   const startedAt = Date.now()
+
+  // Atomic claim: only proceed if we're the one who sets running_at.
+  // This prevents duplicate execution when multiple instances share the same DB.
+  const claimTs = new Date(startedAt).toISOString()
+  const { data: claimed, error: claimError } = await state.supabase
+    .from("automation_jobs")
+    .update({ running_at: claimTs })
+    .eq("id", job.id)
+    .is("running_at", null)
+    .select("id")
+
+  if (claimError) {
+    console.error(`[CronService] Claim error for "${job.name}" (${job.id}):`, claimError)
+    return
+  }
+
+  if (!claimed?.length) {
+    console.log(`[CronService] Job "${job.name}" (${job.id}) already claimed by another instance, skipping`)
+    return
+  }
+
+  console.log(`[CronService] Claimed job "${job.name}" (${job.id}) at ${claimTs}`)
   state.runningJobs.add(job.id)
 
   // Emit started event
@@ -305,19 +371,26 @@ async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promi
     runAtMs: startedAt,
   }).catch(() => {}) // Don't fail if logging fails
 
-  // Mark as running in DB
-  await state.supabase
-    .from("automation_jobs")
-    .update({ running_at: new Date(startedAt).toISOString() })
-    .eq("id", job.id)
-
   try {
     // Get site hostname
-    const { data: site } = await state.supabase.from("domains").select("hostname").eq("domain_id", job.site_id).single()
+    console.log(`[CronService] Looking up site for site_id: ${job.site_id}`)
+    const { data: site, error: siteError } = await state.supabase
+      .from("domains")
+      .select("hostname")
+      .eq("domain_id", job.site_id)
+      .single()
+
+    if (siteError) {
+      console.error("[CronService] Error querying domains table:", siteError)
+      throw new Error(`Failed to lookup site: ${siteError.message}`)
+    }
 
     if (!site?.hostname) {
-      throw new Error("Site not found")
+      console.error(`[CronService] Site not found for site_id: ${job.site_id}`)
+      throw new Error(`Site not found (site_id: ${job.site_id})`)
     }
+
+    console.log(`[CronService] Resolved site ${job.site_id} to hostname: ${site.hostname}`)
 
     // Run the automation
     const { runAutomationJob } = await import("./executor")
@@ -373,6 +446,10 @@ async function finishJob(
 ): Promise<void> {
   if (!state) return
 
+  console.log(
+    `[CronService] finishJob "${job.name}" (${job.id}): ${result.status} in ${result.durationMs}ms${result.error ? ` - ${result.error.slice(0, 100)}` : ""}`,
+  )
+
   const now = Date.now()
 
   // Compute next run time
@@ -416,30 +493,22 @@ async function finishJob(
   }
 
   // Update job in DB
-  // Note: consecutive_failures column may not exist yet (migration pending)
-  const updateData: Record<string, unknown> = {
-    running_at: null,
-    last_run_at: new Date(now - result.durationMs).toISOString(),
-    last_run_status: result.status,
-    last_run_error: result.error || null,
-    last_run_duration_ms: result.durationMs,
-    next_run_at: nextRunAt,
-    is_active: isActive,
-  }
-
-  // Try to update with consecutive_failures first
-  const { error: updateError } = await state.supabase
+  await state.supabase
     .from("automation_jobs")
-    .update({ ...updateData, consecutive_failures: consecutiveFailures })
+    .update({
+      running_at: null,
+      last_run_at: new Date(now - result.durationMs).toISOString(),
+      last_run_status: result.status,
+      last_run_error: result.error || null,
+      last_run_duration_ms: result.durationMs,
+      next_run_at: nextRunAt,
+      is_active: isActive,
+      consecutive_failures: consecutiveFailures,
+    })
     .eq("id", job.id)
 
-  // If column doesn't exist, retry without it
-  if (updateError?.message?.includes("consecutive_failures")) {
-    await state.supabase.from("automation_jobs").update(updateData).eq("id", job.id)
-  }
-
   // Create run record with full message log
-  await state.supabase.from("automation_runs").insert({
+  const { error: runInsertError } = await state.supabase.from("automation_runs").insert({
     job_id: job.id,
     started_at: new Date(now - result.durationMs).toISOString(),
     completed_at: new Date(now).toISOString(),
@@ -450,6 +519,10 @@ async function finishJob(
     messages: result.messages ?? null, // Full conversation log
     triggered_by: "scheduler",
   })
+
+  if (runInsertError) {
+    console.error(`[CronService] Failed to insert run record for "${job.name}":`, runInsertError)
+  }
 
   // Emit finished event
   emit({

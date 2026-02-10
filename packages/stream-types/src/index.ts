@@ -20,7 +20,6 @@
  */
 
 export * from "./events"
-export * from "./tokens"
-
 // Re-export protocol version at top level for easy access
 export { STREAM_PROTOCOL_VERSION } from "./events"
+export * from "./tokens"

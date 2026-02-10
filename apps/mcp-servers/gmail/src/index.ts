@@ -18,7 +18,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import { Command } from "commander"
 import express from "express"
 import { createGmailClient } from "./gmail-client.js"
-import { tools, executeTool } from "./tools/index.js"
+import { executeTool, tools } from "./tools/index.js"
 
 const DEFAULT_PORT = 8085
 

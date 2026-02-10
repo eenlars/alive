@@ -11,17 +11,17 @@
  * - describe_table: Get table schema details
  */
 
-export { runQueryTool, runQuery, runQueryParamsSchema, type RunQueryParams } from "./run-query.js"
 export {
-  listProjectsTool,
-  listProjects,
-  listProjectsParamsSchema,
-  type ListProjectsParams,
-} from "./list-projects.js"
-export { listTablesTool, listTables, listTablesParamsSchema, type ListTablesParams } from "./list-tables.js"
-export {
-  describeTableTool,
+  type DescribeTableParams,
   describeTable,
   describeTableParamsSchema,
-  type DescribeTableParams,
+  describeTableTool,
 } from "./describe-table.js"
+export {
+  type ListProjectsParams,
+  listProjects,
+  listProjectsParamsSchema,
+  listProjectsTool,
+} from "./list-projects.js"
+export { type ListTablesParams, listTables, listTablesParamsSchema, listTablesTool } from "./list-tables.js"
+export { type RunQueryParams, runQuery, runQueryParamsSchema, runQueryTool } from "./run-query.js"

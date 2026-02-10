@@ -14,10 +14,10 @@
  * 4. Contract: Verify payload shape between route.ts and worker-entry.mjs
  */
 
-import { describe, expect, it } from "vitest"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import type { AgentRequest, AgentConfig } from "../src/types"
+import { describe, expect, it } from "vitest"
+import type { AgentConfig, AgentRequest } from "../src/types"
 import { ENV_VARS } from "../src/types"
 
 // Paths to actual production code
@@ -223,8 +223,10 @@ describe("Session Cookie: Legacy vs Worker Pool Parity", () => {
   it("both legacy and worker pool paths pass sessionCookie", () => {
     const routeCode = readFileSync(ROUTE_PATH, "utf-8")
 
-    // Find worker pool section
-    const workerPoolMatch = routeCode.match(/if \(WORKER_POOL\.ENABLED\) \{[\s\S]*?\} else \{/m)
+    // Find worker pool query payload section (more robust than full if/else block matching)
+    const workerPoolMatch = routeCode.match(
+      /pool\.query\(credentials,\s*\{[\s\S]*?payload:\s*\{[\s\S]*?\}\s*,\s*onMessage:/m,
+    )
     expect(workerPoolMatch).not.toBeNull()
     const workerPoolSection = workerPoolMatch![0]
 

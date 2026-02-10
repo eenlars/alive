@@ -33,8 +33,8 @@
  */
 import fs from "node:fs"
 import path from "node:path"
-import { runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
 import { ensurePathWithinWorkspace } from "@/features/workspace/lib/workspace-secure"
+import { runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
 
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,48}$/
 const RESERVED_SLUGS = new Set(["user", "worktrees", ".", ".."])

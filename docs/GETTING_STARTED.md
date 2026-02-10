@@ -1,6 +1,6 @@
 # Getting Started
 
-The fastest way to set up Claude Bridge.
+The fastest way to set up Alive.
 
 ---
 
@@ -37,7 +37,7 @@ Claude will:
 
 ## Standalone Mode (Recommended for Getting Started)
 
-The fastest way to run Claude Bridge locally - no external services required.
+The fastest way to run Alive locally - no external services required.
 
 ### 1. Clone & Install
 
@@ -54,7 +54,7 @@ bun run setup:standalone
 ```
 
 This creates:
-- `~/.claude-bridge/workspaces/default/user` - Your local workspace
+- `~/.alive/workspaces/default/user` - Your local workspace
 - `apps/web/.env.local` - Pre-configured environment
 
 ### 3. Add Your API Key
@@ -79,7 +79,7 @@ bun run dev
 ### Creating Additional Workspaces
 
 ```bash
-mkdir -p ~/.claude-bridge/workspaces/my-project/user
+mkdir -p ~/.alive/workspaces/my-project/user
 ```
 
 ### Standalone Mode Limitations
@@ -137,7 +137,7 @@ bun run web
 
 ### 5. Login
 
-Open `http://localhost:8999`
+Open `http://localhost:8997`
 
 - **Email**: `test@alive.local`
 - **Password**: `test`
@@ -159,14 +159,14 @@ Open `http://localhost:8999`
 |----------|----------|-------------|---------|
 | `BRIDGE_ENV` | Yes | Set to standalone | `standalone` |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key | `sk-ant-...` |
-| `WORKSPACE_BASE` | No | Custom workspace directory | `~/.claude-bridge/workspaces` |
+| `WORKSPACE_BASE` | No | Custom workspace directory | `~/.alive/workspaces` |
 
 ### Local Mode
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
 | `BRIDGE_ENV` | Yes | Enable local dev mode | `local` |
-| `LOCAL_TEMPLATE_PATH` | Yes | Absolute path to workspace | `/Users/you/claude-bridge/.alive/template` |
+| `LOCAL_TEMPLATE_PATH` | Yes | Absolute path to workspace | `/Users/you/alive/.alive/template` |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key | `sk-ant-...` |
 | `BRIDGE_PASSCODE` | No | Bridge passcode (any works if unset) | `your-password` |
 
@@ -208,10 +208,10 @@ LOCAL_TEMPLATE_PATH=$(pwd)/.alive/template
 bun run setup
 ```
 
-### "Port 8999 in use"
+### "Port 8997 in use"
 
 ```bash
-lsof -i :8999 | awk 'NR>1 {print $2}' | xargs kill -9
+lsof -i :8997 | awk 'NR>1 {print $2}' | xargs kill -9
 ```
 
 ### "Test credentials don't work"

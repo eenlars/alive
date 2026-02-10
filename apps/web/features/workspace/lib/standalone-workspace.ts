@@ -10,7 +10,7 @@ import { STANDALONE } from "@webalive/shared"
 
 /**
  * Get the base directory for standalone workspaces
- * Uses WORKSPACE_BASE env var or defaults to ~/.claude-bridge/workspaces
+ * Uses WORKSPACE_BASE env var or defaults to ~/.alive/workspaces
  */
 export function getStandaloneWorkspaceBase(): string {
   return process.env.WORKSPACE_BASE || join(homedir(), STANDALONE.DEFAULT_WORKSPACE_DIR)
@@ -33,11 +33,18 @@ export function getStandaloneWorkspaces(): string[] {
 }
 
 /**
+ * Validate standalone workspace name (single directory segment only)
+ */
+export function isValidStandaloneWorkspaceName(name: string): boolean {
+  return Boolean(name) && !name.includes("..") && !name.includes("/") && !name.includes("\\")
+}
+
+/**
  * Get the full path to a workspace's user directory
  * @param name - Workspace name (directory name under base)
  */
 export function getStandaloneWorkspacePath(name: string): string {
-  if (!name || name.includes("..") || name.includes("/") || name.includes("\\")) {
+  if (!isValidStandaloneWorkspaceName(name)) {
     throw new Error(`Invalid workspace name: ${name}`)
   }
   const base = getStandaloneWorkspaceBase()
@@ -48,6 +55,9 @@ export function getStandaloneWorkspacePath(name: string): string {
  * Check if a standalone workspace exists
  */
 export function standaloneWorkspaceExists(name: string): boolean {
+  if (!isValidStandaloneWorkspaceName(name)) {
+    return false
+  }
   const path = getStandaloneWorkspacePath(name)
   return existsSync(path)
 }
@@ -59,7 +69,7 @@ export function standaloneWorkspaceExists(name: string): boolean {
  */
 export function createStandaloneWorkspace(name: string): string {
   // Validate workspace name (prevent path traversal)
-  if (!name || name.includes("..") || name.includes("/") || name.includes("\\")) {
+  if (!isValidStandaloneWorkspaceName(name)) {
     throw new Error(`Invalid workspace name: ${name}`)
   }
 

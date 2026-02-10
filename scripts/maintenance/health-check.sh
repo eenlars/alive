@@ -3,20 +3,20 @@
 # Production Health Check with Alerting
 # =============================================================================
 # Checks if production is responding and alerts via ntfy if down.
-# Run via cron: */5 * * * * /root/alive/scripts/maintenance/health-check.sh
+# Run via cron: */5 * * * * <project-root>/scripts/maintenance/health-check.sh
 #
 # To set up ntfy alerts:
 # 1. Install ntfy: curl -sSL https://install.ntfy.sh | bash
-# 2. Subscribe on phone: ntfy.sh/claude-bridge-alerts (or your custom topic)
+# 2. Subscribe on phone: ntfy.sh/alive-alerts (or your custom topic)
 # =============================================================================
 
 set -euo pipefail
 
 PROD_URL="https://sonno.tech/"
 STAGING_URL="https://staging.sonno.tech/"
-NTFY_TOPIC="${NTFY_TOPIC:-claude-bridge-alerts}"
+NTFY_TOPIC="${NTFY_TOPIC:-alive-alerts}"
 TIMEOUT=10
-STATE_FILE="/tmp/claude-bridge-health-state"
+STATE_FILE="/tmp/alive-health-state"
 
 check_url() {
     local url=$1
@@ -48,7 +48,7 @@ send_alert() {
 if ! check_url "$PROD_URL" "Production"; then
     # Only alert if this is a new failure (avoid spam)
     if [ ! -f "$STATE_FILE" ] || [ "$(cat "$STATE_FILE")" != "down" ]; then
-        send_alert "🔴 Production DOWN" "sonno.tech is not responding. Check: journalctl -u claude-bridge-production -n 50"
+        send_alert "🔴 Production DOWN" "sonno.tech is not responding. Check: journalctl -u alive-production -n 50"
         echo "down" > "$STATE_FILE"
     fi
 else

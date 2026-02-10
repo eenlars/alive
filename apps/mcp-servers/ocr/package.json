@@ -1,0 +1,16 @@
+{
+  "name": "@webalive/mcp-ocr",
+  "private": true,
+  "scripts": {
+    "build": "python3 -m compileall .",
+    "dev": "docker-compose up --build",
+    "start": "docker-compose up -d",
+    "type-check": "python3 -m compileall .",
+    "lint": "python3 -m compileall .",
+    "format": "echo \"(apps/mcp-servers/ocr) no formatter configured\"",
+    "ci": "python3 -m compileall .",
+    "test": "echo \"(apps/mcp-servers/ocr) tests run in container; see README\"",
+    "docker:build": "docker build -t mcp-ocr .",
+    "docker:run": "docker run -d --name mcp-ocr -p 8084:8084 --restart unless-stopped mcp-ocr"
+  }
+}

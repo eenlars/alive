@@ -18,9 +18,11 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "typecheck": "bun run type-check",
     "lint": "biome lint .",
     "format": "biome format --write .",
+    "ci": "biome ci .",
     "clean": "rm -rf dist",
     "test": "vitest run",
     "test:integration": "vitest run -c vitest.integration.config.ts",
@@ -42,7 +44,7 @@
     "@webalive/database": "workspace:*",
     "@webalive/shared": "workspace:*",
     "@supabase/supabase-js": "^2.81.1",
-    "zod": "^3.25.0"
+    "zod": "^4.1.5"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

@@ -13,8 +13,8 @@
  * 4. Sidebar shows conversation, clicking it loads the correct messages
  */
 
-import type { Tab } from "@/lib/tabs/tabModel"
 import { useTabDataStore } from "@/lib/stores/tabDataStore"
+import type { Tab } from "@/lib/tabs/tabModel"
 import type { TabGroupId, TabId } from "@/lib/types/ids"
 import type { DbTab } from "./messageDb"
 
@@ -46,7 +46,7 @@ export function syncDexieTabsToLocalStorage(
     if (existingTabIds.has(dexieTab.id as TabId)) continue
 
     // Skip closed tabs (they'll be re-synced if reopened)
-    if (dexieTab.closedAt) continue
+    if (dexieTab.closedAt != null) continue
 
     // Convert DbTab to localStorage Tab format
     const tab: Tab = {

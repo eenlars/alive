@@ -2,8 +2,8 @@
 
 import type { AppDatabase } from "@webalive/database"
 import { DEFAULTS, PATHS } from "@webalive/shared"
-import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import { useState } from "react"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 
 type Template = AppDatabase["app"]["Tables"]["templates"]["Row"]
 

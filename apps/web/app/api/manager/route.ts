@@ -3,6 +3,7 @@ import { promisify } from "node:util"
 import { DOMAINS, PATHS } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { requireManagerAuth } from "@/features/manager/lib/api-helpers"
+import { isValidDomain } from "@/features/manager/lib/domain-utils"
 import { createCorsErrorResponse, createCorsResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { updateDomainOwnerPassword } from "@/lib/auth/supabase-passwords"
 import { addCorsHeaders } from "@/lib/cors-utils"
@@ -175,12 +176,12 @@ export async function DELETE(req: NextRequest) {
     const { domain: rawDomain } = body
     const domain = rawDomain?.toLowerCase() // Always lowercase domain
 
-    if (!domain) {
+    if (!domain || !isValidDomain(domain)) {
       return createCorsErrorResponse(origin, ErrorCodes.INVALID_REQUEST, 400, { requestId })
     }
 
     try {
-      const { stdout, stderr } = await execAsync(`${PATHS.STREAM_ROOT}/scripts/sites/delete-site.sh ${domain} --force`)
+      const { stdout, stderr } = await execAsync(`${PATHS.ALIVE_ROOT}/scripts/sites/delete-site.sh ${domain} --force`)
       return createCorsSuccessResponse(origin, { output: stdout, error: stderr || null, requestId })
     } catch (error) {
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {

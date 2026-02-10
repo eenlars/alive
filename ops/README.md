@@ -141,7 +141,7 @@ sudo chmod 666 /var/log/webalive-*.log
 ## Git Policy
 
 **Do NOT commit:**
-- `ops/caddy/generated/Caddyfile.sites` - Generated routing (synced from `/var/lib/claude-bridge/generated/Caddyfile.sites`)
+- `ops/caddy/generated/Caddyfile.sites` - Generated routing (synced from `/var/lib/alive/generated/Caddyfile.sites`)
 - `/var/lib/webalive/site-modes.json` - Runtime registry
 - `/var/log/webalive-*.log` - Log files
 

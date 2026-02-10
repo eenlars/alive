@@ -6,7 +6,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/root/webalive/claude-bridge/apps/mcp-servers/google-scraper
+WorkingDirectory=/root/webalive/alive/apps/mcp-servers/google-scraper
 ExecStart=/usr/bin/node dist/index.js --transport http --port 8083
 Restart=always
 RestartSec=5

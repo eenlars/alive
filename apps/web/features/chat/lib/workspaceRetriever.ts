@@ -5,7 +5,7 @@ import { PATHS, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { domainToSlug, normalizeDomain } from "@/features/manager/lib/domain-utils"
-import { WorktreeError, resolveWorktreePath } from "@/features/worktrees/lib/worktrees"
+import { resolveWorktreePath, WorktreeError } from "@/features/worktrees/lib/worktrees"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 import { resolveAndValidatePath } from "@/lib/utils/path-security"
 
@@ -113,13 +113,32 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
   }
 
   // Standalone mode - resolve workspace from local filesystem
-  if (process.env.BRIDGE_ENV === "standalone") {
-    // Using require() instead of await import() because getWorkspace is synchronous
-    // and used by many API routes. The standalone-workspace module is lightweight
-    // and only loaded in standalone mode.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getStandaloneWorkspacePath, getStandaloneWorkspaceBase, standaloneWorkspaceExists } =
-      require("@/features/workspace/lib/standalone-workspace") as typeof import("@/features/workspace/lib/standalone-workspace")
+  if (env.BRIDGE_ENV === "standalone") {
+    const {
+      getStandaloneWorkspacePath,
+      getStandaloneWorkspaceBase,
+      isValidStandaloneWorkspaceName,
+      standaloneWorkspaceExists,
+    } = await import("@/features/workspace/lib/standalone-workspace")
+
+    if (!isValidStandaloneWorkspaceName(customWorkspace)) {
+      console.error(`[Workspace ${requestId}] Invalid standalone workspace name: ${customWorkspace}`)
+      return {
+        success: false,
+        response: NextResponse.json(
+          {
+            ok: false,
+            error: ErrorCodes.WORKSPACE_INVALID,
+            message: `Invalid workspace name: ${customWorkspace}`,
+            details: {
+              workspace: customWorkspace,
+              suggestion: `Create workspace with: mkdir -p ${getStandaloneWorkspaceBase()}/<workspace>/user`,
+            },
+          },
+          { status: 400 },
+        ),
+      }
+    }
 
     if (standaloneWorkspaceExists(customWorkspace)) {
       const workspacePath = getStandaloneWorkspacePath(customWorkspace)

@@ -19,27 +19,27 @@
  * 5. Worker aborts and returns with cancelled=true
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { type ChildProcess, spawn } from "node:child_process"
 import { mkdir, rm, writeFile } from "node:fs/promises"
-import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { spawn, type ChildProcess } from "node:child_process"
-import { createIpcServer, isWorkerMessage, type IpcServer } from "../src/ipc"
+import { join } from "node:path"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createIpcServer, type IpcServer, isWorkerMessage } from "../src/ipc"
 import {
-  type ParentToWorkerMessage,
-  type WorkerToParentMessage,
-  type AgentRequest,
   type AgentConfig,
+  type AgentRequest,
   type CompleteResult,
-  STREAM_TYPES,
-  WORKER_MESSAGE_TYPES,
-  PARENT_MESSAGE_TYPES,
+  filterMessagesByType,
+  findMessageByType,
   // Type guards
   isCompleteMessage,
-  isReadyMessage,
   isCompleteResult,
-  findMessageByType,
-  filterMessagesByType,
+  isReadyMessage,
+  PARENT_MESSAGE_TYPES,
+  type ParentToWorkerMessage,
+  STREAM_TYPES,
+  WORKER_MESSAGE_TYPES,
+  type WorkerToParentMessage,
 } from "../src/types"
 
 // ============================================================================

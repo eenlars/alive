@@ -8,11 +8,10 @@
  * with key "SUPABASE_PROJECT_REF".
  */
 
-import { NextResponse, type NextRequest } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
-import { getOAuthInstance } from "@/lib/oauth/oauth-instances"
-import { getUserEnvKeysManager } from "@/lib/oauth/oauth-instances"
+import { getOAuthInstance, getUserEnvKeysManager } from "@/lib/oauth/oauth-instances"
 
 const SUPABASE_PROJECT_REF_KEY = "SUPABASE_PROJECT_REF"
 

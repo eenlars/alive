@@ -17,8 +17,8 @@
  */
 
 import { chownSync, cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
 import { createConnection } from "node:net"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import process from "node:process"
 
@@ -29,8 +29,9 @@ const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 // IMPORTANT: Import these BEFORE dropping privileges!
 // After privilege drop, the worker can't read /root/alive/node_modules/
 import { query } from "@anthropic-ai/claude-agent-sdk"
-import { isOAuthMcpTool, GLOBAL_MCP_PROVIDERS, DEFAULTS, PLAN_MODE_BLOCKED_TOOLS, allowTool, denyTool, isAbortError, isTransientNetworkError, isFatalError, formatUncaughtError } from "@webalive/shared"
-import { workspaceInternalMcp, toolsInternalMcp } from "@webalive/tools"
+// biome-ignore format: import checker expects a single-line import statement for this package.
+import { allowTool, DEFAULTS, denyTool, formatUncaughtError, GLOBAL_MCP_PROVIDERS, isAbortError, isFatalError, isHeavyBashCommand, isOAuthMcpTool, isTransientNetworkError, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
+import { toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts
@@ -61,7 +62,7 @@ process.on("unhandledRejection", (reason, _promise) => {
   process.exit(1)
 })
 
-process.on("uncaughtException", (error) => {
+process.on("uncaughtException", error => {
   // Transient network errors in sync code (rare but possible)
   if (isTransientNetworkError(error)) {
     console.warn("[worker] Non-fatal uncaught exception (continuing):", formatUncaughtError(error))
@@ -142,6 +143,48 @@ function ensureStableSessionHome(workspaceKey, uid, gid) {
   }
 }
 
+/**
+ * Extract structured SDK errors from a query result.
+ * Claude often emits these before exiting with a generic code 1.
+ */
+function extractStructuredResultErrors(queryResult) {
+  if (queryResult?.subtype !== "error_during_execution" || !Array.isArray(queryResult.errors)) {
+    return []
+  }
+  return queryResult.errors.filter(msg => typeof msg === "string" && msg.trim().length > 0)
+}
+
+/**
+ * Create compact MCP status counts from system init payload.
+ * Example output: { connected: 3, failed: 2, needsAuth: 1, pending: 0, disabled: 0 }
+ */
+function summarizeMcpStatuses(mcpServers) {
+  const summary = {
+    connected: 0,
+    failed: 0,
+    needsAuth: 0,
+    pending: 0,
+    disabled: 0,
+    unknown: 0,
+  }
+
+  if (!Array.isArray(mcpServers)) {
+    return summary
+  }
+
+  for (const server of mcpServers) {
+    const status = server?.status
+    if (status === "connected") summary.connected++
+    else if (status === "failed") summary.failed++
+    else if (status === "needs-auth") summary.needsAuth++
+    else if (status === "pending") summary.pending++
+    else if (status === "disabled") summary.disabled++
+    else summary.unknown++
+  }
+
+  return summary
+}
+
 // allowTool and denyTool imported from @webalive/shared
 
 // =============================================================================
@@ -177,14 +220,14 @@ class IpcClient {
         resolve()
       })
 
-      this.socket.on("data", (chunk) => this.handleData(chunk))
+      this.socket.on("data", chunk => this.handleData(chunk))
 
       this.socket.on("close", () => {
         console.error("[worker] Socket closed, exiting")
         process.exit(0)
       })
 
-      this.socket.on("error", (err) => {
+      this.socket.on("error", err => {
         clearTimeout(timeoutId)
         console.error("[worker] Socket error:", err.message)
         reject(err)
@@ -202,8 +245,8 @@ class IpcClient {
       process.exit(1)
     }
 
-    let newlineIndex
-    while ((newlineIndex = this.buffer.indexOf("\n")) !== -1) {
+    let newlineIndex = this.buffer.indexOf("\n")
+    while (newlineIndex !== -1) {
       const line = this.buffer.slice(0, newlineIndex).trim()
       this.buffer = this.buffer.slice(newlineIndex + 1)
 
@@ -215,6 +258,8 @@ class IpcClient {
       } catch (_err) {
         console.error("[worker] Failed to parse message:", line.slice(0, 200))
       }
+
+      newlineIndex = this.buffer.indexOf("\n")
     }
   }
 
@@ -265,7 +310,7 @@ function dropPrivileges() {
   // Sessions (conversation history) still persist per-workspace via HOME.
   const configuredClaudeDir = process.env.CLAUDE_CONFIG_DIR
   const defaultClaudeDir = join(originalHome, ".claude")
-  if (configuredClaudeDir && configuredClaudeDir.startsWith("/")) {
+  if (configuredClaudeDir?.startsWith("/")) {
     process.env.CLAUDE_CONFIG_DIR = configuredClaudeDir
   } else {
     if (configuredClaudeDir && !configuredClaudeDir.startsWith("/")) {
@@ -276,7 +321,7 @@ function dropPrivileges() {
 
   // Try to use stable session home for this workspace
   // Falls back to temp directory if stable home creation fails
-  let workerHome = ensureStableSessionHome(workspaceKey, targetUid, targetGid)
+  const workerHome = ensureStableSessionHome(workspaceKey, targetUid, targetGid)
 
   if (workerHome) {
     // Using stable session home - sessions will persist across restarts
@@ -419,7 +464,7 @@ function dropPrivileges() {
 
 async function handleQuery(ipc, requestId, payload) {
   const queryStartTime = Date.now()
-  const timing = (label) => console.error(`[worker ${requestId}] [TIMING] ${label}: +${Date.now() - queryStartTime}ms`)
+  const timing = label => console.error(`[worker ${requestId}] [TIMING] ${label}: +${Date.now() - queryStartTime}ms`)
 
   timing("query_received")
 
@@ -455,12 +500,12 @@ async function handleQuery(ipc, requestId, payload) {
   // Required agentConfig fields
   if (!Array.isArray(allowedTools)) {
     validationErrors.push("allowedTools must be an array")
-  } else if (!allowedTools.every((t) => typeof t === "string")) {
+  } else if (!allowedTools.every(t => typeof t === "string")) {
     validationErrors.push("allowedTools must contain only strings")
   }
   if (!Array.isArray(disallowedTools)) {
     validationErrors.push("disallowedTools must be an array")
-  } else if (!disallowedTools.every((t) => typeof t === "string")) {
+  } else if (!disallowedTools.every(t => typeof t === "string")) {
     validationErrors.push("disallowedTools must contain only strings")
   }
   if (typeof permissionMode !== "string") {
@@ -468,7 +513,7 @@ async function handleQuery(ipc, requestId, payload) {
   }
   if (!Array.isArray(settingSources)) {
     validationErrors.push("settingSources must be an array")
-  } else if (!settingSources.every((s) => typeof s === "string")) {
+  } else if (!settingSources.every(s => typeof s === "string")) {
     validationErrors.push("settingSources must contain only strings")
   }
   if (!bridgeStreamTypes || typeof bridgeStreamTypes !== "object") {
@@ -530,7 +575,13 @@ async function handleQuery(ipc, requestId, payload) {
   // Declare these outside try so they're accessible in catch
   let messageCount = 0
   let queryResult = null
-  let stderrBuffer = [] // Captures Claude subprocess stderr for error debugging
+  const stderrBuffer = [] // Captures Claude subprocess stderr for error debugging
+  const recentMessageTypes = [] // Last few SDK message types/subtypes to aid crash diagnosis
+  let initMcpStatusSummary = null
+  let initMcpStatusByServer = null
+  let initSessionId = null
+  let connectedProviders = []
+  let enabledMcpServerKeys = []
 
   try {
     // SECURITY: Always set/clear session cookie at start of each request
@@ -573,7 +624,7 @@ async function handleQuery(ipc, requestId, payload) {
 
     // Get OAuth tokens for connected MCP providers
     const oauthTokens = payload.oauthTokens || {}
-    const connectedProviders = Object.keys(oauthTokens).filter((key) => !!oauthTokens[key])
+    connectedProviders = Object.keys(oauthTokens).filter(key => !!oauthTokens[key])
     if (connectedProviders.length > 0) {
       console.error(`[worker] Connected OAuth providers: ${connectedProviders.join(", ")}`)
     }
@@ -593,22 +644,37 @@ async function handleQuery(ipc, requestId, payload) {
       // ExitPlanMode requires user approval - Claude cannot approve its own plan
       // The user must click "Approve Plan" in the UI to exit plan mode
       if (toolName === "ExitPlanMode") {
-        console.error(`[worker] PLAN MODE: ExitPlanMode blocked - requires user approval`)
+        console.error("[worker] PLAN MODE: ExitPlanMode blocked - requires user approval")
         return denyTool(
           `You cannot approve your own plan. The user must review and approve the plan by clicking "Approve Plan" in the UI. ` +
-          `Present your plan clearly and wait for user approval before proceeding with implementation.`
+            "Present your plan clearly and wait for user approval before proceeding with implementation.",
         )
       }
 
       // Plan mode: block modification tools
       if (isPlanMode && PLAN_MODE_BLOCKED_TOOLS.includes(toolName)) {
         console.error(`[worker] PLAN MODE: Blocked modification tool: ${toolName}`)
-        return denyTool(`Tool "${toolName}" is not allowed in plan mode. Plan mode is for exploration only - Claude can read and analyze but not modify files.`)
+        return denyTool(
+          `Tool "${toolName}" is not allowed in plan mode. Plan mode is for exploration only - Claude can read and analyze but not modify files.`,
+        )
       }
 
       if (disallowedTools.includes(toolName)) {
         console.error(`[worker] SECURITY: Blocked disallowed tool: ${toolName}`)
         return denyTool(`Tool "${toolName}" is explicitly disallowed for security reasons.`)
+      }
+
+      // Protect shared compute from expensive monorepo-wide shell commands.
+      // Superadmins retain unrestricted execution.
+      if (toolName === "Bash" && !agentConfig.isSuperadmin) {
+        const command = typeof input?.command === "string" ? input.command : ""
+        if (isHeavyBashCommand(command)) {
+          console.error("[worker] SECURITY: Blocked heavy Bash command for non-superadmin")
+          return denyTool(
+            "This Bash command is blocked because it is too heavy for shared capacity. " +
+              "Use narrower commands (single package/file) or ask a superadmin to run full builds/checks.",
+          )
+        }
       }
 
       if (allowedTools.includes(toolName) || isOAuthMcpTool(toolName, connectedProviders)) {
@@ -640,8 +706,9 @@ async function handleQuery(ipc, requestId, payload) {
       ...globalMcpServers,
       ...(oauthMcpServers || {}),
     }
+    enabledMcpServerKeys = Object.keys(mcpServers)
 
-    console.error("[worker] MCP servers enabled:", Object.keys(mcpServers).join(", "))
+    console.error("[worker] MCP servers enabled:", enabledMcpServerKeys.join(", "))
     console.error("[worker] Resume session:", payload.resume || "none (new session)")
     if (payload.resumeSessionAt) {
       console.error("[worker] Resume at message:", payload.resumeSessionAt)
@@ -650,7 +717,7 @@ async function handleQuery(ipc, requestId, payload) {
     timing("before_sdk_query")
 
     // Capture stderr from Claude Code subprocess for error debugging
-    const stderrHandler = (message) => {
+    const stderrHandler = message => {
       stderrBuffer.push(message)
       // Keep only last 50 lines to avoid memory bloat
       if (stderrBuffer.length > 50) stderrBuffer.shift()
@@ -665,6 +732,7 @@ async function handleQuery(ipc, requestId, payload) {
         model: payload.model,
         maxTurns: payload.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
         permissionMode,
+        ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
         allowedTools,
         disallowedTools,
         canUseTool,
@@ -675,6 +743,7 @@ async function handleQuery(ipc, requestId, payload) {
         resumeSessionAt: payload.resumeSessionAt,
         abortSignal: signal,
         stderr: stderrHandler,
+        strictMcpConfig: true,
       },
     })
 
@@ -695,13 +764,30 @@ async function handleQuery(ipc, requestId, payload) {
 
       messageCount++
 
+      const messageTag = message.subtype ? `${message.type}:${message.subtype}` : message.type
+      recentMessageTypes.push(messageTag)
+      if (recentMessageTypes.length > 12) {
+        recentMessageTypes.shift()
+      }
+
       if (message.type === "result") {
         queryResult = message
       }
 
       // Capture session ID from system init message
       if (message.type === "system" && message.subtype === "init" && message.session_id) {
+        initSessionId = message.session_id
         console.error(`[worker] Session ID: ${message.session_id}`)
+
+        if (Array.isArray(message.mcp_servers)) {
+          initMcpStatusSummary = summarizeMcpStatuses(message.mcp_servers)
+          initMcpStatusByServer = message.mcp_servers.map(server => ({
+            name: typeof server?.name === "string" ? server.name : "unknown",
+            status: typeof server?.status === "string" ? server.status : "unknown",
+          }))
+          console.error("[worker] MCP status summary:", JSON.stringify(initMcpStatusSummary))
+        }
+
         ipc.send({
           type: "session",
           requestId,
@@ -714,9 +800,7 @@ async function handleQuery(ipc, requestId, payload) {
       if (message.type === "system" && message.subtype === "init" && message.tools) {
         outputMessage = {
           ...message,
-          tools: message.tools.filter(
-            (tool) => allowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders),
-          ),
+          tools: message.tools.filter(tool => allowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders)),
         }
       }
 
@@ -772,8 +856,40 @@ async function handleQuery(ipc, requestId, payload) {
       queriesProcessed++
       console.error(`[worker] Query complete: ${messageCount} messages (total: ${queriesProcessed})`)
     } else {
-      // No result yet - this is a real error
+      // No successful result yet. If SDK emitted a structured error result before exit,
+      // surface that error text instead of the generic "exited with code 1".
+      let surfacedErrorMessage = error?.message || String(error)
+      const structuredErrors = extractStructuredResultErrors(queryResult)
+      if (structuredErrors.length > 0) {
+        surfacedErrorMessage = structuredErrors.join("; ")
+        console.error("[worker] Structured SDK error before CLI exit:", surfacedErrorMessage)
+      }
+
       const stderrOutput = stderrBuffer?.length ? stderrBuffer.join("\n") : null
+
+      // Emit one compact diagnostics payload so debuggers can identify
+      // stale session vs MCP failure vs permission flow issues quickly.
+      const failureDiagnostics = {
+        requestId,
+        messageCount,
+        permissionMode,
+        resume: payload.resume || null,
+        resumeSessionAt: payload.resumeSessionAt || null,
+        connectedProviders,
+        mcpServersEnabled: enabledMcpServerKeys,
+        initSessionId,
+        initMcpStatusSummary,
+        initMcpStatusByServer,
+        queryResultSubtype: queryResult?.subtype || null,
+        queryResultIsError: queryResult?.is_error === true,
+        queryResultErrors: structuredErrors,
+        recentMessageTypes,
+        stderrLinesCaptured: stderrBuffer.length,
+        surfacedErrorMessage,
+        originalErrorMessage: error?.message || String(error),
+      }
+      console.error("[worker] Query failure diagnostics:", JSON.stringify(failureDiagnostics))
+
       console.error("[worker] Query error:", error?.stack || String(error))
       if (stderrOutput) {
         console.error("[worker] Claude stderr:", stderrOutput)
@@ -781,9 +897,10 @@ async function handleQuery(ipc, requestId, payload) {
       ipc.send({
         type: "error",
         requestId,
-        error: error?.message || String(error),
+        error: surfacedErrorMessage,
         stack: error?.stack,
         stderr: stderrOutput,
+        diagnostics: failureDiagnostics,
       })
     }
   } finally {
@@ -811,14 +928,14 @@ async function handleShutdown(ipc, graceful) {
     // Wait with timeout - don't block forever
     const startWait = Date.now()
     while (currentRequestId && Date.now() - startWait < SHUTDOWN_TIMEOUT_MS) {
-      await new Promise((r) => setTimeout(r, 100))
+      await new Promise(r => setTimeout(r, 100))
     }
 
     if (currentRequestId) {
       console.error("[worker] Timeout waiting for query, aborting...")
       currentAbortController?.abort()
       // Give it a moment to clean up
-      await new Promise((r) => setTimeout(r, 500))
+      await new Promise(r => setTimeout(r, 500))
     }
   }
 
@@ -867,7 +984,7 @@ async function main() {
 
   // Now drop privileges - the socket connection stays open
   dropPrivileges()
-  ipc.onMessage = (msg) => {
+  ipc.onMessage = msg => {
     // SECURITY: Validate message structure
     if (!msg || typeof msg !== "object" || typeof msg.type !== "string") {
       console.error("[worker] Invalid message received:", msg)
@@ -901,9 +1018,13 @@ async function main() {
         // IMPORTANT: Must catch any unhandled promise rejections
         // If handleQuery rejects and we don't catch it, the parent never
         // receives complete/error and thinks the worker is still busy forever
-        handleQuery(ipc, msg.requestId, msg.payload).catch((err) => {
+        handleQuery(ipc, msg.requestId, msg.payload).catch(err => {
           console.error("[worker] FATAL: Unhandled error in handleQuery:", err)
-          ipc.send({ type: "error", requestId: msg.requestId, error: `Unhandled worker error: ${err?.message || String(err)}` })
+          ipc.send({
+            type: "error",
+            requestId: msg.requestId,
+            error: `Unhandled worker error: ${err?.message || String(err)}`,
+          })
           clearQueryState()
         })
         break
@@ -917,7 +1038,7 @@ async function main() {
         handleCancel(msg.requestId)
         break
       case "shutdown":
-        handleShutdown(ipc, !!msg.graceful).catch((err) => {
+        handleShutdown(ipc, !!msg.graceful).catch(err => {
           console.error("[worker] FATAL: Shutdown failed:", err)
           process.exit(1)
         })
@@ -938,7 +1059,7 @@ async function main() {
   // The socket 'close' event will trigger exit
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error("[worker] FATAL: Worker main() failed:", err)
   process.exit(1)
 })

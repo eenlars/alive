@@ -1,4 +1,4 @@
-import { runScript } from './common.js'
+import { runScript } from "./common.js"
 
 export interface EnsureUserParams {
   user: string
@@ -11,7 +11,7 @@ export interface EnsureUserParams {
  * @param params - User creation parameters
  */
 export async function ensureUser(params: EnsureUserParams): Promise<void> {
-  await runScript('01-ensure-user.sh', {
+  await runScript("01-ensure-user.sh", {
     SITE_USER: params.user,
     SITE_HOME: params.home,
   })

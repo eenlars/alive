@@ -157,6 +157,12 @@ export function ToolOutputRouter({ toolName, content, toolInput, onSubmitAnswer 
       }
       break
 
+    case "bashoutput":
+      if (content.output !== undefined && content.exitCode !== undefined) {
+        return <BashOutput {...content} />
+      }
+      break
+
     case "read":
       // TextFileOutput
       if (content.total_lines !== undefined && content.content) {

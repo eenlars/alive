@@ -8,12 +8,13 @@
 
 import { env } from "@webalive/env/server"
 import { STANDALONE } from "@webalive/shared"
+import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { z } from "zod"
+import { createErrorResponse } from "@/features/auth/lib/auth"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
-import { cookies } from "next/headers"
 
 const CreateWorkspaceSchema = z.object({
   name: z

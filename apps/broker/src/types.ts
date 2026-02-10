@@ -40,7 +40,7 @@ export interface StreamContext {
 
 // Agent configuration passed from Next.js
 // We use z.record to accept whatever Next.js sends - the worker-pool validates the shape
-export const AgentConfigSchema = z.record(z.unknown())
+export const AgentConfigSchema = z.record(z.string(), z.unknown())
 
 export type AgentConfigInput = z.infer<typeof AgentConfigSchema>
 
@@ -58,8 +58,8 @@ export const StartStreamRequestSchema = z.object({
   apiKey: z.string().optional(), // User's API key
   agentConfig: AgentConfigSchema, // Required agent configuration
   sessionCookie: z.string().optional(), // For MCP tool auth
-  oauthTokens: z.record(z.string()).optional(),
-  userEnvKeys: z.record(z.string()).optional(),
+  oauthTokens: z.record(z.string(), z.string()).optional(),
+  userEnvKeys: z.record(z.string(), z.string()).optional(),
 })
 
 export type StartStreamRequest = z.infer<typeof StartStreamRequestSchema>

@@ -1,8 +1,8 @@
 # Proposal: Conversation Tree Architecture
 
-**Source**: Extracted from `zukofrontend` (reverse-engineered ChatGPT frontend)
-**File**: `src/lib/conversation/tree.ts` (from zukofrontend)
-**Value**: Enables branching conversations, message editing, regeneration, and variant navigation
+**Source**: Independent implementation based on standard tree/graph data structure patterns.
+**Legal note**: Do not copy code from proprietary or reverse-engineered sources. If any external reference is reused, it must have a verified compatible license and explicit attribution.
+**Value**: Enables branching conversations, message editing, regeneration, and variant navigation.
 
 ---
 
@@ -31,7 +31,7 @@ This breaks down when users want to:
 
 ChatGPT stores conversations as **trees**, not arrays. Each message can have multiple children (variants).
 
-```
+```text
                     [root]
                        │
                     [user: "Hello"]
@@ -62,6 +62,15 @@ interface ConversationNode {
   parent: string | null      // Parent node ID
   children: string[]         // Child node IDs (variants/branches)
   message: Message | null    // Null for root node
+}
+
+interface Message {
+  id: string
+  author: { role: "user" | "assistant" | "system" }
+  content: { parts: string[] }
+  create_time: number
+  update_time?: number
+  metadata?: Record<string, unknown>
 }
 ```
 
@@ -155,7 +164,7 @@ Benefits:
 
 | Aspect | Cost | Value |
 |--------|------|-------|
-| Core library | ~500 lines (can copy from zuko) | High - proven production code |
+| Core library | ~400-600 lines (first-principles implementation) | High - proven model class |
 | Type changes | Moderate - new Conversation type | High - cleaner data model |
 | UI changes | Medium - add variant nav arrows | High - major UX improvement |
 | DB migration | Medium - new schema | Low risk - additive change |
@@ -166,10 +175,11 @@ Benefits:
 ## Recommended Approach
 
 ### Phase 1: Core Library
-Copy and adapt `tree.ts` as `lib/conversation-tree.ts`:
+Implement `lib/conversation-tree.ts` from first principles:
 - Pure functions, zero dependencies
 - Full TypeScript types
 - Works standalone
+- Add unit tests for branch traversal, sibling navigation, edit branching, and regeneration cursor logic
 
 ### Phase 2: Backend Support
 Update conversation storage:
@@ -186,14 +196,60 @@ Add to chat interface:
 
 ---
 
+## Migration & Deployment
+
+### Data Migration Strategy
+
+Use **lazy migration on read** with dual-shape support during rollout:
+
+1. If payload is already tree-shaped (`mapping` + `current_node`), use it directly.
+2. If payload is linear (`messages[]`), convert at read time into a tree:
+   - Create root node.
+   - Append each message as a single-child chain.
+   - Set `current_node` to final message node.
+3. Persist migrated tree on next write to avoid repeated conversion.
+4. After rollout stability, run a background backfill and remove linear fallback in a later release.
+
+### Concurrency Control
+
+Use optimistic concurrency at conversation-row level:
+
+- Store a `version` (or `updated_at`) with each conversation.
+- Writes must include expected version.
+- On mismatch, reject with conflict and require client rebase/retry.
+- For conflicting edits to same node, preserve both by creating sibling branches instead of overwriting.
+
+### API Compatibility
+
+- Keep existing endpoint paths.
+- Add a `conversation_format` field (`"linear"` | `"tree"`) during transition.
+- Clients that only support linear can continue reading legacy until migration completes.
+- New clients should prefer tree payloads and degrade gracefully if linear appears.
+
+### Performance / Scale
+
+- Normalize nodes by ID (`mapping`) for O(1) lookup.
+- Cap loaded branch depth in UI when rendering large threads.
+- Add DB indexes for `conversation_id`, `updated_at`, and optional `current_node`.
+- Keep branch traversal in memory per request; avoid N+1 node fetches.
+
+### Rollout and Rollback
+
+1. Ship read support for both formats.
+2. Ship write support in tree format behind feature flag.
+3. Enable for internal users first, then progressively widen.
+4. Roll back by disabling tree writes (linear reads remain functional during transition).
+
+---
+
 ## Full Implementation Reference
 
-The complete implementation from zukofrontend (482 lines, MIT-style usage):
+Illustrative implementation sketch (first-principles pseudocode):
 
 ```typescript
 /**
  * Conversation tree utilities
- * Adapted from ChatGPT frontend reverse-engineering
+ * Implemented from standard tree operations (no external code copy).
  */
 
 export const CLIENT_ROOT_ID = "client-created-root"
@@ -396,6 +452,6 @@ This is not a feature - it's a **foundational data structure** that unlocks mult
 - Conversation branching
 - Variant comparison
 
-The code is production-proven (it's what ChatGPT uses), pure functional, and portable.
+The model is well-understood, pure-functional, and portable.
 
 **Recommendation**: Adopt this as the core conversation model for Alive.

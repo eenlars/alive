@@ -14,7 +14,7 @@
  */
 
 import { PATHS } from "./config.js"
-import { OAUTH_MCP_PROVIDERS, GLOBAL_MCP_PROVIDERS, isOAuthMcpTool } from "./mcp-providers.js"
+import { GLOBAL_MCP_PROVIDERS, isOAuthMcpTool, OAUTH_MCP_PROVIDERS } from "./mcp-providers.js"
 
 // =============================================================================
 // SDK TOOL DEFINITIONS
@@ -39,6 +39,8 @@ export const STREAM_ALLOWED_SDK_TOOLS: string[] = [
   "Grep",
   // Shell execution (available to all users)
   "Bash",
+  "TaskOutput",
+  // Legacy alias used by older Claude Code SDK versions
   "BashOutput",
   // Planning & workflow
   // NOTE: ExitPlanMode is intentionally NOT here - it requires user approval
@@ -63,6 +65,7 @@ export type StreamAllowedSDKTool =
   | "Glob"
   | "Grep"
   | "Bash"
+  | "TaskOutput"
   | "BashOutput"
   // ExitPlanMode intentionally omitted - requires user approval
   | "TodoWrite"
@@ -76,10 +79,10 @@ export type StreamAllowedSDKTool =
 
 /**
  * Admin-only SDK tools.
- * KillShell is admin-only because it can terminate long-running processes.
- * Bash/BashOutput are in STREAM_ALLOWED_SDK_TOOLS (available to all users).
+ * TaskStop is admin-only because it can terminate background tasks.
+ * Bash/TaskOutput/BashOutput are in STREAM_ALLOWED_SDK_TOOLS (available to all users).
  */
-export const STREAM_ADMIN_ONLY_SDK_TOOLS = ["KillShell"] as const
+export const STREAM_ADMIN_ONLY_SDK_TOOLS = ["TaskStop"] as const
 export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number]
 
 /**
@@ -176,6 +179,34 @@ export const STREAM_PERMISSION_MODE = "default" as const
  */
 export const STREAM_SETTINGS_SOURCES = ["project", "user"] as const
 
+const EXACT_HEAVY_BASH_COMMANDS = new Set([
+  "bun run build",
+  "bun run type-check",
+  "bun run lint",
+  "bun run static-check",
+  "bun run check:pre-push",
+  "bun run check:all",
+  "npm run build",
+  "npm run type-check",
+  "npm run lint",
+  "pnpm run build",
+  "pnpm run type-check",
+  "pnpm run lint",
+  "yarn build",
+  "yarn type-check",
+  "yarn lint",
+  "next build",
+  "claude",
+])
+
+const HEAVY_BASH_PATTERNS = [
+  /\b(?:tsc|npx\s+tsc|bunx?\s+tsc|pnpm\s+tsc|yarn\s+tsc)\b/,
+  /(?:^|(?:&&|\|\||\||;)\s*)(?:\.\/)?claude(?:\b|$)/,
+  /(?:^|(?:&&|\|\||\||;)\s*)(?:npx|bunx?|pnpm\s+dlx|yarn\s+dlx)\s+(?:\.\/)?claude(?:\b|$)/,
+  /claude-agent-sdk\/cli\.js/,
+  /\b(turbo|bun run turbo)\s+run\s+(build|type-check|lint|test)\b/,
+]
+
 // =============================================================================
 // TOOL PERMISSION HELPERS
 // =============================================================================
@@ -192,6 +223,18 @@ export function allowTool(input: Record<string, unknown>) {
  */
 export function denyTool(message: string) {
   return { behavior: "deny" as const, message }
+}
+
+/**
+ * Detect shell commands that are known to be expensive at monorepo scope.
+ * This is a conservative deny-list used to protect shared CPU capacity.
+ */
+export function isHeavyBashCommand(command: unknown): boolean {
+  if (typeof command !== "string") return false
+  const normalized = command.toLowerCase().trim().replace(/\s+/g, " ")
+  if (!normalized) return false
+  if (EXACT_HEAVY_BASH_COMMANDS.has(normalized)) return true
+  return HEAVY_BASH_PATTERNS.some(pattern => pattern.test(normalized))
 }
 
 /**

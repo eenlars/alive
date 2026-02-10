@@ -10,6 +10,10 @@ export interface DeployConfig {
   templatePath: string
   /** Whether to rollback on failure (default: true) */
   rollbackOnFailure?: boolean
+  /** Skip Phase 5 (build) — deploy raw files, user builds via chat */
+  skipBuild?: boolean
+  /** Skip Phase 7 (Caddy config) — caller handles routing after DB write */
+  skipCaddy?: boolean
   /** Server IP for DNS validation (required) */
   serverIp: string
   /** Wildcard domain for DNS validation (required) */

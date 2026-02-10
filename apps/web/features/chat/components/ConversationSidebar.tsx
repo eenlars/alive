@@ -15,11 +15,12 @@ import {
   Settings2,
   X,
 } from "lucide-react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useDexieArchivedConversations, useDexieConversations, useDexieSession } from "@/lib/db/dexieMessageStore"
 import type { DbConversation } from "@/lib/db/messageDb"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
 import { useStreamingStore } from "@/lib/stores/streamingStore"
+import { useWorkspaceTabs } from "@/lib/stores/tabStore"
 
 // Shared style constants for DRY code
 const styles = {
@@ -181,6 +182,22 @@ export function ConversationSidebar({
 
   // Get streaming state for all tabs to show activity indicator
   const streamingTabs = useStreamingStore(state => state.tabs)
+  const workspaceTabs = useWorkspaceTabs(workspace)
+
+  const streamingConversationIds = useMemo(() => {
+    const tabGroupByTabId = new Map(workspaceTabs.map(tab => [tab.id, tab.tabGroupId]))
+    const activeConversations = new Set<string>()
+
+    for (const [tabId, tabState] of Object.entries(streamingTabs)) {
+      if (!tabState.isStreamActive) continue
+      const tabGroupId = tabGroupByTabId.get(tabId)
+      if (tabGroupId) {
+        activeConversations.add(tabGroupId)
+      }
+    }
+
+    return activeConversations
+  }, [streamingTabs, workspaceTabs])
 
   // Memoized handlers
   const handleTabGroupClick = useCallback(
@@ -227,13 +244,9 @@ export function ConversationSidebar({
   // Check if any tab in a conversation is streaming
   const isConversationStreaming = useCallback(
     (conversationId: string) => {
-      // Check if any tab that belongs to this conversation is actively streaming
-      return Object.entries(streamingTabs).some(([tabId, tabState]) => {
-        // Tab IDs include the conversation ID, check if streaming
-        return tabId.includes(conversationId) && tabState.isStreamActive
-      })
+      return streamingConversationIds.has(conversationId)
     },
-    [streamingTabs],
+    [streamingConversationIds],
   )
 
   // Shared sidebar content - rendered in both desktop and mobile

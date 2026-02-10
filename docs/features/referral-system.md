@@ -1,9 +1,8 @@
 # Referral System
 
-> **Document Type:** SPECIFICATION (not implemented)
-> **Status:** COMPLETE
+> **Document Type:** Feature documentation
+> **Status:** Implemented
 > **Last Updated:** 2025-01-28
-> **Owner:** @anthropic-team
 
 ---
 
@@ -2057,7 +2056,7 @@ When connecting to your auth provider's email verification webhook:
 
 ```bash
 # Check server logs for referral events
-journalctl -u alive-dev -f | grep "\[Referral\]"
+journalctl -u alive-dev -f | grep "\\[Referral\\]"
 
 # Query database for referral status
 supabase db run "SELECT * FROM iam.referrals WHERE referred_id = 'user_123'"

@@ -1,3 +1,4 @@
+import type { Req as PkgReq, Res as PkgRes } from "@alive-brug/alrighty"
 import { z } from "zod"
 import { RESERVED_SLUGS } from "@/features/deployment/types/guards"
 import { OptionalWorktreeSchema, OptionalWorktreeSlugSchema } from "@/types/guards/worktree-schemas"
@@ -85,6 +86,7 @@ export const apiSchemas = {
           canSelectAnyModel: z.boolean(),
           isAdmin: z.boolean(),
           isSuperadmin: z.boolean(),
+          enabledModels: z.array(z.string()),
         })
         .nullable(),
     }),
@@ -131,7 +133,7 @@ export const apiSchemas = {
         tabGroupId: z.string().optional(), // Tab group ID for lock key
         tabId: z.string().optional(), // Primary session key (replaces conversationId for fallback)
         workspace: z.string().optional(),
-        worktree: OptionalWorktreeSchema, // Validated to prevent session key corruption
+        worktree: OptionalWorktreeSchema.optional(), // Validated to prevent session key corruption
         clientStack: z.string().optional(), // Debug: client-side stack trace for tracking cancel origin
       })
       .refine(data => data.requestId || (data.tabGroupId && data.tabId && data.workspace), {
@@ -364,10 +366,7 @@ export const apiSchemas = {
   /**
    * POST /api/deploy-subdomain
    * Create a new website deployment
-   *
-   * Supports both authenticated and anonymous users:
-   * - Authenticated: email from session, password optional
-   * - Anonymous: email and password required to create account
+   * Requires authenticated session.
    */
   "deploy-subdomain": {
     req: z
@@ -380,8 +379,6 @@ export const apiSchemas = {
           .refine(slug => !RESERVED_SLUGS.some(r => r === slug), {
             message: "This slug is reserved and cannot be used. Please choose a different name.",
           }),
-        email: z.string().email("Please enter a valid email address").optional(),
-        password: z.string().optional(),
         orgId: z.string().min(1, "Organization ID cannot be empty").optional(),
         siteIdeas: z
           .string()
@@ -396,7 +393,45 @@ export const apiSchemas = {
           })
           .optional(),
       })
+      .strict()
       .brand<"DeploySubdomainRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      message: z.string(),
+      domain: z.string(),
+      chatUrl: z.string(),
+      orgId: z.string().optional(),
+    }),
+  },
+
+  /**
+   * POST /api/import-repo
+   * Import a GitHub repository as a new site
+   * Requires authenticated session with GitHub integration connected
+   */
+  "import-repo": {
+    req: z
+      .object({
+        slug: z
+          .string()
+          .min(3, "Slug must be at least 3 characters")
+          .max(20, "Slug must be no more than 20 characters")
+          .regex(/^[a-z0-9]([a-z0-9-]{1,18}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
+          .refine(slug => !RESERVED_SLUGS.some(r => r === slug), {
+            message: "This slug is reserved and cannot be used. Please choose a different name.",
+          }),
+        repoUrl: z.string().min(1, "Repository URL is required"),
+        branch: z.string().optional(),
+        orgId: z.string().min(1, "Organization ID cannot be empty").optional(),
+        siteIdeas: z
+          .string()
+          .max(5000, "Site ideas must be less than 5000 characters")
+          .transform(val => val || "")
+          .optional()
+          .default(""),
+      })
+      .strict()
+      .brand<"ImportRepoRequest">(),
     res: z.object({
       ok: z.literal(true),
       message: z.string(),
@@ -631,6 +666,78 @@ export const apiSchemas = {
       username: z.string().optional(),
     }),
   },
+  // ============================================================================
+  // DRIVE (file storage panel)
+  // ============================================================================
+
+  /**
+   * POST /api/drive/list
+   * List files in the drive directory
+   */
+  "drive/list": {
+    req: z
+      .object({
+        workspace: z.string().min(1),
+        path: z.string().default(""),
+        worktree: z.string().optional(),
+      })
+      .brand<"DriveListRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      path: z.string(),
+      files: z.array(
+        z.object({
+          name: z.string(),
+          type: z.enum(["file", "directory"]),
+          size: z.number(),
+          modified: z.string(),
+          path: z.string(),
+        }),
+      ),
+    }),
+  },
+
+  /**
+   * POST /api/drive/read
+   * Read a file from the drive directory
+   */
+  "drive/read": {
+    req: z
+      .object({
+        workspace: z.string().min(1),
+        path: z.string().min(1),
+        worktree: z.string().optional(),
+      })
+      .brand<"DriveReadRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      path: z.string(),
+      filename: z.string(),
+      content: z.string(),
+      language: z.string(),
+      size: z.number(),
+    }),
+  },
+
+  /**
+   * POST /api/drive/delete
+   * Delete a file or directory in the drive
+   */
+  "drive/delete": {
+    req: z
+      .object({
+        workspace: z.string().min(1),
+        path: z.string().min(1),
+        worktree: z.string().optional(),
+        recursive: z.boolean().optional(),
+      })
+      .brand<"DriveDeleteRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      deleted: z.string(),
+      type: z.enum(["file", "directory"]),
+    }),
+  },
 } as const
 
 // ============================================================================
@@ -638,8 +745,8 @@ export const apiSchemas = {
 // ============================================================================
 
 export type Endpoint = keyof typeof apiSchemas
-export type Req<E extends Endpoint> = z.infer<(typeof apiSchemas)[E]["req"]>
-export type Res<E extends Endpoint> = z.infer<(typeof apiSchemas)[E]["res"]>
+export type Req<E extends Endpoint> = PkgReq<typeof apiSchemas, E>
+export type Res<E extends Endpoint> = PkgRes<typeof apiSchemas, E>
 
 // ============================================================================
 // VALIDATION HELPER

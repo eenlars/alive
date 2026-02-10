@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest"
-import { retryAsync, resolveRetryConfig, computeBackoff, sleepWithAbort } from "../retry"
+import { describe, expect, it, vi } from "vitest"
+import { computeBackoff, resolveRetryConfig, retryAsync, sleepWithAbort } from "../retry"
 
 describe("retry utilities", () => {
   describe("resolveRetryConfig", () => {

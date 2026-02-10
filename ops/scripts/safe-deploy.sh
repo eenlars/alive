@@ -4,6 +4,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 ENVIRONMENT="${1:-staging}"
 FORCE_DEPLOY="${2:-false}"
 
@@ -26,14 +29,14 @@ fi
 
 case "$ENVIRONMENT" in
   staging)
-    SERVICE="claude-bridge-staging"
+    SERVICE="alive-staging"
     PORT=8998
-    BUILD_DIR="/root/alive/.builds/staging"
+    BUILD_DIR="${PROJECT_ROOT}/.builds/staging"
     ;;
   production)
-    SERVICE="claude-bridge-production"
+    SERVICE="alive-production"
     PORT=9000
-    BUILD_DIR="/root/alive/.builds/production"
+    BUILD_DIR="${PROJECT_ROOT}/.builds/production"
     ;;
 esac
 

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest"
-import { aliveTagger } from "../src/plugin"
 import type { ResolvedConfig } from "vite"
+import { describe, expect, it, vi } from "vitest"
+import { aliveTagger } from "../src/plugin"
 
 describe("aliveTagger plugin", () => {
   describe("plugin creation", () => {

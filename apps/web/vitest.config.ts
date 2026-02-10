@@ -86,6 +86,7 @@ export const baseTestConfig = {
     "**/components/ui/__tests__/PhotoMenu.test.tsx",
     "**/features/chat/hooks/__tests__/useStreamCancellation.test.ts",
     "**/lib/db/__tests__/useTabMessages.test.ts",
+    "**/app/chat/components/__tests__/ChatEmptyState.test.tsx",
   ],
   // Use forks instead of threads - native modules (@napi-rs/image) hang with threads
   pool: "forks" as const,

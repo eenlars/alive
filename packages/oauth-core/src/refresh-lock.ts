@@ -150,9 +150,20 @@ export class RedisRefreshLockManager implements IRefreshLockManager {
   }
 
   async withLock(key: string, refreshFn: () => Promise<string>): Promise<string> {
-    // No Redis available (standalone mode) - execute without distributed locking
+    // No Redis available (standalone mode) - keep single-flight behavior in-process.
     if (!this.redis) {
-      return refreshFn()
+      const localPromise = this.localPending.get(key)
+      if (localPromise) {
+        console.log(`[RefreshLock:MemoryFallback] Waiting for local pending refresh: ${key}`)
+        return localPromise
+      }
+
+      const refreshPromise = refreshFn().finally(() => {
+        this.localPending.delete(key)
+      })
+
+      this.localPending.set(key, refreshPromise)
+      return refreshPromise
     }
 
     const lockKey = `${this.LOCK_PREFIX}${key}`

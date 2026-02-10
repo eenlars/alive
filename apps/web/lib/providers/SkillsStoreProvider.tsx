@@ -2,7 +2,7 @@
 
 import { createContext, type ReactNode, useContext, useEffect, useRef } from "react"
 import { useStore } from "zustand"
-import { createSkillsStore, type SkillsState, type SkillsStore, type Skill } from "@/lib/stores/skillsStore"
+import { createSkillsStore, type Skill, type SkillsState, type SkillsStore } from "@/lib/stores/skillsStore"
 
 export type SkillsStoreApi = ReturnType<typeof createSkillsStore>
 

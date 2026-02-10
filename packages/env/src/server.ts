@@ -19,9 +19,9 @@
 
 import { existsSync } from "node:fs"
 import { join } from "node:path"
-import { config as loadDotenv } from "dotenv"
 import { createEnv } from "@t3-oss/env-nextjs"
-import { serverSchema, clientSchema, runtimeEnv } from "./schema"
+import { config as loadDotenv } from "dotenv"
+import { clientSchema, runtimeEnv, serverSchema } from "./schema"
 
 /**
  * Explicitly load environment file
@@ -66,9 +66,9 @@ export const env = createEnv({
   /**
    * Custom error handling
    */
-  onValidationError: error => {
+  onValidationError: issues => {
     console.error("❌ Invalid environment variables:")
-    console.error(error.flatten().fieldErrors)
+    console.error(issues)
     throw new Error("Invalid environment variables")
   },
 
@@ -159,7 +159,7 @@ export function getSuperadminEmails(): readonly string[] {
 
   return emailsEnv
     .split(",")
-    .map(e => e.trim().toLowerCase())
+    .map((e: string) => e.trim().toLowerCase())
     .filter(Boolean)
 }
 
@@ -316,4 +316,4 @@ export function getFlowgladSecretKey(): string | undefined {
 }
 
 // Re-export schema types for convenience
-export type { serverSchema, clientSchema } from "./schema"
+export type { clientSchema, serverSchema } from "./schema"

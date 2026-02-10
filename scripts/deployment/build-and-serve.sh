@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Build and Deploy Claude Bridge
+# Build and Deploy Alive
 # =============================================================================
 # Usage: ./build-and-serve.sh <staging|production>
 #
@@ -206,11 +206,28 @@ if [ -n "$PROMOTE_FROM" ]; then
     ln -sfn "dist.$TIMESTAMP" "current"
     cd "$PROJECT_ROOT"
 
+    # Verify promoted build integrity (prevent ChunkLoadError in production)
+    PROMOTED_CHUNKS="$DEST/server/chunks"
+    PROMOTED_STREAM="$DEST/server/app/api/claude/stream/route.js"
+    if [ ! -d "$PROMOTED_CHUNKS" ]; then
+        phase_end error "Promoted build missing server/chunks — corrupt copy"
+        exit 1
+    fi
+    PROMOTED_CHUNK_COUNT=$(find "$PROMOTED_CHUNKS" -name '*.js' -type f | wc -l)
+    if [ "$PROMOTED_CHUNK_COUNT" -lt 10 ]; then
+        phase_end error "Promoted build has only $PROMOTED_CHUNK_COUNT chunks (expected 10+)"
+        exit 1
+    fi
+    if [ ! -f "$PROMOTED_STREAM" ]; then
+        phase_end error "Promoted build missing stream route"
+        exit 1
+    fi
+
     NEW_BUILD="dist.$TIMESTAMP"
-    log_step "Promoted: $NEW_BUILD"
+    log_step "Promoted: $NEW_BUILD ($PROMOTED_CHUNK_COUNT chunks verified)"
     phase_end ok "Build promoted"
 else
-    BUILD_LOG="/tmp/claude-bridge-build-${ENV}.log"
+    BUILD_LOG="/tmp/alive-build-${ENV}.log"
     set +e
     "$SCRIPT_DIR/build-atomic.sh" "$ENV" 2>&1 | tee "$BUILD_LOG"
     BUILD_EXIT=${PIPESTATUS[0]}
@@ -243,6 +260,13 @@ if [ -d "$SKILLS_SRC" ]; then
     log_step "$(find "$SKILLS_DST" -maxdepth 1 -type d | wc -l) skills synced"
 fi
 phase_end ok "Skills synced"
+
+# =============================================================================
+# Build & Deploy Go Preview Proxy (if configured)
+# =============================================================================
+if [ -f "$SCRIPT_DIR/deploy-preview-proxy.sh" ]; then
+    "$SCRIPT_DIR/deploy-preview-proxy.sh" || log_warn "Preview proxy deploy skipped"
+fi
 
 # =============================================================================
 # Deploy & Health Check

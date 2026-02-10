@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  Bot,
   Building2,
   ChevronDown,
   ClipboardList,
@@ -13,21 +12,19 @@ import {
   Settings,
   Shield,
   Target,
-  User,
   X,
   Zap,
 } from "lucide-react"
+import { useQueryState } from "nuqs"
 import { lazy, Suspense, useEffect, useState } from "react"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
-import { useQueryState } from "nuqs"
 import { QUERY_KEYS } from "@/lib/url/queryState"
 import { SettingsTabLayout } from "./tabs/SettingsTabLayout"
 
 // Lazy load tab components - same as SettingsModal
-const AccountSettings = lazy(() =>
-  import("@/components/settings/tabs/AccountSettings").then(m => ({ default: m.AccountSettings })),
+const GeneralSettings = lazy(() =>
+  import("@/components/settings/tabs/GeneralSettings").then(m => ({ default: m.GeneralSettings })),
 )
-const LLMSettings = lazy(() => import("@/components/settings/tabs/LLMSettings").then(m => ({ default: m.LLMSettings })))
 const GoalSettings = lazy(() =>
   import("@/components/settings/tabs/GoalSettings").then(m => ({ default: m.GoalSettings })),
 )
@@ -57,8 +54,7 @@ const AutomationsSettings = lazy(() =>
 )
 
 const SETTINGS_TABS = [
-  "account",
-  "llm",
+  "general",
   "goal",
   "skills",
   "organization",
@@ -80,8 +76,7 @@ interface TabDefinition {
 }
 
 const allTabs: TabDefinition[] = [
-  { id: "account", label: "Profile", icon: User },
-  { id: "llm", label: "AI", icon: Bot },
+  { id: "general", label: "General", icon: Settings },
   { id: "goal", label: "Project", icon: Target },
   { id: "skills", label: "Skills", icon: ClipboardList },
   { id: "organization", label: "Workspace", icon: Building2 },
@@ -115,7 +110,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
 
   // Use URL search params to persist active tab across page reloads
   const [activeTab, setActiveTab] = useQueryState(QUERY_KEYS.settingsTab, {
-    defaultValue: initialTab || "account",
+    defaultValue: initialTab || "general",
     parse: (value: string) => {
       const parsed = value as SettingsTab
       // Validate that the parsed value is a valid tab
@@ -124,7 +119,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
       if (SETTINGS_TABS.includes(parsed)) {
         return parsed
       }
-      return initialTab || "account"
+      return initialTab || "general"
     },
     serialize: (value: string) => value,
   })
@@ -137,11 +132,8 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
   // Derive effective tab - if activeTab points to an admin-only tab the user can't see,
   // fall back to the first available tab
   const effectiveTab = tabs.find(t => t.id === activeTab) || tabs[0]
-  const currentTab = effectiveTab || { id: "account" as const, label: "Profile", icon: User }
+  const currentTab = effectiveTab || { id: "general" as const, label: "General", icon: Settings }
   const isWideTab = currentTab.id === "automations"
-  const mainClassName = isWideTab
-    ? "flex-1 min-h-0 overflow-hidden px-4 md:px-8 py-2 md:py-0"
-    : "flex-1 overflow-auto px-4 md:px-8 py-2 md:py-0"
 
   // Sync URL to effective tab if user doesn't have access to the URL-specified tab
   useEffect(() => {
@@ -151,9 +143,9 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
   }, [hydrated, loading, effectiveTab, activeTab, setActiveTab])
 
   return (
-    <div className="h-full bg-zinc-50 dark:bg-zinc-950 flex flex-col md:flex-row">
+    <div className="h-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 flex flex-col md:flex-row">
       {/* Mobile Header */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 relative z-30">
+      <header className="md:hidden flex-shrink-0 flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 relative z-30">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -258,28 +250,31 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
         </nav>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className={mainClassName}>
-          <div className={isWideTab ? "max-w-none w-full h-full min-h-0" : "max-w-3xl"}>
-            <Suspense
-              fallback={<div className="py-12 text-center text-zinc-400 dark:text-zinc-500 text-sm">Loading...</div>}
-            >
-              {activeTab === "account" && <AccountSettings />}
-              {activeTab === "llm" && <LLMSettings />}
-              {activeTab === "goal" && <GoalSettings />}
-              {activeTab === "skills" && <UserPromptsSettings />}
-              {activeTab === "organization" && <WorkspaceSettings />}
-              {activeTab === "websites" && <WebsitesSettings />}
-              {activeTab === "automations" && <AutomationsSettings />}
-              {activeTab === "integrations" && <IntegrationsListWithHeader />}
-              {activeTab === "keys" && <UserEnvKeysWithHeader />}
-              {activeTab === "flags" && <FlagsSettings />}
-              {activeTab === "admin" && <AdminSettings />}
-            </Suspense>
-          </div>
-        </main>
-      </div>
+      {/* Main Content — single scroll container, overscroll-contain prevents bleed to body */}
+      <main
+        className={
+          isWideTab
+            ? "flex-1 min-h-0 overflow-hidden px-4 md:px-8 py-2 md:py-0"
+            : "flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 md:px-8 py-2 md:py-0"
+        }
+      >
+        <div className={isWideTab ? "w-full h-full" : "max-w-3xl"}>
+          <Suspense
+            fallback={<div className="py-12 text-center text-zinc-400 dark:text-zinc-500 text-sm">Loading...</div>}
+          >
+            {activeTab === "general" && <GeneralSettings />}
+            {activeTab === "goal" && <GoalSettings />}
+            {activeTab === "skills" && <UserPromptsSettings />}
+            {activeTab === "organization" && <WorkspaceSettings />}
+            {activeTab === "websites" && <WebsitesSettings />}
+            {activeTab === "automations" && <AutomationsSettings />}
+            {activeTab === "integrations" && <IntegrationsListWithHeader />}
+            {activeTab === "keys" && <UserEnvKeysWithHeader />}
+            {activeTab === "flags" && <FlagsSettings />}
+            {activeTab === "admin" && <AdminSettings />}
+          </Suspense>
+        </div>
+      </main>
     </div>
   )
 }

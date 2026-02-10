@@ -1,6 +1,6 @@
 # Adding New Tools to @webalive/tools
 
-This package contains custom MCP tools that extend Claude's capabilities in the Claude Bridge application. Tools are organized by category: `guides/`, `debug/`, and `workspace/`.
+This package contains custom MCP tools that extend Claude's capabilities in the Alive application. Tools are organized by category: `guides/`, `debug/`, and `workspace/`.
 
 ## Architecture Overview
 
@@ -23,19 +23,12 @@ tool("restart_dev_server")  →  createSdkMcpServer({ name: "workspace-managemen
 
 ## Critical Requirements
 
-### 1. Zod Version - MUST BE 3.x
-
-⚠️ **IMPORTANT:** The SDK requires Zod 3.25.0+ but is **NOT compatible with Zod 4.x**
+### 1. Zod Version - Use Zod 4.x
 
 ```bash
-# Correct version
-bun add zod@^3.25.0
-
-# WRONG - Will cause "keyValidator._parse is not a function" error
-bun add zod@^4.0.0
+# Correct version for this repo
+bun add zod@^4.1.5
 ```
-
-**Why:** Zod 4.x changed internal APIs. The SDK uses `_parse` method which doesn't exist in v4.
 
 ### 2. Schema Format - Raw Shape, NOT z.object()
 
@@ -363,11 +356,11 @@ packages/tools/
 
 ### Error: "keyValidator._parse is not a function"
 
-**Cause:** Using Zod 4.x instead of Zod 3.x
+**Cause:** Usually a mixed dependency graph with stale lockfile entries or mixed Zod major versions.
 
-**Solution:** Downgrade to Zod 3.x:
+**Solution:** Ensure all first-party packages use Zod 4.x, then reinstall dependencies and regenerate lockfiles:
 ```bash
-bun remove zod && bun add zod@^3.25.0
+bun install
 ```
 
 ### Error: Tool doesn't appear in Claude's tool list

@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
-  detectSuspiciousPatterns,
-  wrapExternalContent,
   buildSafeExternalPrompt,
-  isExternalHookSession,
+  detectSuspiciousPatterns,
   getHookType,
+  isExternalHookSession,
   sanitizePromptInput,
+  wrapExternalContent,
 } from "../external-content"
 
 describe("detectSuspiciousPatterns", () => {

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { useEffect, useState } from "react"
+import { QUERY_KEYS } from "@/lib/url/queryState"
 
 type StatusType = "success" | "error" | "loading"
 
@@ -226,7 +227,7 @@ export function DeploymentStatus({ status, domain, error, errorCode, errorDetail
           className="flex flex-col items-center gap-4"
         >
           <a
-            href={`/chat?workspace=${domain}`}
+            href={`/chat?${QUERY_KEYS.workspace}=${encodeURIComponent(domain || "")}`}
             className="inline-flex items-center justify-center gap-2 h-12 px-8 bg-black dark:bg-white text-white dark:text-black text-[15px] font-medium rounded-full hover:bg-black/90 dark:hover:bg-white/90 transition-all duration-200 ease-out active:scale-[0.98] shadow-sm"
           >
             <span>Start Building</span>

@@ -5,7 +5,7 @@
 
 ## Overview
 
-All domain inputs across the Claude Bridge system are automatically normalized to lowercase to ensure consistency and prevent case-sensitivity issues.
+All domain inputs across the Alive system are automatically normalized to lowercase to ensure consistency and prevent case-sensitivity issues.
 
 ## Implementation
 
@@ -70,7 +70,7 @@ To verify lowercase transformation:
 
 ```bash
 # Test deploy with uppercase domain
-curl -X POST http://localhost:8999/api/deploy \
+curl -X POST http://localhost:9000/api/deploy \
   -H "Content-Type: application/json" \
   -d '{"domain":"EXAMPLE.COM","password":"test123"}'
 

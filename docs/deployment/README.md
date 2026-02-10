@@ -45,7 +45,7 @@ make rollback                # Interactive rollback to previous build
 
 ## Site Deployment
 
-Deploy individual websites (not Claude Bridge itself):
+Deploy individual websites (not Alive itself):
 
 ```bash
 bun run deploy-site <domain.com>
@@ -149,15 +149,11 @@ make dev                        # Restart
    - Maintenance burden, feature parity issues
    - Bash script has 194 states across 6 phases (fully documented)
 
-4. **Port Registry Divergence**: Two sources of truth
-   - JSON file written during deploy, Supabase after
-   - No sync mechanism if they diverge
-
-5. **No Rollback**: Partial failures leave inconsistent state
+4. **No Rollback**: Partial failures leave inconsistent state
    - Infrastructure may be deployed but Supabase registration failed
    - No cleanup mechanism
 
-6. **Concurrent Conflicts**: Limited locking mechanisms
+5. **Concurrent Conflicts**: Limited locking mechanisms
    - Caddy file locking only, no distributed locks
    - Potential race conditions on port assignment
 

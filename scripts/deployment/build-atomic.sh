@@ -113,8 +113,8 @@ for pkg in packages/*/; do rm -f "$pkg/$(basename "$pkg")" 2>/dev/null || true; 
 log_step "Building web app..."
 BUILD_START=$(date +%s)
 
-BUILD_OUTPUT_LOG="/tmp/claude-bridge-nextjs-build-${ENV}.log"
-if ! bun run build --filter=web --force 2>&1 | tee "$BUILD_OUTPUT_LOG"; then
+BUILD_OUTPUT_LOG="/tmp/alive-nextjs-build-${ENV}.log"
+if ! bun run build --filter=@webalive/web --force 2>&1 | tee "$BUILD_OUTPUT_LOG"; then
     log_error "Build failed. Errors:"
     echo ""
     grep -E "error TS|Error:|error:|Type error|Module not found|Cannot find" "$BUILD_OUTPUT_LOG" | head -30
@@ -133,6 +133,26 @@ log_step "Verifying build output..."
 
 [ ! -d "$WEB_NEXT_DIR/standalone" ] && { log_error "Standalone directory not found"; exit 1; }
 [ ! -f "$WEB_NEXT_DIR/standalone/apps/web/server.js" ] && { log_error "server.js not found"; exit 1; }
+
+# Verify critical chunks exist (ChunkLoadError = 500 on every request)
+CHUNKS_DIR="$WEB_NEXT_DIR/server/chunks"
+if [ ! -d "$CHUNKS_DIR" ]; then
+    log_error "server/chunks directory missing — build is corrupt"
+    exit 1
+fi
+CHUNK_COUNT=$(find "$CHUNKS_DIR" -name '*.js' -type f | wc -l)
+if [ "$CHUNK_COUNT" -lt 10 ]; then
+    log_error "Only $CHUNK_COUNT chunk files found (expected 10+) — build is corrupt"
+    exit 1
+fi
+
+# Verify the stream route chunk specifically (most critical endpoint)
+STREAM_ROUTE="$WEB_NEXT_DIR/server/app/api/claude/stream/route.js"
+if [ ! -f "$STREAM_ROUTE" ]; then
+    log_error "Stream route chunk missing: $STREAM_ROUTE"
+    exit 1
+fi
+log_step "Build verified: $CHUNK_COUNT chunks, stream route present"
 
 # =============================================================================
 # Phase 6: Move to .builds

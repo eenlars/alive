@@ -1,6 +1,6 @@
 # @webalive/alive-tagger
 
-Element selection and source tagging for Claude Bridge sandbox. Enables click-to-select UI elements with source file information, allowing Claude to know exactly which component and file the user is referring to.
+Element selection and source tagging for Alive sandbox. Enables click-to-select UI elements with source file information, allowing Claude to know exactly which component and file the user is referring to.
 
 ## Features
 
@@ -158,7 +158,7 @@ const cleanup = initAliveTagger()
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Claude Bridge (terminal.goalive.nl)                                    │
+│  Alive (terminal.goalive.nl)                                    │
 │  ┌──────────────────────┐  ┌──────────────────────────────────────────┐ │
 │  │  Chat Interface      │  │  Sandbox Component                       │ │
 │  │                      │  │  - Listens for 'alive-element-selected'  │ │
@@ -195,11 +195,11 @@ const cleanup = initAliveTagger()
 | **Selection UI** | Built-in (Cmd+Click) | Built-in |
 | **Communication** | postMessage | HTTP localhost:4567 |
 | **Env requirement** | None (dev mode auto) | None |
-| **Designed for** | Claude Bridge iframe | Claude Code CLI |
+| **Designed for** | Alive iframe | Claude Code CLI |
 
-## Integration with Claude Bridge
+## Integration with Alive
 
-The alive-tagger is integrated with Claude Bridge's sandbox preview. When a user Cmd+Clicks an element:
+The alive-tagger is integrated with Alive's sandbox preview. When a user Cmd+Clicks an element:
 
 1. **Sandbox receives postMessage**: `Sandbox.tsx` and `SandboxMobile.tsx` listen for `alive-element-selected` messages
 2. **Context propagates via SandboxContext**: The selection is passed through `useSandboxContext()`

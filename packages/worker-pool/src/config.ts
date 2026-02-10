@@ -34,6 +34,16 @@ export const DEFAULT_CONFIG: WorkerPoolConfig = {
   readyTimeoutMs: WORKER_POOL.READY_TIMEOUT_MS,
   shutdownTimeoutMs: WORKER_POOL.SHUTDOWN_TIMEOUT_MS,
   cancelTimeoutMs: WORKER_POOL.CANCEL_TIMEOUT_MS,
+  maxWorkersPerUser: WORKER_POOL.MAX_WORKERS_PER_USER,
+  maxWorkersPerWorkspace: WORKER_POOL.MAX_WORKERS_PER_WORKSPACE,
+  maxQueuedPerUser: WORKER_POOL.MAX_QUEUED_PER_USER,
+  maxQueuedPerWorkspace: WORKER_POOL.MAX_QUEUED_PER_WORKSPACE,
+  maxQueuedGlobal: WORKER_POOL.MAX_QUEUED_GLOBAL,
+  workersPerCore: WORKER_POOL.WORKERS_PER_CORE,
+  loadShedThreshold: WORKER_POOL.LOAD_SHED_THRESHOLD,
+  killGraceMs: WORKER_POOL.KILL_GRACE_MS,
+  orphanSweepIntervalMs: WORKER_POOL.ORPHAN_SWEEP_INTERVAL_MS,
+  orphanMaxAgeMs: WORKER_POOL.ORPHAN_MAX_AGE_MS,
 }
 
 /**
@@ -64,6 +74,44 @@ export function createConfig(overrides?: Partial<WorkerPoolConfig>): WorkerPoolC
   }
   if (!Number.isInteger(config.cancelTimeoutMs) || config.cancelTimeoutMs < 1) {
     throw new Error(`Invalid cancelTimeoutMs: ${config.cancelTimeoutMs} (must be positive integer)`)
+  }
+  if (!Number.isInteger(config.maxWorkersPerUser) || config.maxWorkersPerUser < 1) {
+    throw new Error(`Invalid maxWorkersPerUser: ${config.maxWorkersPerUser} (must be positive integer)`)
+  }
+  if (!Number.isInteger(config.maxWorkersPerWorkspace) || config.maxWorkersPerWorkspace < 1) {
+    throw new Error(`Invalid maxWorkersPerWorkspace: ${config.maxWorkersPerWorkspace} (must be positive integer)`)
+  }
+  if (!Number.isInteger(config.maxQueuedPerUser) || config.maxQueuedPerUser < 1) {
+    throw new Error(`Invalid maxQueuedPerUser: ${config.maxQueuedPerUser} (must be positive integer)`)
+  }
+  if (!Number.isInteger(config.maxQueuedPerWorkspace) || config.maxQueuedPerWorkspace < 1) {
+    throw new Error(`Invalid maxQueuedPerWorkspace: ${config.maxQueuedPerWorkspace} (must be positive integer)`)
+  }
+  if (!Number.isInteger(config.maxQueuedGlobal) || config.maxQueuedGlobal < 1) {
+    throw new Error(`Invalid maxQueuedGlobal: ${config.maxQueuedGlobal} (must be positive integer)`)
+  }
+  if (
+    typeof config.workersPerCore !== "number" ||
+    !Number.isFinite(config.workersPerCore) ||
+    config.workersPerCore <= 0
+  ) {
+    throw new Error(`Invalid workersPerCore: ${config.workersPerCore} (must be positive number)`)
+  }
+  if (
+    typeof config.loadShedThreshold !== "number" ||
+    !Number.isFinite(config.loadShedThreshold) ||
+    config.loadShedThreshold <= 0
+  ) {
+    throw new Error(`Invalid loadShedThreshold: ${config.loadShedThreshold} (must be positive number)`)
+  }
+  if (!Number.isInteger(config.killGraceMs) || config.killGraceMs < 1) {
+    throw new Error(`Invalid killGraceMs: ${config.killGraceMs} (must be positive integer)`)
+  }
+  if (!Number.isInteger(config.orphanSweepIntervalMs) || config.orphanSweepIntervalMs < 1) {
+    throw new Error(`Invalid orphanSweepIntervalMs: ${config.orphanSweepIntervalMs} (must be positive integer)`)
+  }
+  if (!Number.isInteger(config.orphanMaxAgeMs) || config.orphanMaxAgeMs < 1) {
+    throw new Error(`Invalid orphanMaxAgeMs: ${config.orphanMaxAgeMs} (must be positive integer)`)
   }
 
   // Validate eviction strategy

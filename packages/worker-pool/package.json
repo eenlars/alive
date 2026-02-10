@@ -11,14 +11,18 @@
   ],
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "typecheck": "bun run type-check",
     "test": "bun test",
     "check:imports": "node scripts/check-import-order.mjs",
-    "lint": "bun run check:imports",
+    "lint": "biome lint . && bun run check:imports",
+    "format": "biome format --write .",
+    "ci": "biome ci . && bun run check:imports",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.1.25",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.34",
     "@types/node": "^20.0.0",
     "@webalive/shared": "workspace:*",
     "@webalive/tools": "workspace:*",

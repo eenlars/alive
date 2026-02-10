@@ -1,6 +1,6 @@
 import { tool } from "@anthropic-ai/claude-agent-sdk"
+import { DEFAULTS, getTemplateIdsInline, getTemplateListForDocs } from "@webalive/shared"
 import { z } from "zod"
-import { DEFAULTS, getTemplateListForDocs, getTemplateIdsInline } from "@webalive/shared"
 import { callBridgeApi, errorResult, type ToolResult } from "../../lib/api-client.js"
 
 // Reserved slugs that cannot be used (mirrors server-side validation)

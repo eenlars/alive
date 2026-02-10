@@ -1,18 +1,16 @@
 # Feedback System Implementation
 
-This document describes the feedback storage system implementation for Claude Bridge.
+This document describes the feedback storage system implementation for Alive.
 
 ## Overview
 
-A simple, file-based feedback storage system that follows the same pattern as `domain-passwords.json`. Feedback is stored in a JSON file and automatically includes the workspace ID (domain) of the user submitting feedback.
+A simple, file-based feedback storage system. Feedback is stored in a JSON file and automatically includes the workspace ID (domain) of the user submitting feedback.
 
 ## Storage
 
 ### File Location
 
-Following the same pattern as domain passwords:
-
-1. **Production**: `/var/lib/alive/feedback.json`
+1. **Production**: Path derived from `SERVER_CONFIG_PATH` env var (e.g., `feedback.json` in the same directory as `server-config.json`)
 2. **Development Fallbacks**:
    - `{cwd}/feedback.json` (current working directory)
    - `/root/alive/feedback.json`
@@ -170,7 +168,7 @@ Submit user feedback.
 - **Rate limiting**: Not implemented (consider adding in production)
 - **Input validation**: Feedback limited to 5000 characters via Zod schema
 - **XSS protection**: Standard Next.js escaping applies
-- **File permissions**: Follow same security model as domain-passwords.json
+- **File permissions**: Follow standard security model for server-side JSON files
 
 ## Testing
 

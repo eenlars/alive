@@ -2,18 +2,21 @@
 import { SUPERADMIN } from "@webalive/shared"
 import { AnimatePresence, motion } from "framer-motion"
 import { PanelLeft } from "lucide-react"
+import { useQueryState } from "nuqs"
 import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import toast, { Toaster } from "react-hot-toast"
 import { FeedbackModal } from "@/components/modals/FeedbackModal"
+import { GithubImportModal } from "@/components/modals/GithubImportModal"
 import { InviteModal } from "@/components/modals/InviteModal"
 import { SessionExpiredModal } from "@/components/modals/SessionExpiredModal"
-import { SettingsOverlay } from "@/components/settings/SettingsOverlay"
 import { SuperTemplatesModal } from "@/components/modals/SuperTemplatesModal"
+import { SettingsOverlay } from "@/components/settings/SettingsOverlay"
 import { ChatDropOverlay } from "@/features/chat/components/ChatDropOverlay"
 import { ChatInput } from "@/features/chat/components/ChatInput"
 import type { ChatInputHandle } from "@/features/chat/components/ChatInput/types"
 import { ConversationSidebar } from "@/features/chat/components/ConversationSidebar"
 import { DevTerminal } from "@/features/chat/components/DevTerminal"
+import { MessageWrapper } from "@/features/chat/components/message-renderers/MessageWrapper"
 import { PendingToolsIndicator } from "@/features/chat/components/PendingToolsIndicator"
 import { Sandbox } from "@/features/chat/components/Sandbox"
 import { SandboxMobile } from "@/features/chat/components/SandboxMobile"
@@ -25,11 +28,11 @@ import { useStreamCancellation } from "@/features/chat/hooks/useStreamCancellati
 import { useStreamReconnect } from "@/features/chat/hooks/useStreamReconnect"
 import { ClientRequest, DevTerminalProvider, useDevTerminal } from "@/features/chat/lib/dev-terminal-context"
 import { renderMessage, shouldRenderMessage } from "@/features/chat/lib/message-renderer"
-import { MessageWrapper } from "@/features/chat/components/message-renderers/MessageWrapper"
 import { RetryProvider, useRetry } from "@/features/chat/lib/retry-context"
 import { PanelProvider, usePanelContext } from "@/features/chat/lib/sandbox-context"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
 import { useWorkspace } from "@/features/workspace/hooks/useWorkspace"
+import { validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import { useRedeemReferral } from "@/hooks/useRedeemReferral"
 import {
   useDexieCurrentConversationId,
@@ -41,14 +44,12 @@ import { useOrganizations } from "@/lib/hooks/useOrganizations"
 import { validateOAuthToastParams } from "@/lib/integrations/toast-validation"
 import { useIsSessionExpired } from "@/lib/stores/authStore"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
-import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { isDevelopment, useDebugActions, useDebugVisible, useSandbox, useSSETerminal } from "@/lib/stores/debug-store"
+import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { useApiKey, useModel } from "@/lib/stores/llmStore"
 import { useLastSeenStreamSeq, useStreamingActions } from "@/lib/stores/streamingStore"
 import { useTabActions } from "@/lib/stores/tabStore"
 import { useSelectedOrgId } from "@/lib/stores/workspaceStore"
-import { useQueryState } from "nuqs"
-import { validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import { QUERY_KEYS } from "@/lib/url/queryState"
 // Local components
 import {
@@ -102,6 +103,7 @@ function ChatPageContent() {
   const isHydrated = useAppHydrated()
   const [subdomainInitialized, setSubdomainInitialized] = useState(false)
   const [worktreeModalOpen, setWorktreeModalOpen] = useState(false)
+  const [githubImportOpen, setGithubImportOpen] = useState(false)
   const [_showCompletionDots, setShowCompletionDots] = useState(false)
   const modals = useModals()
 
@@ -119,7 +121,7 @@ function ChatPageContent() {
   const showTabs = true
   const chatInputRef = useRef<ChatInputHandle | null>(null)
   const photoButtonRef = useRef<HTMLButtonElement>(null)
-  const { setSSETerminal, setSSETerminalMinimized, setSandbox, setSandboxMinimized } = useDebugActions()
+  const { setSSETerminal, setSSETerminalMinimized } = useDebugActions()
   const showSSETerminal = useSSETerminal()
   const showSandboxRaw = useSandbox()
   const isDebugMode = useDebugVisible()
@@ -460,12 +462,7 @@ function ChatPageContent() {
       setSSETerminal(true)
       setSSETerminalMinimized(true)
     }
-    // Only auto-open sandbox on large screens (desktops), not tablets
-    if (window.innerWidth >= 1280) {
-      setSandbox(true)
-      setSandboxMinimized(false)
-    }
-  }, [setSSETerminal, setSSETerminalMinimized, setSandbox, setSandboxMinimized])
+  }, [setSSETerminal, setSSETerminalMinimized])
 
   // Calculate total domain count from organizations
   const totalDomainCount = organizations.reduce((sum, org) => sum + (org.workspace_count || 0), 0)
@@ -505,6 +502,17 @@ function ChatPageContent() {
   const handleSubdomainInitialized = () => {
     setSubdomainInitialized(true)
   }
+
+  const handleGithubImported = useCallback(
+    (newWorkspace: string) => {
+      const targetOrgId = selectedOrgId || organizations[0]?.org_id
+      setWorkspace(newWorkspace, targetOrgId)
+      setWorktree(null)
+      setGithubImportOpen(false)
+      toast.success(`Opened ${newWorkspace}`)
+    },
+    [selectedOrgId, organizations, setWorkspace, setWorktree],
+  )
 
   const handleNewTabGroup = useCallback(async () => {
     if (!tabWorkspace) return
@@ -701,7 +709,7 @@ function ChatPageContent() {
           )}
 
           {/* Messages */}
-          <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-2">
+          <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-8">
             <div className="p-4 mx-auto w-full md:max-w-[calc(42rem+2rem)] min-w-0">
               {messages.length === 0 && !busy && (
                 <ChatEmptyState
@@ -709,6 +717,8 @@ function ChatPageContent() {
                   totalDomainCount={totalDomainCount}
                   isLoading={organizationsLoading}
                   onTemplatesClick={modals.openTemplates}
+                  onImportGithub={() => setGithubImportOpen(true)}
+                  onSelectSite={() => modals.openSettings("websites")}
                 />
               )}
 
@@ -903,6 +913,13 @@ function ChatPageContent() {
         <SuperTemplatesModal onClose={modals.closeTemplates} onInsertTemplate={handleInsertTemplate} />
       )}
       {modals.invite && <InviteModal onClose={modals.closeInvite} />}
+      {githubImportOpen && (
+        <GithubImportModal
+          onClose={() => setGithubImportOpen(false)}
+          onImported={handleGithubImported}
+          orgId={selectedOrgId || organizations[0]?.org_id}
+        />
+      )}
       {isSessionExpired && <SessionExpiredModal />}
     </div>
   )

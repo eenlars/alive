@@ -119,9 +119,9 @@ get_port() {
 
 get_service() {
     case "$1" in
-        dev)        echo "claude-bridge-dev" ;;
-        staging)    echo "claude-bridge-staging" ;;
-        production) echo "claude-bridge-production" ;;
+        dev)        echo "alive-dev" ;;
+        staging)    echo "alive-staging" ;;
+        production) echo "alive-production" ;;
     esac
 }
 

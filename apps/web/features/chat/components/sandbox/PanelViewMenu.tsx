@@ -1,6 +1,6 @@
 "use client"
 
-import { Code, Globe, Terminal } from "lucide-react"
+import { Code, FolderOpen, Globe, Terminal } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import type { PanelView } from "../../lib/sandbox-context"
 
@@ -13,6 +13,7 @@ interface PanelViewMenuProps {
 const VIEW_OPTIONS: { view: PanelView; label: string; icon: typeof Globe }[] = [
   { view: "site", label: "Preview", icon: Globe },
   { view: "code", label: "Code", icon: Code },
+  { view: "drive", label: "Drive", icon: FolderOpen },
   { view: "terminal", label: "Terminal", icon: Terminal },
 ]
 
@@ -36,11 +37,11 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Get available views based on workspace type
-  const availableViews = isSuperadmin ? VIEW_OPTIONS.filter(o => o.view !== "site") : VIEW_OPTIONS
+  const availableViews = isSuperadmin ? VIEW_OPTIONS.filter(o => o.view !== "site" && o.view !== "drive") : VIEW_OPTIONS
 
-  // Force back to site view if on mobile and in code/terminal view
+  // Force back to site view if on mobile and in code/terminal/files view
   useEffect(() => {
-    if (isMobile && (currentView === "code" || currentView === "terminal")) {
+    if (isMobile && (currentView === "code" || currentView === "terminal" || currentView === "drive")) {
       onViewChange("site")
     }
   }, [isMobile, currentView, onViewChange])
@@ -97,7 +98,9 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`p-1.5 rounded transition-colors ${
-          isOpen ? "bg-white/[0.08] text-neutral-200" : "text-neutral-500 hover:text-neutral-300 hover:bg-white/[0.04]"
+          isOpen
+            ? "bg-black/[0.06] dark:bg-white/[0.08] text-neutral-800 dark:text-neutral-200"
+            : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
         }`}
         title="Switch view"
         aria-label="Switch view"
@@ -110,7 +113,7 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
       {isOpen && (
         <div
           role="menu"
-          className="absolute top-full right-0 mt-1.5 w-32 bg-[#1a1a1a] border border-white/[0.08] rounded-lg shadow-xl shadow-black/40 z-50 overflow-hidden"
+          className="absolute top-full right-0 mt-1.5 w-32 bg-white dark:bg-[#1a1a1a] border border-black/[0.08] dark:border-white/[0.08] rounded-lg shadow-xl shadow-black/10 dark:shadow-black/40 z-50 overflow-hidden"
         >
           <div className="py-1">
             {availableViews.map(({ view, label, icon: Icon }) => {
@@ -123,11 +126,15 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
                   onClick={() => handleSelect(view)}
                   className={`w-full px-3 py-1.5 text-left text-[13px] flex items-center gap-2 transition-colors ${
                     isActive
-                      ? "bg-white/[0.06] text-white"
-                      : "text-neutral-400 hover:bg-white/[0.04] hover:text-neutral-200"
+                      ? "bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white"
+                      : "text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-neutral-800 dark:hover:text-neutral-200"
                   }`}
                 >
-                  <Icon size={14} strokeWidth={1.5} className={isActive ? "text-white" : "text-neutral-500"} />
+                  <Icon
+                    size={14}
+                    strokeWidth={1.5}
+                    className={isActive ? "text-black dark:text-white" : "text-neutral-400 dark:text-neutral-500"}
+                  />
                   <span className="flex-1">{label}</span>
                   {isActive && <div className="w-1 h-1 rounded-full bg-emerald-500" />}
                 </button>

@@ -34,16 +34,16 @@ var BinaryExtensions = map[string]bool{
 	".m4a": true,
 
 	// Video
-	".mp4": true,
-	".avi": true,
-	".mov": true,
-	".mkv": true,
+	".mp4":  true,
+	".avi":  true,
+	".mov":  true,
+	".mkv":  true,
 	".webm": true,
 
 	// Executables
-	".exe":  true,
-	".dll":  true,
-	".so":   true,
+	".exe":   true,
+	".dll":   true,
+	".so":    true,
 	".dylib": true,
 
 	// Fonts

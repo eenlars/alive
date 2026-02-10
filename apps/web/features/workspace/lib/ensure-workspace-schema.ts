@@ -1,6 +1,6 @@
 import { chown, mkdir, readFile, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { WORKSPACE_SCHEMA_VERSION, WORKSPACE_SCHEMA_VERSION_FILE, getRequiredDirectories } from "@webalive/shared"
+import { getRequiredDirectories, WORKSPACE_SCHEMA_VERSION, WORKSPACE_SCHEMA_VERSION_FILE } from "@webalive/shared"
 
 /**
  * Ensure workspace conforms to the current schema version.

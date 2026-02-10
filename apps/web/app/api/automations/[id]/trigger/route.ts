@@ -5,13 +5,14 @@
  * This bypasses the schedule and runs the job now.
  */
 
-import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { computeNextRunAtMs } from "@webalive/automation"
+import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
-import { getSupabaseCredentials } from "@/lib/env/server"
-import { ErrorCodes } from "@/lib/error-codes"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { runAutomationJob } from "@/lib/automation/executor"
+import { getSupabaseCredentials } from "@/lib/env/server"
+import { ErrorCodes } from "@/lib/error-codes"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -82,28 +83,112 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     }
 
     const startedAt = new Date()
-    console.log(`[Automation Trigger] Running job "${job.name}" for site ${hostname} at ${startedAt.toISOString()}`)
+    const startedAtIso = startedAt.toISOString()
+    const timeoutSeconds = job.action_timeout_seconds ?? 300
 
-    // Run the automation
-    const result = await runAutomationJob({
-      jobId: job.id,
-      userId: job.user_id,
-      orgId: job.org_id,
-      workspace: hostname,
-      prompt: job.action_prompt,
-      timeoutSeconds: job.action_timeout_seconds || 300,
-    })
+    // Atomically claim this job to prevent concurrent trigger races.
+    const { data: claimedRows, error: claimError } = await supabase
+      .from("automation_jobs")
+      .update({ running_at: startedAtIso })
+      .eq("id", job.id)
+      .is("running_at", null)
+      .select("id")
 
-    // Return complete response with timing info
-    return NextResponse.json({
-      ok: result.success,
-      startedAt: startedAt.toISOString(),
-      completedAt: new Date().toISOString(),
-      durationMs: result.durationMs,
-      timeoutSeconds: job.action_timeout_seconds || 300,
-      error: result.error,
-      response: result.response,
-    })
+    if (claimError) {
+      console.error("[Automation Trigger] Failed to claim job:", claimError)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+    }
+
+    if (!claimedRows || claimedRows.length === 0) {
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, { status: 409 })
+    }
+
+    console.log(`[Automation Trigger] Queued job "${job.name}" for site ${hostname} at ${startedAt.toISOString()}`)
+
+    // Fire-and-forget: run the job and update DB state after completion.
+    // The executor is a pure function — this route owns all DB side effects for manual triggers.
+    void (async () => {
+      let result: Awaited<ReturnType<typeof runAutomationJob>>
+      try {
+        result = await runAutomationJob({
+          jobId: job.id,
+          userId: job.user_id,
+          orgId: job.org_id,
+          workspace: hostname,
+          prompt: job.action_prompt,
+          timeoutSeconds,
+        })
+      } catch (error) {
+        // Executor threw unexpectedly — roll back running_at so job isn't permanently stuck
+        await supabase
+          .from("automation_jobs")
+          .update({ running_at: null })
+          .eq("id", job.id)
+          .eq("running_at", startedAtIso)
+
+        console.error(`[Automation Trigger] Background job "${job.name}" crashed:`, error)
+        return
+      }
+
+      const now = new Date()
+      const status = result.success ? "success" : "failure"
+
+      // Compute next_run_at so a manual trigger doesn't break the cron schedule
+      let nextRunAt: string | null = null
+      if (job.trigger_type === "cron" && job.cron_schedule) {
+        const nextMs = computeNextRunAtMs(
+          { kind: "cron", expr: job.cron_schedule, tz: job.cron_timezone || undefined },
+          now.getTime(),
+        )
+        if (nextMs) {
+          nextRunAt = new Date(nextMs).toISOString()
+        }
+      }
+
+      // Update job state (clear running_at, record last run info)
+      await supabase
+        .from("automation_jobs")
+        .update({
+          running_at: null,
+          last_run_at: startedAtIso,
+          last_run_status: status,
+          last_run_error: result.error ?? null,
+          last_run_duration_ms: result.durationMs,
+          next_run_at: nextRunAt,
+        })
+        .eq("id", job.id)
+
+      // Insert run record
+      await supabase.from("automation_runs").insert({
+        job_id: job.id,
+        started_at: startedAtIso,
+        completed_at: now.toISOString(),
+        duration_ms: result.durationMs,
+        status,
+        error: result.error ?? null,
+        result: result.response ? { response: result.response.substring(0, 10000) } : null,
+        messages: result.messages ?? null,
+        triggered_by: "manual",
+      })
+
+      console.log(
+        `[Automation Trigger] Job "${job.name}" finished with ${status} in ${result.durationMs}ms`,
+        result.error ? { error: result.error } : undefined,
+      )
+    })()
+
+    return NextResponse.json(
+      {
+        ok: true,
+        status: "queued",
+        startedAt: startedAtIso,
+        timeoutSeconds,
+        monitor: {
+          runsPath: `/api/automations/${job.id}/runs`,
+        },
+      },
+      { status: 202 },
+    )
   } catch (error) {
     console.error("[Automation Trigger] Error:", error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })

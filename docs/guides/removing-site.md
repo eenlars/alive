@@ -22,21 +22,12 @@ systemctl stop site@domain-slug.service
 Note: Replace `domain-slug` with the domain converted to systemd format (dots become dashes).
 Example: `larsvandeneeden.com` becomes `larsvandeneeden-com`
 
-### 2. Remove from Domain Registry
+### 2. Remove from Supabase Domain Registry
 
-Edit `/var/lib/alive/domain-passwords.json` and remove the domain entry:
+Delete the domain entry from the `app.domains` table in Supabase:
 
-```json
-{
-  "other-domain.com": {
-    "password": "supersecret",
-    "port": 3340
-  },
-  "domain-to-remove.com": {    ← Remove this entire block
-    "password": "supersecret",   ← Remove this entire block
-    "port": 3342                 ← Remove this entire block
-  }                              ← Remove this entire block
-}
+```sql
+DELETE FROM app.domains WHERE hostname = 'domain-to-remove.com';
 ```
 
 ### 3. Remove from Caddyfile
@@ -104,8 +95,9 @@ ls /etc/sites/domain-slug.env
 # Check site directory is gone
 ls /srv/webalive/sites/domain.com
 
-# Check domain not in registry
-grep "domain.com" /var/lib/alive/domain-passwords.json
+# Check domain not in Supabase
+# Run in psql or Supabase dashboard:
+# SELECT * FROM app.domains WHERE hostname = 'domain.com';
 
 # Check domain not in Caddyfile
 grep "domain.com" /root/alive/Caddyfile
@@ -121,7 +113,7 @@ Here's a complete example removing `larsvandeneeden.com`:
 # 1. Stop service
 systemctl stop site@larsvandeneeden-com.service
 
-# 2. Edit domain-passwords.json (remove larsvandeneeden.com entry)
+# 2. Remove from Supabase: DELETE FROM app.domains WHERE hostname = 'larsvandeneeden.com';
 # 3. Edit Caddyfile (remove larsvandeneeden.com block)
 
 # 4. Remove user

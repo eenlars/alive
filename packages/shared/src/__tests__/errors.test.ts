@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   extractErrorCode,
-  isAbortError,
-  isFatalError,
-  isConfigError,
-  isTransientNetworkError,
-  isRetryableNetworkError,
   formatUncaughtError,
+  isAbortError,
+  isConfigError,
+  isFatalError,
+  isRetryableNetworkError,
+  isTransientNetworkError,
 } from "../errors"
 
 describe("extractErrorCode", () => {

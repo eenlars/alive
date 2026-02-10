@@ -15,17 +15,19 @@
     "web": "cd apps/web && bun run dev",
     "format": "turbo run format --concurrency=1",
     "lint": "turbo run lint --concurrency=1",
+    "ci": "turbo run ci --concurrency=1",
     "type-check": "turbo run type-check",
-    "check:quick": "turbo run type-check lint --concurrency=1",
-    "check:pre-push": "turbo run type-check && turbo run lint format --concurrency=1 && bun run unit",
+    "check:quick": "turbo run type-check ci --concurrency=1",
+    "check:pre-push": "bun run validate:turbo-env && turbo run type-check && turbo run ci --concurrency=1 && bun run test:core",
     "check:comprehensive": "./scripts/validation/run-static-checks.sh",
     "check:all": "bun run check:quick && bun run test && bun run check:comprehensive",
     "validate:turbo-env": "bun scripts/validation/validate-turbo-env.ts",
-    "static-check": "bun run validate:turbo-env && turbo run type-check && turbo run lint format --concurrency=1 && bun run unit",
+    "static-check": "bun run validate:turbo-env && turbo run type-check && turbo run ci --concurrency=1 && bun run test:core",
     "knip": "knip --no-progress",
     "depcruise": "depcruise apps/web --config .dependency-cruiser.json",
-    "test": "cd packages/tools && bun run test --run && cd ../.. && cd apps/web && bun run test",
-    "unit": "cd packages/tools && bun run test --run && cd ../.. && cd apps/web && bun run test",
+    "test": "turbo run test",
+    "test:core": "cd packages/tools && bun run test && cd ../.. && cd apps/web && bun run test",
+    "unit": "bun run test:core",
     "e2e": "cd apps/web && bun run test:e2e",
     "gates": "cd apps/web && bun run test:gates",
     "postinstall": "bun run prepare:repo",
@@ -54,22 +56,25 @@
     "redis:logs": "bun --filter @webalive/redis logs",
     "redis:cli": "bun --filter @webalive/redis cli",
     "redis:health": "bun --filter @webalive/redis health",
-    "redis:test": "bun --filter @webalive/redis test",
+    "redis:test": "bun --filter @webalive/redis test:integration",
     "see": "journalctl -u alive-production -n 1000 -f",
     "see:dev": "journalctl -u alive-dev -n 1000 -f",
     "shell-server": "cd apps/shell-server-go && make build && systemctl restart shell-server",
     "pull": "GIT_SSH_COMMAND='ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes' git pull --rebase origin main",
-    "push": "GIT_SSH_COMMAND='ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes' git push origin main",
+    "push": "bash -c 'BRANCH=$(git branch --show-current) && [ -n \"$BRANCH\" ] && GIT_SSH_COMMAND=\"ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes\" git push origin \"$BRANCH\" || { echo \"Error: not on a branch (detached HEAD)\"; exit 1; }'",
     "ship": "bash -c 'git add -A && git commit -m \"$1\" && git push' --"
   },
   "lint-staged": {
-    "**/*.{ts,tsx,js,jsx,json}": [
-      "biome format --write"
+    "{apps,packages}/**/*.{ts,tsx,js,jsx,json}": [
+      "./scripts/lint-staged-format.sh"
     ]
   },
   "overrides": {
     "vitest": "4.0.17",
-    "@vitest/coverage-v8": "4.0.17"
+    "@vitest/coverage-v8": "4.0.17",
+    "@tanstack/react-query": "^5.90.20",
+    "@tanstack/query-core": "^5.90.20",
+    "esbuild": "0.27.3"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.13",
@@ -85,7 +90,7 @@
     "turbo": "^2.8.3"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.1.53",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.34",
     "@flowglad/nextjs": "^0.18.0",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-query-devtools": "^5.91.3",

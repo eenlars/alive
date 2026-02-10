@@ -11,7 +11,7 @@
   "production": {
     "port": 3888,
     "defaultWorkspace": "root",
-    "defaultCwd": "/root/alive",
+    "defaultCwd": "/root/webalive/alive",
     "uploadDefaultCwd": "/root/uploads",
     "sitesPath": "/srv/webalive/sites",
     "workspaceBase": "/root/webalive",

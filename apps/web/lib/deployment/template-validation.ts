@@ -1,9 +1,13 @@
 /**
  * Template validation using Supabase
  * Replaces the hardcoded TEMPLATES config with database-backed validation
+ *
+ * Supports per-server path overrides via server-config.json "templates" section.
+ * This allows the same shared DB to work across servers with different file layouts.
  */
 
 import { existsSync } from "node:fs"
+import { getLocalTemplatePath } from "@webalive/shared"
 import { createAppClient } from "@/lib/supabase/app"
 
 export interface ValidatedTemplate {
@@ -67,13 +71,16 @@ export async function validateTemplateFromDb(templateId: string | undefined): Pr
     }
   }
 
-  if (!existsSync(template.source_path)) {
+  // Use local server override if configured, otherwise fall back to DB path
+  const sourcePath = getLocalTemplatePath(template.template_id) ?? template.source_path
+
+  if (!existsSync(sourcePath)) {
     return {
       valid: false,
       error: {
         code: "TEMPLATE_NOT_FOUND",
         templateId,
-        message: `Template source path does not exist: ${template.source_path}`,
+        message: `Template source path does not exist: ${sourcePath}`,
       },
     }
   }
@@ -83,7 +90,7 @@ export async function validateTemplateFromDb(templateId: string | undefined): Pr
     template: {
       template_id: template.template_id,
       name: template.name,
-      source_path: template.source_path,
+      source_path: sourcePath,
       is_active: template.is_active,
     },
   }

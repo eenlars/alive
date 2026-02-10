@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.3.13/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -63,11 +63,15 @@
     "lineWidth": 120
   },
   "css": {
+    "parser": {
+      "cssModules": true,
+      "tailwindDirectives": true
+    },
     "formatter": {
       "enabled": false
     },
     "linter": {
-      "enabled": false
+      "enabled": true
     }
   },
   "javascript": {
@@ -80,6 +84,37 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["apps/shell-server-go/**"],
+      "linter": {
+        "enabled": false
+      },
+      "formatter": {
+        "enabled": false
+      },
+      "assist": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": ["**/google-scraper/test-html/**"],
+      "linter": {
+        "enabled": false
+      },
+      "formatter": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": ["**/*.css"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noImportantStyles": "off"
+          }
+        }
+      }
+    },
     {
       "includes": ["**/DevTerminal.tsx", "**/Sandbox.tsx", "**/SettingsModal.tsx"],
       "linter": {
@@ -94,15 +129,6 @@
     {
       "includes": ["**/lib/supabase/*.types.ts"],
       "linter": {
-        "enabled": false
-      }
-    },
-    {
-      "includes": ["**/google-scraper/test-html/**"],
-      "linter": {
-        "enabled": false
-      },
-      "formatter": {
         "enabled": false
       }
     }

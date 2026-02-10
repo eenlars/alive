@@ -42,7 +42,7 @@ export function SettingsPanel({
   const { theme, setTheme } = useTheme()
 
   return (
-    <div className="space-y-5 sm:space-y-6 p-4 sm:p-6">
+    <div className="space-y-5 sm:space-y-6 p-4 sm:p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
       {/* Appearance Settings */}
       <div className="border border-slate-200 dark:border-white/10 rounded-lg">
         <div className="px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#1a1a1a]">

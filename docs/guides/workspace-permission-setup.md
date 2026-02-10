@@ -4,7 +4,7 @@
 
 ## Quick Summary
 
-Claude Bridge automatically ensures all files created in workspaces are owned by the correct Unix user (the workspace's site user, e.g., `site-example-com`), not `root`.
+Alive automatically ensures all files created in workspaces are owned by the correct Unix user (the workspace's site user, e.g., `site-example-com`), not `root`.
 
 **How it works:**
 - Each workspace runs code in a **child process** spawned with the workspace user's UID/GID
@@ -15,7 +15,7 @@ Claude Bridge automatically ensures all files created in workspaces are owned by
 
 ```
 ┌─────────────────────────────────────┐
-│ Claude Bridge (runs as root)        │
+│ Alive (runs as root)        │
 │ /api/claude/stream route handler    │
 └────────────┬────────────────────────┘
              │

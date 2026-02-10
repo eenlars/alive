@@ -7,7 +7,7 @@ import { useWorkspace } from "@/features/workspace/hooks/useWorkspace"
 import { useResizablePanel } from "@/lib/hooks/useResizablePanel"
 import { getPreviewUrl, getSiteUrl } from "@/lib/preview-utils"
 import { useDebugActions, useSandboxWidth } from "@/lib/stores/debug-store"
-import { PanelViewMenu, SandboxCodePanel } from "./sandbox/index"
+import { DrivePanel, PanelViewMenu, SandboxCodePanel } from "./sandbox/index"
 import { PulsingDot } from "./ui/PulsingDot"
 
 export function Sandbox() {
@@ -111,18 +111,22 @@ export function Sandbox() {
     }
   }
 
-  const handleIframeLoad = () => {
-    setIsLoading(false)
-    // Sync selector state to newly loaded iframe
-    if (selectorActive && iframeRef.current?.contentWindow) {
+  // Callback ref to store iframe element (load event is unreliable for cross-origin iframes)
+  const setIframeRef = useCallback((iframe: HTMLIFrameElement | null) => {
+    iframeRef.current = iframe
+  }, [])
+
+  // Sync selector state after iframe loads
+  useEffect(() => {
+    if (!isLoading && selectorActive && iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage({ type: "alive-tagger-activate" }, "*")
     }
-  }
+  }, [isLoading, selectorActive])
 
-  // Reset loading state when path changes
-  useEffect(() => {
-    setIsLoading(true)
-  }, [path])
+  // NOTE: Loading state is managed entirely via postMessage from the injected nav script:
+  // - NAVIGATION_START sets isLoading=true (SPA navigation began)
+  // - NAVIGATION sets isLoading=false (page loaded and script executed)
+  // The iframe 'load' event is unreliable for cross-origin iframes in React 19.
 
   const handlePathSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputRef.current) {
@@ -159,18 +163,39 @@ export function Sandbox() {
     }
   }, [selectorActive])
 
+  // Safety timeout: if NAVIGATION doesn't arrive within 8s of NAVIGATION_START, clear loading.
+  // This prevents permanent spinner from hash navigations, network errors, external links, etc.
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearLoadingTimeout = useCallback(() => {
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current)
+      loadingTimeoutRef.current = null
+    }
+  }, [])
+
   // Listen for postMessage from iframe (preview sites send navigation events + element selection)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Navigation started - show loading
+      // Only accept messages from our iframe
+      if (event.source !== iframeRef.current?.contentWindow) return
+
+      // Navigation started - show loading with safety timeout
       if (event.data?.type === PREVIEW_MESSAGES.NAVIGATION_START) {
         setIsLoading(true)
+        clearLoadingTimeout()
+        loadingTimeoutRef.current = setTimeout(() => {
+          setIsLoading(false)
+        }, 8000)
         return
       }
-      // Navigation completed - update path and input (only if input not focused)
+      // Navigation completed - update path and clear loading
+      // This is the definitive "iframe content loaded" signal: the injected script
+      // executed sendPath(), which means the page is rendered and running JS.
       if (event.data?.type === PREVIEW_MESSAGES.NAVIGATION && typeof event.data.path === "string") {
+        clearLoadingTimeout()
         const newPath = event.data.path || "/"
         setPath(newPath)
+        setIsLoading(false)
         // Only update input if it's not focused (user not typing)
         if (inputRef.current && document.activeElement !== inputRef.current) {
           inputRef.current.value = newPath
@@ -191,12 +216,15 @@ export function Sandbox() {
     }
 
     window.addEventListener("message", handleMessage)
-    return () => window.removeEventListener("message", handleMessage)
-  }, [setSelectedElement])
+    return () => {
+      window.removeEventListener("message", handleMessage)
+      clearLoadingTimeout()
+    }
+  }, [setSelectedElement, clearLoadingTimeout])
 
   return (
     <div
-      className={`relative bg-[#0d0d0d] flex flex-col border-l border-white/[0.04] h-full ${isResizing ? "select-none" : ""}`}
+      className={`relative bg-white dark:bg-[#0d0d0d] flex flex-col border-l border-black/[0.08] dark:border-white/[0.04] h-full ${isResizing ? "select-none" : ""}`}
       style={{ width: `${width}px` }}
     >
       {/* Resize handle */}
@@ -212,7 +240,9 @@ export function Sandbox() {
       >
         <div
           className={`w-0.5 h-8 rounded-full transition-all duration-150 ${
-            isResizing ? "bg-neutral-500 h-12" : "bg-neutral-800 group-hover:bg-neutral-600 group-hover:h-12"
+            isResizing
+              ? "bg-neutral-400 dark:bg-neutral-500 h-12"
+              : "bg-neutral-300 dark:bg-neutral-800 group-hover:bg-neutral-400 dark:group-hover:bg-neutral-600 group-hover:h-12"
           }`}
         />
       </div>
@@ -221,15 +251,15 @@ export function Sandbox() {
       {isResizing && <div className="absolute inset-0 z-50 cursor-col-resize" />}
 
       {/* Header bar */}
-      <div className="h-11 px-2 flex items-center gap-1.5 border-b border-white/[0.04] bg-neutral-900/50 shrink-0">
+      <div className="h-11 px-2 flex items-center gap-1.5 border-b border-black/[0.08] dark:border-white/[0.04] bg-neutral-100/80 dark:bg-neutral-900/50 shrink-0">
         {/* URL/Path display */}
-        <div className="flex-1 h-7 flex items-center gap-1.5 bg-white/[0.03] rounded px-2 min-w-0">
+        <div className="flex-1 h-7 flex items-center gap-1.5 bg-black/[0.04] dark:bg-white/[0.03] rounded px-2 min-w-0">
           {panel.view === "site" && (
             <>
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="p-0.5 text-neutral-600 hover:text-neutral-300 transition-colors shrink-0"
+                className="p-0.5 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors shrink-0"
                 title="Refresh"
               >
                 <RotateCw size={12} strokeWidth={1.5} />
@@ -239,14 +269,14 @@ export function Sandbox() {
                 type="text"
                 defaultValue={path}
                 onKeyDown={handlePathSubmit}
-                className="flex-1 min-w-0 bg-transparent text-[13px] text-neutral-400 outline-none placeholder:text-neutral-700"
+                className="flex-1 min-w-0 bg-transparent text-[13px] text-neutral-600 dark:text-neutral-400 outline-none placeholder:text-neutral-300 dark:placeholder:text-neutral-700"
                 placeholder="/"
               />
               <a
                 href={workspace ? getSiteUrl(workspace, path) : "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-0.5 text-neutral-600 hover:text-neutral-300 transition-colors shrink-0"
+                className="p-0.5 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors shrink-0"
                 title="Open in new tab"
               >
                 <ExternalLink size={12} strokeWidth={1.5} />
@@ -258,10 +288,11 @@ export function Sandbox() {
               {panel.filePath ? `/${panel.filePath}` : "Code"}
             </span>
           )}
+          {panel.view === "drive" && <span className="text-[13px] text-neutral-500 truncate">Drive</span>}
           {panel.view === "terminal" && (
             <div className="flex items-center gap-1.5">
-              <Terminal size={12} strokeWidth={1.5} className="text-neutral-600" />
-              <span className="text-[13px] text-neutral-500">Terminal</span>
+              <Terminal size={12} strokeWidth={1.5} className="text-neutral-400 dark:text-neutral-600" />
+              <span className="text-[13px] text-neutral-500 dark:text-neutral-500">Terminal</span>
             </div>
           )}
         </div>
@@ -273,7 +304,7 @@ export function Sandbox() {
         <button
           type="button"
           onClick={() => setSandbox(false)}
-          className="xl:hidden p-1.5 text-neutral-600 hover:text-neutral-300 rounded transition-colors"
+          className="xl:hidden p-1.5 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 rounded transition-colors"
           title="Close"
         >
           <X size={14} strokeWidth={1.5} />
@@ -285,25 +316,26 @@ export function Sandbox() {
         {!workspace || (!workspace.includes(".") && !isSuperadminWorkspace) ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <p className="text-neutral-600 text-sm">{workspace ? "Invalid workspace" : "No site selected"}</p>
+              <p className="text-neutral-400 dark:text-neutral-600 text-sm">
+                {workspace ? "Invalid workspace" : "No site selected"}
+              </p>
             </div>
           </div>
         ) : panel.view === "site" ? (
           <div className="h-full bg-white relative">
             {/* Loading state */}
             {(isLoading || !previewToken) && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#0d0d0d]">
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white dark:bg-[#0d0d0d]">
                 <PulsingDot size="lg" />
               </div>
             )}
             {previewToken && (
               <iframe
-                ref={iframeRef}
+                ref={setIframeRef}
                 src={previewUrl}
                 className="w-full h-full border-0"
                 title={`Preview: ${workspace}`}
                 referrerPolicy="no-referrer-when-downgrade"
-                onLoad={handleIframeLoad}
               />
             )}
           </div>
@@ -321,9 +353,11 @@ export function Sandbox() {
             onSetTreeWidth={setTreeWidth}
             onToggleTreeCollapsed={toggleTreeCollapsed}
           />
+        ) : panel.view === "drive" ? (
+          <DrivePanel workspace={workspace} worktree={worktree} />
         ) : panel.view === "terminal" ? (
-          <div className="h-full bg-[#1e1e1e] flex items-center justify-center">
-            <div className="text-center text-neutral-500">
+          <div className="h-full bg-neutral-50 dark:bg-[#1e1e1e] flex items-center justify-center">
+            <div className="text-center text-neutral-400 dark:text-neutral-500">
               <Terminal size={48} strokeWidth={1} className="mx-auto mb-4 opacity-50" />
               <p className="text-sm">Terminal coming soon</p>
             </div>

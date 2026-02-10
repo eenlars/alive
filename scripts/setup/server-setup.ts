@@ -3,7 +3,7 @@
  * Server Setup Script
  *
  * Single command to set up a new server or update an existing one.
- * Reads configuration from /var/lib/alive/server-config.json
+ * Reads configuration from server-config.json (via SERVER_CONFIG_PATH env var)
  *
  * Usage: bun run setup:server [--production] [--enable]
  */
@@ -16,8 +16,10 @@ import { constants, existsSync } from "node:fs"
 // Types & Constants
 // =============================================================================
 
-const CONFIG_PATH = "/var/lib/alive/server-config.json"
-const GENERATED_DIR = "/var/lib/alive/generated"
+const CONFIG_PATH = process.env.SERVER_CONFIG_PATH
+if (!CONFIG_PATH) {
+  throw new Error("FATAL: SERVER_CONFIG_PATH env var is not set.")
+}
 
 const COLORS = {
   red: "\x1b[31m",
@@ -84,7 +86,7 @@ function which(name: string): string | null {
 // Checks
 // =============================================================================
 
-async function checkPrerequisites(): Promise<{ ok: boolean; aliveRoot: string }> {
+async function checkPrerequisites(): Promise<{ ok: boolean; aliveRoot: string; generatedDir: string }> {
   header("Checking prerequisites")
 
   let allOk = true
@@ -102,11 +104,13 @@ async function checkPrerequisites(): Promise<{ ok: boolean; aliveRoot: string }>
 
   // Check server config
   let aliveRoot = ""
+  let generatedDir = ""
   try {
-    await access(CONFIG_PATH, constants.R_OK)
-    const raw = await readFile(CONFIG_PATH, "utf8")
+    await access(CONFIG_PATH!, constants.R_OK)
+    const raw = await readFile(CONFIG_PATH!, "utf8")
     const config = JSON.parse(raw)
     aliveRoot = config.paths?.aliveRoot
+    generatedDir = config.generated?.dir
 
     if (!aliveRoot) {
       fail("paths.aliveRoot not set in config")
@@ -117,9 +121,14 @@ async function checkPrerequisites(): Promise<{ ok: boolean; aliveRoot: string }>
     } else {
       ok(`server-config.json (aliveRoot: ${aliveRoot})`)
     }
+
+    if (!generatedDir) {
+      fail("generated.dir not set in config")
+      allOk = false
+    }
   } catch {
     fail(`${CONFIG_PATH} not found`)
-    log(`  ${COLORS.dim}Fix: cp ops/server-config.example.json ${CONFIG_PATH}${COLORS.reset}`)
+    log(`  ${COLORS.dim}Fix: Set SERVER_CONFIG_PATH env var and create the config file${COLORS.reset}`)
     allOk = false
   }
 
@@ -130,7 +139,7 @@ async function checkPrerequisites(): Promise<{ ok: boolean; aliveRoot: string }>
     warn("Redis not responding (may need to start)")
   }
 
-  return { ok: allOk, aliveRoot }
+  return { ok: allOk, aliveRoot, generatedDir }
 }
 
 // =============================================================================
@@ -185,7 +194,7 @@ async function buildProduction(aliveRoot: string): Promise<boolean> {
 // Services
 // =============================================================================
 
-async function setupServices(aliveRoot: string, enable: boolean): Promise<boolean> {
+async function setupServices(aliveRoot: string, generatedDir: string, enable: boolean): Promise<boolean> {
   header("Setting up systemd services")
 
   // Generate services
@@ -195,7 +204,7 @@ async function setupServices(aliveRoot: string, enable: boolean): Promise<boolea
   }
 
   // Install services
-  run(`cp ${GENERATED_DIR}/alive-*.service /etc/systemd/system/`)
+  run(`cp ${generatedDir}/alive-*.service /etc/systemd/system/`)
   run(`systemctl daemon-reload`)
   ok("Services installed")
 
@@ -245,7 +254,7 @@ async function main() {
 
   console.log(`
 ${COLORS.bold}╔═══════════════════════════════════════╗
-║     Claude Bridge Server Setup        ║
+║     Alive Server Setup                ║
 ╚═══════════════════════════════════════╝${COLORS.reset}
 `)
 
@@ -257,6 +266,7 @@ ${COLORS.bold}╔═════════════════════
   }
 
   const aliveRoot = prereq.aliveRoot
+  const generatedDir = prereq.generatedDir
 
   // Generate routing
   header("Generating routing config")
@@ -271,7 +281,7 @@ ${COLORS.bold}╔═════════════════════
   }
 
   // Setup services
-  await setupServices(aliveRoot, enable)
+  await setupServices(aliveRoot, generatedDir, enable)
 
   // Start services
   await startServices(production)

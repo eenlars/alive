@@ -16,7 +16,10 @@ trap cleanup EXIT ERR INT TERM
 log_info "Assigning port for domain: $SITE_DOMAIN"
 
 # Load server ID from server-config.json
-SERVER_CONFIG="/var/lib/claude-bridge/server-config.json"
+SERVER_CONFIG="${SERVER_CONFIG_PATH:-}"
+if [[ -z "$SERVER_CONFIG" ]]; then
+    die "SERVER_CONFIG_PATH env var is not set"
+fi
 if [[ -f "$SERVER_CONFIG" ]]; then
     SERVER_ID=$(jq -r '.serverId // empty' "$SERVER_CONFIG")
     if [[ -n "$SERVER_ID" ]]; then
@@ -105,20 +108,6 @@ while true; do
 done
 
 log_info "Assigning port: $NEXT_PORT"
-
-# Also update legacy JSON registry for backwards compatibility with API reads
-# (This can be removed once API reads port from deploy result instead of JSON)
-if [[ -n "${REGISTRY_PATH:-}" ]]; then
-    if [[ ! -f "$REGISTRY_PATH" ]]; then
-        mkdir -p "$(dirname "$REGISTRY_PATH")"
-        echo '{}' > "$REGISTRY_PATH"
-    fi
-    TMP_FILE="${REGISTRY_PATH}.tmp.$$"
-    jq --arg domain "$SITE_DOMAIN" --argjson port "$NEXT_PORT" \
-        '.[$domain].port = $port' "$REGISTRY_PATH" > "$TMP_FILE"
-    mv "$TMP_FILE" "$REGISTRY_PATH"
-    log_info "Updated legacy registry: $REGISTRY_PATH"
-fi
 
 log_success "Port assigned: $NEXT_PORT"
 

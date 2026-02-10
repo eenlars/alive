@@ -7,8 +7,10 @@ import type { NextRequest } from "next/server"
 import { describe, expect, it } from "vitest"
 import { getRequestUrls } from "./request-url"
 
-// In CI, server-config.json doesn't exist so DOMAINS return empty strings
-const hasServerConfig = !process.env.CI
+// Domain-dependent assertions require populated server config values
+const hasServerConfig = Boolean(
+  DOMAINS.STREAM_DEV && DOMAINS.STREAM_DEV_HOST && DOMAINS.STREAM_PROD && DOMAINS.STREAM_PROD_HOST,
+)
 
 // Use constants for test URLs
 const DEV_BASE_URL = `http://localhost:${PORTS.DEV}`

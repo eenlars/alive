@@ -15,11 +15,6 @@ export interface CaddySource {
   port: number | null
 }
 
-export interface JsonSource {
-  exists: boolean
-  port: number | null
-}
-
 export interface FilesystemSource {
   exists: boolean
   path: string | null
@@ -41,7 +36,6 @@ export interface SourceData {
   domain: string
   supabase: SupabaseSource
   caddy: CaddySource
-  json: JsonSource
   filesystem: FilesystemSource
   dns: DnsSource
   systemd: SystemdSource

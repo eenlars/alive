@@ -12,18 +12,17 @@ import type {
   AgentInput,
   AskUserQuestionInput,
   BashInput,
-  BashOutputInput,
   ExitPlanModeInput,
   FileEditInput,
   FileReadInput,
   FileWriteInput,
   GlobInput,
   GrepInput,
-  KillShellInput,
   ListMcpResourcesInput,
   McpInput,
   NotebookEditInput,
   ReadMcpResourceInput,
+  TaskStopInput,
   TodoWriteInput,
   ToolInputSchemas,
   WebFetchInput,
@@ -32,12 +31,12 @@ import type {
 
 // Import from shared - single source of truth
 import {
+  getStreamDisallowedTools,
   STREAM_ADMIN_ONLY_SDK_TOOLS,
   STREAM_ALLOWED_SDK_TOOLS,
   STREAM_ALWAYS_DISALLOWED_SDK_TOOLS,
   type StreamAllowedSDKTool,
   type StreamDisallowedSDKTool,
-  getStreamDisallowedTools,
 } from "@webalive/shared"
 
 // Re-export for use in tests
@@ -57,14 +56,14 @@ export const ALWAYS_DISALLOWED_SDK_TOOLS = STREAM_ALWAYS_DISALLOWED_SDK_TOOLS
 type SDKToolMap = {
   AgentInput: "Task"
   BashInput: "Bash"
-  BashOutputInput: "BashOutput"
+  TaskOutputInput: "TaskOutput"
   ExitPlanModeInput: "ExitPlanMode"
   FileEditInput: "Edit"
   FileReadInput: "Read"
   FileWriteInput: "Write"
   GlobInput: "Glob"
   GrepInput: "Grep"
-  KillShellInput: "KillShell"
+  TaskStopInput: "TaskStop"
   ListMcpResourcesInput: "ListMcpResources"
   McpInput: "Mcp"
   NotebookEditInput: "NotebookEdit"
@@ -81,14 +80,13 @@ type SDKToolMap = {
  */
 type _ValidateAgentInput = AgentInput extends ToolInputSchemas ? true : never
 type _ValidateBashInput = BashInput extends ToolInputSchemas ? true : never
-type _ValidateBashOutputInput = BashOutputInput extends ToolInputSchemas ? true : never
 type _ValidateExitPlanModeInput = ExitPlanModeInput extends ToolInputSchemas ? true : never
 type _ValidateFileEditInput = FileEditInput extends ToolInputSchemas ? true : never
 type _ValidateFileReadInput = FileReadInput extends ToolInputSchemas ? true : never
 type _ValidateFileWriteInput = FileWriteInput extends ToolInputSchemas ? true : never
 type _ValidateGlobInput = GlobInput extends ToolInputSchemas ? true : never
 type _ValidateGrepInput = GrepInput extends ToolInputSchemas ? true : never
-type _ValidateKillShellInput = KillShellInput extends ToolInputSchemas ? true : never
+type _ValidateTaskStopInput = TaskStopInput extends ToolInputSchemas ? true : never
 type _ValidateListMcpResourcesInput = ListMcpResourcesInput extends ToolInputSchemas ? true : never
 type _ValidateMcpInput = McpInput extends ToolInputSchemas ? true : never
 type _ValidateNotebookEditInput = NotebookEditInput extends ToolInputSchemas ? true : never
@@ -101,14 +99,13 @@ type _ValidateAskUserQuestionInput = AskUserQuestionInput extends ToolInputSchem
 const _assertAllTypesExist: true = true as
   | _ValidateAgentInput
   | _ValidateBashInput
-  | _ValidateBashOutputInput
   | _ValidateExitPlanModeInput
   | _ValidateFileEditInput
   | _ValidateFileReadInput
   | _ValidateFileWriteInput
   | _ValidateGlobInput
   | _ValidateGrepInput
-  | _ValidateKillShellInput
+  | _ValidateTaskStopInput
   | _ValidateListMcpResourcesInput
   | _ValidateMcpInput
   | _ValidateNotebookEditInput
@@ -129,14 +126,14 @@ export type SDKToolName = SDKToolMap[keyof SDKToolMap]
 export const SDK_TOOL_NAMES = [
   "Task",
   "Bash",
-  "BashOutput",
+  "TaskOutput",
   "ExitPlanMode",
   "Edit",
   "Read",
   "Write",
   "Glob",
   "Grep",
-  "KillShell",
+  "TaskStop",
   "ListMcpResources",
   "Mcp",
   "NotebookEdit",
@@ -164,6 +161,6 @@ const _assertAllCategorized: _MissingTools extends never ? true : never = true
  * Compile-time check: Ensure no extra tools beyond SDK.
  * Note: "Skill" is a Stream-specific tool (loaded from .claude/skills/) not in SDK's ToolInputSchemas.
  */
-type _StreamOnlyTools = "Skill"
+type _StreamOnlyTools = "Skill" | "BashOutput"
 type _ExtraTools = Exclude<_AllCategorized, SDKToolName | _StreamOnlyTools>
 const _assertNoExtraTools: _ExtraTools extends never ? true : never = true

@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
-import { ChevronDown, X } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
-import { CronScheduler } from "./cron-scheduler"
+import { ChevronDown, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import type { AutomationJob, Site } from "@/lib/hooks/useSettingsQueries"
+import { CronScheduler } from "./cron-scheduler"
 
 type SkillItem = {
   id: string
@@ -246,6 +246,7 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                   value={cronSchedule}
                   onChange={setCronSchedule}
                   showOneTime={true}
+                  isOneTime={isOneTime}
                   onOneTimeChange={setIsOneTime}
                   oneTimeDate={oneTimeDate}
                   oneTimeTime={oneTimeTime}

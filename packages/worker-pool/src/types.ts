@@ -96,13 +96,60 @@ export interface CompleteResult {
   cancelled: boolean
 }
 
+/** Aggregated MCP status counts from SDK init event */
+export interface WorkerMcpStatusSummary {
+  connected: number
+  failed: number
+  needsAuth: number
+  pending: number
+  disabled: number
+  unknown: number
+}
+
+/** Per-server MCP status from SDK init event */
+export interface WorkerMcpServerStatus {
+  name: string
+  status: string
+}
+
+/**
+ * Structured diagnostics attached to worker query errors.
+ * Backend-only payload used for journald/error-buffer troubleshooting.
+ */
+export interface WorkerQueryFailureDiagnostics {
+  requestId: string
+  messageCount: number
+  permissionMode: string
+  resume: string | null
+  resumeSessionAt: string | null
+  connectedProviders: string[]
+  mcpServersEnabled: string[]
+  initSessionId: string | null
+  initMcpStatusSummary: WorkerMcpStatusSummary | null
+  initMcpStatusByServer: WorkerMcpServerStatus[] | null
+  queryResultSubtype: string | null
+  queryResultIsError: boolean
+  queryResultErrors: string[]
+  recentMessageTypes: string[]
+  stderrLinesCaptured: number
+  surfacedErrorMessage: string
+  originalErrorMessage: string
+}
+
 /** Messages sent from worker to parent */
 export type WorkerToParentMessage =
   | { type: "ready" }
   | { type: "session"; requestId: string; sessionId: string }
   | { type: "message"; requestId: string; content: unknown }
   | { type: "complete"; requestId: string; result: CompleteResult }
-  | { type: "error"; requestId: string; error: string; stack?: string }
+  | {
+      type: "error"
+      requestId: string
+      error: string
+      stack?: string
+      stderr?: string
+      diagnostics?: WorkerQueryFailureDiagnostics
+    }
   | { type: "shutdown_ack" }
   | { type: "health_ok"; uptime: number; queriesProcessed: number }
 
@@ -132,6 +179,8 @@ export interface AgentConfig {
   bridgeStreamTypes: typeof STREAM_TYPES
   /** Whether the user is an admin (enables Bash tools) */
   isAdmin?: boolean
+  /** Whether the user is a superadmin (bypasses heavy bash guardrails) */
+  isSuperadmin?: boolean
 }
 
 /** Request payload for Claude Agent SDK query */
@@ -232,12 +281,36 @@ export interface WorkerPoolConfig {
   shutdownTimeoutMs: number
   /** Timeout for cancel to complete before forcing cleanup (ms) */
   cancelTimeoutMs: number
+  /** Fairness: max active workers per owner/user */
+  maxWorkersPerUser: number
+  /** Fairness: max active workers per workspace */
+  maxWorkersPerWorkspace: number
+  /** Queue limit per owner/user */
+  maxQueuedPerUser: number
+  /** Queue limit per workspace */
+  maxQueuedPerWorkspace: number
+  /** Queue limit across the entire pool */
+  maxQueuedGlobal: number
+  /** Dynamic worker cap multiplier against CPU count */
+  workersPerCore: number
+  /** Load-shed threshold (loadavg1 / cpuCount) before spawning is paused */
+  loadShedThreshold: number
+  /** Grace period between TERM and KILL when retiring workers */
+  killGraceMs: number
+  /** Interval for orphan subprocess sweeping */
+  orphanSweepIntervalMs: number
+  /** Maximum orphan age before forced kill */
+  orphanMaxAgeMs: number
 }
 
 /** Options for sending a query to a worker */
 export interface QueryOptions {
   /** Request ID for tracking */
   requestId: string
+  /** Owner key for fairness accounting (typically user ID) */
+  ownerKey: string
+  /** Workload class for observability/scheduling */
+  workloadClass?: "chat" | "automation"
   /** Agent request payload */
   payload: AgentRequest
   /** Callback for streamed messages */

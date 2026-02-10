@@ -24,7 +24,7 @@ import {
 } from "drizzle-orm/pg-core"
 
 // Import IAM schema for foreign keys
-import { users, orgs } from "./iam"
+import { orgs, users } from "./iam"
 
 // Define the App schema
 export const appSchema = pgSchema("app")
@@ -164,7 +164,7 @@ export const conversationTabs = appSchema.table(
   {
     tabId: text("tab_id").default(sql`gen_random_uuid()::text`).primaryKey().notNull(),
     conversationId: text("conversation_id").notNull(),
-    name: text("name").default("current").notNull(),
+    name: text("name").notNull(),
     position: integer("position").default(0).notNull(),
     messageCount: integer("message_count").default(0).notNull(),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true, mode: "string" }),

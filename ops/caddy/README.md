@@ -15,7 +15,7 @@ nginx (443) → SNI routing → caddy-shell (8443) or caddy-main (8444)
 | File | Location | Purpose |
 |------|----------|---------|
 | `Caddyfile` | This folder | Snippets + import of generated routing (imported by main Caddyfile) |
-| `generated/Caddyfile.sites` | This folder | Filtered copy of generated routing (synced from `/var/lib/claude-bridge/generated/Caddyfile.sites`) |
+| `generated/Caddyfile.sites` | This folder | Filtered copy of generated routing (synced from `/var/lib/alive/generated/Caddyfile.sites`) |
 | `Caddyfile.main` | `/etc/caddy/Caddyfile` | Main Caddy config (ports 8081/8444) |
 | `Caddyfile.shell` | `/etc/caddy/Caddyfile.shell` | Shell-only Caddy config (port 8443) |
 | `Caddyfile.bak` | Backup | Previous version backup |
@@ -26,9 +26,9 @@ nginx (443) → SNI routing → caddy-shell (8443) or caddy-main (8444)
 /etc/caddy/Caddyfile (Caddyfile.main)
 ├── import /etc/caddy/Caddyfile.prod
 ├── import /etc/caddy/Caddyfile.staging
-└── import /root/webalive/claude-bridge/ops/caddy/Caddyfile
-    └── import /root/webalive/claude-bridge/ops/caddy/generated/Caddyfile.sites
-        └── synced from /var/lib/claude-bridge/generated/Caddyfile.sites
+└── import /root/webalive/alive/ops/caddy/Caddyfile
+    └── import /root/webalive/alive/ops/caddy/generated/Caddyfile.sites
+        └── synced from /var/lib/alive/generated/Caddyfile.sites
 
 /etc/caddy/Caddyfile.shell (Caddyfile.shell)
 └── go.goalive.nl
@@ -60,7 +60,7 @@ New sites are added via the routing generator and sync script:
 bun run --cwd packages/site-controller routing:generate
 
 # Sync filtered file used by main import
-bun /root/webalive/claude-bridge/scripts/sync-generated-caddy.ts
+bun /root/webalive/alive/scripts/sync-generated-caddy.ts
 
 # Reload
 caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
@@ -73,6 +73,34 @@ caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy
 | nginx | 80 | 443 | External traffic, SNI routing |
 | caddy (main) | 8081 | 8444 | All domains except shell |
 | caddy-shell | - | 8443 | Shell domains only |
+
+## CRITICAL: `tls force_automate` on explicit domains
+
+**Bug**: Caddy v2.10.x has a bug ([#6996](https://github.com/caddyserver/caddy/issues/6996)) where the `on_demand_tls { ask ... }` global block + a wildcard `*.sonno.tech` with `tls { on_demand }` prevents cert management for explicit domains that match the wildcard (e.g., `dev.sonno.tech`, `staging.sonno.tech`).
+
+**Symptom**: TLS handshake fails for all explicit domains, `cert_cache_fill: 0.0001` in logs, "no certificate available" errors.
+
+**Fix**: Every explicit domain block that matches the wildcard MUST have `tls force_automate`:
+
+```caddy
+# WRONG — will silently fail to get a cert
+dev.sonno.tech {
+    reverse_proxy localhost:8997
+}
+
+# CORRECT
+dev.sonno.tech {
+    tls force_automate
+    reverse_proxy localhost:8997
+}
+```
+
+**Where to add it**:
+- `/etc/caddy/Caddyfile.staging` — sonno.tech, app, staging, dev
+- `/etc/caddy/sites/*.caddy` — midday, sentry, monitor, mail, supabase-*
+- Generated `Caddyfile.sites` — template is in `packages/site-controller/src/infra/generate-routing.ts`
+
+The wildcard block (`*.sonno.tech`) does NOT need it — it uses `tls { on_demand }` instead.
 
 ## Related Docs
 

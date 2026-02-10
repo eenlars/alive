@@ -21,41 +21,37 @@
  * ```
  */
 
+// sessions_history
+export {
+  executeSessionsHistory,
+  type SessionsHistoryContext,
+  type SessionsHistoryParams,
+  type SessionsHistoryResult,
+  sessionsHistorySchema,
+  sessionsHistoryToolDefinition,
+} from "./sessions-history.js"
+// sessions_list
+export {
+  executeSessionsList,
+  type SessionsListContext,
+  type SessionsListParams,
+  type SessionsListResult,
+  sessionsListSchema,
+  sessionsListToolDefinition,
+} from "./sessions-list.js"
+// sessions_send
+export {
+  executeSessionsSend,
+  type SessionsSendContext,
+  type SessionsSendParams,
+  sessionsSendSchema,
+  sessionsSendToolDefinition,
+} from "./sessions-send.js"
 // Types
 export type {
+  AgentToAgentPolicy,
   SessionInfo,
   SessionMessage,
   SessionSendResult,
-  AgentToAgentPolicy,
 } from "./types.js"
-
 export { DEFAULT_A2A_POLICY, isA2AAllowed } from "./types.js"
-
-// sessions_list
-export {
-  sessionsListSchema,
-  executeSessionsList,
-  sessionsListToolDefinition,
-  type SessionsListParams,
-  type SessionsListContext,
-  type SessionsListResult,
-} from "./sessions-list.js"
-
-// sessions_send
-export {
-  sessionsSendSchema,
-  executeSessionsSend,
-  sessionsSendToolDefinition,
-  type SessionsSendParams,
-  type SessionsSendContext,
-} from "./sessions-send.js"
-
-// sessions_history
-export {
-  sessionsHistorySchema,
-  executeSessionsHistory,
-  sessionsHistoryToolDefinition,
-  type SessionsHistoryParams,
-  type SessionsHistoryContext,
-  type SessionsHistoryResult,
-} from "./sessions-history.js"

@@ -1,6 +1,6 @@
 # @webalive/database
 
-Type-safe database access for Claude Bridge with **Drizzle ORM** and **PostgreSQL**.
+Type-safe database access for Alive with **Drizzle ORM** and **PostgreSQL**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -17,7 +17,7 @@ Type-safe database access for Claude Bridge with **Drizzle ORM** and **PostgreSQ
 
 ## First Time Setup
 
-**New to Claude Bridge?** Follow the setup guide:
+**New to Alive?** Follow the setup guide:
 
 ```bash
 # Read the full setup instructions

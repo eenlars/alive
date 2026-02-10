@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest"
-import { selectBestAuthMethod, type AuthorizationServerMetadata } from "../dynamic-client-registration"
+import { describe, expect, it } from "vitest"
+import { type AuthorizationServerMetadata, selectBestAuthMethod } from "../dynamic-client-registration"
 
 describe("Dynamic Client Registration", () => {
   describe("selectBestAuthMethod", () => {

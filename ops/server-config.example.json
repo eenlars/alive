@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy to /var/lib/alive/server-config.json and customize for this server",
+  "_comment": "Copy to your server config path and set SERVER_CONFIG_PATH env var to point here",
   "serverId": "srv-CHANGEME",
   "serverIp": "0.0.0.0",
   "paths": {
@@ -11,7 +11,7 @@
     "main": "sonno.tech",
     "wildcard": "sonno.tech",
     "cookieDomain": ".sonno.tech",
-    "previewBase": "preview.sonno.tech",
+    "previewBase": "sonno.tech",
     "frameAncestors": [
       "https://app.sonno.tech",
       "https://dev.sonno.tech",
@@ -24,9 +24,9 @@
     "upstream": "localhost:3888"
   },
   "generated": {
-    "dir": "/var/lib/alive/generated",
-    "caddySites": "/var/lib/alive/generated/Caddyfile.sites",
-    "caddyShell": "/var/lib/alive/generated/Caddyfile.shell",
-    "nginxMap": "/var/lib/alive/generated/nginx.sni.map"
+    "dir": "/path/to/generated",
+    "caddySites": "/path/to/generated/Caddyfile.sites",
+    "caddyShell": "/path/to/generated/Caddyfile.shell",
+    "nginxMap": "/path/to/generated/nginx.sni.map"
   }
 }

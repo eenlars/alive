@@ -54,7 +54,7 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
   }
 
   const getPortConsistency = (domain: SourceData): PortConsistency => {
-    const ports = [domain.supabase.port, domain.caddy.port, domain.json.port].filter(p => p !== null)
+    const ports = [domain.supabase.port, domain.caddy.port].filter(p => p !== null)
     if (ports.length === 0) return { status: "none", color: "text-slate-400 dark:text-slate-500" }
     const allSame = ports.every(p => p === ports[0])
     return {
@@ -66,7 +66,7 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
   // Mobile Card View
   const MobileCard = ({ domain }: { domain: SourceData }) => {
     const portCheck = getPortConsistency(domain)
-    const mainPort = domain.supabase.port || domain.caddy.port || domain.json.port
+    const mainPort = domain.supabase.port || domain.caddy.port
 
     return (
       <div className="border-b border-slate-200 dark:border-white/10 p-4 last:border-b-0">
@@ -173,11 +173,6 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
           >
             Proxy {domain.caddy.exists ? "✓" : "✗"}
           </span>
-          <span
-            className={`font-mono px-1.5 py-0.5 rounded ${domain.json.exists ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300" : "bg-slate-100 dark:bg-slate-700 text-slate-500"}`}
-          >
-            Config {domain.json.exists ? "✓" : "✗"}
-          </span>
           {domain.systemd.exists && domain.systemd.serveMode && (
             <span
               className={`px-1.5 py-0.5 rounded text-xs font-medium ${
@@ -252,7 +247,7 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
                     className="hover:bg-slate-50 dark:hover:bg-[#2a2a2a] cursor-pointer"
                     onClick={() => window.open(`https://${domain.domain}`, "_blank")}
                   >
-                    <td className="py-2 px-4 text-sm font-medium text-slate-900 dark:text-white" rowSpan={3}>
+                    <td className="py-2 px-4 text-sm font-medium text-slate-900 dark:text-white" rowSpan={2}>
                       <a
                         href={`https://${domain.domain}`}
                         target="_blank"
@@ -281,14 +276,14 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
                         <span className="text-red-600 dark:text-red-400">✗</span>
                       )}
                     </td>
-                    <td className="py-2 px-4 text-sm text-center" rowSpan={3}>
+                    <td className="py-2 px-4 text-sm text-center" rowSpan={2}>
                       {domain.filesystem.exists ? (
                         <span className="text-emerald-600 dark:text-emerald-400">✓</span>
                       ) : (
                         <span className="text-red-600 dark:text-red-400">✗</span>
                       )}
                     </td>
-                    <td className="py-2 px-4 text-sm text-center" rowSpan={3}>
+                    <td className="py-2 px-4 text-sm text-center" rowSpan={2}>
                       {domain.dns.resolves ? (
                         <span
                           className={
@@ -303,7 +298,7 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
                         <span className="text-red-600 dark:text-red-400">✗</span>
                       )}
                     </td>
-                    <td className="py-2 px-4 text-sm text-center" rowSpan={3}>
+                    <td className="py-2 px-4 text-sm text-center" rowSpan={2}>
                       {domain.systemd.exists ? (
                         <span
                           className={
@@ -318,7 +313,7 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
                         <span className="text-slate-400 dark:text-slate-500">—</span>
                       )}
                     </td>
-                    <td className="py-2 px-4 text-sm text-center" rowSpan={3}>
+                    <td className="py-2 px-4 text-sm text-center" rowSpan={2}>
                       {domain.systemd.exists ? (
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
@@ -333,7 +328,7 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
                         <span className="text-slate-400 dark:text-slate-500">—</span>
                       )}
                     </td>
-                    <td className="py-2 px-4 text-xs text-slate-600 dark:text-slate-400" rowSpan={3}>
+                    <td className="py-2 px-4 text-xs text-slate-600 dark:text-slate-400" rowSpan={2}>
                       {domain.supabase.orgId ? (
                         <div>
                           <div className="font-mono">{domain.supabase.orgId}</div>
@@ -345,7 +340,7 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
                         <span className="text-slate-400 dark:text-slate-500">—</span>
                       )}
                     </td>
-                    <td className="py-2 px-4 text-center" rowSpan={3}>
+                    <td className="py-2 px-4 text-center" rowSpan={2}>
                       <div className="flex flex-col gap-1.5 items-center">
                         <button
                           type="button"
@@ -377,7 +372,7 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
                   {/* Caddy row */}
                   <tr
                     key={`${domain.domain}-caddy`}
-                    className="hover:bg-slate-50 dark:hover:bg-[#2a2a2a] cursor-pointer"
+                    className="hover:bg-slate-50 dark:hover:bg-[#2a2a2a] border-b-2 border-slate-300 dark:border-white/20 cursor-pointer"
                     onClick={() => window.open(`https://${domain.domain}`, "_blank")}
                   >
                     <td className="py-2 px-4 text-xs text-slate-700 dark:text-slate-300">
@@ -388,27 +383,6 @@ export function SourcesTable({ sources, loading, onDelete }: SourcesTableProps) 
                     </td>
                     <td className="py-2 px-4 text-sm text-center">
                       {domain.caddy.exists ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">✓</span>
-                      ) : (
-                        <span className="text-red-600 dark:text-red-400">✗</span>
-                      )}
-                    </td>
-                  </tr>
-
-                  {/* JSON row */}
-                  <tr
-                    key={`${domain.domain}-json`}
-                    className="hover:bg-slate-50 dark:hover:bg-[#2a2a2a] border-b-2 border-slate-300 dark:border-white/20 cursor-pointer"
-                    onClick={() => window.open(`https://${domain.domain}`, "_blank")}
-                  >
-                    <td className="py-2 px-4 text-xs text-slate-700 dark:text-slate-300">
-                      <span className="font-mono bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded">Config</span>
-                    </td>
-                    <td className="py-2 px-4 text-sm text-slate-700 dark:text-slate-300 text-center">
-                      {domain.json.port || <span className="text-slate-400 dark:text-slate-500">—</span>}
-                    </td>
-                    <td className="py-2 px-4 text-sm text-center">
-                      {domain.json.exists ? (
                         <span className="text-emerald-600 dark:text-emerald-400">✓</span>
                       ) : (
                         <span className="text-red-600 dark:text-red-400">✗</span>
