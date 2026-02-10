@@ -309,6 +309,21 @@ async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promi
   if (!state) return
 
   const startedAt = Date.now()
+
+  // Atomic claim: only proceed if we're the one who sets running_at.
+  // This prevents duplicate execution when multiple instances share the same DB.
+  const { data: claimed } = await state.supabase
+    .from("automation_jobs")
+    .update({ running_at: new Date(startedAt).toISOString() })
+    .eq("id", job.id)
+    .is("running_at", null)
+    .select("id")
+
+  if (!claimed?.length) {
+    console.log(`[CronService] Job "${job.name}" (${job.id}) already claimed by another instance, skipping`)
+    return
+  }
+
   state.runningJobs.add(job.id)
 
   // Emit started event
@@ -323,12 +338,6 @@ async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promi
     action: "started",
     runAtMs: startedAt,
   }).catch(() => {}) // Don't fail if logging fails
-
-  // Mark as running in DB
-  await state.supabase
-    .from("automation_jobs")
-    .update({ running_at: new Date(startedAt).toISOString() })
-    .eq("id", job.id)
 
   try {
     // Get site hostname
