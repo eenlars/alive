@@ -13,8 +13,10 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -137,6 +139,16 @@ func main() {
 		// No ReadTimeout/WriteTimeout — long-lived WebSocket connections need this
 		IdleTimeout: 120 * time.Second,
 	}
+
+	// SIGHUP triggers immediate port-map reload (used by deploy pipeline)
+	sighup := make(chan os.Signal, 1)
+	signal.Notify(sighup, syscall.SIGHUP)
+	go func() {
+		for range sighup {
+			log.Printf("[port-map] SIGHUP received — reloading")
+			ports.reload()
+		}
+	}()
 
 	log.Printf("[preview-proxy] starting on %s (previewBase=%s)", cfg.ListenAddr, cfg.PreviewBase)
 	if err := server.ListenAndServe(); err != nil {

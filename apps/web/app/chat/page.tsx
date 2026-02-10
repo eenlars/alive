@@ -45,6 +45,7 @@ import { validateOAuthToastParams } from "@/lib/integrations/toast-validation"
 import { useIsSessionExpired } from "@/lib/stores/authStore"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
 import { isDevelopment, useDebugActions, useDebugVisible, useSandbox, useSSETerminal } from "@/lib/stores/debug-store"
+import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { useApiKey, useModel } from "@/lib/stores/llmStore"
 import { useLastSeenStreamSeq, useStreamingActions } from "@/lib/stores/streamingStore"
@@ -146,6 +147,7 @@ function ChatPageContent() {
   // Handle ?wk= URL parameter to pre-select workspace (e.g., from widget "Edit me" button)
   const [wkParam] = useQueryState(QUERY_KEYS.workspace)
   const [wtParam, setWtParam] = useQueryState(QUERY_KEYS.worktree)
+  const worktreesEnabled = useFeatureFlag("WORKTREES")
   useEffect(() => {
     if (mounted && wkParam && wkParam !== workspace) {
       console.log("[ChatPage] Setting workspace from URL param:", wkParam)
@@ -153,10 +155,10 @@ function ChatPageContent() {
     }
   }, [mounted, wkParam, workspace, setWorkspace])
 
-  // Handle ?wt= URL parameter for worktree selection
+  // Handle ?wt= URL parameter for worktree selection (only when feature flag enabled)
   // Normalize URL param to prevent casing inconsistencies (e.g., "Feature" vs "feature")
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !worktreesEnabled) return
 
     // Normalize and validate the URL param
     let normalizedParam: string | null = null
@@ -176,16 +178,16 @@ function ChatPageContent() {
     if (normalizedParam !== worktree) {
       setWorktree(normalizedParam)
     }
-  }, [mounted, wtParam, worktree, setWorktree, setWtParam])
+  }, [mounted, worktreesEnabled, wtParam, worktree, setWorktree, setWtParam])
 
-  // Sync worktree state back to URL
+  // Sync worktree state back to URL (only when feature flag enabled)
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !worktreesEnabled) return
     const desired = worktree && worktree.length > 0 ? worktree : null
     if (wtParam !== desired) {
       void setWtParam(desired, { shallow: true })
     }
-  }, [mounted, worktree, wtParam, setWtParam])
+  }, [mounted, worktreesEnabled, worktree, wtParam, setWtParam])
 
   // Sync tab ID to URL for shareable links and browser history
   const [tabParam, setTabParam] = useQueryState(QUERY_KEYS.chatTab)

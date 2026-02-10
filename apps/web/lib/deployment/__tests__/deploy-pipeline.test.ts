@@ -57,6 +57,7 @@ vi.mock("../domain-registry", () => ({
 vi.mock("@webalive/site-controller", () => ({
   checkDomainInCaddy: (domain: string, caddyfilePath: string) => checkDomainInCaddyMock(domain, caddyfilePath),
   configureCaddy: (input: unknown) => configureCaddyMock(input),
+  regeneratePortMap: async () => 1,
   SiteOrchestrator: {
     teardown: (domain: string, options: unknown) => teardownMock(domain, options),
   },

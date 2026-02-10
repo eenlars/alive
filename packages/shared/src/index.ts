@@ -56,6 +56,7 @@ export {
   STREAM_INTERRUPT_SOURCES,
   STREAM_SYNTHETIC_MESSAGE_TYPES,
   STREAM_TYPES,
+  STREAMING,
   type StorageEntry,
   type StreamType,
   TEST_CONFIG,

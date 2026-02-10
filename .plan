@@ -1,0 +1,31 @@
+# Plan: Put Worktrees Behind a Feature Flag (Superadmin-Only)
+
+## Summary
+Add a `WORKTREES` feature flag (default: `false`) that only superadmins can toggle. When disabled, all worktree UI is hidden. No backend changes needed — this is purely frontend gating.
+
+## Changes
+
+### 1. Add `superadminOnly` to `FeatureFlagDefinition` (`packages/shared/src/constants.ts`)
+- Add optional `superadminOnly?: boolean` field to the `FeatureFlagDefinition` interface.
+- Add `WORKTREES` flag: `{ defaultValue: false, description: "Worktrees: Git worktree switching per workspace", superadminOnly: true }`
+
+### 2. Gate the Flags Settings UI (`apps/web/components/settings/tabs/FlagsSettings.tsx`)
+- Import `useSuperadmin` hook.
+- Filter out `superadminOnly` flags from the list when the user is not a superadmin. Non-superadmin admins can still see the Flags tab (it's `adminOnly`) but won't see the `WORKTREES` toggle.
+
+### 3. Gate WorktreeSwitcher rendering (`apps/web/app/chat/components/WorkspaceInfoBar.tsx`)
+- Import `useFeatureFlag` and check `WORKTREES`. Only render `<WorktreeSwitcher>` when the flag is enabled.
+
+### 4. Gate worktree URL parameter handling (`apps/web/app/chat/page.tsx`)
+- Import `useFeatureFlag`. When `WORKTREES` is disabled, skip the `?wt=` URL param sync logic and don't pass worktree state down. This prevents worktree activation via URL manipulation.
+
+## Files touched (4)
+1. `packages/shared/src/constants.ts` — add `superadminOnly` to type + add `WORKTREES` flag
+2. `apps/web/components/settings/tabs/FlagsSettings.tsx` — filter superadmin-only flags
+3. `apps/web/app/chat/components/WorkspaceInfoBar.tsx` — gate `WorktreeSwitcher` on flag
+4. `apps/web/app/chat/page.tsx` — gate `?wt=` URL param handling on flag
+
+## What stays untouched
+- Backend API routes (`/api/worktrees`) — still available, just no UI to reach them
+- Workspace store (`workspaceStore.ts`) — worktree state storage unchanged
+- All worktree utility functions — unchanged

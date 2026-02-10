@@ -36,6 +36,7 @@ export {
 export { validateDns } from "./executors/dns.js"
 export { setupFilesystem } from "./executors/filesystem.js"
 export { assignPort } from "./executors/port.js"
+export { regeneratePortMap } from "./executors/port-map.js"
 export { startService } from "./executors/service.js"
 export { ensureUser } from "./executors/system.js"
 export { SiteOrchestrator } from "./orchestrator.js"

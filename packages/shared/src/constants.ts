@@ -105,6 +105,20 @@ export const STREAM_INTERRUPT_SOURCES = {
 } as const
 
 /**
+ * Streaming Configuration
+ *
+ * Controls SSE streaming behavior between server and client.
+ */
+export const STREAMING = {
+  /**
+   * Interval between heartbeat pings sent during long tool executions.
+   * Prevents Cloudflare (~100s) from dropping idle SSE connections.
+   * 30s gives good margin against the 100s timeout.
+   */
+  HEARTBEAT_INTERVAL_MS: 30_000,
+} as const
+
+/**
  * Worker Pool Configuration
  *
  * Controls the persistent worker pool for Claude Agent SDK.
@@ -292,6 +306,8 @@ export interface FeatureFlagDefinition {
   defaultValue: boolean
   /** Human-readable description for admin UI */
   description: string
+  /** If true, only superadmins can see and toggle this flag */
+  superadminOnly?: boolean
 }
 
 /**
@@ -319,6 +335,28 @@ export const FEATURE_FLAGS = {
   TABS: {
     defaultValue: true,
     description: "Tabs: Multiple conversation tabs per workspace",
+  },
+
+  /**
+   * Drive - File manager panel in the sandbox.
+   * Disabled by default. When enabled, shows the Drive panel option
+   * in the sandbox view switcher for browsing and uploading files.
+   */
+  DRIVE: {
+    defaultValue: false,
+    description: "Drive: File manager panel for browsing and uploading files",
+    superadminOnly: true,
+  },
+
+  /**
+   * Worktrees - Git worktree switching per workspace.
+   * Disabled by default. Superadmin-only toggle.
+   * When enabled, shows the worktree switcher in the workspace info bar.
+   */
+  WORKTREES: {
+    defaultValue: false,
+    description: "Worktrees: Git worktree switching per workspace",
+    superadminOnly: true,
   },
 } as const satisfies Record<string, FeatureFlagDefinition>
 

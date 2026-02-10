@@ -2,6 +2,7 @@
 
 import { Code, FolderOpen, Globe, Terminal } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import type { PanelView } from "../../lib/sandbox-context"
 
 interface PanelViewMenuProps {
@@ -35,9 +36,14 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
   const isMobile = useIsMobile()
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const driveEnabled = useFeatureFlag("DRIVE")
 
-  // Get available views based on workspace type
-  const availableViews = isSuperadmin ? VIEW_OPTIONS.filter(o => o.view !== "site" && o.view !== "drive") : VIEW_OPTIONS
+  // Get available views based on workspace type and feature flags
+  const availableViews = VIEW_OPTIONS.filter(o => {
+    if (isSuperadmin && (o.view === "site" || o.view === "drive")) return false
+    if (o.view === "drive" && !driveEnabled) return false
+    return true
+  })
 
   // Force back to site view if on mobile and in code/terminal/files view
   useEffect(() => {
