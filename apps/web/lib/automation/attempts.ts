@@ -260,6 +260,9 @@ export async function runChildProcess(params: ChildProcessParams): Promise<Attem
 
   try {
     await readLoop
+    if (abort.signal.aborted) {
+      throw new Error("Automation timeout")
+    }
     return state
   } finally {
     clearTimeout(timeoutId)
