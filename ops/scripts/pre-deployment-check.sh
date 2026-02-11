@@ -4,6 +4,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 ENVIRONMENT="${1:-staging}"
 VERBOSE="${2:-0}"
 
@@ -14,11 +17,11 @@ fi
 
 case "$ENVIRONMENT" in
   staging)
-    SERVICE="claude-bridge-staging"
+    SERVICE="alive-staging"
     PORT=8998
     ;;
   production)
-    SERVICE="claude-bridge-production"
+    SERVICE="alive-production"
     PORT=9000
     ;;
 esac
@@ -87,12 +90,12 @@ fi
 # ============================================================================
 
 echo "[4/7] Checking disk space..."
-BUILD_DIR="/root/alive/.builds/$ENVIRONMENT"
+BUILD_DIR="$PROJECT_ROOT/.builds/$ENVIRONMENT"
 
 # Guard against missing build directory
 if [[ ! -d "$BUILD_DIR" ]]; then
   echo "  ⚠️  Build directory not yet created: $BUILD_DIR"
-  DISK_USAGE=$(df /root/alive | awk 'NR==2 {print $5}' | sed 's/%//')
+  DISK_USAGE=$(df "$PROJECT_ROOT" | awk 'NR==2 {print $5}' | sed 's/%//')
 else
   DISK_USAGE=$(df "$BUILD_DIR" | awk 'NR==2 {print $5}' | sed 's/%//')
 fi

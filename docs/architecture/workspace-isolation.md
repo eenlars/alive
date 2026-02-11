@@ -4,7 +4,7 @@
 
 ## Overview
 
-Claude Bridge uses multi-layered isolation to prevent cross-tenant file access:
+Alive uses multi-layered isolation to prevent cross-tenant file access:
 
 1. **Workspace boundaries** - Path validation prevents directory traversal
 2. **systemd user isolation** - Each site runs as unprivileged user (e.g., `site-example-com`)

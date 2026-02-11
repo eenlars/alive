@@ -1,4 +1,4 @@
-# Testing Strategy (Claude Bridge)
+# Testing Strategy (Alive)
 
 This README is the top-level testing guide. It links to detailed docs and
 captures the patterns we expect humans and AI to follow.
@@ -52,7 +52,7 @@ Small ~= unit, Medium ~= integration, Large ~= end-to-end/system tests.
 Also: tests should be able to run in any order and not depend on leftovers from
 other tests.
 
-## How this applies to Claude Bridge
+## How this applies to Alive
 
 Keep the shortest feedback loop possible:
 - Prefer unit + integration tests for most changes, especially API routes and

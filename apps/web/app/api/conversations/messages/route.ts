@@ -6,9 +6,9 @@
 
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
-import { createAppClient } from "@/lib/supabase/app"
-import { ErrorCodes } from "@/lib/error-codes"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { ErrorCodes } from "@/lib/error-codes"
+import { createAppClient } from "@/lib/supabase/app"
 
 // =============================================================================
 // GET /api/conversations/messages?tabId=xxx&cursor=xxx&limit=xxx

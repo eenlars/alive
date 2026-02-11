@@ -234,7 +234,7 @@ export function WebsiteConfig({ data, onComplete, onSkip }: WebsiteConfigProps) 
                             ? "border-emerald-300 dark:border-emerald-700 focus-visible:border-emerald-400 dark:focus-visible:border-emerald-600"
                             : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 focus-visible:border-zinc-400 dark:focus-visible:border-zinc-500"
                       }`}
-                      maxLength={20}
+                      maxLength={16}
                     />
                     <span
                       className={`flex items-center rounded-r-lg border bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400 ${

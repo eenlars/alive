@@ -57,25 +57,6 @@ export async function fetchCaddySources(results: Map<string, SourceData>): Promi
 }
 
 /**
- * Fetch domains from JSON password registry
- */
-export async function fetchJsonSources(results: Map<string, SourceData>): Promise<void> {
-  const jsonContent = await fs.readFile(PATHS.REGISTRY_PATH, "utf-8")
-  const jsonData = JSON.parse(jsonContent)
-
-  for (const [domain, config] of Object.entries(jsonData)) {
-    if (isPreviewDomain(domain)) continue
-
-    const port = (config as { port?: number }).port
-    const domainData = ensureDomain(results, domain)
-    domainData.json = {
-      exists: true,
-      port: port ?? null,
-    }
-  }
-}
-
-/**
  * Fetch domains from filesystem (/srv/webalive/sites/)
  */
 export async function fetchFilesystemSources(results: Map<string, SourceData>): Promise<void> {

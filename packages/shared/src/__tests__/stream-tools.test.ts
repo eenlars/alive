@@ -39,4 +39,17 @@ describe("isHeavyBashCommand", () => {
     expect(isHeavyBashCommand("echo claude")).toBe(false)
     expect(isHeavyBashCommand("grep claude file.txt")).toBe(false)
   })
+
+  it("allows site-scoped commands (turbo pattern catches monorepo-wide runs)", () => {
+    expect(isHeavyBashCommand("bun run build")).toBe(false)
+    expect(isHeavyBashCommand("bun run lint")).toBe(false)
+    expect(isHeavyBashCommand("bun run type-check")).toBe(false)
+    expect(isHeavyBashCommand("npm run build")).toBe(false)
+    expect(isHeavyBashCommand("npm run lint")).toBe(false)
+    expect(isHeavyBashCommand("npm run type-check")).toBe(false)
+    expect(isHeavyBashCommand("pnpm run build")).toBe(false)
+    expect(isHeavyBashCommand("pnpm run lint")).toBe(false)
+    expect(isHeavyBashCommand("yarn build")).toBe(false)
+    expect(isHeavyBashCommand("yarn lint")).toBe(false)
+  })
 })

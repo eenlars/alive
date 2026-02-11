@@ -12,11 +12,11 @@
  * including failure modes that caused production bugs.
  */
 
-import { describe, expect, it } from "vitest"
+import { type ChildProcess, spawn } from "node:child_process"
 import { chmod, mkdir, rm, writeFile } from "node:fs/promises"
-import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { spawn, type ChildProcess } from "node:child_process"
+import { join } from "node:path"
+import { describe, expect, it } from "vitest"
 import { createIpcServer, isWorkerMessage } from "../src/ipc"
 import type { WorkerToParentMessage } from "../src/types"
 import { findMessageByType, isCompleteMessage, isErrorMessage, WORKER_MESSAGE_TYPES } from "../src/types"

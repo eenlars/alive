@@ -4,17 +4,17 @@
  * Main entry point and public API
  */
 
-import { LockboxAdapter, type LockboxAdapterConfig } from "./storage"
+import { oauthAudit } from "./audit"
+import { isRefreshable, isRevocable } from "./providers/base"
 import { getProvider } from "./providers/index"
 import { createRefreshLockManager, type IRefreshLockManager } from "./refresh-lock"
-import { isRefreshable, isRevocable } from "./providers/base"
-import { oauthAudit } from "./audit"
+import { LockboxAdapter, type LockboxAdapterConfig } from "./storage"
 import {
   OAUTH_TOKENS_NAMESPACE,
-  USER_ENV_KEYS_NAMESPACE,
+  type OAuthManagerConfig,
   type OAuthTokens,
   type ProviderConfig,
-  type OAuthManagerConfig,
+  USER_ENV_KEYS_NAMESPACE,
 } from "./types"
 
 export class OAuthManager {
@@ -708,73 +708,75 @@ export function buildInstanceId(
 // The web app uses this singleton pattern throughout
 export const oauth = new OAuthManager()
 
-// Re-export types and utilities
-export type {
-  OAuthTokens,
-  ProviderConfig,
-  SecretNamespace,
-  EncryptedPayload,
-  UserSecret,
-  OAuthManagerConfig,
-  LockManagerConfig,
-} from "./types"
-
-export { Security } from "./security"
-export { LockboxAdapter, type LockboxAdapterConfig } from "./storage"
 export {
-  createRefreshLockManager,
-  InMemoryRefreshLockManager,
-  RedisRefreshLockManager,
-  type IRefreshLockManager,
-  type LockStrategy,
-} from "./refresh-lock"
-export { getProvider, registerProvider, listProviders, hasProvider } from "./providers/index"
-export type { OAuthProvider, OAuthProviderCore, OAuthRefreshable, OAuthRevocable } from "./providers/base"
-export { isRefreshable, isRevocable } from "./providers/base"
-export { GitHubProvider } from "./providers/github"
-export { GoogleProvider, type GoogleAuthOptions, type GoogleUserInfo } from "./providers/google"
-export { LINEAR_SCOPES, LinearProvider } from "./providers/linear"
-export { STRIPE_SCOPES, StripeProvider, type StripeTokenResponse } from "./providers/stripe"
-export { OAUTH_TOKENS_NAMESPACE, USER_ENV_KEYS_NAMESPACE } from "./types"
-export {
-  oauthAudit,
   ConsoleAuditLogger,
   NoopAuditLogger,
   type OAuthAuditEvent,
   type OAuthAuditEventType,
   type OAuthAuditLogger,
+  oauthAudit,
 } from "./audit"
-export { fetchWithRetry, FetchRetryError, type FetchWithRetryOptions } from "./fetch-with-retry"
-export {
-  deriveKey,
-  getKeyForVersion,
-  serializeMetadata,
-  parseMetadata,
-  CURRENT_KEY_VERSION,
-  type KeyVersion,
-  type KeyDerivationContext,
-  type EncryptionMetadata,
-} from "./key-derivation"
-export type { EncryptedPayloadV2 } from "./security"
-
-// PKCE support (learned from n8n)
-export { generatePKCEChallenge, verifyPKCEChallenge, type PKCEChallenge } from "./pkce"
-
 // Dynamic Client Registration (RFC 7591)
 export {
+  type AuthorizationServerMetadata,
+  AuthorizationServerMetadataSchema,
+  type ClientRegistrationResponse,
+  ClientRegistrationResponseSchema,
   discoverAuthorizationServer,
+  type OAuth2GrantType,
   registerClient,
   selectBestAuthMethod,
-  AuthorizationServerMetadataSchema,
-  ClientRegistrationResponseSchema,
-  type AuthorizationServerMetadata,
-  type ClientRegistrationResponse,
-  type OAuth2GrantType,
   type TokenEndpointAuthMethod,
 } from "./dynamic-client-registration"
-
-// Extended types
-export type { OAuthTokensWithMetadata, TokenRotationResult } from "./types"
-
+export { FetchRetryError, type FetchWithRetryOptions, fetchWithRetry } from "./fetch-with-retry"
+export {
+  CURRENT_KEY_VERSION,
+  deriveKey,
+  type EncryptionMetadata,
+  getKeyForVersion,
+  type KeyDerivationContext,
+  type KeyVersion,
+  parseMetadata,
+  serializeMetadata,
+} from "./key-derivation"
+// PKCE support (learned from n8n)
+export { generatePKCEChallenge, type PKCEChallenge, verifyPKCEChallenge } from "./pkce"
 // Extended provider options
-export type { PKCEOptions, TokenExchangeOptions } from "./providers/base"
+export type {
+  OAuthProvider,
+  OAuthProviderCore,
+  OAuthRefreshable,
+  OAuthRevocable,
+  PKCEOptions,
+  TokenExchangeOptions,
+} from "./providers/base"
+export { isRefreshable, isRevocable } from "./providers/base"
+export { GitHubProvider } from "./providers/github"
+export { type GoogleAuthOptions, GoogleProvider, type GoogleUserInfo } from "./providers/google"
+export { getProvider, hasProvider, listProviders, registerProvider } from "./providers/index"
+export { LINEAR_SCOPES, LinearProvider } from "./providers/linear"
+export { STRIPE_SCOPES, StripeProvider, type StripeTokenResponse } from "./providers/stripe"
+export {
+  createRefreshLockManager,
+  InMemoryRefreshLockManager,
+  type IRefreshLockManager,
+  type LockStrategy,
+  RedisRefreshLockManager,
+} from "./refresh-lock"
+export type { EncryptedPayloadV2 } from "./security"
+export { Security } from "./security"
+export { LockboxAdapter, type LockboxAdapterConfig } from "./storage"
+// Re-export types and utilities
+// Extended types
+export type {
+  EncryptedPayload,
+  LockManagerConfig,
+  OAuthManagerConfig,
+  OAuthTokens,
+  OAuthTokensWithMetadata,
+  ProviderConfig,
+  SecretNamespace,
+  TokenRotationResult,
+  UserSecret,
+} from "./types"
+export { OAUTH_TOKENS_NAMESPACE, USER_ENV_KEYS_NAMESPACE } from "./types"

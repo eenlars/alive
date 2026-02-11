@@ -1,18 +1,18 @@
+import * as fs from "node:fs"
+import * as os from "node:os"
+import * as path from "node:path"
+import * as cheerio from "cheerio"
 import type { Browser, CookieData, Page } from "puppeteer"
 import puppeteerExtra from "puppeteer-extra"
 import StealthPlugin from "puppeteer-extra-plugin-stealth"
-import * as cheerio from "cheerio"
-import * as fs from "node:fs"
-import * as path from "node:path"
-import * as os from "node:os"
+import { DAY_MAP, REVIEW_TAB_SELECTORS } from "./i18n.js"
 import type { ProxyConfig } from "./types.js"
-import { REVIEW_TAB_SELECTORS, DAY_MAP } from "./i18n.js"
 
 // Track browser profile directories for cleanup
 const browserProfileDirs = new WeakMap<Browser, string>()
 
 // Re-export i18n utilities for convenience
-export { REVIEW_TAB_SELECTORS, isRelativeTime, extractAuthorFromLabel } from "./i18n.js"
+export { extractAuthorFromLabel, isRelativeTime, REVIEW_TAB_SELECTORS } from "./i18n.js"
 
 // Cast to proper type - puppeteer-extra types don't fully expose the API
 const puppeteer = puppeteerExtra as unknown as {

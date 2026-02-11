@@ -2,18 +2,21 @@
 import { SUPERADMIN } from "@webalive/shared"
 import { AnimatePresence, motion } from "framer-motion"
 import { PanelLeft } from "lucide-react"
+import { useQueryState } from "nuqs"
 import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import toast, { Toaster } from "react-hot-toast"
 import { FeedbackModal } from "@/components/modals/FeedbackModal"
+import { GithubImportModal } from "@/components/modals/GithubImportModal"
 import { InviteModal } from "@/components/modals/InviteModal"
 import { SessionExpiredModal } from "@/components/modals/SessionExpiredModal"
-import { SettingsOverlay } from "@/components/settings/SettingsOverlay"
 import { SuperTemplatesModal } from "@/components/modals/SuperTemplatesModal"
+import { SettingsOverlay } from "@/components/settings/SettingsOverlay"
 import { ChatDropOverlay } from "@/features/chat/components/ChatDropOverlay"
 import { ChatInput } from "@/features/chat/components/ChatInput"
 import type { ChatInputHandle } from "@/features/chat/components/ChatInput/types"
 import { ConversationSidebar } from "@/features/chat/components/ConversationSidebar"
 import { DevTerminal } from "@/features/chat/components/DevTerminal"
+import { MessageWrapper } from "@/features/chat/components/message-renderers/MessageWrapper"
 import { PendingToolsIndicator } from "@/features/chat/components/PendingToolsIndicator"
 import { Sandbox } from "@/features/chat/components/Sandbox"
 import { SandboxMobile } from "@/features/chat/components/SandboxMobile"
@@ -25,11 +28,11 @@ import { useStreamCancellation } from "@/features/chat/hooks/useStreamCancellati
 import { useStreamReconnect } from "@/features/chat/hooks/useStreamReconnect"
 import { ClientRequest, DevTerminalProvider, useDevTerminal } from "@/features/chat/lib/dev-terminal-context"
 import { renderMessage, shouldRenderMessage } from "@/features/chat/lib/message-renderer"
-import { MessageWrapper } from "@/features/chat/components/message-renderers/MessageWrapper"
 import { RetryProvider, useRetry } from "@/features/chat/lib/retry-context"
 import { PanelProvider, usePanelContext } from "@/features/chat/lib/sandbox-context"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
 import { useWorkspace } from "@/features/workspace/hooks/useWorkspace"
+import { validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import { useRedeemReferral } from "@/hooks/useRedeemReferral"
 import {
   useDexieCurrentConversationId,
@@ -41,14 +44,13 @@ import { useOrganizations } from "@/lib/hooks/useOrganizations"
 import { validateOAuthToastParams } from "@/lib/integrations/toast-validation"
 import { useIsSessionExpired } from "@/lib/stores/authStore"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
-import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { isDevelopment, useDebugActions, useDebugVisible, useSandbox, useSSETerminal } from "@/lib/stores/debug-store"
+import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
+import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { useApiKey, useModel } from "@/lib/stores/llmStore"
 import { useLastSeenStreamSeq, useStreamingActions } from "@/lib/stores/streamingStore"
 import { useTabActions } from "@/lib/stores/tabStore"
 import { useSelectedOrgId } from "@/lib/stores/workspaceStore"
-import { useQueryState } from "nuqs"
-import { validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import { QUERY_KEYS } from "@/lib/url/queryState"
 // Local components
 import {
@@ -97,11 +99,12 @@ function ChatPageContent() {
     },
     [dexieSession, ensureTabGroupWithTab],
   )
-  const { toggleSidebar, openSidebar } = useSidebarActions()
+  const { toggleSidebar } = useSidebarActions()
   const isSidebarOpen = useSidebarOpen()
   const isHydrated = useAppHydrated()
   const [subdomainInitialized, setSubdomainInitialized] = useState(false)
   const [worktreeModalOpen, setWorktreeModalOpen] = useState(false)
+  const [githubImportOpen, setGithubImportOpen] = useState(false)
   const [_showCompletionDots, setShowCompletionDots] = useState(false)
   const modals = useModals()
 
@@ -144,6 +147,7 @@ function ChatPageContent() {
   // Handle ?wk= URL parameter to pre-select workspace (e.g., from widget "Edit me" button)
   const [wkParam] = useQueryState(QUERY_KEYS.workspace)
   const [wtParam, setWtParam] = useQueryState(QUERY_KEYS.worktree)
+  const worktreesEnabled = useFeatureFlag("WORKTREES")
   useEffect(() => {
     if (mounted && wkParam && wkParam !== workspace) {
       console.log("[ChatPage] Setting workspace from URL param:", wkParam)
@@ -151,10 +155,10 @@ function ChatPageContent() {
     }
   }, [mounted, wkParam, workspace, setWorkspace])
 
-  // Handle ?wt= URL parameter for worktree selection
+  // Handle ?wt= URL parameter for worktree selection (only when feature flag enabled)
   // Normalize URL param to prevent casing inconsistencies (e.g., "Feature" vs "feature")
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !worktreesEnabled) return
 
     // Normalize and validate the URL param
     let normalizedParam: string | null = null
@@ -174,16 +178,16 @@ function ChatPageContent() {
     if (normalizedParam !== worktree) {
       setWorktree(normalizedParam)
     }
-  }, [mounted, wtParam, worktree, setWorktree, setWtParam])
+  }, [mounted, worktreesEnabled, wtParam, worktree, setWorktree, setWtParam])
 
-  // Sync worktree state back to URL
+  // Sync worktree state back to URL (only when feature flag enabled)
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !worktreesEnabled) return
     const desired = worktree && worktree.length > 0 ? worktree : null
     if (wtParam !== desired) {
       void setWtParam(desired, { shallow: true })
     }
-  }, [mounted, worktree, wtParam, setWtParam])
+  }, [mounted, worktreesEnabled, worktree, wtParam, setWtParam])
 
   // Sync tab ID to URL for shareable links and browser history
   const [tabParam, setTabParam] = useQueryState(QUERY_KEYS.chatTab)
@@ -460,9 +464,7 @@ function ChatPageContent() {
       setSSETerminal(true)
       setSSETerminalMinimized(true)
     }
-    // Open conversations sidebar by default
-    openSidebar()
-  }, [setSSETerminal, setSSETerminalMinimized, openSidebar])
+  }, [setSSETerminal, setSSETerminalMinimized])
 
   // Calculate total domain count from organizations
   const totalDomainCount = organizations.reduce((sum, org) => sum + (org.workspace_count || 0), 0)
@@ -502,6 +504,17 @@ function ChatPageContent() {
   const handleSubdomainInitialized = () => {
     setSubdomainInitialized(true)
   }
+
+  const handleGithubImported = useCallback(
+    (newWorkspace: string) => {
+      const targetOrgId = selectedOrgId || organizations[0]?.org_id
+      setWorkspace(newWorkspace, targetOrgId)
+      setWorktree(null)
+      setGithubImportOpen(false)
+      toast.success(`Opened ${newWorkspace}`)
+    },
+    [selectedOrgId, organizations, setWorkspace, setWorktree],
+  )
 
   const handleNewTabGroup = useCallback(async () => {
     if (!tabWorkspace) return
@@ -706,6 +719,8 @@ function ChatPageContent() {
                   totalDomainCount={totalDomainCount}
                   isLoading={organizationsLoading}
                   onTemplatesClick={modals.openTemplates}
+                  onImportGithub={() => setGithubImportOpen(true)}
+                  onSelectSite={() => modals.openSettings("websites")}
                 />
               )}
 
@@ -730,13 +745,11 @@ function ChatPageContent() {
                     index > 0 &&
                     (message.type === "user" || message.type === "sdk_message") &&
                     // Check if there's any previous assistant message with a UUID
-                    filteredMessages
-                      .slice(0, index)
-                      .some(m => {
-                        if (m.type !== "sdk_message") return false
-                        const sdkContent = m.content as { type?: string; uuid?: string }
-                        return sdkContent?.type === "assistant" && !!sdkContent?.uuid
-                      })
+                    filteredMessages.slice(0, index).some(m => {
+                      if (m.type !== "sdk_message") return false
+                      const sdkContent = m.content as { type?: string; uuid?: string }
+                      return sdkContent?.type === "assistant" && !!sdkContent?.uuid
+                    })
 
                   return (
                     <MessageWrapper
@@ -900,6 +913,13 @@ function ChatPageContent() {
         <SuperTemplatesModal onClose={modals.closeTemplates} onInsertTemplate={handleInsertTemplate} />
       )}
       {modals.invite && <InviteModal onClose={modals.closeInvite} />}
+      {githubImportOpen && (
+        <GithubImportModal
+          onClose={() => setGithubImportOpen(false)}
+          onImported={handleGithubImported}
+          orgId={selectedOrgId || organizations[0]?.org_id}
+        />
+      )}
       {isSessionExpired && <SessionExpiredModal />}
     </div>
   )

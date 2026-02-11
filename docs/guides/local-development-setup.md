@@ -1,10 +1,10 @@
 # Local Development Setup
 
-This guide explains how to set up Claude Bridge for local development.
+This guide explains how to set up Alive for local development.
 
 ## Overview
 
-When running Claude Bridge locally, you'll use a **test workspace** that stays on your machine only and never gets committed to git. This allows you to safely experiment with Claude without affecting production workspaces.
+When running Alive locally, you'll use a **test workspace** that stays on your machine only and never gets committed to git. This allows you to safely experiment with Claude without affecting production workspaces.
 
 ## Architecture
 
@@ -75,7 +75,7 @@ bun run dev
 
 ### 4. Login with Test Credentials
 
-Navigate to `http://localhost:8999` and log in:
+Navigate to `http://localhost:8997` and log in:
 
 - **Workspace**: `test`
 - **Passcode**: `test`
@@ -430,4 +430,3 @@ This document outlines all edge cases handled by the local development setup.
 - [ ] Test runtime with file instead of directory
 - [ ] Verify .alive/ is gitignored
 - [ ] Verify test credentials only work when ALIVE_ENV=local
-

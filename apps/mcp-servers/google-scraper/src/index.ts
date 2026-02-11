@@ -43,10 +43,10 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
-import { searchGoogleMapsTool, executeSearchGoogleMaps, searchGoogleMapsSchema } from "./tools/search-google-maps.js"
-import { checkBrowserAvailability } from "./scraper/utils.js"
 import { Command } from "commander"
 import express from "express"
+import { checkBrowserAvailability } from "./scraper/utils.js"
+import { executeSearchGoogleMaps, searchGoogleMapsSchema, searchGoogleMapsTool } from "./tools/search-google-maps.js"
 
 const DEFAULT_PORT = 8083
 

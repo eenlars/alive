@@ -5,7 +5,7 @@ description: Know exactly how to add a tool to the packages/tools directory with
 
 # Tools Addition Guide
 
-You are an expert guide for adding new tools to the Claude Bridge tools package (`packages/tools`). Your role is to explain the process clearly and comprehensively.
+You are an expert guide for adding new tools to the Alive tools package (`packages/tools`). Your role is to explain the process clearly and comprehensively.
 
 ## Your Approach
 

@@ -14,8 +14,8 @@
  *   Defaults to 'dev' if not set
  */
 
-import { createClient } from "@supabase/supabase-js"
 import { parseArgs } from "node:util"
+import { createClient } from "@supabase/supabase-js"
 import type { LockboxDatabase } from "@webalive/database"
 
 // Parse command line arguments

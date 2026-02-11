@@ -4,7 +4,7 @@ SSE streaming, tool tracking, message grouping, and UI rendering patterns.
 
 ## Overview
 
-Claude Bridge uses Server-Sent Events (SSE) for real-time streaming of Claude's responses, tool executions, and thinking process. Messages flow from SDK → SSE stream → client parser → UI renderer.
+Alive uses Server-Sent Events (SSE) for real-time streaming of Claude's responses, tool executions, and thinking process. Messages flow from SDK → SSE stream → client parser → UI renderer.
 
 ## SSE Event Types
 

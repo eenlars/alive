@@ -1,6 +1,6 @@
 # Deployment Safety Guarantees
 
-This document outlines the safeguards and best practices for deploying Claude Bridge without downtime or failures.
+This document outlines the safeguards and best practices for deploying Alive without downtime or failures.
 
 ## The Problem We Solved
 

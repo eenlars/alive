@@ -5,28 +5,29 @@
  * Workers are keyed by workspace and reused across requests.
  */
 
-import { execFile, spawn, type ChildProcess } from "node:child_process"
+import { type ChildProcess, execFile, spawn } from "node:child_process"
 import { EventEmitter } from "node:events"
 import { chmod, mkdir, stat } from "node:fs/promises"
 import { cpus, loadavg, platform } from "node:os"
 import * as path from "node:path"
 import { setTimeout as sleep } from "node:timers/promises"
 import { promisify } from "node:util"
+import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
+import { createConfig } from "./config.js"
+import { createIpcServer, type IpcServer, isWorkerMessage } from "./ipc.js"
 import type {
-  WorkerPoolConfig,
-  WorkerHandle,
-  WorkerInfo,
-  WorkspaceCredentials,
+  ParentToWorkerMessage,
   QueryOptions,
   QueryResult,
-  WorkerPoolEvents,
+  WorkerHandle,
+  WorkerInfo,
+  WorkerPoolConfig,
   WorkerPoolEventListener,
+  WorkerPoolEvents,
+  WorkerQueryFailureDiagnostics,
   WorkerToParentMessage,
-  ParentToWorkerMessage,
+  WorkspaceCredentials,
 } from "./types.js"
-import { createConfig } from "./config.js"
-import { createIpcServer, isWorkerMessage, type IpcServer } from "./ipc.js"
-import { isPathWithinWorkspace, PATHS, SUPERADMIN } from "@webalive/shared"
 
 const execFileAsync = promisify(execFile)
 
@@ -42,6 +43,11 @@ interface PendingQuery {
   cleanupAccounting: () => void
   sessionId?: string
   result?: unknown
+}
+
+interface WorkerPoolQueryError extends Error {
+  stderr?: string
+  diagnostics?: WorkerQueryFailureDiagnostics
 }
 
 /** Internal worker handle with IPC and pending queries */
@@ -147,6 +153,7 @@ export class WorkerPoolManager extends EventEmitter {
   private config: WorkerPoolConfig
   private evictionTimer: ReturnType<typeof setInterval> | null = null
   private orphanSweepTimer: ReturnType<typeof setInterval> | null = null
+  private queueDrainTimer: ReturnType<typeof setInterval> | null = null
   private isShuttingDown = false
   private credentialsVersion: string | null = null
   private lastCredentialsCheckMs = 0
@@ -426,6 +433,13 @@ export class WorkerPoolManager extends EventEmitter {
       }, this.config.orphanSweepIntervalMs)
       this.orphanSweepTimer.unref()
     }
+
+    if (!this.queueDrainTimer) {
+      this.queueDrainTimer = setInterval(() => {
+        this.drainQueueIfLoadDropped()
+      }, 5_000)
+      this.queueDrainTimer.unref()
+    }
   }
 
   stopEvictionTimer(): void {
@@ -436,6 +450,10 @@ export class WorkerPoolManager extends EventEmitter {
     if (this.orphanSweepTimer) {
       clearInterval(this.orphanSweepTimer)
       this.orphanSweepTimer = null
+    }
+    if (this.queueDrainTimer) {
+      clearInterval(this.queueDrainTimer)
+      this.queueDrainTimer = null
     }
   }
 
@@ -719,7 +737,7 @@ export class WorkerPoolManager extends EventEmitter {
 
   private getClaudeConfigDir(): string {
     const configured = process.env.CLAUDE_CONFIG_DIR
-    if (configured && configured.startsWith("/")) {
+    if (configured?.startsWith("/")) {
       return configured
     }
     const home = process.env.HOME || "/root"
@@ -1032,7 +1050,23 @@ export class WorkerPoolManager extends EventEmitter {
           pending.cleanup()
           const errorMessage = "error" in msg && typeof msg.error === "string" ? msg.error : "Unknown error"
           const stderr = "stderr" in msg && typeof msg.stderr === "string" ? msg.stderr : undefined
-          const error = stderr ? Object.assign(new Error(errorMessage), { stderr }) : new Error(errorMessage)
+          const diagnostics =
+            "diagnostics" in msg && msg.diagnostics && typeof msg.diagnostics === "object"
+              ? (msg.diagnostics as WorkerQueryFailureDiagnostics)
+              : undefined
+          const workerStack = "stack" in msg && typeof msg.stack === "string" ? msg.stack : undefined
+
+          const error: WorkerPoolQueryError = new Error(errorMessage)
+          if (workerStack) {
+            error.stack = workerStack
+          }
+          if (stderr) {
+            error.stderr = stderr
+          }
+          if (diagnostics) {
+            error.diagnostics = diagnostics
+          }
+
           pending.reject(error)
         }
         break
@@ -1091,7 +1125,7 @@ export class WorkerPoolManager extends EventEmitter {
     worker.pendingQueries.clear()
   }
 
-  private runProcessQueue(workspaceKey: string, source: "worker_idle" | "worker_exit"): void {
+  private runProcessQueue(workspaceKey: string, source: "worker_idle" | "worker_exit" | "drain_timer"): void {
     this.processQueue(workspaceKey).catch(error => {
       const err = error instanceof Error ? error : new Error(String(error))
       console.error("[pool] process_queue_failed", {
@@ -1104,6 +1138,31 @@ export class WorkerPoolManager extends EventEmitter {
         context: `processQueue:${source}:${workspaceKey}`,
       })
     })
+  }
+
+  /**
+   * Periodically retry queued requests when system load drops.
+   * Prevents starvation when requests are queued during load shedding
+   * but no workers exist to trigger queue processing via worker_idle/worker_exit.
+   */
+  private drainQueueIfLoadDropped(): void {
+    if (this.totalQueued === 0) return
+    if (this.shouldLoadShed()) return
+
+    const workspaceKeys = [...this.requestQueues.keys()]
+    for (const workspaceKey of workspaceKeys) {
+      const queue = this.requestQueues.get(workspaceKey)
+      if (!queue || queue.total === 0) continue
+
+      console.log("[pool] queue_drain_retry", {
+        workspaceKey,
+        queued: queue.total,
+        totalQueued: this.totalQueued,
+        load1m: loadavg()[0].toFixed(2),
+      })
+
+      this.runProcessQueue(workspaceKey, "drain_timer")
+    }
   }
 
   private rejectAllQueuedRequests(reason: string): void {

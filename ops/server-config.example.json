@@ -3,7 +3,7 @@
   "serverId": "srv-CHANGEME",
   "serverIp": "0.0.0.0",
   "paths": {
-    "aliveRoot": "/path/to/claude-bridge",
+    "aliveRoot": "/path/to/alive",
     "sitesRoot": "/srv/webalive/sites",
     "imagesStorage": "/srv/webalive/storage"
   },
@@ -11,7 +11,7 @@
     "main": "sonno.tech",
     "wildcard": "sonno.tech",
     "cookieDomain": ".sonno.tech",
-    "previewBase": "preview.sonno.tech",
+    "previewBase": "sonno.tech",
     "frameAncestors": [
       "https://app.sonno.tech",
       "https://dev.sonno.tech",

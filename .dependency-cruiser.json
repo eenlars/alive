@@ -67,13 +67,7 @@
   ],
   "options": {
     "doNotFollow": {
-      "path": [
-        "node_modules",
-        ".next",
-        "dist",
-        ".turbo",
-        "coverage"
-      ]
+      "path": ["node_modules", ".next", "dist", ".turbo", "coverage"]
     },
     "includeOnly": {
       "path": "^apps/web"

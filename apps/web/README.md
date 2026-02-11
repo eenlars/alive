@@ -1,6 +1,6 @@
-# Claude Bridge Web App
+# Alive Web App
 
-Next.js web interface for Claude Bridge multi-tenant platform.
+Next.js web interface for Alive multi-tenant platform.
 
 **📚 [Full Documentation](../../docs/README.md)** - See project root for complete docs
 

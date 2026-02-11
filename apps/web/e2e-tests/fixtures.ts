@@ -50,8 +50,14 @@ const MOCK_PREVIEW_HTML = `<!DOCTYPE html>
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   // Override page fixture to mock preview iframe requests
   page: async ({ page }, use) => {
-    // Mock all requests to preview subdomains - these are slow to load and not needed for tests
-    await page.route(`**/*.${DOMAINS.PREVIEW_BASE}/**`, route => {
+    // Mock preview subdomain requests — these load real sites and are slow/unnecessary for tests.
+    // Only mock preview--* subdomains, not all subdomains (staging.X, app.X are the actual test server).
+    // Uses NEXT_PUBLIC_PREVIEW_BASE from env (loaded by load-env.ts) — DOMAINS requires server-config.json.
+    const previewBase = process.env.NEXT_PUBLIC_PREVIEW_BASE || DOMAINS.PREVIEW_BASE
+    if (!previewBase) {
+      throw new Error("NEXT_PUBLIC_PREVIEW_BASE env var is not set. Cannot mock preview routes.")
+    }
+    await page.route(`**/preview--*.${previewBase}/**`, route => {
       route.fulfill({
         status: 200,
         contentType: "text/html",
@@ -154,7 +160,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       { expiresIn: "30d" },
     )
 
-    // Extract domain from baseURL for cookie (e.g., "staging.sonno.tech")
+    // Extract domain from baseURL for cookie
     const cookieDomain = baseURL ? new URL(baseURL).hostname : "localhost"
 
     // Set auth cookie

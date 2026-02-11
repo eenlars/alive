@@ -1,6 +1,6 @@
 "use client"
 
-import { Clock, Calendar, Zap, Globe, History } from "lucide-react"
+import { Calendar, Clock, Globe, History, Zap } from "lucide-react"
 import type { AutomationJob } from "@/lib/hooks/useSettingsQueries"
 
 function formatSchedule(job: AutomationJob): string {

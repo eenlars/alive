@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest"
 import { COOKIE_NAMES } from "@webalive/shared"
+import { describe, expect, it } from "vitest"
 
 /**
  * Test: Verify cookie name constant is correctly imported and used

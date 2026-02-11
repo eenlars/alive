@@ -5,14 +5,14 @@
  * Uses a mock worker script instead of the full worker-entry.mjs.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { chmod, mkdir, rm, writeFile } from "node:fs/promises"
-import { join } from "node:path"
-import { tmpdir } from "node:os"
 import { spawn } from "node:child_process"
-import { createIpcServer, createIpcClient, NdjsonParser, isWorkerMessage } from "../src/ipc"
-import type { ParentToWorkerMessage, WorkerToParentMessage, AgentRequest, AgentConfig } from "../src/types"
-import { STREAM_TYPES, findMessageByType } from "../src/types"
+import { chmod, mkdir, rm, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { createIpcClient, createIpcServer, isWorkerMessage, NdjsonParser } from "../src/ipc"
+import type { AgentConfig, AgentRequest, ParentToWorkerMessage, WorkerToParentMessage } from "../src/types"
+import { findMessageByType, STREAM_TYPES } from "../src/types"
 
 /** Create a minimal valid AgentConfig for testing */
 function createTestAgentConfig(): AgentConfig {

@@ -1,6 +1,6 @@
 # @webalive/env
 
-Centralized environment variable validation for the Claude Bridge monorepo.
+Centralized environment variable validation for the Alive monorepo.
 
 ## Architecture
 

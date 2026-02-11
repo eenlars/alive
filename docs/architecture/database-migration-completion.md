@@ -18,7 +18,7 @@
 
 #### Before (Workspace-first)
 ```
-domain-passwords.json
+Legacy JSON file (domain-passwords.json — now removed)
 ├─ example.com
 │  ├─ passwordHash: "..."
 │  ├─ port: 3333
@@ -27,7 +27,7 @@ domain-passwords.json
 
 **Auth Flow:**
 1. User enters workspace domain + passcode
-2. System validates against `domain-passwords.json`
+2. System validates against legacy JSON file
 3. JWT contains: `{ workspaces: ["example.com"] }`
 
 #### After (User-first)
@@ -282,25 +282,9 @@ bun scripts/verify-migration.ts
 
 ## Rollback Plan (If Needed)
 
-**NOT RECOMMENDED** - Migration is stable and working in production.
+**NOT RECOMMENDED** - Migration is stable and working in production. The legacy `domain-passwords.json` file has been removed; Supabase `app.domains` is now the single source of truth for port assignments.
 
-If absolutely necessary:
-```bash
-# 1. Find backup
-BACKUP=$(ls -td "$(dirname "$SERVER_CONFIG_PATH")"/backups/* | head -1)
-
-# 2. Stop service
-pm2 stop alive
-
-# 3. Restore JSON
-cp "$BACKUP/domain-passwords.json" "$(dirname $SERVER_CONFIG_PATH)/"
-
-# 4. Revert code (commit hash before migration)
-git checkout <pre-migration-commit>
-
-# 5. Rebuild and restart
-cd apps/web && bun run build && pm2 restart alive
-```
+If absolutely necessary, revert code to a pre-migration commit and restore the database from backup.
 
 ---
 

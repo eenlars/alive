@@ -93,13 +93,7 @@ stateDiagram-v2
         Parameters: {domain, email, password?, orgId?}
     end note
 
-    CallDeploySite --> ReadPort: await deploySite(config)
-    ReadPort --> CheckPortExists: Read domain-passwords.json
-
-    CheckPortExists --> Return500Port: Port not found in registry
-    CheckPortExists --> RegisterDomain: Port found
-
-    Return500Port --> [*]: HTTP 500
+    CallDeploySite --> RegisterDomain: await deploySite(config)
 
     note right of RegisterDomain
         CRITICAL: This happens AFTER infrastructure!
@@ -171,11 +165,10 @@ stateDiagram-v2
 
     note right of AssignPort
         Port assignment:
-        - Read domain-passwords.json
+        - Query Supabase app.domains
         - If domain exists: reuse port
         - If new: find max + 1, starting from 3333
         - Check netstat for actual usage
-        - Write atomically (.tmp + mv)
     end note
 
     AssignPort --> CreateSlug: port = await getOrAssignPort(domain)
@@ -291,7 +284,7 @@ stateDiagram-v2
 **Key Observations**:
 1. Line 62-64: Requires `config.email` but NEVER uses it (validation only)
 2. `config.password` is also unused (passed through from API, intended for Supabase)
-3. Line 77: Port assigned and written to `domain-passwords.json`
+3. Line 77: Port assigned and written to Supabase `app.domains`
 4. Lines 152-186: Service deployment and verification
 5. Returns infrastructure state, no Supabase interaction
 
@@ -341,7 +334,7 @@ sequenceDiagram
     Note over TS: Email required but NOT USED<br/>Password never referenced
 
     TS->>TS: Validate DNS
-    TS->>FS: Read/write domain-passwords.json<br/>Assign port 3333-3999
+    TS->>SB: Assign port 3333-3999 in app.domains
     TS->>FS: Create Linux user (site-{slug})
     TS->>FS: Copy template files
     TS->>FS: chown, chmod permissions
@@ -354,8 +347,6 @@ sequenceDiagram
     TS-->>API: Return {port, domain, serviceName, ...}
 
     Note over API: Infrastructure deployed successfully<br/>NOW register in Supabase
-
-    API->>FS: Read domain-passwords.json<br/>Get port for domain
 
     API->>SB: registerDomain({hostname, email, password, port, orgId})
 
@@ -430,32 +421,26 @@ CREATE TABLE app.domains (
 
 ---
 
-## PORT REGISTRY (File-Based)
+## PORT REGISTRY
 
-**Location**: `domain-passwords.json` (path derived from `SERVER_CONFIG_PATH` env var / `server-config.json`)
+**Location**: Supabase `app.domains` table (single source of truth)
 
-**Format**:
-```json
-{
-  "example.alive.best": {
-    "port": 3333
-  },
-  "another.alive.best": {
-    "port": 3334
-  }
-}
+**Schema**:
+```sql
+CREATE TABLE app.domains (
+    hostname text PRIMARY KEY,
+    port integer NOT NULL,
+    org_id uuid REFERENCES iam.orgs(org_id),
+    created_at timestamp DEFAULT now()
+);
 ```
 
 **Management**:
-- Read by: TypeScript library, bash script, API route
+- Read by: TypeScript library, API route
 - Written by: TypeScript `getOrAssignPort()` function
 - Auto-increment: Finds max port, adds 1, starting from 3333
 - Port range: 3333-3999 (safety limit)
 - Conflict detection: Checks `netstat -tuln` for actual usage
-- Atomic writes: Uses `.tmp` file + `mv` for safety
-- **No synchronization with Supabase `app.domains.port`**
-
-**Assumption**: JSON file is faster and more reliable than DB queries for port lookups
 
 ---
 
@@ -536,10 +521,8 @@ PORT=3333
 
 ## HIDDEN ASSUMPTIONS
 
-1. **Port Registry is Single Source of Truth**
-   - Assumption: JSON file lookups faster than Supabase queries
-   - Reality: Port exists in TWO places (JSON + `app.domains.port`)
-   - No sync mechanism if they diverge
+1. **Port Registry in Supabase**
+   - Supabase `app.domains` is the single source of truth for port assignments
 
 2. **User Exists OR Will Be Created**
    - JWT session → user definitely exists in Supabase
@@ -602,10 +585,9 @@ PORT=3333
 - Domain listing API (`GET /api/domains` joins app.domains + iam.orgs + iam.users)
 - Organization dashboard (shows org members, domains, credits)
 
-**Port Registry Consumers**:
+**Port Registry Consumers** (Supabase `app.domains`):
 - TypeScript `getOrAssignPort()` (read/write)
-- Bash script `get_next_port()` (read/write)
-- API route `getPortFromRegistry()` (read-only)
+- API route (read-only)
 - Monitoring scripts that verify port usage
 - Port conflict resolution tools
 
@@ -634,13 +616,12 @@ PORT=3333
 
 3. **Keep Supabase as User Database**
    - Users, passwords, orgs must stay in Supabase
-   - Domain registry must stay in `app.domains`
+   - Domain and port registry must stay in `app.domains`
    - No migration to different database system
 
-4. **Preserve Port Registry Pattern**
-   - JSON file has proven fast and reliable
-   - Keep it for infrastructure-level port management
-   - Maintain sync with Supabase `app.domains.port` field
+4. **Port Registry in Supabase**
+   - Supabase `app.domains` is the single source of truth for port assignments
+   - No separate file-based registry needed
 
 5. **No Breaking Changes to Deployed Sites**
    - Existing sites must continue working without modification
@@ -690,7 +671,7 @@ API → deploySite() → Infrastructure deployed → registerDomain() → Supaba
 
 **Problem**: If `registerDomain()` fails:
 - systemd service already running
-- Port already consumed in registry
+- Port already consumed in database
 - Caddy already configured
 - Linux user already created
 - Files already copied
@@ -741,33 +722,7 @@ User input → API → deploySite({email, password}) → (unused) → registerDo
 - Confusion: which is authoritative?
 - Documentation: bash script has detailed state machine, TypeScript doesn't
 
-### 4. Port Registry vs Supabase Divergence
-
-**Two sources of truth for ports**:
-
-**JSON Registry** (`domain-passwords.json`):
-```json
-{"example.alive.best": {"port": 3333}}
-```
-
-**Supabase** (`app.domains.port`):
-```sql
-SELECT port FROM app.domains WHERE hostname = 'example.alive.best';
-```
-
-**Problems**:
-- Written at different times (registry during deploy, Supabase after)
-- No sync mechanism if they diverge
-- API reads from JSON, not Supabase (line 143)
-- Monitoring tools may query Supabase and get stale data
-
-**Example divergence scenario**:
-1. Deploy infrastructure → port 3333 written to JSON
-2. Supabase registration fails → port never written to DB
-3. JSON says 3333, Supabase has no record
-4. Redeploy → infrastructure finds port in JSON, skips assignment, Supabase still has no record
-
-### 5. Error Handling: No Rollback Mechanism
+### 4. Error Handling: No Rollback Mechanism
 
 **Current error handling**:
 - TypeScript library throws `DeploymentError` on failure
@@ -787,11 +742,10 @@ SELECT port FROM app.domains WHERE hostname = 'example.alive.best';
 - Build fails ✗
 - Result: `/srv/webalive/sites/{domain}/` exists with unbuildable code, user `site-{slug}` exists, no cleanup
 
-### 6. Concurrent Deployment Conflicts
+### 5. Concurrent Deployment Conflicts
 
 **Locking mechanisms**:
 - Caddy file: flock with 30s timeout (bash script line 332-336)
-- Port registry: None (atomic write with .tmp + mv)
 - systemd: None (assumes serial execution)
 
 **Potential race conditions**:
@@ -861,25 +815,19 @@ The following questions should guide the oracle's analysis. The oracle should co
    - Optimistic (deploy then validate) vs. pessimistic (validate then deploy)?
    - Idempotency vs. explicit rollback?
 
-10. **How to handle port registry vs Supabase sync?**
-    - Single source of truth? Which one?
-    - Dual writes with consistency checks?
-    - Event-driven sync?
-    - Eventual consistency acceptable?
-
 ### Operational Questions
 
-11. **How to deploy this refactor without downtime?**
+10. **How to deploy this refactor without downtime?**
     - Can we switch implementations gradually?
     - Can we run old and new flows in parallel temporarily?
     - How to test in production safely?
 
-12. **How to handle existing sites during refactor?**
+11. **How to handle existing sites during refactor?**
     - Do they need migration?
     - Can they stay on old implementation?
     - What's the cutover strategy?
 
-13. **What monitoring/observability should exist?**
+12. **What monitoring/observability should exist?**
     - How to detect orphaned resources?
     - How to audit successful vs failed deployments?
     - How to track partial failures?
@@ -912,7 +860,7 @@ A successful solution should achieve:
 
 5. **Single Source of Truth**
    - Users/passwords → Supabase only
-   - Ports → One authoritative source (with fast lookups)
+   - Ports → Supabase `app.domains` only
    - Services → systemd only
 
 6. **Explicit Error Handling**

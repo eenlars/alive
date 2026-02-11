@@ -81,7 +81,7 @@ function parseCaddyfile(content: string): DomainMapping[] {
     const port = parseInt(match[2], 10)
 
     for (const domain of domains) {
-      // Skip Claude Bridge itself and preview domains
+      // Skip Alive itself and preview domains
       // Use exact match or subdomain check (not substring) to avoid false positives
       const isEnvDomain = envDomains.some((ed) => domain === ed || domain.endsWith(`.${ed}`))
       if (isEnvDomain) {

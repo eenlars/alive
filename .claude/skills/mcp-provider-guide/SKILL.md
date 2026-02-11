@@ -5,7 +5,7 @@ description: Step-by-step guide to add a new Global MCP integration (like Google
 
 # Global MCP Provider Guide
 
-You are an expert guide for adding new Global MCP integrations to Claude Bridge. Global providers are always available to ALL users without authentication (unlike OAuth providers which require per-user tokens).
+You are an expert guide for adding new Global MCP integrations to Alive. Global providers are always available to ALL users without authentication (unlike OAuth providers which require per-user tokens).
 
 ## Overview
 

@@ -1,11 +1,16 @@
 /**
  * Spawns Claude Agent SDK in a child process with workspace user credentials.
  * Ensures all file operations inherit correct ownership.
+ *
+ * SECURITY: Environment variables are explicitly allowlisted. The parent process
+ * (Bridge) has secrets (SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET, DATABASE_URL, etc.)
+ * that must NEVER leak to workspace child processes. Only pass what the agent needs.
  */
 
 import { spawn } from "node:child_process"
 import { statSync } from "node:fs"
-import { resolve } from "node:path"
+import { dirname, resolve } from "node:path"
+import { createSandboxEnv } from "./sandbox-env"
 
 interface WorkspaceCredentials {
   uid: number
@@ -75,16 +80,23 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
     throw new Error("[agent-child] No API key available. User must provide an API key or have valid OAuth credentials.")
   }
 
+  // Derive workspace home for HOME env var
+  // workspaceRoot is like /srv/webalive/sites/domain.com/user → home is parent
+  const normalizedRoot = workspaceRoot.replace(/\/+$/, "")
+  const workspaceHome = normalizedRoot.endsWith("/user") ? dirname(normalizedRoot) : normalizedRoot
+
+  // Build env — superadmin gets full access, regular users get sandbox allowlist only
+  const sandboxBase = payload.isSuperadmin ? process.env : createSandboxEnv()
+
   const child = spawn(process.execPath, [runnerPath], {
     env: {
-      ...process.env, // Inherit all environment variables (includes PORT from systemd)
-      // Override specific values for child process
-      // SUPERADMIN: uid/gid = 0 means run-agent.mjs will skip setuid/setgid
+      ...sandboxBase,
+      NODE_ENV: process.env.NODE_ENV, // Satisfy Next.js ProcessEnv augmentation
       TARGET_UID: String(uid),
       TARGET_GID: String(gid),
       TARGET_CWD: workspaceRoot,
+      ...(!payload.isSuperadmin && { TARGET_HOME: workspaceHome }),
       ANTHROPIC_API_KEY: apiKey,
-      // Pass session cookie for authenticated API calls
       ...(payload.sessionCookie && { ALIVE_SESSION_COOKIE: payload.sessionCookie }),
     },
     stdio: ["pipe", "pipe", "pipe"],

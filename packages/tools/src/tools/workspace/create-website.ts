@@ -1,6 +1,6 @@
 import { tool } from "@anthropic-ai/claude-agent-sdk"
+import { DEFAULTS, getTemplateIdsInline, getTemplateListForDocs } from "@webalive/shared"
 import { z } from "zod"
-import { DEFAULTS, getTemplateListForDocs, getTemplateIdsInline } from "@webalive/shared"
 import { callBridgeApi, errorResult, type ToolResult } from "../../lib/api-client.js"
 
 // Reserved slugs that cannot be used (mirrors server-side validation)
@@ -47,16 +47,16 @@ export const createWebsiteParamsSchema = {
   slug: z
     .string()
     .min(3, "Slug must be at least 3 characters")
-    .max(20, "Slug must be no more than 20 characters")
+    .max(16, "Slug must be no more than 16 characters")
     .regex(
-      /^[a-z0-9]([a-z0-9-]{1,18}[a-z0-9])?$/,
+      /^[a-z0-9]([a-z0-9-]{1,14}[a-z0-9])?$/,
       "Slug must start and end with a letter or number, and contain only lowercase letters, numbers, and hyphens",
     )
     .refine(slug => !RESERVED_SLUGS.includes(slug as (typeof RESERVED_SLUGS)[number]), {
       message: "This slug is reserved. Please choose a different name.",
     })
     .describe(
-      `The subdomain name for the website (e.g., 'my-bakery' creates my-bakery.${DEFAULTS.WILDCARD_DOMAIN}). Must be 3-20 characters, lowercase letters, numbers, and hyphens only.`,
+      `The subdomain name for the website (e.g., 'my-bakery' creates my-bakery.${DEFAULTS.WILDCARD_DOMAIN}). Must be 3-16 characters, lowercase letters, numbers, and hyphens only.`,
     ),
   siteIdeas: z
     .string()
@@ -156,7 +156,7 @@ Creates a fully configured website with:
 - Production build capability
 
 **Usage:**
-- Provide a unique slug (3-20 chars, lowercase, letters/numbers/hyphens)
+- Provide a unique slug (3-16 chars, lowercase, letters/numbers/hyphens)
 - Optionally describe what the site should be about
 - Optionally specify a template
 

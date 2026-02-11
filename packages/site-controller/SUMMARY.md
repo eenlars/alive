@@ -118,7 +118,7 @@ The `99-teardown.sh` script:
 - ✅ Stops systemd service
 - ✅ Removes from Caddy
 - ✅ Removes env file
-- ✅ Removes port from registry
+- ✅ Removes port from Supabase `app.domains`
 - ✅ Optionally removes user/files
 - ✅ Called automatically on deployment failure
 
@@ -185,14 +185,13 @@ const dns = await validateDns({
 
 const { port } = await assignPort({
   domain: 'example.com',
-  registryPath: '/var/lib/alive/domain-passwords.json',
 })
 ```
 
 ## Important Design Decisions
 
 1. **Auth Boundary**: Supabase registration happens BEFORE this package (in API layer)
-2. **Port Assignment**: Dedicated script that reads/writes `domain-passwords.json`
+2. **Port Assignment**: Dedicated script that reads/writes Supabase `app.domains`
 3. **DNS Validation**: Uses `dig`, returns exit code 12 on failure
 4. **Rollback**: Automatic on failure, configurable via `rollbackOnFailure`
 5. **Idempotency**: All scripts check state before modifying
@@ -205,7 +204,7 @@ const { port } = await assignPort({
 - ✅ Dedicated system users per site
 - ✅ File permissions (750 directories, user ownership)
 - ✅ Flock for Caddyfile (prevents race conditions)
-- ✅ Atomic writes for registry (tmp file + mv)
+- ✅ Database-backed port registry (Supabase `app.domains`)
 - ✅ No shell injection (env vars, not positional args)
 
 ## Testing Status

@@ -8,7 +8,6 @@ export function createEmptySourceData(domain: string): SourceData {
     domain,
     supabase: { exists: false, port: null, orgId: null, email: null },
     caddy: { exists: false, port: null },
-    json: { exists: false, port: null },
     filesystem: { exists: false, path: null },
     dns: { resolves: false, ips: [], matchesServer: false },
     systemd: { exists: false, active: false, serveMode: "unknown" },

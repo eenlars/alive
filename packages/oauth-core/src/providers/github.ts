@@ -8,9 +8,9 @@
  * For those features, use GitHub Apps instead.
  */
 
-import type { OAuthProviderCore, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
-import type { OAuthTokens } from "../types"
 import { fetchWithRetry } from "../fetch-with-retry"
+import type { OAuthTokens } from "../types"
+import type { OAuthProviderCore, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
 
 export class GitHubProvider implements OAuthProviderCore, OAuthRevocable {
   name = "github"

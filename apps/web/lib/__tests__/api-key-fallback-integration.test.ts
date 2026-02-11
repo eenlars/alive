@@ -194,8 +194,7 @@ describe("API Key Fallback - Real Production Scenarios", () => {
       // If cached: still sees 100 ❌
       // If live: sees 200 ✅
 
-      // Current implementation reads from file each time
-      // loadDomainPasswords() is called fresh
+      // Current implementation reads from Supabase each time
       // So this should work correctly
     })
 

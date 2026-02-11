@@ -10,7 +10,6 @@ require_var SITE_DOMAIN SITE_SLUG SERVICE_NAME
 # Optional variables with defaults
 REMOVE_USER=${REMOVE_USER:-false}
 REMOVE_FILES=${REMOVE_FILES:-false}
-REMOVE_PORT=${REMOVE_PORT:-true}
 
 log_info "Tearing down site: $SITE_DOMAIN"
 
@@ -35,8 +34,8 @@ fi
 # Remove from Caddy configuration
 # =============================================================================
 
-# Get stream root from env or use default
-STREAM_ROOT="${STREAM_ROOT:-/root/alive}"
+# Get stream root from env or derive from script location
+STREAM_ROOT="${STREAM_ROOT:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 SERVER_CONFIG="${SERVER_CONFIG_PATH:-}"
 
 if [[ -f "$SERVER_CONFIG" ]]; then
@@ -122,22 +121,6 @@ if [[ -n "${ENV_FILE_PATH:-}" ]] && [[ -f "$ENV_FILE_PATH" ]]; then
 fi
 
 # =============================================================================
-# Remove port from registry (if requested)
-# =============================================================================
-
-if [[ "$REMOVE_PORT" == "true" ]]; then
-    if [[ -n "${REGISTRY_PATH:-}" ]] && [[ -f "$REGISTRY_PATH" ]]; then
-        log_info "Removing port assignment from registry..."
-        TMP_FILE="${REGISTRY_PATH}.tmp.$$"
-        jq --arg domain "$SITE_DOMAIN" 'del(.[$domain])' "$REGISTRY_PATH" > "$TMP_FILE"
-        mv "$TMP_FILE" "$REGISTRY_PATH"
-        log_success "Port assignment removed"
-    fi
-else
-    log_info "Keeping port assignment in registry (REMOVE_PORT=false)"
-fi
-
-# =============================================================================
 # Remove user if requested
 # =============================================================================
 
@@ -157,7 +140,7 @@ fi
 if [[ "$REMOVE_FILES" == "true" ]]; then
     # Get sites root from env or use default
     # Note: SITES_ROOT (/srv/webalive/sites) is separate from BRIDGE_ROOT (/root/alive)
-    # BRIDGE_ROOT = Claude Bridge application code
+    # BRIDGE_ROOT = Alive application code
     # SITES_ROOT = Deployed website files and workspaces
     SITES_ROOT="${SITES_ROOT:-/srv/webalive/sites}"
     TARGET_DIR="${SITES_ROOT}/${SITE_DOMAIN}"

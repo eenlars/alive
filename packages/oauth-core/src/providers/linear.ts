@@ -10,9 +10,9 @@
  * - PKCE for public clients
  */
 
-import type { OAuthProviderCore, OAuthRefreshable, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
-import type { OAuthTokens, GraphQLError } from "../types"
 import { fetchWithRetry } from "../fetch-with-retry"
+import type { GraphQLError, OAuthTokens } from "../types"
+import type { OAuthProviderCore, OAuthRefreshable, OAuthRevocable, PKCEOptions, TokenExchangeOptions } from "./base"
 
 export const LINEAR_SCOPES = ["read", "write", "issues:create"] as const
 

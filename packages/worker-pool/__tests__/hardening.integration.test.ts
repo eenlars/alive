@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises"
-import { join } from "node:path"
 import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { PATHS, STREAM_TYPES } from "@webalive/shared"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { WorkerPoolLimitError, WorkerPoolManager } from "../src/manager"
 import type { AgentRequest, WorkspaceCredentials } from "../src/types"
 

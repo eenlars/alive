@@ -12,6 +12,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -81,7 +84,7 @@ USER="site-${SLUG}"
 NEW_SITE_DIR="/srv/webalive/sites/$DOMAIN"
 OLD_SITE_DIR="/root/webalive/sites/$DOMAIN"
 SYMLINK_PATH="/srv/webalive/sites/$SLUG"
-CADDYFILE="/root/alive/ops/caddy/Caddyfile"
+CADDYFILE="$PROJECT_ROOT/ops/caddy/Caddyfile"
 ENV_FILE="/etc/sites/${SLUG}.env"
 
 echo ""

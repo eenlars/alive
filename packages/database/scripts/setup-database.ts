@@ -2,7 +2,7 @@
 /**
  * Database Setup Script
  *
- * Sets up the Claude Bridge database from scratch.
+ * Sets up the Alive database from scratch.
  *
  * Usage:
  *   bun run db:setup               # Interactive setup
@@ -14,7 +14,7 @@
  */
 
 import { existsSync, readFileSync } from "node:fs"
-import { resolve, dirname } from "node:path"
+import { dirname, resolve } from "node:path"
 
 const scriptDir = dirname(new URL(import.meta.url).pathname)
 const migrationPath = resolve(scriptDir, "../migrations/0001_init.sql")
@@ -25,7 +25,7 @@ async function main() {
 
   console.log(`
 ╔══════════════════════════════════════════════════════════════════╗
-║               Claude Bridge Database Setup                        ║
+║               Alive Database Setup                                ║
 ╚══════════════════════════════════════════════════════════════════╝
 `)
 

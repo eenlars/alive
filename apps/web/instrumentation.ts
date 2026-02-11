@@ -29,19 +29,17 @@ export async function register() {
       }
     }
 
-    // Start services in production and staging (but not dev to avoid duplicate schedulers)
     const bridgeEnv = process.env.STREAM_ENV
-    const shouldStartServices = bridgeEnv
-      ? ["production", "staging"].includes(bridgeEnv)
-      : process.env.NODE_ENV === "production"
+    const isProduction = bridgeEnv === "production"
 
-    // Start the CronService for automation scheduling
+    // Only production runs CronService — staging and dev share the same DB,
+    // so multiple schedulers would cause duplicate job execution
     try {
       const { startCronService } = await import("@/lib/automation/cron-service")
 
-      if (shouldStartServices) {
+      if (isProduction) {
         await startCronService({
-          enabled: shouldStartServices,
+          enabled: isProduction,
           maxConcurrent: 3,
           maxRetries: 3,
           retryBaseDelayMs: 60_000,

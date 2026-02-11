@@ -13,7 +13,7 @@ The WebAlive platform deploys isolated websites through a multi-layered architec
 - **API Layer**: Handles HTTP requests, authentication, orchestration
 - **Infrastructure Layer**: Creates Linux users, systemd services, Caddy config
 - **Database Layer**: Stores users, orgs, domains in Supabase PostgreSQL
-- **File Registry**: JSON-based port assignments in `domain-passwords.json`
+- **Database Layer (Ports)**: Port assignments stored in Supabase `app.domains`
 
 **Key Characteristic:** Infrastructure is deployed BEFORE database registration, leading to orphaned resources on failures.
 
@@ -52,7 +52,6 @@ sequenceDiagram
 
     Note over API: ✅ Infrastructure deployed<br/>NOW register in database
 
-    API->>FS: Read domain-passwords.json<br/>Get port
     API->>SB: registerDomain({hostname, email, password, port, orgId})
 
     alt Supabase Success
@@ -94,7 +93,7 @@ sequenceDiagram
 
 **Responsibilities:**
 - DNS validation (if not wildcard `*.alive.best`)
-- Port assignment (read/write `domain-passwords.json`)
+- Port assignment (via Supabase `app.domains`)
 - Linux user creation (`useradd --system`)
 - Workspace setup (copy template, set permissions)
 - Dependency installation (`bun install`)
@@ -156,22 +155,18 @@ Supabase: Check/create user, hash password, store
 ```
 TypeScript: getOrAssignPort(domain)
   ↓
-Read: domain-passwords.json (path from SERVER_CONFIG_PATH)
+Query: Supabase app.domains for existing port
   ↓
 Domain exists?
   YES → Reuse port
-  NO  → Find max port, increment, write to JSON
+  NO  → Find next available port, write to app.domains
   ↓
 Port returned to deploySite()
   ↓
 Used in: systemd env file, Caddyfile
-  ↓
-(Later) API reads port from JSON
-  ↓
-API writes port to Supabase: app.domains.port
 ```
 
-**Problem:** Port exists in TWO places (JSON + Supabase), written at different times, no sync mechanism.
+Supabase `app.domains` is the single source of truth for port assignments.
 
 ---
 
@@ -179,26 +174,22 @@ API writes port to Supabase: app.domains.port
 
 ### Port Registry
 
-**Location:** `domain-passwords.json` (path derived from `SERVER_CONFIG_PATH` env var / `server-config.json`)
+**Location:** Supabase `app.domains` table
 
-**Format:**
-```json
-{
-  "example.alive.best": {
-    "port": 3333
-  },
-  "another.alive.best": {
-    "port": 3334
-  }
-}
+**Schema:**
+```sql
+CREATE TABLE app.domains (
+    hostname text PRIMARY KEY,
+    port integer NOT NULL,
+    org_id uuid REFERENCES iam.orgs(org_id),
+    created_at timestamp DEFAULT now()
+);
 ```
 
 **Management:**
-- Written by: TypeScript `getOrAssignPort()`, Bash `get_next_port()`
-- Read by: API route, TypeScript library, Bash script
+- Single source of truth for port assignments
 - Auto-increment: max + 1, starting from 3333
 - Range: 3333-3999 (safety limit)
-- Atomic writes: `.tmp` file + `mv`
 
 ---
 
@@ -278,7 +269,7 @@ CREATE TABLE iam.org_memberships (
 ```sql
 CREATE TABLE app.domains (
     hostname text PRIMARY KEY,
-    port integer NOT NULL,  -- ⚠️ Also in domain-passwords.json
+    port integer NOT NULL,
     org_id uuid REFERENCES iam.orgs(org_id),
     created_at timestamp DEFAULT now()
 );
@@ -299,7 +290,7 @@ CREATE TABLE app.domains (
 
 **Problem:** If `registerDomain()` fails after `deploySite()` succeeds:
 - systemd service running
-- Port consumed in registry
+- Port consumed in database
 - Linux user created
 - Files deployed
 - **No rollback mechanism**
@@ -339,24 +330,7 @@ CREATE TABLE app.domains (
 
 ---
 
-### 4. Port Registry vs Supabase Divergence
-
-**Two sources of truth:**
-
-1. **JSON:** `domain-passwords.json` (path from `SERVER_CONFIG_PATH` env var)
-   - Written during `deploySite()` (before Supabase)
-
-2. **Database:** `app.domains.port`
-   - Written during `registerDomain()` (after infrastructure)
-
-**Problem:**
-- No sync mechanism
-- If Supabase fails, JSON has port but database doesn't
-- Monitoring may query database and get stale/missing data
-
----
-
-### 5. No Rollback Mechanism
+### 4. No Rollback Mechanism
 
 **Current error handling:**
 - TypeScript library throws `DeploymentError` on failure
@@ -371,11 +345,10 @@ CREATE TABLE app.domains (
 
 ---
 
-### 6. Concurrent Deployment Conflicts
+### 5. Concurrent Deployment Conflicts
 
 **Locking:**
 - Caddy file: `flock` with 30s timeout
-- Port registry: None (relies on atomic `.tmp` + `mv`)
 - systemd: None
 
 **Race conditions:**
@@ -401,12 +374,11 @@ CREATE TABLE app.domains (
 - [Complete Schema](./REFACTORING_PROBLEM_STATEMENT.md#database-schema-supabase-postgresql)
 
 **Configuration Details:**
-- [Port Registry](./REFACTORING_PROBLEM_STATEMENT.md#port-registry-file-based)
 - [Caddy Config](./REFACTORING_PROBLEM_STATEMENT.md#caddy-configuration)
 - [systemd Template](./REFACTORING_PROBLEM_STATEMENT.md#systemd-unit-template)
 
 **Problem Analysis:**
-- [6 Detailed Pain Points](./REFACTORING_PROBLEM_STATEMENT.md#current-pain-points-detailed)
+- [5 Detailed Pain Points](./REFACTORING_PROBLEM_STATEMENT.md#current-pain-points-detailed)
 - [Hidden Assumptions](./REFACTORING_PROBLEM_STATEMENT.md#hidden-assumptions)
 - [Dependents & Consumers](./REFACTORING_PROBLEM_STATEMENT.md#dependents--consumers)
 
@@ -431,8 +403,7 @@ A refactoring is being planned to address these architectural issues. The goal i
 
 1. **Separate concerns** - Infrastructure should not require auth credentials
 2. **Fix ordering** - Decide auth-first or infrastructure-first with proper rollback
-3. **Single source of truth** - Resolve port registry vs database divergence
-4. **Improve error handling** - Implement rollback for partial failures
-5. **Consolidate implementations** - Reduce maintenance burden
+3. **Improve error handling** - Implement rollback for partial failures
+4. **Consolidate implementations** - Reduce maintenance burden
 
 See [REFACTORING_PROBLEM_STATEMENT.md](./REFACTORING_PROBLEM_STATEMENT.md) for complete problem analysis and solution exploration.

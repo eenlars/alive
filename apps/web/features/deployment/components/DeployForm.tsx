@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { PasswordField } from "@/components/ui/primitives/PasswordField"
 import { containerVariants, fieldVariants, itemVariants } from "@/lib/animations"
+import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import {
   useDeployDomain,
   useDeploymentStatus,
@@ -22,7 +23,6 @@ import { generateRandomDomain } from "./formUtils"
 import { ModeOption } from "./ModeOption"
 import { SubdomainDeployForm } from "./SubdomainDeployForm"
 import { SubmitButton } from "./SubmitButton"
-import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import { useDeployment } from "./useDeployment"
 
 const deployWithDomainSchema = z.object({

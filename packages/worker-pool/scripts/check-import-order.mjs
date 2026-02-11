@@ -36,13 +36,7 @@ const _DANGEROUS_PATTERNS = [
 ]
 
 // Functions where imports are forbidden (after privilege drop)
-const FORBIDDEN_CONTEXTS = [
-  "handleQuery",
-  "handleCancel",
-  "handleShutdown",
-  "handleHealthCheck",
-  "dropPrivileges",
-]
+const FORBIDDEN_CONTEXTS = ["handleQuery", "handleCancel", "handleShutdown", "handleHealthCheck", "dropPrivileges"]
 
 function extractFunctionBodies(code) {
   const functions = []
@@ -55,8 +49,8 @@ function extractFunctionBodies(code) {
     ]
 
     for (const pattern of patterns) {
-      let match
-      while ((match = pattern.exec(code)) !== null) {
+      let match = pattern.exec(code)
+      while (match !== null) {
         const startIndex = match.index + match[0].length
         let braceCount = 1
         let endIndex = startIndex
@@ -73,6 +67,8 @@ function extractFunctionBodies(code) {
           body: code.slice(startIndex, endIndex),
           startLine: code.slice(0, match.index).split("\n").length,
         })
+
+        match = pattern.exec(code)
       }
     }
   }
@@ -91,8 +87,8 @@ function checkForDynamicImports(functionInfo) {
   ]
 
   for (const pattern of importPatterns) {
-    let match
-    while ((match = pattern.exec(functionInfo.body)) !== null) {
+    let match = pattern.exec(functionInfo.body)
+    while (match !== null) {
       // Get line number within function
       const lineOffset = functionInfo.body.slice(0, match.index).split("\n").length
       const absoluteLine = functionInfo.startLine + lineOffset
@@ -103,6 +99,8 @@ function checkForDynamicImports(functionInfo) {
         match: match[0],
         message: `Dynamic import/require in ${functionInfo.name}() - FORBIDDEN after privilege drop!`,
       })
+
+      match = pattern.exec(functionInfo.body)
     }
   }
 
@@ -197,11 +195,7 @@ function main() {
   }
 
   // Verify critical imports are at top level (not commented out)
-  const requiredTopLevelImports = [
-    "@anthropic-ai/claude-agent-sdk",
-    "@webalive/shared",
-    "@webalive/tools",
-  ]
+  const requiredTopLevelImports = ["@anthropic-ai/claude-agent-sdk", "@webalive/shared", "@webalive/tools"]
 
   const topLevelImportSection = code.split(/^(async\s+)?function\s+/m)[0]
   const missingImports = []
@@ -209,7 +203,7 @@ function main() {
   for (const pkg of requiredTopLevelImports) {
     // Check for uncommented import statement
     // Must match: import ... from "package" (not commented with // or /* */)
-    const importPattern = new RegExp(`^\\s*import\\s+.*from\\s+["']${pkg.replace(/[/\\]/g, "\\$&")}["']`, "m")
+    const importPattern = new RegExp(`^\\s*import[\\s\\S]*?from\\s+["']${pkg.replace(/[/\\]/g, "\\$&")}["']`, "m")
     if (!importPattern.test(topLevelImportSection)) {
       missingImports.push(pkg)
     }

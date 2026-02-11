@@ -11,6 +11,10 @@ const RestartSchema = z.object({
   workspaceRoot: z.string(),
 })
 
+/** Per-service cooldown: serviceName → timestamp of last restart */
+const lastRestartAt = new Map<string, number>()
+const RESTART_COOLDOWN_MS = 10_000
+
 export async function POST(req: Request) {
   return handleWorkspaceApi(req, {
     schema: RestartSchema,
@@ -21,6 +25,26 @@ export async function POST(req: Request) {
       const domain = basename(sitePath)
       const serviceSlug = domain.replace(/\./g, "-")
       const serviceName = `site@${serviceSlug}.service`
+
+      // Cooldown: prevent rapid restarts that cause port conflicts and SIGABRT crashes
+      const now = Date.now()
+      const lastRestart = lastRestartAt.get(serviceName)
+      if (lastRestart && now - lastRestart < RESTART_COOLDOWN_MS) {
+        const waitSec = Math.ceil((RESTART_COOLDOWN_MS - (now - lastRestart)) / 1000)
+        console.log(`[restart-workspace ${requestId}] Cooldown active for ${serviceName}, ${waitSec}s remaining`)
+        const currentMode = detectServeMode(workspaceRoot)
+        const modeLabel = currentMode === "dev" ? "development" : currentMode === "build" ? "production" : null
+        return NextResponse.json({
+          ok: true,
+          service: serviceName,
+          mode: currentMode,
+          message: modeLabel
+            ? `✓ Server already restarted recently (${modeLabel} mode). Skipped to avoid crash.`
+            : "✓ Server already restarted recently. Skipped to avoid crash.",
+          requestId,
+          skipped: true,
+        })
+      }
 
       // Detect current mode before restart
       const currentMode = detectServeMode(workspaceRoot)
@@ -57,6 +81,8 @@ export async function POST(req: Request) {
           encoding: "utf-8",
           timeout: 10000,
         })
+
+        lastRestartAt.set(serviceName, Date.now())
 
         // Build mode-aware message
         const modeLabel = currentMode === "dev" ? "development" : currentMode === "build" ? "production" : null

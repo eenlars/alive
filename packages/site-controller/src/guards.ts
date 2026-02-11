@@ -17,24 +17,22 @@
  * ```
  */
 export function assertServerOnly(packageName: string, suggestion?: string): void {
-  if (typeof window !== 'undefined') {
-    const suggestionText = suggestion
-      ? `\n║  💡 Suggestion: ${suggestion.padEnd(45)} ║\n`
-      : ''
+  if (typeof window !== "undefined") {
+    const suggestionText = suggestion ? `\n║  💡 Suggestion: ${suggestion.padEnd(45)} ║\n` : ""
 
     throw new Error(
-      '\n\n' +
-      '╔════════════════════════════════════════════════════════════════╗\n' +
-      '║  ⚠️  SERVER-ONLY CODE IMPORTED IN BROWSER                     ║\n' +
-      '╟────────────────────────────────────────────────────────────────╢\n' +
-      `║  Package: ${packageName.padEnd(49)} ║\n` +
-      '║                                                                ║\n' +
-      '║  This code uses Node.js APIs and cannot run in the browser.   ║\n' +
-      suggestionText +
-      '║                                                                ║\n' +
-      '║  Check your imports and ensure server-only code is only       ║\n' +
-      '║  used in API routes, server components, or server actions.    ║\n' +
-      '╚════════════════════════════════════════════════════════════════╝\n'
+      "\n\n" +
+        "╔════════════════════════════════════════════════════════════════╗\n" +
+        "║  ⚠️  SERVER-ONLY CODE IMPORTED IN BROWSER                     ║\n" +
+        "╟────────────────────────────────────────────────────────────────╢\n" +
+        `║  Package: ${packageName.padEnd(49)} ║\n` +
+        "║                                                                ║\n" +
+        "║  This code uses Node.js APIs and cannot run in the browser.   ║\n" +
+        suggestionText +
+        "║                                                                ║\n" +
+        "║  Check your imports and ensure server-only code is only       ║\n" +
+        "║  used in API routes, server components, or server actions.    ║\n" +
+        "╚════════════════════════════════════════════════════════════════╝\n",
     )
   }
 }
@@ -43,12 +41,12 @@ export function assertServerOnly(packageName: string, suggestion?: string): void
  * Check if running in a Node.js environment (not browser)
  */
 export function isServerEnvironment(): boolean {
-  return typeof window === 'undefined'
+  return typeof window === "undefined"
 }
 
 /**
  * Check if running in a browser environment
  */
 export function isBrowserEnvironment(): boolean {
-  return typeof window !== 'undefined'
+  return typeof window !== "undefined"
 }

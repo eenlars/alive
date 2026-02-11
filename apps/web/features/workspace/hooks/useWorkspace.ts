@@ -1,7 +1,7 @@
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useRef } from "react"
-import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { buildWorkspaceKey } from "@/features/workspace/lib/worktree-utils"
+import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { useCurrentWorkspace, useCurrentWorktree, useWorkspaceActions } from "@/lib/stores/workspaceStore"
 
 interface UseWorkspaceOptions {

@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio"
+import { extractAuthorFromLabel, isRelativeTime } from "../i18n.js"
 import type { GoogleMapsBusiness, GoogleMapsResult, GoogleMapsReview, ProxyConfig } from "../types.js"
-import { parseHours, sanitizeJSON, setupPage, cleanupBrowser, clickReviewsTabAndWait } from "../utils.js"
-import { isRelativeTime, extractAuthorFromLabel } from "../i18n.js"
+import { cleanupBrowser, clickReviewsTabAndWait, parseHours, sanitizeJSON, setupPage } from "../utils.js"
 
 type ExtractResult = { success: true; data: GoogleMapsResult } | { success: false; error: string }
 

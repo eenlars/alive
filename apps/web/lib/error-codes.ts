@@ -37,6 +37,7 @@ export const ErrorCodes = {
   INVALID_SIGNATURE: "INVALID_SIGNATURE",
   INSUFFICIENT_TOKENS: "INSUFFICIENT_TOKENS",
   INSUFFICIENT_CREDITS: "INSUFFICIENT_CREDITS",
+  OAUTH_EXPIRED: "OAUTH_EXPIRED",
 
   // Request errors (3xxx)
   INVALID_JSON: "INVALID_JSON",
@@ -105,6 +106,11 @@ export const ErrorCodes = {
   // Template errors (9.2xxx)
   INVALID_TEMPLATE: "INVALID_TEMPLATE",
   TEMPLATE_NOT_FOUND: "TEMPLATE_NOT_FOUND",
+
+  // GitHub import errors (9.3xxx)
+  GITHUB_NOT_CONNECTED: "GITHUB_NOT_CONNECTED",
+  GITHUB_REPO_NOT_FOUND: "GITHUB_REPO_NOT_FOUND",
+  GITHUB_CLONE_FAILED: "GITHUB_CLONE_FAILED",
 
   // Permission errors (9.5xxx)
   PERMISSION_CHECK_FAILED: "PERMISSION_CHECK_FAILED",
@@ -248,6 +254,9 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
       return details?.balance !== undefined
         ? `You don't have enough tokens to make this request (current balance: ${details.balance}). Please contact support to add more tokens.`
         : "You don't have enough tokens to make this request. Please contact support to add more tokens."
+
+    case ErrorCodes.OAUTH_EXPIRED:
+      return "The server's authentication token has expired and could not be refreshed automatically. Please try again in a moment, or contact support if this persists."
 
     case ErrorCodes.INSUFFICIENT_CREDITS:
       return details?.balance !== undefined
@@ -444,6 +453,19 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
       return details?.templateId
         ? `Template '${details.templateId}' exists but its source directory is missing at '${details.path || "unknown path"}'. Please contact support.`
         : "Template source directory is missing. Please contact support."
+
+    case ErrorCodes.GITHUB_NOT_CONNECTED:
+      return "You need to connect your GitHub account first. Go to Settings > Integrations to connect GitHub."
+
+    case ErrorCodes.GITHUB_REPO_NOT_FOUND:
+      return details?.repoUrl
+        ? `Could not access GitHub repository "${details.repoUrl}". Check that the repo exists and your GitHub account has access.`
+        : "Could not access the GitHub repository. Check that it exists and your account has access."
+
+    case ErrorCodes.GITHUB_CLONE_FAILED:
+      return details?.message
+        ? `Failed to clone GitHub repository: ${details.message}`
+        : "Failed to clone the GitHub repository. Please try again."
 
     case ErrorCodes.PERMISSION_CHECK_FAILED:
       return details?.domain

@@ -4,7 +4,7 @@ Core system design, patterns, and technical concepts.
 
 ## Overview
 
-Claude Bridge is a multi-tenant development platform enabling Claude AI to assist with website development through controlled file system access. Each domain gets isolated workspace sandboxing with security-first design.
+Alive is a multi-tenant development platform enabling Claude AI to assist with website development through controlled file system access. Each domain gets isolated workspace sandboxing with security-first design.
 
 **Key Principles:**
 - Multi-tenant isolation (domain → workspace mapping)

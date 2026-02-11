@@ -5,10 +5,10 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import type { LockboxDatabase as Database } from "@webalive/database"
 import { getConfig } from "./config"
 import { Security } from "./security"
 import type { SecretNamespace, UserSecret } from "./types"
-import type { LockboxDatabase as Database } from "@webalive/database"
 
 export interface LockboxAdapterConfig {
   instanceId?: string // Instance identifier for multi-tenant isolation

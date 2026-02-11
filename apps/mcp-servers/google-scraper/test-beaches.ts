@@ -1,8 +1,12 @@
-import { setupPage, cleanupBrowser, REVIEW_TAB_SELECTORS } from "./src/scraper/utils.js"
 import * as fs from "node:fs"
-
 // Test using the debug.ts capture which worked earlier
-import { navigateToGoogleMaps, detectFeed } from "./src/scraper/utils.js"
+import {
+  cleanupBrowser,
+  detectFeed,
+  navigateToGoogleMaps,
+  REVIEW_TAB_SELECTORS,
+  setupPage,
+} from "./src/scraper/utils.js"
 
 console.log("Testing Reviews tab click...")
 

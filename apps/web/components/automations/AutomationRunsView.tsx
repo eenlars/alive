@@ -1,8 +1,8 @@
 "use client"
 
-import { CheckCircle2, XCircle, RefreshCw, Clock, AlertCircle, History } from "lucide-react"
-import { useAutomationRunsQuery, type AutomationJob } from "@/lib/hooks/useSettingsQueries"
+import { AlertCircle, CheckCircle2, Clock, History, RefreshCw, XCircle } from "lucide-react"
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner"
+import { type AutomationJob, useAutomationRunsQuery } from "@/lib/hooks/useSettingsQueries"
 
 interface AutomationRunsViewProps {
   job: AutomationJob | null

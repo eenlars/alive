@@ -10,7 +10,7 @@
 
 import { createClient } from "@supabase/supabase-js"
 import type { AppDatabase, IamDatabase } from "@webalive/database"
-import { getServerId } from "@webalive/shared"
+import { assertValidServerId, getServerId } from "@webalive/shared"
 import { getUserDefaultOrgId } from "@/lib/deployment/org-resolver"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 import { verifyPassword } from "@/types/guards/api"
@@ -92,8 +92,13 @@ export async function getAllDomains(includeTestData = false, thisServerOnly = tr
   // Filter by current server if requested
   if (thisServerOnly) {
     const serverId = getServerId()
-    if (serverId) {
+    try {
+      assertValidServerId(serverId)
       query = query.eq("server_id", serverId)
+    } catch (err) {
+      console.warn(
+        `[Domain Registry] ${err instanceof Error ? err.message : "Invalid serverId"} — returning all domains`,
+      )
     }
   }
 
@@ -280,12 +285,14 @@ async function validateProvidedOrgId(orgId: string): Promise<void> {
  * Create domain entry in app schema
  */
 async function createDomainEntry(hostname: string, port: number, orgId: string): Promise<void> {
-  // Get server ID for multi-server isolation
+  // Get server ID for multi-server isolation — validate format to catch placeholder values
   const serverId = getServerId()
-  if (!serverId) {
+  try {
+    assertValidServerId(serverId)
+  } catch (err) {
     throw new DomainRegistrationError(
       ErrorCodes.DEPLOYMENT_FAILED,
-      "Server ID not configured. Set serverId in server-config.json (path from SERVER_CONFIG_PATH env var)",
+      err instanceof Error ? err.message : "Invalid serverId",
       { domain: hostname },
     )
   }
@@ -316,6 +323,39 @@ async function createDomainEntry(hostname: string, port: number, orgId: string):
 }
 
 /**
+ * Check whether a domain is already registered in app.domains
+ */
+export async function isDomainRegistered(hostname: string): Promise<boolean> {
+  try {
+    const app = await getAppClient()
+    const { data, error } = await app.from("domains").select("hostname").eq("hostname", hostname).single()
+
+    if (data) {
+      return true
+    }
+
+    if (error && error.code !== "PGRST116") {
+      throw new DomainRegistrationError(
+        ErrorCodes.DEPLOYMENT_FAILED,
+        `Failed to check if domain exists: ${error.message}`,
+        { domain: hostname },
+      )
+    }
+
+    return false
+  } catch (error) {
+    if (error instanceof DomainRegistrationError) {
+      throw error
+    }
+    throw new DomainRegistrationError(
+      ErrorCodes.DEPLOYMENT_FAILED,
+      error instanceof Error ? error.message : "Unknown error checking domain registration",
+      { domain: hostname },
+    )
+  }
+}
+
+/**
  * Register a new domain in Supabase
  * Creates user (if needed) and upserts organization, then creates domain entry
  *
@@ -332,25 +372,9 @@ export async function registerDomain(config: DomainRegistration): Promise<boolea
   const { hostname, email, password, port, orgId: providedOrgId } = config
 
   try {
-    const app = await getAppClient()
-
     // Check if domain already exists
-    const { data: existingDomain, error: domainCheckError } = await app
-      .from("domains")
-      .select("hostname")
-      .eq("hostname", hostname)
-      .single()
-
-    if (existingDomain) {
+    if (await isDomainRegistered(hostname)) {
       return true
-    }
-
-    if (domainCheckError && domainCheckError.code !== "PGRST116") {
-      throw new DomainRegistrationError(
-        ErrorCodes.DEPLOYMENT_FAILED,
-        `Failed to check if domain exists: ${domainCheckError.message}`,
-        { domain: hostname },
-      )
     }
 
     // Get or create user (validates password if provided)

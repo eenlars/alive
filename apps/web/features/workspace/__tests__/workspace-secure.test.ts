@@ -126,7 +126,7 @@ describe("Workspace Security - Path Traversal Prevention", () => {
     })
 
     it("should block attempts to read alive source", () => {
-      const attacks = ["../../../../alive/.env", "../../../../alive/domain-passwords.json"]
+      const attacks = ["../../../../alive/.env", "../../../../alive/server-config.json"]
 
       for (const attack of attacks) {
         const fullPath = path.join(workspaceRoot, attack)

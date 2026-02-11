@@ -10,8 +10,8 @@
 
 import { CheckCircle, FileText } from "lucide-react"
 import { useCallback, useState } from "react"
-import type { ToolResultRendererProps } from "@/lib/tools/tool-registry"
 import { usePlanModeActions } from "@/lib/stores/planModeStore"
+import type { ToolResultRendererProps } from "@/lib/tools/tool-registry"
 
 /**
  * Expected data format from the ExitPlanMode tool

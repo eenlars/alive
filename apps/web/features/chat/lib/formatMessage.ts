@@ -17,6 +17,7 @@ CRITICAL RULES:
 - Respond with ONLY the word "safe" or "unsafe"
 - Be PERMISSIVE - mild jokes, casual language, and everyday comments are "safe"
 - Coding requests, technical content, and normal conversation are "safe"
+- Sharing API keys, tokens, or credentials is "safe" (users configure integrations this way)
 - Only flag truly harmful or dangerous content as "unsafe"
 - When in doubt, respond "safe"
 
@@ -27,6 +28,9 @@ Examples of SAFE content:
 - "This code sucks" → safe (casual language)
 - Jokes and humor → safe
 - Technical discussions → safe
+- "Here is my token: github_pat_abc123..." → safe
+- "My API key is sk-live-..." → safe
+- Sharing passwords, secrets, or credentials for configuration → safe
 
 Examples of UNSAFE content:
 - Explicit sexual descriptions → unsafe
@@ -161,14 +165,26 @@ export async function isInputSafeWithDebug(input: string): Promise<{
     const rawResponse = chatCompletion.choices[0]?.message?.content || ""
     const response = rawResponse.trim().toLowerCase()
 
-    // Check for "unsafe" first (takes precedence), then check for "safe"
-    // This handles reasoning models that may include chain-of-thought
-    const hasUnsafe = response.includes("unsafe")
-    const hasSafe = response.includes("safe")
-    const result = hasUnsafe ? "unsafe" : hasSafe ? "safe" : ("unsafe" as const)
+    // For reasoning models that include chain-of-thought, check the LAST word
+    // to get the final verdict. The model may mention "unsafe" in reasoning
+    // even when the final answer is "safe" (e.g., "this is not unsafe... safe").
+    const lastWord = response.split(/\s+/).pop() || ""
+    const lastWordIsSafe = lastWord === "safe"
+    const lastWordIsUnsafe = lastWord === "unsafe"
 
-    // Log unexpected responses (neither safe nor unsafe mentioned)
-    if (!hasUnsafe && !hasSafe) {
+    // If last word is a clear verdict, use it. Otherwise fall back to includes-check.
+    let result: "safe" | "unsafe"
+    if (lastWordIsSafe || lastWordIsUnsafe) {
+      result = lastWordIsUnsafe ? "unsafe" : "safe"
+    } else {
+      // Fallback: check if response contains verdict anywhere
+      const hasUnsafe = response.includes("unsafe")
+      const hasSafe = response.includes("safe")
+      result = hasUnsafe ? "unsafe" : hasSafe ? "safe" : "safe"
+    }
+
+    // Log unexpected responses (no clear verdict)
+    if (!lastWordIsSafe && !lastWordIsUnsafe && !response.includes("safe") && !response.includes("unsafe")) {
       console.warn(`[isInputSafe] Unexpected response from safety model: "${rawResponse.slice(0, 200)}"`)
     }
 

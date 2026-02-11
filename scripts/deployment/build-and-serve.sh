@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Build and Deploy Claude Bridge
+# Build and Deploy Alive
 # =============================================================================
 # Usage: ./build-and-serve.sh <staging|production>
 #
@@ -227,7 +227,7 @@ if [ -n "$PROMOTE_FROM" ]; then
     log_step "Promoted: $NEW_BUILD ($PROMOTED_CHUNK_COUNT chunks verified)"
     phase_end ok "Build promoted"
 else
-    BUILD_LOG="/tmp/claude-bridge-build-${ENV}.log"
+    BUILD_LOG="/tmp/alive-build-${ENV}.log"
     set +e
     "$SCRIPT_DIR/build-atomic.sh" "$ENV" 2>&1 | tee "$BUILD_LOG"
     BUILD_EXIT=${PIPESTATUS[0]}
@@ -260,6 +260,13 @@ if [ -d "$SKILLS_SRC" ]; then
     log_step "$(find "$SKILLS_DST" -maxdepth 1 -type d | wc -l) skills synced"
 fi
 phase_end ok "Skills synced"
+
+# =============================================================================
+# Build & Deploy Go Preview Proxy (if configured)
+# =============================================================================
+if [ -f "$SCRIPT_DIR/deploy-preview-proxy.sh" ]; then
+    "$SCRIPT_DIR/deploy-preview-proxy.sh" || log_warn "Preview proxy deploy skipped"
+fi
 
 # =============================================================================
 # Deploy & Health Check

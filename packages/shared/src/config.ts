@@ -45,6 +45,8 @@ interface ServerConfigFile {
   // NOTE: urls section removed - URLs are now derived from domains.main
   // Pattern: app.{main} (prod), staging.{main} (staging), dev.{main} (dev)
   serverIp?: string
+  /** Per-server template source path overrides. Maps template_id → local path. */
+  templates?: Record<string, string>
 }
 
 // Check if we're in a browser environment
@@ -126,32 +128,33 @@ const serverConfig = loadServerConfig()
 // Required config helpers (STRICT)
 // =============================================================================
 
-// Config was loaded - if values exist, use them. If not, return empty (browser/CI without config)
-function requireConfig(envKey: string, serverConfigValue: string | undefined, _description: string): string {
+// Config was loaded - if values exist, use them. If not, return empty (browser/CI without config).
+// Server environments with serverId get validated by the startup block below.
+function configValue(envKey: string, serverConfigValue: string | undefined): string {
   // Env var takes precedence
   if (!isBrowser && typeof process !== "undefined" && process.env[envKey]) {
     return process.env[envKey]!
   }
-  return serverConfigValue || ""
+  return serverConfigValue ?? ""
 }
 
-function requirePath(serverConfigValue: string | undefined, _description: string): string {
-  return serverConfigValue || ""
+function pathValue(serverConfigValue: string | undefined): string {
+  return serverConfigValue ?? ""
 }
 
-const ALIVE_ROOT = requirePath(serverConfig.paths?.aliveRoot, "paths.aliveRoot")
-const SITES_ROOT = requirePath(serverConfig.paths?.sitesRoot, "paths.sitesRoot")
-const IMAGES_STORAGE = requirePath(serverConfig.paths?.imagesStorage, "paths.imagesStorage")
+const ALIVE_ROOT = pathValue(serverConfig.paths?.aliveRoot)
+const SITES_ROOT = pathValue(serverConfig.paths?.sitesRoot)
+const IMAGES_STORAGE = pathValue(serverConfig.paths?.imagesStorage)
 
 // Domain config from environment (REQUIRED - fails fast if missing)
 // NOTE: These are SERVER-ONLY. For client-side code, use apps/web/lib/config.client.ts
-const MAIN_DOMAIN = requireConfig("MAIN_DOMAIN", serverConfig.domains?.main, "Main domain")
-const WILDCARD_DOMAIN = requireConfig("WILDCARD_DOMAIN", serverConfig.domains?.wildcard, "Wildcard domain")
-const PREVIEW_BASE = requireConfig("PREVIEW_BASE", serverConfig.domains?.previewBase, "Preview base domain")
-const COOKIE_DOMAIN = requireConfig("COOKIE_DOMAIN", serverConfig.domains?.cookieDomain, "Cookie domain")
+const MAIN_DOMAIN = configValue("MAIN_DOMAIN", serverConfig.domains?.main)
+const WILDCARD_DOMAIN = configValue("WILDCARD_DOMAIN", serverConfig.domains?.wildcard)
+const PREVIEW_BASE = configValue("PREVIEW_BASE", serverConfig.domains?.previewBase)
+const COOKIE_DOMAIN = configValue("COOKIE_DOMAIN", serverConfig.domains?.cookieDomain)
 
 // Server IP: from env var or server config (REQUIRED)
-const SERVER_IP = requireConfig("SERVER_IP", serverConfig.serverIp, "Server IP")
+const SERVER_IP = configValue("SERVER_IP", serverConfig.serverIp)
 
 // =============================================================================
 // Startup Validation (server-only, after config load)
@@ -202,20 +205,17 @@ export const PATHS = {
   /** Site controller deployment scripts directory */
   SCRIPTS_DIR: `${ALIVE_ROOT}/packages/site-controller/scripts`,
 
-  /** Domain password registry (derived from SERVER_CONFIG_PATH dir) */
-  REGISTRY_PATH: CONFIG_PATH ? `${CONFIG_PATH.replace(/\/[^/]+$/, "")}/domain-passwords.json` : "",
-
   /** Server config path (from SERVER_CONFIG_PATH env var) */
   SERVER_CONFIG: CONFIG_PATH,
 
-  /** Generated routing files directory (from server-config.json) */
-  GENERATED_DIR: serverConfig.generated?.dir || "",
+  /** Generated routing files directory (from server-config.json, optional) */
+  GENERATED_DIR: serverConfig.generated?.dir ?? "",
 
   /** Caddyfile location for reverse proxy configuration (legacy - now generated) */
   CADDYFILE_PATH: `${ALIVE_ROOT}/ops/caddy/Caddyfile`,
 
-  /** Generated Caddyfile for sites (from server-config.json) */
-  CADDYFILE_SITES: serverConfig.generated?.caddySites || "",
+  /** Generated Caddyfile for sites (from server-config.json, optional) */
+  CADDYFILE_SITES: serverConfig.generated?.caddySites ?? "",
 
   /** Systemd service environment files */
   SYSTEMD_ENV_DIR: "/etc/sites",
@@ -236,21 +236,9 @@ export const PATHS = {
 
 // Stream URLs - derived from MAIN_DOMAIN (pattern: {subdomain}.{MAIN_DOMAIN})
 // Can be overridden via env vars for special cases
-const STREAM_PROD_URL = requireConfig(
-  "STREAM_PROD_URL",
-  MAIN_DOMAIN ? `https://app.${MAIN_DOMAIN}` : undefined,
-  "Production stream URL",
-)
-const STREAM_STAGING_URL = requireConfig(
-  "STREAM_STAGING_URL",
-  MAIN_DOMAIN ? `https://staging.${MAIN_DOMAIN}` : undefined,
-  "Staging stream URL",
-)
-const STREAM_DEV_URL = requireConfig(
-  "STREAM_DEV_URL",
-  MAIN_DOMAIN ? `https://dev.${MAIN_DOMAIN}` : undefined,
-  "Dev stream URL",
-)
+const STREAM_PROD_URL = configValue("STREAM_PROD_URL", MAIN_DOMAIN ? `https://app.${MAIN_DOMAIN}` : undefined)
+const STREAM_STAGING_URL = configValue("STREAM_STAGING_URL", MAIN_DOMAIN ? `https://staging.${MAIN_DOMAIN}` : undefined)
+const STREAM_DEV_URL = configValue("STREAM_DEV_URL", MAIN_DOMAIN ? `https://dev.${MAIN_DOMAIN}` : undefined)
 
 // Extract hostnames from URLs using URL API
 const extractHost = (url: string): string => {
@@ -292,7 +280,14 @@ export const DOMAINS = {
   /** Dev domain suffix */
   DEV_SUFFIX: `.dev.${MAIN_DOMAIN}`,
 
-  /** Preview subdomain base (e.g., workspace-label.preview.sonno.tech) */
+  /**
+   * Preview subdomain prefix. Preview URLs use single-level subdomains:
+   * preview--{label}.{WILDCARD_DOMAIN} (e.g., preview--protino-sonno-tech.sonno.tech)
+   * Single-level keeps them under *.WILDCARD which Cloudflare Universal SSL covers.
+   */
+  PREVIEW_PREFIX: "preview--",
+
+  /** Preview subdomain base (kept for backwards compatibility, equals WILDCARD) */
   PREVIEW_BASE,
 
   /** Authentication forward endpoint for previews (uses dev server URL) */
@@ -496,11 +491,11 @@ export type BridgeEnv = StreamEnv
 
 /**
  * Standalone mode configuration
- * For running Claude Bridge locally without external dependencies
+ * For running Alive locally without external dependencies
  */
 export const STANDALONE = {
   /** Default workspace directory relative to home */
-  DEFAULT_WORKSPACE_DIR: ".claude-bridge/workspaces",
+  DEFAULT_WORKSPACE_DIR: ".alive/workspaces",
   /** Test user for auto-login in standalone mode */
   TEST_USER: {
     EMAIL: "local@standalone",
@@ -544,11 +539,46 @@ export function getEnvFilePath(slug: string): string {
 }
 
 /**
+ * Minimum requirements for a valid server ID:
+ * - starts with "srv_"
+ * - at least 10 characters total
+ * This catches placeholder / garbage values early.
+ */
+const SERVER_ID_RE = /^srv_.{6,}$/
+
+/**
  * Get the current server ID (from server-config.json)
  * Returns undefined if not configured
  */
 export function getServerId(): string | undefined {
   return serverConfig.serverId
+}
+
+/**
+ * Validate that the server ID looks legitimate (not a placeholder).
+ * Throws a descriptive error if the value is missing or malformed.
+ */
+export function assertValidServerId(serverId: string | undefined): asserts serverId is string {
+  if (!serverId) {
+    throw new Error("serverId is not configured in server-config.json (via SERVER_CONFIG_PATH)")
+  }
+  if (!SERVER_ID_RE.test(serverId)) {
+    throw new Error(
+      `serverId "${serverId}" looks invalid (must match srv_<6+ chars>). ` +
+        "Check server-config.json referenced by SERVER_CONFIG_PATH.",
+    )
+  }
+}
+
+/**
+ * Get local template source path override for a given template ID.
+ * Returns the local path if configured in server-config.json, otherwise undefined.
+ *
+ * This allows each server to override the DB's source_path with a local path,
+ * since template files live at different locations on different servers.
+ */
+export function getLocalTemplatePath(templateId: string): string | undefined {
+  return serverConfig.templates?.[templateId]
 }
 
 // =============================================================================
@@ -585,6 +615,11 @@ export function validateConfig(): ConfigValidationResult {
   // SERVER_ID is recommended for multi-server deployments
   if (!serverConfig.serverId) {
     warnings.push("SERVER_ID is not configured. Set serverId in server-config.json (via SERVER_CONFIG_PATH env var)")
+  } else if (!SERVER_ID_RE.test(serverConfig.serverId)) {
+    errors.push(
+      `serverId "${serverConfig.serverId}" looks invalid (must match srv_<6+ chars>). ` +
+        "Check server-config.json referenced by SERVER_CONFIG_PATH.",
+    )
   }
 
   return {

@@ -1,18 +1,18 @@
-import { getEnabledMcpToolNames, toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
 import {
+  getGlobalMcpToolNames,
+  getStreamAllowedTools,
+  getStreamDisallowedTools,
+  getStreamMcpServers,
+  OAUTH_MCP_PROVIDERS,
   // Single source of truth for Stream tool configuration
   STREAM_ALLOWED_SDK_TOOLS,
   STREAM_INTERRUPT_SOURCES,
   STREAM_PERMISSION_MODE,
   STREAM_SETTINGS_SOURCES,
-  STREAM_TYPES,
   STREAM_SYNTHETIC_MESSAGE_TYPES,
-  getStreamAllowedTools,
-  getStreamDisallowedTools,
-  getStreamMcpServers,
-  getGlobalMcpToolNames,
-  OAUTH_MCP_PROVIDERS,
+  STREAM_TYPES,
 } from "@webalive/shared"
+import { getEnabledMcpToolNames, toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
 
 // Re-export stream types
 export { STREAM_TYPES, STREAM_SYNTHETIC_MESSAGE_TYPES, STREAM_INTERRUPT_SOURCES }
@@ -33,10 +33,11 @@ export const ALLOWED_MCP_TOOLS = [...BASE_MCP_TOOLS, ...GLOBAL_MCP_TOOLS]
  * @param {string} _workspacePath - Path to workspace (unused, kept for backwards compat)
  * @param {boolean} [isAdmin=false] - Whether the user is an admin (enables Bash tools)
  * @param {boolean} [isSuperadmin=false] - Whether the user is a superadmin (enables ALL tools)
+ * @param {boolean} [isSuperadminWorkspace=false] - Whether this is the "alive" workspace (excludes site-specific tools)
  * @returns {string[]} Base allowed tools list
  */
-export function getAllowedTools(_workspacePath, isAdmin = false, isSuperadmin = false) {
-  return getStreamAllowedTools(getEnabledMcpToolNames, isAdmin, isSuperadmin)
+export function getAllowedTools(_workspacePath, isAdmin = false, isSuperadmin = false, isSuperadminWorkspace = false) {
+  return getStreamAllowedTools(getEnabledMcpToolNames, isAdmin, isSuperadmin, isSuperadminWorkspace)
 }
 
 /**

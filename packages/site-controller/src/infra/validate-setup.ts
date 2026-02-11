@@ -1,5 +1,5 @@
 /**
- * Validate server setup for Claude Bridge
+ * Validate server setup for Alive
  *
  * Checks all prerequisites before running the platform:
  * - Server config file exists and is valid
@@ -10,8 +10,8 @@
  * Usage: bun run setup:validate
  */
 
-import { readFile, access, mkdir } from "node:fs/promises"
 import { constants } from "node:fs"
+import { access, mkdir, readFile } from "node:fs/promises"
 import { createClient } from "@supabase/supabase-js"
 import { requireEnv } from "@webalive/shared"
 
@@ -73,7 +73,7 @@ const COLORS = {
 // =============================================================================
 
 function print(msg: string) {
-  process.stdout.write(msg + "\n")
+  process.stdout.write(`${msg}\n`)
 }
 
 function printResult(result: CheckResult) {
@@ -195,7 +195,7 @@ async function checkDirectory(name: string, path: string | undefined, create = f
         status: "pass",
         message: `${path} (created)`,
       }
-    } catch (e) {
+    } catch (_e) {
       return {
         name: `Directory: ${name}`,
         status: "fail",
@@ -220,14 +220,14 @@ function checkEnvVar(name: string, envVar: string, required: boolean): CheckResu
     // Mask sensitive values
     const masked = value.length > 8 ? `${value.slice(0, 4)}...${value.slice(-4)}` : "****"
     return {
-      name: `Env: ${envVar}`,
+      name: `Env: ${name}`,
       status: "pass",
       message: masked,
     }
   }
 
   return {
-    name: `Env: ${envVar}`,
+    name: `Env: ${name}`,
     status: required ? "fail" : "warn",
     message: "Not set",
     fix: `export ${envVar}=<value> or add to .env file`,
@@ -407,19 +407,18 @@ async function checkSnippetsExist(aliveRoot: string | undefined): Promise<CheckR
 async function main() {
   print("")
   print(`${COLORS.blue}╔══════════════════════════════════════════════════════════════╗${COLORS.reset}`)
-  print(`${COLORS.blue}║          Claude Bridge - Server Setup Validation             ║${COLORS.reset}`)
+  print(`${COLORS.blue}║          Alive - Server Setup Validation                      ║${COLORS.reset}`)
   print(`${COLORS.blue}╚══════════════════════════════════════════════════════════════╝${COLORS.reset}`)
   print("")
 
   const results: CheckResult[] = []
-  let config: ServerConfig | undefined
 
   // 1. Check server config
   print(`${COLORS.dim}[1/6] Checking server configuration...${COLORS.reset}`)
   const configCheck = await checkServerConfig()
   results.push(configCheck.result)
   printResult(configCheck.result)
-  config = configCheck.config
+  const config = configCheck.config
   print("")
 
   // 2. Check directories
@@ -495,7 +494,7 @@ async function main() {
     print("")
     process.exit(0)
   } else {
-    print(`${COLORS.green}Setup complete! Ready to run Claude Bridge.${COLORS.reset}`)
+    print(`${COLORS.green}Setup complete! Ready to run Alive.${COLORS.reset}`)
     print("")
     print("Next steps:")
     print("  1. Generate routing: bun run --cwd packages/site-controller routing:generate")

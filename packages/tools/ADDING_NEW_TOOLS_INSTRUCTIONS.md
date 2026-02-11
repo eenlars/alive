@@ -1,6 +1,6 @@
 # Adding New Tools to @webalive/tools
 
-This package contains custom MCP tools that extend Claude's capabilities in the Claude Bridge application. Tools are organized by category: `guides/`, `debug/`, and `workspace/`.
+This package contains custom MCP tools that extend Claude's capabilities in the Alive application. Tools are organized by category: `guides/`, `debug/`, and `workspace/`.
 
 ## Architecture Overview
 

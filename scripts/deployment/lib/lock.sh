@@ -13,7 +13,7 @@
 # Lock file format: PID|TIMESTAMP|TARGET|PHASE
 # =============================================================================
 
-LOCK_FILE="/tmp/claude-bridge-deploy.lock"
+LOCK_FILE="/tmp/alive-deploy.lock"
 
 # Colors (if not already defined)
 : "${RED:=\033[0;31m}"

@@ -27,7 +27,7 @@ make rollback                     # Interactive rollback to previous build
 
 ### Site Deployment
 
-For deploying individual websites (not the Claude Bridge):
+For deploying individual websites (not the Alive):
 ```bash
 bun run deploy-site <domain.com>  # Deploy a website to the infrastructure
 ```
@@ -146,9 +146,9 @@ journalctl -u alive-dev -f
 systemctl status alive-staging
 journalctl -u alive-staging -f
 
-# Production (port 8999)
-systemctl status alive
-journalctl -u alive -f
+# Production (port 9000)
+systemctl status alive-production
+journalctl -u alive-production -f
 ```
 
 All services are managed by systemd.

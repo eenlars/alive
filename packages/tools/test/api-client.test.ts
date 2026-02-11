@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { COOKIE_NAMES } from "@webalive/shared"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 /**
  * BRIDGE API CLIENT SECRET HEADER TESTS

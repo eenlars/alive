@@ -28,17 +28,31 @@ vi.mock("@/lib/domains", () => ({
 }))
 
 // Mock preview-utils
+// Single-level pattern: preview--{label}.{WILDCARD_DOMAIN}
+// e.g., "preview--test-workspace.test.local" → "test.workspace"
+const TEST_WILDCARD_DOMAIN = "test.local"
 vi.mock("@/lib/preview-utils", () => ({
-  previewLabelToDomain: vi.fn((label: string) => label.replace(/-/g, ".")),
+  extractWorkspaceFromPreviewHost: vi.fn((host: string) => {
+    const prefix = "preview--"
+    const suffix = `.${TEST_WILDCARD_DOMAIN}`
+    if (!host.startsWith(prefix)) return null
+    const rest = host.slice(prefix.length)
+    if (!rest.endsWith(suffix)) return null
+    const label = rest.slice(0, -suffix.length)
+    if (!label) return null
+    return label.replace(/-/g, ".")
+  }),
 }))
 
 // Mock @webalive/shared
-// Only mock the exports actually used by this route (DOMAINS.PREVIEW_BASE, PREVIEW_MESSAGES)
+// Only mock the exports actually used by this route (DOMAINS, PREVIEW_MESSAGES)
 // Use a generic test domain to keep tests server-agnostic
-const TEST_PREVIEW_BASE = "preview.test.local"
 vi.mock("@webalive/shared", () => ({
   DOMAINS: {
-    PREVIEW_BASE: TEST_PREVIEW_BASE,
+    PREVIEW_PREFIX: "preview--",
+    STREAM_DEV: "https://dev.test.local",
+    STREAM_PROD: "https://app.test.local",
+    STREAM_STAGING: "https://staging.test.local",
   },
   PREVIEW_MESSAGES: {
     NAVIGATION_START: "preview-navigation-start",
@@ -94,7 +108,7 @@ describe("Preview Router", () => {
     it("should require session (401 without user)", async () => {
       vi.mocked(getSessionUser).mockResolvedValue(null)
 
-      const req = createMockRequest("test-workspace.preview.test.local")
+      const req = createMockRequest("preview--test-workspace.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -107,7 +121,7 @@ describe("Preview Router", () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("test-workspace.preview.test.local")
+      const req = createMockRequest("preview--test-workspace.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -122,7 +136,7 @@ describe("Preview Router", () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("other-tenant.preview.test.local")
+      const req = createMockRequest("preview--other-tenant.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -136,7 +150,7 @@ describe("Preview Router", () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("my-cool-site.preview.test.local")
+      const req = createMockRequest("preview--my-cool-site.test.local")
       await GET(req)
 
       expect(isWorkspaceAuthenticated).toHaveBeenCalledWith("my.cool.site")
@@ -157,7 +171,7 @@ describe("Preview Router", () => {
       // @ts-expect-error - Mock fetch doesn't need full type compliance
       global.fetch = mockFetch
 
-      const req = createMockRequest("my-workspace.preview.test.local")
+      const req = createMockRequest("preview--my-workspace.test.local")
       const response = await GET(req)
 
       expect(response.status).toBe(200)
@@ -179,7 +193,7 @@ describe("Preview Router", () => {
       // User A tries to access User B's workspace
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("user-b-site.preview.test.local")
+      const req = createMockRequest("preview--user-b-site.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -203,7 +217,7 @@ describe("Preview Router", () => {
     it("should return 400 for empty preview label", async () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
 
-      const req = createMockRequest(".preview.test.local")
+      const req = createMockRequest("preview--.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -218,7 +232,7 @@ describe("Preview Router", () => {
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(true)
       vi.mocked(getDomainPort).mockResolvedValue(null)
 
-      const req = createMockRequest("unconfigured-site.preview.test.local")
+      const req = createMockRequest("preview--unconfigured-site.test.local")
       const response = await GET(req)
       const data = await response.json()
 
@@ -240,7 +254,7 @@ describe("Preview Router", () => {
       vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
       vi.mocked(isWorkspaceAuthenticated).mockResolvedValue(false)
 
-      const req = createMockRequest("test-site.preview.test.local", method)
+      const req = createMockRequest("preview--test-site.test.local", method)
       const response = await handler(req)
       const data = await response.json()
 

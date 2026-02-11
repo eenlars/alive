@@ -1,14 +1,9 @@
-import { describe, it, expect } from "vitest"
-import { PATHS, DEFAULTS } from "../src/config"
+import { describe, expect, it } from "vitest"
+import { DEFAULTS, PATHS } from "../src/config"
 
 describe("Configuration Constants", () => {
   it("should have valid site root path", () => {
     expect(PATHS.SITES_ROOT).toMatch(/^\//)
-  })
-
-  it("should have valid registry path", () => {
-    expect(PATHS.REGISTRY_PATH).toMatch(/\.json$/)
-    expect(PATHS.REGISTRY_PATH).toContain("domain-passwords")
   })
 
   it("should have valid Caddyfile path", () => {

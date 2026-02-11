@@ -7,7 +7,6 @@ import {
   fetchCaddySources,
   fetchDnsSources,
   fetchFilesystemSources,
-  fetchJsonSources,
   fetchSupabaseSources,
   fetchSystemdSources,
 } from "@/lib/manager/source-fetchers"
@@ -20,7 +19,6 @@ import type { SourceData } from "@/types/sources"
 const SOURCE_FETCHERS = [
   { name: "supabase", fetcher: fetchSupabaseSources },
   { name: "caddy", fetcher: fetchCaddySources },
-  { name: "json", fetcher: fetchJsonSources },
   { name: "filesystem", fetcher: fetchFilesystemSources },
   { name: "systemd", fetcher: fetchSystemdSources },
 ] as const

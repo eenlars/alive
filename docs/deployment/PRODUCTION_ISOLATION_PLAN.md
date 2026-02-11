@@ -35,7 +35,7 @@
 - [ ] **Systemd service file exists:** `test -f /etc/systemd/system/alive-prod.service`
 - [ ] **Service is enabled:** `systemctl is-enabled alive-prod` returns `enabled`
 - [ ] **Service is active:** `systemctl is-active alive-prod` returns `active`
-- [ ] **Service responds to HTTP:** `curl -f http://localhost:8999/ >/dev/null 2>&1` exits with 0
+- [ ] **Service responds to HTTP:** `curl -f http://localhost:9000/ >/dev/null 2>&1` exits with 0
 - [ ] **Service restarts on failure:** Kill process, verify auto-restart within 10s
   ```bash
   PID_BEFORE=$(systemctl show -p MainPID --value alive-prod)
@@ -95,7 +95,7 @@ echo "OK"
 
 # Check 7: HTTP health
 echo -n "✓ Checking HTTP health... "
-curl -sf http://localhost:8999/ >/dev/null
+curl -sf http://localhost:9000/ >/dev/null
 echo "OK"
 
 # Check 8: Auto-restart test
@@ -140,7 +140,7 @@ fi
 echo -n "✓ Checking PM2 independence... "
 sudo pm2 kill >/dev/null 2>&1 || true
 sleep 2
-curl -sf http://localhost:8999/ >/dev/null
+curl -sf http://localhost:9000/ >/dev/null
 echo "OK"
 
 echo ""
@@ -196,9 +196,9 @@ echo "Safe to proceed to Phase 2"
 - [ ] **Staging deployment does NOT reload production:**
   ```bash
   # Test: Deploy staging, check production Caddy wasn't reloaded
-  PROD_CADDY_PID_BEFORE=$(pgrep -f "caddy.*8999" || echo "none")
+  PROD_CADDY_PID_BEFORE=$(pgrep -f "caddy.*9000" || echo "none")
   make staging
-  PROD_CADDY_PID_AFTER=$(pgrep -f "caddy.*8999" || echo "none")
+  PROD_CADDY_PID_AFTER=$(pgrep -f "caddy.*9000" || echo "none")
   # PIDs should be same (no reload) OR verify via Caddy logs
   ```
 - [ ] **Health check timer exists:** `test -f /etc/systemd/system/alive-prod-healthcheck.timer`
@@ -350,7 +350,7 @@ echo "Safe to proceed to Phase 3"
 - [ ] **Staging build doesn't affect production:**
   ```bash
   # Start load test on production
-  ab -n 10000 -c 10 http://localhost:8999/ &
+  ab -n 10000 -c 10 http://localhost:9000/ &
   LOAD_PID=$!
 
   # Run staging build
@@ -363,7 +363,7 @@ echo "Safe to proceed to Phase 3"
 - [ ] **Staging tests don't affect production:**
   ```bash
   # Monitor production
-  curl -sf http://localhost:8999/ &
+  curl -sf http://localhost:9000/ &
   HEALTH_PID=$!
 
   # Run staging tests (including E2E with browser)
@@ -437,7 +437,7 @@ echo "OK"
 # Check 4: Production isolation during staging build
 echo -n "✓ Testing isolation during staging build... "
 # Baseline production response time
-BASELINE=$(curl -w "%{time_total}\n" -o /dev/null -s http://localhost:8999/)
+BASELINE=$(curl -w "%{time_total}\n" -o /dev/null -s http://localhost:9000/)
 
 # Run staging build
 make staging >/dev/null 2>&1 &
@@ -445,7 +445,7 @@ BUILD_PID=$!
 
 # Check production still responsive
 sleep 5
-DURING_BUILD=$(curl -w "%{time_total}\n" -o /dev/null -s http://localhost:8999/)
+DURING_BUILD=$(curl -w "%{time_total}\n" -o /dev/null -s http://localhost:9000/)
 
 wait $BUILD_PID
 
@@ -459,7 +459,7 @@ echo "OK (baseline: ${BASELINE}s, during: ${DURING_BUILD}s)"
 
 # Check 5: Zero production restarts in 14 days
 echo -n "✓ Checking production stability (14d)... "
-RESTARTS=$(journalctl -u alive-prod --since "14 days ago" | grep -c "Started Claude Bridge Production" || echo 0)
+RESTARTS=$(journalctl -u alive-prod --since "14 days ago" | grep -c "Started Alive Production" || echo 0)
 if [ $RESTARTS -gt 1 ]; then
     echo "FAIL: $RESTARTS restarts in 14 days"
     exit 1
@@ -514,7 +514,7 @@ All three phases must be complete AND the following must be true:
 
 1. **Complete staging rebuild while production serves traffic:**
    ```bash
-   ab -n 50000 -c 20 http://localhost:8999/ &
+   ab -n 50000 -c 20 http://localhost:9000/ &
    make staging
    # Result: 0% error rate, P95 latency increase <10%
    ```
@@ -522,7 +522,7 @@ All three phases must be complete AND the following must be true:
 2. **Kill PM2 daemon:**
    ```bash
    pm2 kill
-   curl -sf http://localhost:8999/  # Should still work
+   curl -sf http://localhost:9000/  # Should still work
    ```
 
 3. **Run full E2E test suite:**
@@ -537,7 +537,7 @@ All three phases must be complete AND the following must be true:
    pm2 kill
    pkill -9 -f "next"
    # Production should continue serving
-   curl -sf http://localhost:8999/
+   curl -sf http://localhost:9000/
    ```
 
 5. **Update staging dependencies:**
@@ -554,7 +554,7 @@ All three phases must be complete AND the following must be true:
 6. **Chaos test:**
    ```bash
    # Production under load
-   ab -n 100000 -c 50 http://localhost:8999/ &
+   ab -n 100000 -c 50 http://localhost:9000/ &
 
    # Simultaneously:
    make staging &

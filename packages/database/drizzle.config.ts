@@ -7,7 +7,7 @@ export default {
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
-  // Include all schemas used by Claude Bridge
+  // Include all schemas used by Alive
   schemaFilter: ["iam", "app", "integrations", "lockbox", "public"],
   verbose: true,
   strict: true,

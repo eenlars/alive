@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
 import {
-  listTemplates,
-  getTemplate,
   createTemplate,
+  getTemplate,
+  listTemplates,
   type TemplateListItem,
   type ValidationError,
 } from "../../api/templates"

@@ -160,7 +160,6 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
-domain-passwords.json
 feedback.json
 
 # Cryptographic keys (NEVER COMMIT)
@@ -181,9 +180,8 @@ apps/shell-server/.env*
 
 # Generated routing files (created by routing:generate script)
 # These are server-specific and should not be committed
-# Location: /var/lib/claude-bridge/generated/
+# Location: /var/lib/alive/generated/
 .uploads/
-domain-passwords.json.lock
 
 # Live Caddy configurations (contain customer domains)
 # Keep example files, ignore production configs
@@ -196,8 +194,9 @@ ops/caddy/Caddyfile.shell
 !ops/caddy/Caddyfile.snippets
 !ops/caddy/etc/
 
-# Agent memory database (development context)
-use_this_to_remember.db
+
+# Caddy runtime data (PKI, certs - server-specific)
+caddy/
 
 # Operations infrastructure (ops-only, never distribute)
 # These are server management scripts, not part of the npm package

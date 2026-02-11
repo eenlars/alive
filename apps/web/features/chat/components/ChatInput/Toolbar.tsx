@@ -11,8 +11,8 @@ import { useTabMessages } from "@/lib/db/useTabMessages"
 import { useAllSkills, useSkillsLoading } from "@/lib/providers/SkillsStoreProvider"
 import { useSandbox, useSandboxMinimized } from "@/lib/stores/debug-store"
 import { usePlanMode, usePlanModeActions } from "@/lib/stores/planModeStore"
-import { useChatInput } from "./ChatInputContext"
 import type { Skill } from "@/lib/stores/skillsStore"
+import { useChatInput } from "./ChatInputContext"
 
 interface ToolbarProps {
   fileInputRef: RefObject<HTMLInputElement | null>

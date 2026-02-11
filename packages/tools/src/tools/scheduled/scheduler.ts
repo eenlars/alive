@@ -5,8 +5,8 @@
  * Runs as a singleton in the server process.
  */
 
-import type { ScheduledJob, JobExecutionResult, Payload } from "./types.js"
-import { getDueJobs, markJobRunning, markJobCompleted } from "./store.js"
+import { getDueJobs, markJobCompleted, markJobRunning } from "./store.js"
+import type { JobExecutionResult, Payload, ScheduledJob } from "./types.js"
 
 // Scheduler configuration
 const CHECK_INTERVAL_MS = 30 * 1000 // Check every 30 seconds

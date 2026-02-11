@@ -1,64 +1,40 @@
 import { existsSync } from "node:fs"
-import { PATHS } from "@webalive/shared"
+import { COOKIE_NAMES, PATHS } from "@webalive/shared"
+import { DeploymentError } from "@webalive/site-controller"
+import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
-import { getSessionUser } from "@/features/auth/lib/auth"
+import { AuthenticationError, requireSessionUser } from "@/features/auth/lib/auth"
+import { createSessionToken, verifySessionToken } from "@/features/auth/lib/jwt"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { buildSubdomain } from "@/lib/config"
-import { deploySite } from "@/lib/deployment/deploy-site"
-import { DomainRegistrationError, registerDomain } from "@/lib/deployment/domain-registry"
+import { runStrictDeployment } from "@/lib/deployment/deploy-pipeline"
+import { DomainRegistrationError } from "@/lib/deployment/domain-registry"
 import { validateUserOrgAccess } from "@/lib/deployment/org-resolver"
 import { validateSSLCertificate } from "@/lib/deployment/ssl-validation"
 import { incrementTemplateDeployCount } from "@/lib/deployment/template-stats"
 import { validateTemplateFromDb } from "@/lib/deployment/template-validation"
-import { getUserQuota, getUserQuotaByEmail } from "@/lib/deployment/user-quotas"
+import { getUserQuota } from "@/lib/deployment/user-quotas"
 import { ErrorCodes } from "@/lib/error-codes"
 import { errorLogger } from "@/lib/error-logger"
 import { siteMetadataStore } from "@/lib/siteMetadataStore"
-import { loadDomainPasswords } from "@/types/guards/api"
-
-function getPortFromRegistry(domain: string): number | null {
-  try {
-    const registry = loadDomainPasswords()
-    const entry = registry[domain]
-    return entry?.port ?? null
-  } catch {
-    return null
-  }
-}
+import { QUERY_KEYS } from "@/lib/url/queryState"
 
 export async function POST(request: NextRequest) {
   try {
-    // Get user if authenticated (optional - allows anonymous deployments)
-    const sessionUser = await getSessionUser()
+    // Authenticated deployments only
+    const sessionUser = await requireSessionUser()
 
     // Parse and validate request body via typed schema
     const parsed = await handleBody("deploy-subdomain", request)
     if (isHandleBodyError(parsed)) return parsed
 
-    const { slug, siteIdeas, templateId, orgId, email, password } = parsed
-
-    // For anonymous users, require authentication (email/password)
-    if (!sessionUser && (!email || !password)) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
-        status: 401,
-        details: { message: "Authentication required. Please provide email and password to create an account." },
-      })
-    }
-
-    // Ensure email is always a string (authenticated users get it from session, anonymous users must provide it)
-    const deploymentEmail = sessionUser?.email || email
-    if (!deploymentEmail) {
-      // This should be caught earlier, but TypeScript needs the check
-      return structuredErrorResponse(ErrorCodes.VALIDATION_ERROR, {
-        status: 400,
-        details: { message: "Email is required for deployment" },
-      })
-    }
+    const { slug, siteIdeas, templateId, orgId } = parsed
+    const deploymentEmail = sessionUser.email
 
     // Validate user has access to specified organization (if provided)
     // If no orgId provided, a default org will be created for the user
-    if (sessionUser && orgId) {
+    if (orgId) {
       const hasAccess = await validateUserOrgAccess(sessionUser.id, orgId)
 
       if (!hasAccess) {
@@ -70,22 +46,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check site creation limit
-    if (sessionUser) {
-      const quota = await getUserQuota(sessionUser.id)
-      if (!quota.canCreateSite) {
-        return structuredErrorResponse(ErrorCodes.SITE_LIMIT_EXCEEDED, {
-          status: 403,
-          details: { limit: quota.maxSites, currentCount: quota.currentSites },
-        })
-      }
-    } else if (email) {
-      const quota = await getUserQuotaByEmail(email)
-      if (quota && !quota.canCreateSite) {
-        return structuredErrorResponse(ErrorCodes.SITE_LIMIT_EXCEEDED, {
-          status: 403,
-          details: { limit: quota.maxSites, currentCount: quota.currentSites },
-        })
-      }
+    const quota = await getUserQuota(sessionUser.id)
+    if (!quota.canCreateSite) {
+      return structuredErrorResponse(ErrorCodes.SITE_LIMIT_EXCEEDED, {
+        status: 403,
+        details: { limit: quota.maxSites, currentCount: quota.currentSites },
+      })
     }
 
     // Build full domain from slug
@@ -126,48 +92,13 @@ export async function POST(request: NextRequest) {
     }
     const template = templateValidation.template
 
-    // Execute deployment (systemd + Caddy setup + port assignment)
-    await deploySite({
+    // Execute strict deployment pipeline (deploy -> register -> caddy -> verify)
+    await runStrictDeployment({
       domain: fullDomain,
       email: deploymentEmail,
-      password: sessionUser ? undefined : password,
       orgId,
       templatePath: template.source_path,
     })
-
-    // Read the port that was assigned by the bash script
-    const port = getPortFromRegistry(fullDomain)
-
-    if (!port) {
-      return structuredErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, {
-        status: 500,
-        details: {
-          message: "Deployment succeeded but port assignment could not be verified. Please contact support.",
-        },
-      })
-    }
-
-    // Register domain in Supabase
-    try {
-      await registerDomain({
-        hostname: fullDomain,
-        email: deploymentEmail,
-        password: sessionUser ? undefined : password,
-        port,
-        orgId,
-      })
-    } catch (registrationError) {
-      // DomainRegistrationError includes errorCode and details - use helper
-      if (registrationError instanceof DomainRegistrationError) {
-        return structuredErrorResponse(registrationError.errorCode, {
-          status: 400,
-          details: registrationError.details,
-        })
-      }
-
-      // Fallback for unexpected errors
-      throw registrationError
-    }
 
     // Save metadata
     await siteMetadataStore.setSite(slug, {
@@ -205,11 +136,59 @@ export async function POST(request: NextRequest) {
       message: `Site ${fullDomain} deployed successfully!`,
       domain: fullDomain,
       orgId,
-      chatUrl: `/chat?slug=${slug}`,
+      chatUrl: `/chat?${QUERY_KEYS.workspace}=${encodeURIComponent(fullDomain)}`,
     })
+
+    // Regenerate JWT with updated org membership if a new org was associated
+    const jar = await cookies()
+    const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
+
+    if (sessionCookie?.value) {
+      const payload = await verifySessionToken(sessionCookie.value)
+      if (payload) {
+        const updatedOrgIds = orgId && !payload.orgIds.includes(orgId) ? [...payload.orgIds, orgId] : payload.orgIds
+
+        const newToken = await createSessionToken({
+          userId: sessionUser.id,
+          email: sessionUser.email,
+          name: sessionUser.name,
+          scopes: payload.scopes,
+          orgIds: updatedOrgIds,
+          orgRoles: payload.orgRoles,
+        })
+
+        res.cookies.set(COOKIE_NAMES.SESSION, newToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+          path: "/",
+        })
+      }
+    }
 
     return res
   } catch (error: unknown) {
+    if (error instanceof AuthenticationError) {
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
+        status: 401,
+      })
+    }
+
+    if (error instanceof DomainRegistrationError) {
+      const status = error.errorCode === ErrorCodes.DOMAIN_ALREADY_EXISTS ? 409 : 400
+      return structuredErrorResponse(error.errorCode, {
+        status,
+        details: error.details,
+      })
+    }
+
+    if (error instanceof DeploymentError) {
+      return structuredErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, {
+        status: error.statusCode,
+        details: { message: error.message, code: error.code },
+      })
+    }
+
     console.error("[Deploy-Subdomain] Unexpected error:", error)
 
     // Determine appropriate status code based on error type
@@ -237,7 +216,7 @@ export async function GET() {
     {
       ok: true,
       message: "Deploy Subdomain API is running",
-      usage: 'POST with { "slug": "mysite", "email": "you@example.com", "siteIdeas": "...", "password": "..." }',
+      usage: 'POST with { "slug": "mysite", "siteIdeas": "...", "templateId": "tmpl_blank", "orgId": "org-123" }',
       endpoints: {
         deploy: "POST /api/deploy-subdomain",
         getMetadata: "GET /api/sites/metadata?slug=mysite",

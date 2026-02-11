@@ -8,9 +8,9 @@
  */
 
 import { execSync } from "node:child_process"
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs"
-import { join } from "node:path"
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest"
 
 const WORKER_ENTRY_PATH = join(__dirname, "../src/worker-entry.mjs")
