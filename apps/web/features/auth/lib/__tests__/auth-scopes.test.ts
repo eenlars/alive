@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { runWithRequestContext } from "../../../../tests/setup"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
+import { runWithRequestContext } from "../../../../tests/setup"
 
 vi.mock("@/lib/supabase/app", () => ({
   createAppClient: vi.fn(),
@@ -10,10 +10,10 @@ vi.mock("@/lib/supabase/iam", () => ({
   createIamClient: vi.fn(),
 }))
 
-import { createSessionToken, SESSION_SCOPES } from "../jwt"
-import { type SessionUser, verifyWorkspaceAccess } from "../auth"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
+import { type SessionUser, verifyWorkspaceAccess } from "../auth"
+import { createSessionToken, SESSION_SCOPES } from "../jwt"
 
 function createUser(id: string): SessionUser {
   return {
