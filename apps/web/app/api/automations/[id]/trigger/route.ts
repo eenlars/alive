@@ -6,12 +6,11 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { getSessionUser } from "@/features/auth/lib/auth"
-import { getSupabaseCredentials } from "@/lib/env/server"
-import { ErrorCodes } from "@/lib/error-codes"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { runAutomationJob } from "@/lib/automation/executor"
+import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -28,8 +27,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Get the job with site info
     const { data: job, error: jobError } = await supabase
@@ -114,7 +112,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           userId: job.user_id,
           orgId: job.org_id,
           workspace: hostname,
-          prompt: job.action_prompt,
+          prompt: job.action_prompt!,
           timeoutSeconds,
         })
       } catch (error) {

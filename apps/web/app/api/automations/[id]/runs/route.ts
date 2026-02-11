@@ -5,11 +5,10 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { getSessionUser } from "@/features/auth/lib/auth"
-import { getSupabaseCredentials } from "@/lib/env/server"
-import { ErrorCodes } from "@/lib/error-codes"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -31,8 +30,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     const { id: jobId } = await context.params
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Verify job ownership first
     const { data: job } = await supabase.from("automation_jobs").select("user_id, name").eq("id", jobId).single()
@@ -63,7 +61,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       .range(offset, offset + limit - 1)
 
     if (status) {
-      query = query.eq("status", status)
+      query = query.eq("status", status as "pending" | "running" | "success" | "failure" | "skipped")
     }
 
     const { data: runs, error, count } = await query
