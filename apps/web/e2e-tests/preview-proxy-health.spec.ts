@@ -58,18 +58,15 @@ describeProxy("Preview Proxy Health", () => {
   }
 
   /**
-   * Fetch a list of active template sites from the API.
-   * Only returns templates whose preview_url is on the current server
-   * (hostname ends with PREVIEW_BASE). Templates on other servers
-   * are unreachable through the local preview proxy.
+   * Fetch active template sites from the API.
+   * The API already filters to this server's templates (server-aware filtering),
+   * so we just extract hostnames from the preview URLs.
    */
   async function getTemplateSites(baseURL: string): Promise<string[]> {
     try {
       const res = await fetch(`${baseURL}/api/templates`)
       if (!res.ok) return []
       const data = await res.json()
-      // Extract domain from preview_url (e.g. "https://blank.alive.best" → "blank.alive.best")
-      // and filter to only include sites on the current server
       return (data.templates || [])
         .filter((t: { is_active: boolean }) => t.is_active)
         .map((t: { preview_url: string }) => {
@@ -79,11 +76,7 @@ describeProxy("Preview Proxy Health", () => {
             return null
           }
         })
-        .filter((hostname: string | null): hostname is string => {
-          if (!hostname) return false
-          // Only include templates routable through this server's preview proxy
-          return hostname.endsWith(`.${PREVIEW_BASE}`) || hostname === PREVIEW_BASE
-        })
+        .filter((hostname: string | null): hostname is string => !!hostname)
     } catch {
       return []
     }
