@@ -85,7 +85,7 @@ These domains are **NOT** Vite website templates. Do not deploy them as sites:
 
 ## Architecture Smell Detector
 
-12. **ARCHITECTURE SMELL DETECTOR** - Warn when you see these anti-patterns:
+**ARCHITECTURE SMELL DETECTOR** - Warn when you see these anti-patterns:
    - Adding more tools/features to solve a problem (instead of one core constraint)
    - "Let the AI figure it out" instead of clear success criteria
    - Flexibility/options when opinionated defaults would work
@@ -622,9 +622,6 @@ curl -X POST https://terminal.goalive.nl/api/deploy-subdomain \
 - **@webalive/redis**: Redis client with automatic retry and error handling
 - **@webalive/template**: Template for new site deployments
 
-### Legacy (Deprecated)
-- **@alive-brug/deploy-scripts**: Replaced by site-controller (no longer maintained)
-
 ## Common Issues & Solutions
 
 ### Issue: SSE Stream Buffering
@@ -823,7 +820,7 @@ External codebases cloned for reference when stuck on frontend issues.
 1. **Never bypass security**: All file operations must be workspace-scoped
 2. **Systemd for everything**: All processes managed by systemd
 3. **User-based authentication**: Users have ONE account password that works across all their sites
-4. **Session persistence**: Current in-memory store is NOT production-ready
+4. **Session persistence**: Supabase IAM-backed (`iam.sessions` table), persists across restarts
 5. **Terminal mode**: Allows custom workspace, verify before use
 6. **Manager access**: Hidden `/manager` URL with separate authentication
 
