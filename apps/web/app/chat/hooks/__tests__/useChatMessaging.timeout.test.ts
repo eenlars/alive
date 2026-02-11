@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-import type React from "react"
+
 import { act, renderHook } from "@testing-library/react"
+import type React from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ChatInputHandle } from "@/features/chat/components/ChatInput/types"
 import { useChatMessaging } from "../useChatMessaging"
