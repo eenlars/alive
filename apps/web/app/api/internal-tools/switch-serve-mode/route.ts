@@ -232,15 +232,18 @@ ExecStart=${execStart}
           const fallbackResult = restartSystemdService(serviceName)
           const fallbackStatus = fallbackResult.success ? "running in dev mode" : "still failing"
 
-          return NextResponse.json({
-            ok: false,
-            message:
-              `Production mode crashed the service. Automatically reverted to development mode (${fallbackStatus}).` +
-              `\n\nDiagnostics:\n${restartResult.diagnostics || "(no logs available)"}`,
-            previousMode,
-            currentMode: "dev",
-            requestId,
-          })
+          return NextResponse.json(
+            {
+              ok: false,
+              message:
+                `Production mode crashed the service. Automatically reverted to development mode (${fallbackStatus}).` +
+                `\n\nDiagnostics:\n${restartResult.diagnostics || "(no logs available)"}`,
+              previousMode,
+              currentMode: "dev",
+              requestId,
+            },
+            { status: 500 },
+          )
         }
 
         if (!restartResult.success) {
