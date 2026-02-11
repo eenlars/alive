@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process"
 import { type NextRequest, NextResponse } from "next/server"
 import { isManagerAuthenticated } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -6,6 +5,7 @@ import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 import { runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
+import { restartSystemdService } from "@/lib/workspace-execution/systemd-restart"
 
 /**
  * POST /api/manager/restart-service
@@ -60,19 +60,27 @@ export async function POST(req: NextRequest) {
       console.warn(`[Manager] Cache clear error for ${domain}:`, cacheError)
     }
 
-    // Restart the systemd service (runs as root - system operation)
-    const output = execSync(`systemctl restart ${serviceName}`, {
-      encoding: "utf-8",
-      timeout: 10000,
-    })
+    // Restart the systemd service with automatic recovery from failed state
+    const result = restartSystemdService(serviceName)
 
-    console.log(`[Manager] Service restarted successfully: ${serviceName}`)
+    if (!result.success) {
+      console.error(`[Manager] Service restart failed for ${serviceName}:`, result.error)
+      return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
+        requestId,
+        details: {
+          error: result.error,
+          diagnostics: result.diagnostics,
+        },
+      })
+    }
+
+    const recoveryNote = result.action === "reset-then-restarted" ? " (recovered from failed state)" : ""
+    console.log(`[Manager] Service restarted successfully: ${serviceName}${recoveryNote}`)
 
     return createCorsSuccessResponse(origin, {
       ok: true,
       service: serviceName,
-      message: `Vite cache cleared and dev server restarted: ${serviceName}`,
-      output,
+      message: `Vite cache cleared and dev server restarted${recoveryNote}: ${serviceName}`,
       requestId,
     })
   } catch (error) {
