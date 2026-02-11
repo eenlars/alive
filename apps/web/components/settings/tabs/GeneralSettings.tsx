@@ -6,6 +6,7 @@ import { Eye, EyeOff, LogOut, Moon, Sun } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react"
+import { resetPostHogIdentity } from "@/components/providers/PostHogProvider"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
 import { getModelDisplayName } from "@/lib/models/claude-models"
 import { useCredits, useCreditsError, useCreditsLoading, useUserActions } from "@/lib/providers/UserStoreProvider"
@@ -82,6 +83,7 @@ export function GeneralSettings() {
       if (!res.ok) {
         console.error("Logout returned", res.status)
       }
+      resetPostHogIdentity()
       setCurrentWorkspace(null)
       router.push("/")
     } catch (error) {

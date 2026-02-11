@@ -315,7 +315,9 @@ export function useChatMessaging({
   const sendStreaming = useCallback(
     async (userMessage: UIMessage, targetTabId: string) => {
       let receivedAnyMessage = false
-      let timeoutId: NodeJS.Timeout | null = null
+      let preResponseTimeoutId: NodeJS.Timeout | null = null
+      let firstMessageTimeoutId: NodeJS.Timeout | null = null
+      let timeoutAbortMessage: string | null = null
       let shouldStopReading = false
 
       // Capture the tabId at stream start for validation — strict, no fallback
@@ -340,22 +342,71 @@ export function useChatMessaging({
         abortControllerRef.current = abortController
         setAbortController(targetTabId, abortController)
 
-        timeoutId = setTimeout(() => {
+        const PRE_RESPONSE_TIMEOUT_MS = 120_000
+        const FIRST_MESSAGE_TIMEOUT_MS = 60_000
+        const markStreamAlive = () => {
           if (!receivedAnyMessage) {
-            console.error("[Chat] Request timeout - no response received in 60s")
-            streamingActions.recordError(targetTabId, {
-              type: "timeout_error",
-              message: "Request timeout - no response received in 60s",
-            })
-            sendClientError({
-              tabId: targetTabId,
-              errorType: ClientError.TIMEOUT_ERROR,
-              data: { message: "Request timeout - no response received in 60s", timeoutSeconds: 60 },
-              addDevEvent,
-            })
-            abortController.abort()
+            receivedAnyMessage = true
+            if (firstMessageTimeoutId) {
+              clearTimeout(firstMessageTimeoutId)
+              firstMessageTimeoutId = null
+            }
           }
-        }, 60000)
+        }
+
+        const triggerTimeoutAbort = (message: string, timeoutMs: number) => {
+          if (abortController.signal.aborted) return
+
+          timeoutAbortMessage = message
+          console.error(`[Chat] ${message}`)
+          streamingActions.recordError(targetTabId, {
+            type: "timeout_error",
+            message,
+          })
+          sendClientError({
+            tabId: targetTabId,
+            errorType: ClientError.TIMEOUT_ERROR,
+            data: { message, timeoutSeconds: Math.floor(timeoutMs / 1000) },
+            addDevEvent,
+          })
+
+          // Explicit backend cancellation (do not rely on HTTP abort propagation through proxies).
+          const cancelBody = currentRequestIdRef.current
+            ? {
+                requestId: currentRequestIdRef.current,
+                clientStack: "[auto-timeout] client timeout triggered cancellation",
+              }
+            : workspace && tabGroupId
+              ? {
+                  tabId: targetTabId,
+                  tabGroupId,
+                  workspace,
+                  worktree: worktree || undefined,
+                  clientStack: "[auto-timeout] client timeout triggered fallback cancellation",
+                }
+              : null
+
+          if (cancelBody) {
+            void fetch("/api/claude/stream/cancel", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify(cancelBody),
+            }).catch(cancelError => {
+              console.warn("[Chat] Timeout cancellation request failed:", cancelError)
+            })
+          }
+
+          abortController.abort()
+        }
+
+        // Guard long setup before response headers/body are available.
+        preResponseTimeoutId = setTimeout(() => {
+          triggerTimeoutAbort(
+            `Request timeout - stream did not start in ${Math.floor(PRE_RESPONSE_TIMEOUT_MS / 1000)}s`,
+            PRE_RESPONSE_TIMEOUT_MS,
+          )
+        }, PRE_RESPONSE_TIMEOUT_MS)
 
         if (isDevelopment()) {
           const requestEvent = {
@@ -406,6 +457,11 @@ export function useChatMessaging({
           },
         )
 
+        if (preResponseTimeoutId) {
+          clearTimeout(preResponseTimeoutId)
+          preResponseTimeoutId = null
+        }
+
         if (!response.body) {
           throw new Error("No response body received from server")
         }
@@ -414,6 +470,17 @@ export function useChatMessaging({
         if (headerRequestId) {
           currentRequestIdRef.current = headerRequestId
         }
+
+        // Once streaming starts, require a first NDJSON event within the timeout window.
+        // Heartbeats (stream_ping) satisfy this and prevent false-positive aborts on long model latency.
+        firstMessageTimeoutId = setTimeout(() => {
+          if (!receivedAnyMessage) {
+            triggerTimeoutAbort(
+              `Request timeout - no stream event received in ${Math.floor(FIRST_MESSAGE_TIMEOUT_MS / 1000)}s`,
+              FIRST_MESSAGE_TIMEOUT_MS,
+            )
+          }
+        }, FIRST_MESSAGE_TIMEOUT_MS)
 
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
@@ -498,6 +565,7 @@ export function useChatMessaging({
                 }
 
                 if (isWarningMessage(eventData)) {
+                  markStreamAlive()
                   const warning = eventData.data.content as BridgeWarningContent
                   console.log("[Chat] OAuth warning received:", warning.provider, warning.message)
                   continue
@@ -507,7 +575,7 @@ export function useChatMessaging({
                   addDevEvent({ eventName: eventData.type, event: eventData, rawSSE: line })
                 }
 
-                receivedAnyMessage = true
+                markStreamAlive()
                 streamingActions.recordMessageReceived(targetTabId)
                 streamingActions.resetConsecutiveErrors(targetTabId)
 
@@ -613,6 +681,20 @@ export function useChatMessaging({
 
         streamingActions.endStream(targetTabId)
       } catch (error) {
+        if (error instanceof Error && error.name === "AbortError" && timeoutAbortMessage) {
+          const timeoutMessage: UIMessage = {
+            id: Date.now().toString(),
+            type: "sdk_message",
+            content: {
+              type: "result",
+              is_error: true,
+              result: `${timeoutAbortMessage}. Please try again.`,
+            },
+            timestamp: new Date(),
+          }
+          await addMessage(timeoutMessage, targetTabId)
+        }
+
         if (error instanceof Error && error.name !== "AbortError") {
           if (error instanceof HttpError) {
             sendClientError({
@@ -665,7 +747,8 @@ export function useChatMessaging({
 
         streamingActions.endStream(targetTabId)
       } finally {
-        if (timeoutId) clearTimeout(timeoutId)
+        if (preResponseTimeoutId) clearTimeout(preResponseTimeoutId)
+        if (firstMessageTimeoutId) clearTimeout(firstMessageTimeoutId)
         void flushAck(targetTabId)
         const ackStateCleanup = getAckState(targetTabId)
         if (ackStateCleanup.ackTimeout) {
@@ -685,6 +768,9 @@ export function useChatMessaging({
       addMessage,
       setShowCompletionDots,
       handleCompletionFeatures,
+      workspace,
+      tabGroupId,
+      worktree,
       flushAck,
       scheduleAck,
     ],

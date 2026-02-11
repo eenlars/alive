@@ -14,6 +14,12 @@ interface RouteContext {
   params: Promise<{ id: string }>
 }
 
+/** Subset returned by ownership-check queries (user_id exists in DB but not yet in generated types) */
+interface AutomationJobRow {
+  user_id: string
+  [key: string]: unknown
+}
+
 /**
  * GET /api/automations/[id] - Get a specific automation
  */
@@ -31,7 +37,11 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       .from("automation_jobs")
       .select(
         `
-        *,
+        id, user_id, org_id, site_id, name, description,
+        trigger_type, cron_schedule, cron_timezone, run_at,
+        action_type, action_prompt, action_source, action_target_page,
+        action_model, action_timeout_seconds, skills, is_active,
+        next_run_at, last_run_at, last_run_status, created_at, updated_at,
         domains:site_id (hostname)
       `,
       )
@@ -42,15 +52,17 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
+    const row = data as unknown as AutomationJobRow & { domains?: { hostname: string } }
+
     // Verify ownership
-    if ((data as any).user_id !== user.id) {
+    if (row.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 
     return NextResponse.json({
       automation: {
         ...data,
-        hostname: (data as any).domains?.hostname,
+        hostname: row.domains?.hostname,
       },
     })
   } catch (error) {
@@ -78,13 +90,19 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       await import("@/lib/automation/validation")
 
     // Check ownership first
-    const { data: existing } = await supabase.from("automation_jobs").select("*").eq("id", id).single()
+    const { data: existing } = await supabase
+      .from("automation_jobs")
+      .select("user_id, cron_schedule, cron_timezone, action_type")
+      .eq("id", id)
+      .single()
 
     if (!existing) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
-    if ((existing as any).user_id !== user.id) {
+    const existingRow = existing as unknown as AutomationJobRow
+
+    if (existingRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 
@@ -123,8 +141,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     // Validate schedule changes
     if ("cron_schedule" in updates || "cron_timezone" in updates) {
-      const cronExpr = (updates.cron_schedule as string) || (existing as any).cron_schedule
-      const cronTz = (updates.cron_timezone as string) || (existing as any).cron_timezone
+      const cronExpr = (updates.cron_schedule as string) || (existingRow.cron_schedule as string)
+      const cronTz = (updates.cron_timezone as string) || (existingRow.cron_timezone as string)
 
       if (cronExpr) {
         const cronCheck = validateCronSchedule(cronExpr, cronTz)
@@ -169,7 +187,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     // Validate prompt if changed
     if ("action_prompt" in updates) {
-      const promptCheck = validateActionPrompt((existing as any).action_type, updates.action_prompt as string)
+      const promptCheck = validateActionPrompt(existingRow.action_type as string, updates.action_prompt as string)
       if (!promptCheck.valid) {
         return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
           status: 400,
@@ -219,7 +237,9 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
-    if ((existing as any).user_id !== user.id) {
+    const existingRow = existing as unknown as AutomationJobRow
+
+    if (existingRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 

@@ -14,6 +14,11 @@ interface RouteContext {
   params: Promise<{ id: string; runId: string }>
 }
 
+/** Subset returned by ownership-check queries (user_id exists in DB but not yet in generated types) */
+interface JobOwnershipRow {
+  user_id: string
+}
+
 /**
  * GET /api/automations/[id]/runs/[runId] - Get a specific run with full conversation log
  */
@@ -37,7 +42,9 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       })
     }
 
-    if ((job as any).user_id !== user.id) {
+    const jobRow = job as unknown as JobOwnershipRow
+
+    if (jobRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 

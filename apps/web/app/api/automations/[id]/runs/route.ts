@@ -14,6 +14,12 @@ interface RouteContext {
   params: Promise<{ id: string }>
 }
 
+/** Subset returned by ownership-check queries (user_id exists in DB but not yet in generated types) */
+interface JobOwnershipRow {
+  user_id: string
+  name?: string
+}
+
 /**
  * GET /api/automations/[id]/runs - List all runs for an automation
  *
@@ -42,7 +48,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
       })
     }
 
-    if ((job as any).user_id !== user.id) {
+    const jobRow = job as unknown as JobOwnershipRow
+
+    if (jobRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 
@@ -77,7 +85,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       runs: runs ?? [],
       job: {
         id: jobId,
-        name: (job as any).name,
+        name: jobRow.name,
       },
       pagination: {
         limit,

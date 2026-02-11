@@ -41,7 +41,7 @@ export const serverConfigSchema = z
         wildcard: domainStr,
         cookieDomain: z.string().min(1),
         previewBase: domainStr,
-        frameAncestors: z.array(z.string().url()).optional(),
+        frameAncestors: z.array(z.string().min(1)).optional(),
       })
       .strict(),
 
@@ -117,7 +117,12 @@ function stripCommentKeys(obj: unknown): void {
  * Throws a ZodError with structured issues on invalid input.
  */
 export function parseServerConfig(raw: string): ServerConfig {
-  const data = JSON.parse(raw)
+  let data: unknown
+  try {
+    data = JSON.parse(raw)
+  } catch (e) {
+    throw new Error(`Invalid JSON in server config: ${e instanceof Error ? e.message : String(e)}`)
+  }
   stripCommentKeys(data)
   return serverConfigSchema.parse(data)
 }

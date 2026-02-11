@@ -11,6 +11,7 @@ import { TemplatesList } from "@/components/manager/TemplatesList"
 import { UsersPanel } from "@/components/manager/UsersPanel"
 import { ConfirmModal } from "@/components/modals/ConfirmModal"
 import { DeleteModal } from "@/components/modals/DeleteModal"
+import { resetPostHogIdentity } from "@/components/providers/PostHogProvider"
 import { Button } from "@/components/ui/primitives/Button"
 import * as domainService from "@/features/manager/lib/services/domainService"
 import * as domainTransferService from "@/features/manager/lib/services/domainTransferService"
@@ -419,6 +420,7 @@ export default function ManagerPage() {
       })
 
       if (response.ok) {
+        resetPostHogIdentity()
         // Reset state to show login form again
         setAuthenticated(false)
         setShowLogin(true)

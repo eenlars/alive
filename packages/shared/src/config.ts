@@ -149,7 +149,7 @@ export const PATHS = {
   /** Site directory (systemd-managed) */
   SITES_ROOT,
 
-  /** Template sites root directory (e.g., /srv/templates) */
+  /** Template sites root directory (e.g., /srv/webalive/templates) */
   TEMPLATES_ROOT,
 
   /** Template directory for new sites */

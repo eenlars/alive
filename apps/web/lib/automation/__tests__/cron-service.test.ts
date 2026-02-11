@@ -2,7 +2,7 @@
  * CronService Tests
  *
  * Tests the queue-based scheduler's public API and behavioral contracts.
- * The CronService is a singleton — each test imports fresh via vi.resetModules().
+ * The CronService is a singleton — each test cleans up via stopCronService() in afterEach.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
