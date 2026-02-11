@@ -16,10 +16,10 @@
  *   WORKER_WORKSPACE_KEY - Workspace identifier
  */
 
-import { chownSync, cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
+import { chownSync, cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync } from "node:fs"
 import { createConnection } from "node:net"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import process from "node:process"
 
 // Base directory for stable session storage
@@ -639,6 +639,55 @@ async function handleQuery(ipc, requestId, payload) {
       console.error("[worker] PLAN MODE: Write/Edit/Bash tools will be blocked")
     }
 
+    // --- Path containment for file tools ---
+    // Prevents path traversal (e.g. src/../../../../../../etc/hostname)
+    const workspaceRoot = process.cwd()
+    const FILE_PATH_TOOLS = new Set(["Read", "Write", "Edit", "NotebookEdit"])
+    const SEARCH_TOOLS = new Set(["Glob", "Grep"])
+    const PATH_VALIDATED_TOOLS = [...FILE_PATH_TOOLS, ...SEARCH_TOOLS]
+
+    function isPathContained(filePath) {
+      const resolved = resolve(workspaceRoot, filePath)
+      if (resolved !== workspaceRoot && !resolved.startsWith(`${workspaceRoot}/`)) {
+        return { contained: false, resolved }
+      }
+      try {
+        const real = realpathSync(resolved)
+        if (real !== workspaceRoot && !real.startsWith(`${workspaceRoot}/`)) {
+          return { contained: false, resolved: real }
+        }
+      } catch {
+        // File doesn't exist yet — resolved check is sufficient
+      }
+      return { contained: true, resolved }
+    }
+
+    function validateToolPaths(toolName, input) {
+      if (FILE_PATH_TOOLS.has(toolName)) {
+        const filePath = input?.file_path || input?.notebook_path
+        if (filePath) {
+          const check = isPathContained(filePath)
+          if (!check.contained) {
+            console.error(`[worker] 🛡️ PATH BLOCKED: ${toolName} → ${check.resolved} (outside workspace)`)
+            return denyTool(`Path "${filePath}" resolves outside workspace boundary.`)
+          }
+        }
+      }
+      if (SEARCH_TOOLS.has(toolName) && input?.path) {
+        const check = isPathContained(input.path)
+        if (!check.contained) {
+          console.error(`[worker] 🛡️ PATH BLOCKED: ${toolName} → ${check.resolved} (outside workspace)`)
+          return denyTool(`Path "${input.path}" resolves outside workspace boundary.`)
+        }
+      }
+      return null
+    }
+
+    // Remove file tools from allowedTools so SDK routes them through canUseTool
+    // (SDK auto-allows tools in allowedTools without calling canUseTool)
+    const effectiveAllowedTools = allowedTools.filter(t => !PATH_VALIDATED_TOOLS.includes(t))
+    console.error(`[worker] 🛡️ Path-validated tools routed through canUseTool: ${PATH_VALIDATED_TOOLS.join(", ")}`)
+
     // Tool permission handler
     const canUseTool = async (toolName, input, _options) => {
       // ExitPlanMode requires user approval - Claude cannot approve its own plan
@@ -663,6 +712,10 @@ async function handleQuery(ipc, requestId, payload) {
         console.error(`[worker] SECURITY: Blocked disallowed tool: ${toolName}`)
         return denyTool(`Tool "${toolName}" is explicitly disallowed for security reasons.`)
       }
+
+      // PATH CONTAINMENT: Validate file paths stay within workspace
+      const pathDenial = validateToolPaths(toolName, input)
+      if (pathDenial) return pathDenial
 
       // Protect shared compute from expensive monorepo-wide shell commands.
       // Superadmins retain unrestricted execution.
@@ -733,7 +786,7 @@ async function handleQuery(ipc, requestId, payload) {
         maxTurns: payload.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
         permissionMode,
         ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
-        allowedTools,
+        allowedTools: effectiveAllowedTools,
         disallowedTools,
         canUseTool,
         settingSources,

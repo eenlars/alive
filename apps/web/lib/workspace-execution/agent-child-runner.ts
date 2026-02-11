@@ -10,7 +10,13 @@
 import { spawn } from "node:child_process"
 import { statSync } from "node:fs"
 import { dirname, resolve } from "node:path"
+import { getContainerForDomain } from "./container-utils"
 import { createSandboxEnv } from "./sandbox-env"
+
+function extractDomainFromPath(workspacePath: string): string | null {
+  const match = workspacePath.match(/\/sites\/([^/]+)/)
+  return match ? match[1] : null
+}
 
 interface WorkspaceCredentials {
   uid: number
@@ -56,14 +62,22 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
   // The script is at apps/web/scripts/run-agent.mjs relative to this file
   const runnerPath = resolve(import.meta.dirname, "../../scripts/run-agent.mjs")
 
+  // Detect container workspace
+  const domain = extractDomainFromPath(workspaceRoot)
+  const containerName = domain ? getContainerForDomain(domain) : null
+
   // SUPERADMIN: Skip privilege drop - run as root
-  // Only applies when user is superadmin AND workspace is alive
+  // CONTAINER: Skip privilege drop - agent runs on host, commands route through incus exec
   let uid: number
   let gid: number
   if (payload.isSuperadmin) {
     uid = 0
     gid = 0
-    console.log("[agent-child] 🔓 SUPERADMIN MODE: Running as root (no privilege drop)")
+    console.log("[agent-child] SUPERADMIN MODE: Running as root (no privilege drop)")
+  } else if (containerName) {
+    uid = 0
+    gid = 0
+    console.log(`[agent-child] CONTAINER MODE: ${containerName} — agent runs as root, commands via incus exec`)
   } else {
     const creds = getWorkspaceCredentials(workspaceRoot)
     uid = creds.uid
@@ -95,7 +109,8 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
       TARGET_UID: String(uid),
       TARGET_GID: String(gid),
       TARGET_CWD: workspaceRoot,
-      ...(!payload.isSuperadmin && { TARGET_HOME: workspaceHome }),
+      ...(!payload.isSuperadmin && !containerName && { TARGET_HOME: workspaceHome }),
+      ...(containerName && { CONTAINER_NAME: containerName }),
       ANTHROPIC_API_KEY: apiKey,
       ...(payload.sessionCookie && { ALIVE_SESSION_COOKIE: payload.sessionCookie }),
     },

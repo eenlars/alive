@@ -15,7 +15,17 @@
 import { spawn } from "node:child_process"
 import { readFileSync, statSync } from "node:fs"
 import { basename, dirname, resolve } from "node:path"
+import { getContainerForDomain } from "./container-utils"
 import { createSandboxEnv } from "./sandbox-env"
+
+/**
+ * Extract domain from a workspace path.
+ * e.g., /srv/webalive/sites/example.com/user → example.com
+ */
+function extractDomainFromPath(workspacePath: string): string | null {
+  const match = workspacePath.match(/\/sites\/([^/]+)/)
+  return match ? match[1] : null
+}
 
 interface WorkspaceCredentials {
   uid: number
@@ -95,6 +105,63 @@ export function shouldUseWorkspaceUser(workspacePath: string): boolean {
 }
 
 /**
+ * Run a command inside an Incus container.
+ * All execution happens inside the container's cgroup/namespace boundary.
+ */
+export async function runInContainer(options: {
+  containerName: string
+  command: string
+  args: string[]
+  cwd?: string
+  timeout?: number
+}): Promise<CommandResult> {
+  const { containerName, command, args, cwd, timeout = 60000 } = options
+
+  const incusArgs = ["exec", containerName]
+  if (cwd) incusArgs.push("--cwd", cwd)
+  incusArgs.push("--", command, ...args)
+
+  console.log(`[container-cmd] Running in ${containerName}: ${command} ${args.join(" ")}`)
+
+  return new Promise((resolve, reject) => {
+    const child = spawn("incus", incusArgs, {
+      stdio: ["pipe", "pipe", "pipe"],
+    })
+
+    let stdout = ""
+    let stderr = ""
+
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString()
+    })
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString()
+      console.error("[container-cmd stderr]", chunk.toString().trim())
+    })
+
+    child.on("exit", (code: number | null) => {
+      console.log(`[container-cmd] Completed with exit code: ${code}`)
+      resolve({ success: code === 0, stdout, stderr, exitCode: code })
+    })
+
+    child.on("error", (error: Error) => {
+      console.error("[container-cmd] Process error:", error)
+      reject(error)
+    })
+
+    const timeoutId = setTimeout(() => {
+      console.error(`[container-cmd] Timeout after ${timeout}ms, killing`)
+      child.kill("SIGTERM")
+      setTimeout(() => {
+        if (!child.killed) child.kill("SIGKILL")
+      }, 5000)
+    }, timeout)
+
+    child.on("exit", () => clearTimeout(timeoutId))
+  })
+}
+
+/**
  * Run a command as the workspace user.
  *
  * This spawns a child process that:
@@ -103,7 +170,7 @@ export function shouldUseWorkspaceUser(workspacePath: string): boolean {
  * 3. Runs the command
  * 4. Returns stdout/stderr/exitCode
  *
- * This is synchronous - waits for command completion.
+ * For container-backed workspaces, routes through incus exec instead.
  *
  * @example
  * const result = await runAsWorkspaceUser({
@@ -118,6 +185,18 @@ export function shouldUseWorkspaceUser(workspacePath: string): boolean {
  */
 export async function runAsWorkspaceUser(options: CommandOptions): Promise<CommandResult> {
   const { command, args, workspaceRoot, timeout = 60000 } = options
+
+  // Container workspace: route ALL execution through incus exec
+  const domain = extractDomainFromPath(workspaceRoot)
+  const containerName = domain ? getContainerForDomain(domain) : null
+  if (containerName) {
+    // Map host path to container-internal path
+    // /srv/webalive/sites/incus-demo.sonno.tech/user → /srv/site/user
+    const containerCwd = "/srv/site/user"
+    console.log(`[workspace-cmd] CONTAINER MODE: routing to ${containerName} at ${containerCwd}`)
+    return runInContainer({ containerName, command, args, cwd: containerCwd, timeout })
+  }
+
   const { uid, gid } = getWorkspaceCredentials(workspaceRoot)
   const runnerPath = resolve(process.cwd(), "scripts/run-workspace-command.mjs")
 

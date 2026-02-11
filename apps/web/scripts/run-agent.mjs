@@ -11,8 +11,8 @@
  *   stderr: Diagnostic logs
  */
 
-import { chownSync, existsSync, mkdirSync } from "node:fs"
-import { join } from "node:path"
+import { chownSync, existsSync, mkdirSync, realpathSync } from "node:fs"
+import { join, resolve } from "node:path"
 import process from "node:process"
 import { query } from "@anthropic-ai/claude-agent-sdk"
 import { allowTool, DEFAULTS, denyTool, isOAuthMcpTool, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
@@ -62,10 +62,15 @@ async function readStdinJson() {
       console.error(`[runner] HOME set to workspace: ${targetHome}`)
     }
 
-    // SUPERADMIN MODE: uid/gid = 0 means skip privilege drop (run as root)
-    // This is only set when user is superadmin AND workspace is alive
+    // CONTAINER MODE: agent runs as root on host, commands route through incus exec
+    const containerName = process.env.CONTAINER_NAME
+    if (containerName) {
+      console.error(`[runner] CONTAINER MODE: ${containerName} — no privilege drop, commands via incus exec`)
+    }
+
+    // SUPERADMIN or CONTAINER MODE: uid/gid = 0 means skip privilege drop
     if (targetUid === 0 && targetGid === 0) {
-      console.error("[runner] 🔓 SUPERADMIN MODE: Skipping privilege drop (running as root)")
+      console.error("[runner] Running as root (superadmin or container mode)")
     } else {
       if (targetGid && process.setgid) {
         process.setgid(targetGid)
@@ -119,12 +124,21 @@ async function readStdinJson() {
 
     // Plan mode: Filter out blocked tools from allowedTools
     // The SDK auto-allows tools in allowedTools without calling canUseTool,
-    // so we must remove them from the list to enforce plan mode restrictions
-    const effectiveAllowedTools = isPlanMode
-      ? baseAllowedTools.filter(t => !PLAN_MODE_BLOCKED_TOOLS.includes(t))
-      : baseAllowedTools
+    // so we must remove them from the list to enforce plan mode restrictions.
+    // We ALSO remove file tools so canUseTool can enforce path containment.
+    const PATH_VALIDATED_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "NotebookEdit"]
+    const effectiveAllowedTools = (() => {
+      let tools = baseAllowedTools
+      if (isPlanMode) {
+        tools = tools.filter(t => !PLAN_MODE_BLOCKED_TOOLS.includes(t))
+      }
+      // Always route file tools through canUseTool for path containment checks
+      tools = tools.filter(t => !PATH_VALIDATED_TOOLS.includes(t))
+      return tools
+    })()
 
     console.error(`[runner] Base allowed tools count: ${baseAllowedTools.length}`)
+    console.error(`[runner] 🛡️ Path-validated tools routed through canUseTool: ${PATH_VALIDATED_TOOLS.join(", ")}`)
     if (isPlanMode) {
       console.error(
         `[runner] 🔒 PLAN MODE: Filtered to ${effectiveAllowedTools.length} tools (removed ${baseAllowedTools.length - effectiveAllowedTools.length} modification tools)`,
@@ -141,8 +155,67 @@ async function readStdinJson() {
       console.error(`[runner] Admin tools: Bash=${hasBash}, disallowed=${disallowedTools.length}`)
     }
 
+    // --- Path containment for file tools ---
+    // Prevents path traversal attacks (e.g. src/../../../../../../etc/hostname)
+    // Resolves paths and checks they stay within the workspace root.
+    const workspaceRoot = targetCwd || process.cwd()
+
     /**
-     * Tool permission handler - enforces disallowedTools blacklist and dynamic OAuth MCP tool permissions
+     * Check if a resolved path is contained within the workspace root.
+     * Uses realpath to resolve symlinks/bind mounts, then checks prefix.
+     */
+    function isPathContained(filePath) {
+      const resolved = resolve(workspaceRoot, filePath)
+      // Check the resolved path starts with workspace root
+      if (resolved !== workspaceRoot && !resolved.startsWith(`${workspaceRoot}/`)) {
+        return { contained: false, resolved }
+      }
+      // Also check realpath if the file exists (catches symlink escapes)
+      try {
+        const real = realpathSync(resolved)
+        if (real !== workspaceRoot && !real.startsWith(`${workspaceRoot}/`)) {
+          return { contained: false, resolved: real }
+        }
+      } catch {
+        // File doesn't exist yet (Write/Edit creating new file) — resolved check is sufficient
+      }
+      return { contained: true, resolved }
+    }
+
+    // Tools that take file paths we need to validate
+    const FILE_PATH_TOOLS = new Set(["Read", "Write", "Edit", "NotebookEdit"])
+    const SEARCH_TOOLS = new Set(["Glob", "Grep"])
+
+    /**
+     * Validate file path arguments for SDK built-in tools.
+     * Returns a deny result if path escapes workspace, null if OK.
+     */
+    function validateToolPaths(toolName, input) {
+      if (FILE_PATH_TOOLS.has(toolName)) {
+        const filePath = input?.file_path || input?.notebook_path
+        if (filePath) {
+          const check = isPathContained(filePath)
+          if (!check.contained) {
+            console.error(`[runner] 🛡️ PATH BLOCKED: ${toolName} → ${check.resolved} (outside workspace)`)
+            return denyTool(`Path "${filePath}" resolves outside workspace boundary.`)
+          }
+        }
+      }
+
+      if (SEARCH_TOOLS.has(toolName) && input?.path) {
+        const check = isPathContained(input.path)
+        if (!check.contained) {
+          console.error(`[runner] 🛡️ PATH BLOCKED: ${toolName} → ${check.resolved} (outside workspace)`)
+          return denyTool(`Path "${input.path}" resolves outside workspace boundary.`)
+        }
+      }
+
+      return null // paths OK
+    }
+
+    /**
+     * Tool permission handler - enforces path containment, disallowedTools blacklist,
+     * and dynamic OAuth MCP tool permissions.
      * Uses allowTool/denyTool helpers from @webalive/shared
      * @type {import('@anthropic-ai/claude-agent-sdk').CanUseTool}
      */
@@ -158,6 +231,10 @@ async function readStdinJson() {
         console.error(`[runner] SECURITY: Blocked ${toolName}`)
         return denyTool(`Tool "${toolName}" is explicitly disallowed.`)
       }
+
+      // PATH CONTAINMENT: Validate file paths stay within workspace
+      const pathDenial = validateToolPaths(toolName, input)
+      if (pathDenial) return pathDenial
 
       // Check allowed tools (SDK + internal MCP + OAuth MCP)
       if (baseAllowedTools.includes(toolName) || isOAuthMcpTool(toolName, connectedProviders)) {
