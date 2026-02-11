@@ -37,6 +37,7 @@ export const ErrorCodes = {
   INVALID_SIGNATURE: "INVALID_SIGNATURE",
   INSUFFICIENT_TOKENS: "INSUFFICIENT_TOKENS",
   INSUFFICIENT_CREDITS: "INSUFFICIENT_CREDITS",
+  OAUTH_EXPIRED: "OAUTH_EXPIRED",
 
   // Request errors (3xxx)
   INVALID_JSON: "INVALID_JSON",
@@ -253,6 +254,9 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
       return details?.balance !== undefined
         ? `You don't have enough tokens to make this request (current balance: ${details.balance}). Please contact support to add more tokens.`
         : "You don't have enough tokens to make this request. Please contact support to add more tokens."
+
+    case ErrorCodes.OAUTH_EXPIRED:
+      return "The server's authentication token has expired and could not be refreshed automatically. Please try again in a moment, or contact support if this persists."
 
     case ErrorCodes.INSUFFICIENT_CREDITS:
       return details?.balance !== undefined
