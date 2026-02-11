@@ -74,7 +74,7 @@ const nextConfig = {
       "../../node_modules/zod/**/*",
     ],
   },
-  serverExternalPackages: ["@napi-rs/image", "@webalive/site-controller", "@webalive/oauth-core", "better-sqlite3"],
+  serverExternalPackages: ["@napi-rs/image", "@webalive/site-controller", "@webalive/oauth-core"],
   transpilePackages: [
     "@webalive/guides",
     "@webalive/images",
