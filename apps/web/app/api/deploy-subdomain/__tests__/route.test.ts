@@ -27,7 +27,9 @@ vi.mock("@/features/auth/lib/auth", () => {
 vi.mock("@/features/auth/lib/jwt", () => ({
   createSessionToken: vi.fn(() => "new-session-token"),
   verifySessionToken: vi.fn(() => ({
-    workspaces: ["existing.alive.best"],
+    orgIds: ["org-123"],
+    scopes: [],
+    orgRoles: {},
   })),
 }))
 
