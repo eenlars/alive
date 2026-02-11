@@ -654,6 +654,19 @@ export function useChatMessaging({
           }
         } catch (readerError) {
           if (abortController.signal.aborted) {
+            if (timeoutAbortMessage) {
+              const timeoutMessage: UIMessage = {
+                id: Date.now().toString(),
+                type: "sdk_message",
+                content: {
+                  type: "result",
+                  is_error: true,
+                  result: `${timeoutAbortMessage}. Please try again.`,
+                },
+                timestamp: new Date(),
+              }
+              await addMessage(timeoutMessage, targetTabId)
+            }
             streamingActions.endStream(targetTabId)
             return
           }

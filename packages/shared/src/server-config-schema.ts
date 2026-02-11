@@ -23,7 +23,7 @@ const domainStr = z.string().regex(/^[a-z0-9.*-]+$/i)
 export const serverConfigSchema = z
   .object({
     serverId: z.string().regex(/^srv_.{6,}$/),
-    serverIp: z.string().regex(/^(\d{1,3}\.){3}\d{1,3}$/),
+    serverIp: z.string().regex(/^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/),
     serverIpv6: z.string().optional(),
 
     paths: z

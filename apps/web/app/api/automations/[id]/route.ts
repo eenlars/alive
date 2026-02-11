@@ -14,10 +14,12 @@ interface RouteContext {
   params: Promise<{ id: string }>
 }
 
-/** Subset returned by ownership-check queries (user_id exists in DB but not yet in generated types) */
-interface AutomationJobRow {
+/** Fields needed for ownership + validation in PATCH handler (user_id exists in DB but not yet in generated types) */
+interface AutomationJobOwnership {
   user_id: string
-  [key: string]: unknown
+  cron_schedule: string | null
+  cron_timezone: string | null
+  action_type: string | null
 }
 
 /**
@@ -52,7 +54,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
-    const row = data as unknown as AutomationJobRow & { domains?: { hostname: string } }
+    const row = data as unknown as { user_id: string; domains?: { hostname: string } }
 
     // Verify ownership
     if (row.user_id !== user.id) {
@@ -100,7 +102,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
-    const existingRow = existing as unknown as AutomationJobRow
+    const existingRow = existing as unknown as AutomationJobOwnership
 
     if (existingRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
@@ -141,8 +143,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     // Validate schedule changes
     if ("cron_schedule" in updates || "cron_timezone" in updates) {
-      const cronExpr = (updates.cron_schedule as string) || (existingRow.cron_schedule as string)
-      const cronTz = (updates.cron_timezone as string) || (existingRow.cron_timezone as string)
+      const cronExpr = (updates.cron_schedule as string) ?? existingRow.cron_schedule
+      const cronTz = (updates.cron_timezone as string) ?? existingRow.cron_timezone
 
       if (cronExpr) {
         const cronCheck = validateCronSchedule(cronExpr, cronTz)
@@ -187,7 +189,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     // Validate prompt if changed
     if ("action_prompt" in updates) {
-      const promptCheck = validateActionPrompt(existingRow.action_type as string, updates.action_prompt as string)
+      const promptCheck = validateActionPrompt(existingRow.action_type ?? "prompt", updates.action_prompt as string)
       if (!promptCheck.valid) {
         return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
           status: 400,
@@ -237,7 +239,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
-    const existingRow = existing as unknown as AutomationJobRow
+    const existingRow = existing as unknown as { user_id: string }
 
     if (existingRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
