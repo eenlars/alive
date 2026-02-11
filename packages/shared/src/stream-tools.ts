@@ -250,15 +250,24 @@ export function filterToolsForPlanMode(allowedTools: string[], isPlanMode: boole
  * @param getEnabledMcpToolNames - Function to get enabled MCP tool names from @webalive/tools
  * @param isAdmin - Whether the user is an admin (enables Bash tools)
  * @param isSuperadmin - Whether the user is a superadmin (gets ALL tools)
+ * @param isSuperadminWorkspace - Whether this is the superadmin "alive" workspace (excludes site-specific workspace tools)
  * @returns Array of allowed tool names
  */
 export function getStreamAllowedTools(
   getEnabledMcpToolNames: () => string[],
   isAdmin = false,
   isSuperadmin = false,
+  isSuperadminWorkspace = false,
 ): string[] {
   const mcpTools = getEnabledMcpToolNames()
   const globalMcpTools = Object.values(GLOBAL_MCP_PROVIDERS).flatMap(p => [...p.knownTools])
+
+  // The "alive" workspace is the platform repo (Next.js monorepo), not a Vite site.
+  // Workspace tools (switch_serve_mode, restart_dev_server, install_package, etc.)
+  // assume a Vite site structure and would break or do the wrong thing here.
+  const filteredMcpTools = isSuperadminWorkspace
+    ? mcpTools.filter(t => !t.startsWith("mcp__alive-workspace__"))
+    : mcpTools
 
   // Superadmins get ALL tools (including Task, WebSearch, superadmin-only MCP tools)
   if (isSuperadmin) {
@@ -266,14 +275,14 @@ export function getStreamAllowedTools(
       ...STREAM_ALLOWED_SDK_TOOLS,
       ...STREAM_ADMIN_ONLY_SDK_TOOLS,
       ...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS, // Task, WebSearch enabled for superadmin
-      ...mcpTools,
+      ...filteredMcpTools,
       ...globalMcpTools,
       ...STREAM_SUPERADMIN_ONLY_MCP_TOOLS, // Superadmin-only MCP tools
     ]
   }
 
   const adminTools = isAdmin ? [...STREAM_ADMIN_ONLY_SDK_TOOLS] : []
-  return [...STREAM_ALLOWED_SDK_TOOLS, ...adminTools, ...mcpTools, ...globalMcpTools]
+  return [...STREAM_ALLOWED_SDK_TOOLS, ...adminTools, ...filteredMcpTools, ...globalMcpTools]
 }
 
 /**

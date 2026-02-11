@@ -496,7 +496,7 @@ export async function POST(req: NextRequest) {
       // Note: Internal MCP servers (alive-workspace, alive-tools) are created locally
       // in the worker because createSdkMcpServer returns function objects that cannot
       // be serialized via IPC. Only OAuth HTTP servers are passed here.
-      const baseAllowedTools = getAllowedTools(cwd, user.isAdmin, isSuperadminWorkspace)
+      const baseAllowedTools = getAllowedTools(cwd, user.isAdmin, isSuperadminWorkspace, isSuperadminWorkspace)
       const disallowedTools = getDisallowedTools(user.isAdmin, isSuperadminWorkspace)
 
       // Plan mode: filter blocked tools BEFORE sending to worker

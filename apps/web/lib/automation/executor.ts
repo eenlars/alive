@@ -13,9 +13,9 @@
  */
 
 import { setTimeout as sleep } from "node:timers/promises"
+import { getWorkspacePath } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
-import { resolveWorkspace as resolveWorkspacePath } from "@/features/workspace/lib/workspace-secure"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { getOrgCredits } from "@/lib/credits/supabase-credits"
 import { DEFAULT_MODEL } from "@/lib/models/claude-models"
@@ -180,25 +180,17 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
 
   try {
     // === Workspace Validation ===
-    let cwd: string
-    try {
-      cwd = resolveWorkspacePath(workspace)
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error)
-      if (errorMsg.includes("ENOENT") || errorMsg.includes("no such file")) {
-        throw new Error(
-          `Site "${workspace}" is not properly deployed. The required directory structure (/user/src) is missing. ` +
-            "The site may need to be redeployed. Please check that the site deployment completed successfully.",
-        )
-      }
-      if (errorMsg.includes("escaped")) {
-        throw new Error(`Invalid workspace path for "${workspace}". This is a security error - contact support.`)
-      }
-      throw new Error(`Failed to access workspace "${workspace}": ${errorMsg}`)
-    }
+    // Use getWorkspacePath (resolves to /user, same as chat flow).
+    // workspace-secure.ts resolves to /user/src which breaks sites without src/.
+    const cwd = getWorkspacePath(workspace)
 
-    if (!cwd) {
-      throw new Error(`Site not found: "${workspace}". Verify that the site exists and is accessible.`)
+    // Verify the directory actually exists
+    const { existsSync } = await import("node:fs")
+    if (!existsSync(cwd)) {
+      throw new Error(
+        `Site "${workspace}" is not properly deployed. The workspace directory is missing (${cwd}). ` +
+          "The site may need to be redeployed. Please check that the site deployment completed successfully.",
+      )
     }
 
     console.log(`[Automation ${requestId}] Workspace: ${cwd}`)
