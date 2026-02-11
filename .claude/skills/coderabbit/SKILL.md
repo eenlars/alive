@@ -68,7 +68,23 @@ mutation {
 }'
 ```
 
-## Step 4: Verify type-check passes
+## Step 4: Check for merge conflicts
+
+Before verifying fixes, check if the PR has merge conflicts:
+
+```bash
+gh pr view <PR_NUMBER> --json mergeable,mergeStateStatus
+```
+
+If `mergeable` is `CONFLICTING`:
+
+1. Merge the base branch into the current branch: `git merge main`
+2. Resolve any conflicts
+3. Commit the merge resolution
+
+Do this before type-checking so you're validating the final state.
+
+## Step 5: Verify type-check passes
 
 After all fixes:
 
@@ -78,7 +94,15 @@ bun run type-check
 
 If type-check fails, fix the errors before proceeding.
 
-## Step 5: Check CI status
+## Step 6: Commit and push
+
+After type-check passes, commit all fixes and push:
+
+1. Stage the changed files
+2. Commit with a descriptive message (e.g., `fix: address CodeRabbit review comments`)
+3. Push: `bun run push`
+
+## Step 7: Check CI status
 
 ```bash
 gh pr checks <PR_NUMBER>
@@ -94,7 +118,7 @@ If any checks are failing:
 3. **Push fixes** and wait for CI to re-run
 4. **Verify all checks pass** before declaring done
 
-## Step 6: Summary
+## Step 8: Summary
 
 Report what was done:
 - How many comments were found (unresolved)
@@ -107,4 +131,5 @@ Report what was done:
 - **Always resolve threads** — even if you disagree, explain and resolve (no stale threads)
 - **Run type-check after fixes** — don't leave broken code
 - **Check CI** — the PR isn't done until CI is green
-- **Don't commit** — just make the fixes. The user will commit when ready.
+- **Check merge conflicts** — resolve before pushing
+- **Always commit and push** — don't leave fixes uncommitted
