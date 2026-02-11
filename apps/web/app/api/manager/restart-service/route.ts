@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     if (!result.success) {
       console.error(`[Manager] Service restart failed for ${serviceName}:`, result.error)
-      return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
+      return createCorsErrorResponse(origin, ErrorCodes.WORKSPACE_RESTART_FAILED, 500, {
         requestId,
         details: {
           error: result.error,

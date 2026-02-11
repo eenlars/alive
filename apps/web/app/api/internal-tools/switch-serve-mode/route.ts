@@ -245,11 +245,14 @@ ExecStart=${execStart}
 
         if (!restartResult.success) {
           console.error(`[switch-serve-mode ${requestId}] Restart failed:`, restartResult.error)
-          return NextResponse.json({
-            ok: false,
-            message: `Failed to restart service: ${restartResult.error}\n\nDiagnostics:\n${restartResult.diagnostics || "(no logs available)"}`,
-            requestId,
-          })
+          return NextResponse.json(
+            {
+              ok: false,
+              message: `Failed to restart service: ${restartResult.error}\n\nDiagnostics:\n${restartResult.diagnostics || "(no logs available)"}`,
+              requestId,
+            },
+            { status: 500 },
+          )
         }
 
         console.log(`[switch-serve-mode ${requestId}] Service restarted in ${mode} mode`)

@@ -231,10 +231,10 @@ describe("restartSystemdService", () => {
       restartSystemdService("site@test.service", { timeout: 30_000 })
 
       const restartCall = mockExecSync.mock.calls.find(
-        (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).startsWith("systemctl restart"),
+        (call: unknown[]) => typeof call[0] === "string" && call[0].startsWith("systemctl restart"),
       )
       expect(restartCall).toBeDefined()
-      expect(restartCall![1]).toMatchObject({ timeout: 30_000 })
+      expect(restartCall?.[1]).toMatchObject({ timeout: 30_000 })
     })
   })
 })
