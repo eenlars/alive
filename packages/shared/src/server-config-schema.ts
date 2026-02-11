@@ -114,7 +114,7 @@ function stripCommentKeys(obj: unknown): void {
 
 /**
  * Parse and validate raw JSON string as ServerConfig.
- * Throws a ZodError with structured issues on invalid input.
+ * Throws an Error on malformed JSON, or a ZodError on schema validation failure.
  */
 export function parseServerConfig(raw: string): ServerConfig {
   let data: unknown
