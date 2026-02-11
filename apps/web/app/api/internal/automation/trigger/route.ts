@@ -9,13 +9,12 @@
  * - Cron/scheduler for timed executions
  */
 
-import { createClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { runAutomationJob } from "@/lib/automation/executor"
-import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 export async function POST(req: NextRequest) {
   // Validate internal secret
@@ -45,8 +44,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Get job from database
-  const { url, key } = getSupabaseCredentials("service")
-  const supabase = createClient(url, key, { db: { schema: "app" } })
+  const supabase = createServiceAppClient()
 
   const { data: job, error: jobError } = await supabase.from("automation_jobs").select("*").eq("id", jobId).single()
 
@@ -93,12 +91,12 @@ export async function POST(req: NextRequest) {
     userId: job.user_id,
     orgId: job.org_id,
     workspace: site.hostname,
-    prompt: job.action_prompt,
+    prompt: job.action_prompt || "",
     timeoutSeconds: job.action_timeout_seconds || 300,
   })
 
   const now = new Date()
-  const status = result.success ? "success" : "failure"
+  const status: "success" | "failure" = result.success ? "success" : "failure"
 
   // Compute next_run_at for cron jobs
   let nextRunAt: string | null = null
@@ -134,7 +132,7 @@ export async function POST(req: NextRequest) {
     status,
     error: result.error ?? null,
     result: result.response ? { response: result.response.substring(0, 10000) } : null,
-    messages: result.messages ?? null,
+    messages: result.messages ? JSON.parse(JSON.stringify(result.messages)) : null,
     triggered_by: "manual",
   })
 

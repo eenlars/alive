@@ -4,12 +4,11 @@
  * Get details for a specific automation run, including the full conversation log.
  */
 
-import { createClient } from "@supabase/supabase-js"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
-import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
   params: Promise<{ id: string; runId: string }>
@@ -26,8 +25,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const { id: jobId, runId } = await context.params
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Verify job ownership first
     const { data: job } = await supabase.from("automation_jobs").select("user_id").eq("id", jobId).single()

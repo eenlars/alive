@@ -112,7 +112,7 @@ describe("runStrictDeployment", () => {
       domain: "TestSite.Alive.Best",
       email: "owner@example.com",
       orgId: "org-1",
-      templatePath: "/srv/webalive/sites/blank.alive.best",
+      templatePath: "/srv/webalive/templates/blank.alive.best",
     })
 
     expect(result).toMatchObject({
@@ -134,7 +134,7 @@ describe("runStrictDeployment", () => {
       runStrictDeployment({
         domain: "invalid_domain",
         email: "owner@example.com",
-        templatePath: "/srv/webalive/sites/blank.alive.best",
+        templatePath: "/srv/webalive/templates/blank.alive.best",
       }),
     ).rejects.toMatchObject({
       errorCode: ErrorCodes.INVALID_DOMAIN,
@@ -155,7 +155,7 @@ describe("runStrictDeployment", () => {
       runStrictDeployment({
         domain: "testsite.alive.best",
         email: "owner@example.com",
-        templatePath: "/srv/webalive/sites/blank.alive.best",
+        templatePath: "/srv/webalive/templates/blank.alive.best",
       }),
     ).rejects.toMatchObject({
       errorCode: ErrorCodes.DEPLOYMENT_FAILED,
@@ -175,7 +175,7 @@ describe("runStrictDeployment", () => {
     await runStrictDeployment({
       domain: "testsite.alive.best",
       email: "owner@example.com",
-      templatePath: "/srv/webalive/sites/blank.alive.best",
+      templatePath: "/srv/webalive/templates/blank.alive.best",
     })
 
     expect(checkDomainInCaddyMock).toHaveBeenCalledTimes(1)
@@ -193,7 +193,7 @@ describe("runStrictDeployment", () => {
       runStrictDeployment({
         domain: "testsite.alive.best",
         email: "owner@example.com",
-        templatePath: "/srv/webalive/sites/blank.alive.best",
+        templatePath: "/srv/webalive/templates/blank.alive.best",
       }),
     ).rejects.toMatchObject({
       errorCode: ErrorCodes.DEPLOYMENT_FAILED,
@@ -214,7 +214,7 @@ describe("runStrictDeployment", () => {
       runStrictDeployment({
         domain: "testsite.alive.best",
         email: "owner@example.com",
-        templatePath: "/srv/webalive/sites/blank.alive.best",
+        templatePath: "/srv/webalive/templates/blank.alive.best",
       }),
     ).rejects.toThrow("caddy reload failed")
 
@@ -235,7 +235,7 @@ describe("runStrictDeployment", () => {
       runStrictDeployment({
         domain: "testsite.alive.best",
         email: "owner@example.com",
-        templatePath: "/srv/webalive/sites/blank.alive.best",
+        templatePath: "/srv/webalive/templates/blank.alive.best",
       }),
     ).rejects.toMatchObject({
       errorCode: ErrorCodes.DEPLOYMENT_FAILED,
@@ -257,7 +257,7 @@ describe("runStrictDeployment", () => {
       runStrictDeployment({
         domain: "existing.alive.best",
         email: "owner@example.com",
-        templatePath: "/srv/webalive/sites/blank.alive.best",
+        templatePath: "/srv/webalive/templates/blank.alive.best",
       }),
     ).rejects.toThrow("reload failed")
 

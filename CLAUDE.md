@@ -705,30 +705,36 @@ const { data } = await iam.rpc('deduct_credits', {
 
 ### Template Sites Maintenance
 
-**Template sites** are live sites used as deployment sources. They need `node_modules` to run their previews, but these MUST NOT be copied during deployment.
+**Template sites** live in `/srv/webalive/templates/` (dedicated directory with its own git repo). They are used as deployment sources when creating new sites. They need `node_modules` to run their previews, but these MUST NOT be copied during deployment.
+
+**Location**: `/srv/webalive/templates/` (git repo)
+**Systemd**: `template@{slug}.service` (separate from `site@` services)
+**Config**: `server-config.json` → `templates` key maps template IDs to local paths
 
 **Template sites** (in Supabase `app.templates`):
-- `blank.alive.best` - Minimal starter
-- `template1.alive.best` - Gallery template
-- `four.goalive.nl` - Event template
-- `one.goalive.nl` - SaaS template
-- `loodgieter.alive.best` - Business template
+
+| Template ID | Domain | Port | Mode |
+|---|---|---|---|
+| `tmpl_blank` | `blank.alive.best` | 3594 | `bun run preview` |
+| `tmpl_gallery` | `template1.alive.best` | 3352 | `bun run dev` |
+| `tmpl_event` | `four.goalive.nl` | 3345 | `bun run dev` |
+| `tmpl_saas` | `one.goalive.nl` | 3346 | `bun run dev` |
+| `tmpl_business` | `loodgieter.alive.best` | 3389 | `bun run dev` |
+| — | `components.alive.best` | 3364 | `bun run dev` |
 
 **Key points:**
 1. **rsync excludes** `node_modules` and `.bun` (see `02-setup-fs.sh`)
 2. Template sites need their `node_modules` for previews to work
 3. If template preview returns 502, reinstall deps and restart:
 ```bash
-# For template with root package.json
-cd /srv/webalive/sites/blank.alive.best
-sudo -u site-blank-alive-best bun install
-systemctl restart site@blank-alive-best.service
+# Reinstall deps
+sudo -u site-blank-alive-best bun install --cwd /srv/webalive/templates/blank.alive.best/user
+systemctl restart template@blank-alive-best.service
 
-# For template with user/package.json
-cd /srv/webalive/sites/four.goalive.nl/user
-sudo -u site-four-goalive-nl bun install
-systemctl restart site@four-goalive-nl.service
+# Check all template services
+systemctl list-units 'template@*'
 ```
+4. Template path resolution: `getLocalTemplatePath(templateId)` checks `server-config.json` → `templates` key, falls back to DB `source_path`
 
 **IMPORTANT:** When updating `@alive-game/alive-tagger` or similar packages:
 - Update both `vite.config.ts` AND `package.json` in all sites

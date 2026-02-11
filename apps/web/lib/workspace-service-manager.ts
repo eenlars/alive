@@ -66,17 +66,16 @@ export function extractDomainFromWorkspace(workspaceRoot: string): string | null
     return null
   }
 
-  // SECURITY: Path must match structure /[base]/webalive/sites/[domain]/user
-  // Extract the part after /sites/ and before /user
-  // Valid patterns:
-  // - /srv/webalive/sites/example.com/user
-  // - /srv/webalive/sites/example.com/user
+  // SECURITY: Path must match known workspace structures:
+  // - /srv/webalive/sites/[domain]/user (regular sites)
+  // - /srv/webalive/templates/[domain]/user (template sites)
   const sitesMatch = normalized.match(/^(\/\w+)?\/webalive\/sites\/([^/]+)\/user$/)
-  if (!sitesMatch || !sitesMatch[2]) {
+  const templatesMatch = normalized.match(/^(\/\w+)?\/webalive\/templates\/([^/]+)\/user$/)
+
+  const domain = sitesMatch?.[2] ?? templatesMatch?.[2]
+  if (!domain) {
     return null
   }
-
-  const domain = sitesMatch[2]
 
   // SECURITY: Validate domain format using shared validator
   if (!isValidDomainFormat(domain)) {
@@ -107,9 +106,17 @@ export function domainToServiceName(domain: string): string {
     throw new Error(`Invalid domain format: ${domain}`)
   }
 
-  // Replace dots with hyphens for systemd naming
-  const serviceName = domain.replace(/\./g, "-")
-  return `site@${serviceName}.service`
+  const slug = domain.replace(/\./g, "-")
+
+  // Check if this domain runs as a template service (templates live in /srv/webalive/templates/)
+  const templateCheck = spawnSync("systemctl", ["is-enabled", `template@${slug}.service`], {
+    encoding: "utf-8",
+    timeout: 3000,
+    shell: false,
+  })
+  const prefix = templateCheck.status === 0 ? "template" : "site"
+
+  return `${prefix}@${slug}.service`
 }
 
 interface RestartResult {

@@ -1,5 +1,4 @@
 import { exec } from "node:child_process"
-import { readFile } from "node:fs/promises"
 import { promisify } from "node:util"
 import { DEFAULTS, PATHS, TIMEOUTS } from "@webalive/shared"
 import type { NextRequest } from "next/server"
@@ -10,21 +9,6 @@ import { ErrorCodes } from "@/lib/error-codes"
 import type { DomainStatus } from "@/types/domain"
 
 const execAsync = promisify(exec)
-
-interface ServerConfig {
-  serverIp: string
-  serverIpv6: string
-  createdAt: number
-}
-
-async function loadServerConfig(): Promise<ServerConfig | null> {
-  try {
-    const data = await readFile(PATHS.SERVER_CONFIG, "utf-8")
-    return JSON.parse(data)
-  } catch {
-    return null
-  }
-}
 
 async function checkPortListening(port: number): Promise<boolean> {
   try {
@@ -256,8 +240,7 @@ export async function GET(req: NextRequest) {
 
   const domains = await getAllDomains()
   const statuses: DomainStatus[] = []
-  const serverConfig = await loadServerConfig()
-  const serverIp = serverConfig?.serverIp || DEFAULTS.SERVER_IP
+  const serverIp = DEFAULTS.SERVER_IP
   if (!serverIp) {
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
       details: { reason: "SERVER_IP not configured" },

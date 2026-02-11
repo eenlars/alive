@@ -12,11 +12,13 @@
  * - Posts summaries back to user's chat
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
+import type { AppDatabase } from "@webalive/database"
 import { getServerId } from "@webalive/shared"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { createServiceAppClient } from "@/lib/supabase/service"
 import { appendRunLog } from "./run-log"
+
+type AppClient = ReturnType<typeof createServiceAppClient>
 
 // ============================================
 // Types
@@ -46,34 +48,14 @@ export type CronServiceConfig = {
   enabled?: boolean
 }
 
-type AutomationJob = {
-  id: string
-  site_id: string
-  user_id: string
-  org_id: string
-  name: string
-  trigger_type: "cron" | "webhook" | "one-time"
-  cron_schedule: string | null
-  cron_timezone: string | null
-  run_at: string | null
-  action_prompt: string | null
-  action_timeout_seconds: number | null
-  action_model: string | null
-  action_thinking: string | null
-  is_active: boolean
-  next_run_at: string | null
-  running_at: string | null
-  last_run_status: string | null
-  consecutive_failures?: number
-}
+type AutomationJob = AppDatabase["app"]["Tables"]["automation_jobs"]["Row"]
 
 // ============================================
 // Service State
 // ============================================
 
 type ServiceState = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any, "public", any>
+  supabase: AppClient
   config: Required<CronServiceConfig>
   serverId: string
   timer: NodeJS.Timeout | null
@@ -98,8 +80,7 @@ export async function startCronService(config: CronServiceConfig = {}): Promise<
     return
   }
 
-  const { url, key } = getSupabaseCredentials("service")
-  const supabase = createClient(url, key, { db: { schema: "app" } })
+  const supabase = createServiceAppClient()
 
   const enabled = config.enabled ?? process.env.NODE_ENV === "production"
   if (!enabled) {
@@ -338,19 +319,21 @@ async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promi
   // Atomic claim: only proceed if we're the one who sets running_at.
   // This prevents duplicate execution when multiple instances share the same DB.
   const claimTs = new Date(startedAt).toISOString()
-  const { data: claimed, error: claimError } = await state.supabase
+  // Use { count: "exact" } instead of .select("id") to work around a PostgREST bug
+  // where PATCH + .or()/.is() filter + .select() on non-public schemas (like "app")
+  // returns "column does not exist" errors. The count approach avoids that code path.
+  const { count: claimCount, error: claimError } = await state.supabase
     .from("automation_jobs")
-    .update({ running_at: claimTs })
+    .update({ running_at: claimTs }, { count: "exact" })
     .eq("id", job.id)
     .is("running_at", null)
-    .select("id")
 
   if (claimError) {
     console.error(`[CronService] Claim error for "${job.name}" (${job.id}):`, claimError)
     return
   }
 
-  if (!claimed?.length) {
+  if (!claimCount) {
     console.log(`[CronService] Job "${job.name}" (${job.id}) already claimed by another instance, skipping`)
     return
   }
@@ -516,7 +499,7 @@ async function finishJob(
     status: result.status,
     error: result.error,
     result: result.summary ? { summary: result.summary } : null,
-    messages: result.messages ?? null, // Full conversation log
+    messages: result.messages ? JSON.parse(JSON.stringify(result.messages)) : null, // Full conversation log
     triggered_by: "scheduler",
   })
 

@@ -3,7 +3,7 @@
 // DO NOT EDIT MANUALLY - Run 'bun run gen:types' to regenerate
 //
 // Schema: app
-// Project: YOUR_PROJECT_ID
+// Project: qnvprftdorualkdyogka
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
@@ -22,6 +22,7 @@ export type Database = {
           action_prompt: string | null
           action_source: Json | null
           action_target_page: string | null
+          action_thinking: string | null
           action_timeout_seconds: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures: number | null
@@ -54,6 +55,7 @@ export type Database = {
           action_prompt?: string | null
           action_source?: Json | null
           action_target_page?: string | null
+          action_thinking?: string | null
           action_timeout_seconds?: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures?: number | null
@@ -86,6 +88,7 @@ export type Database = {
           action_prompt?: string | null
           action_source?: Json | null
           action_target_page?: string | null
+          action_thinking?: string | null
           action_timeout_seconds?: number | null
           action_type?: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures?: number | null
@@ -701,6 +704,7 @@ export type Database = {
           action_prompt: string | null
           action_source: Json | null
           action_target_page: string | null
+          action_thinking: string | null
           action_timeout_seconds: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures: number | null
@@ -742,6 +746,7 @@ export type Database = {
           action_prompt: string | null
           action_source: Json | null
           action_target_page: string | null
+          action_thinking: string | null
           action_timeout_seconds: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures: number | null

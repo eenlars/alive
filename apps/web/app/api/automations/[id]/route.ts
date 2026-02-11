@@ -4,12 +4,11 @@
  * Get, update, or delete a specific automation job.
  */
 
-import { createClient } from "@supabase/supabase-js"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
-import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -26,8 +25,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     const { data, error } = await supabase
       .from("automation_jobs")
@@ -73,8 +71,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const { id } = await context.params
     const body = await req.json()
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Import validators
     const { validateCronSchedule, validateTimezone, validateTimeout, validateActionPrompt, formatNextRuns } =
@@ -213,8 +210,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Check ownership first
     const { data: existing } = await supabase.from("automation_jobs").select("user_id").eq("id", id).single()

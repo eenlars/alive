@@ -1,10 +1,10 @@
 {
-  "_comment": "Copy to your server config path and set SERVER_CONFIG_PATH env var to point here",
-  "serverId": "srv-CHANGEME",
+  "serverId": "srv_CHANGEME",
   "serverIp": "0.0.0.0",
   "paths": {
     "aliveRoot": "/path/to/alive",
     "sitesRoot": "/srv/webalive/sites",
+    "templatesRoot": "/srv/webalive/templates",
     "imagesStorage": "/srv/webalive/storage"
   },
   "domains": {
@@ -28,5 +28,12 @@
     "caddySites": "/path/to/generated/Caddyfile.sites",
     "caddyShell": "/path/to/generated/Caddyfile.shell",
     "nginxMap": "/path/to/generated/nginx.sni.map"
+  },
+  "templates": {
+    "tmpl_blank": "/srv/webalive/templates/blank.alive.best",
+    "tmpl_gallery": "/srv/webalive/templates/template1.alive.best",
+    "tmpl_event": "/srv/webalive/templates/four.goalive.nl",
+    "tmpl_saas": "/srv/webalive/templates/one.goalive.nl",
+    "tmpl_business": "/srv/webalive/templates/loodgieter.alive.best"
   }
 }

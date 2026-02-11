@@ -4,15 +4,14 @@
  * List and manage automation jobs for an organization.
  */
 
-import { createClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
 import type { NextRequest } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import type { Res } from "@/lib/api/schemas"
 import { alrighty } from "@/lib/api/server"
-import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 type AutomationJob = Res<"automations">["automations"][number]
 
@@ -36,8 +35,7 @@ export async function GET(req: NextRequest) {
     const siteId = searchParams.get("site_id")
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100)
 
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Build query - join with domains to get hostname
     let query = supabase
@@ -202,8 +200,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Get org_id from the site
     const { data: domain } = await supabase.from("domains").select("org_id").eq("domain_id", body.site_id).single()
@@ -254,6 +251,7 @@ export async function POST(req: NextRequest) {
         action_source: body.action_source,
         action_target_page: body.action_target_page,
         skills: skills.length > 0 ? skills : [],
+        action_model: body.action_model || null,
         is_active: body.is_active ?? true,
         next_run_at: nextRunAt,
       })

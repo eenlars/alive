@@ -57,23 +57,28 @@ export async function fetchCaddySources(results: Map<string, SourceData>): Promi
 }
 
 /**
- * Fetch domains from filesystem (/srv/webalive/sites/)
+ * Fetch domains from filesystem (/srv/webalive/sites/ and /srv/webalive/templates/)
  */
 export async function fetchFilesystemSources(results: Map<string, SourceData>): Promise<void> {
-  const sitesDir = PATHS.SITES_ROOT
-  const entries = await fs.readdir(sitesDir, { withFileTypes: true })
+  for (const dir of [PATHS.SITES_ROOT, PATHS.TEMPLATES_ROOT]) {
+    let names: string[]
+    try {
+      names = await fs.readdir(dir)
+    } catch {
+      continue // Directory may not exist on all servers
+    }
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue
+    for (const name of names) {
+      const fullPath = `${dir}/${name}`
+      const stat = await fs.stat(fullPath).catch(() => null)
+      if (!stat?.isDirectory()) continue
+      if (isPreviewDomain(name)) continue
 
-    const domain = entry.name
-    if (isPreviewDomain(domain)) continue
-
-    const fullPath = `${sitesDir}/${domain}`
-    const domainData = ensureDomain(results, domain)
-    domainData.filesystem = {
-      exists: true,
-      path: fullPath,
+      const domainData = ensureDomain(results, name)
+      domainData.filesystem = {
+        exists: true,
+        path: fullPath,
+      }
     }
   }
 }
@@ -81,8 +86,11 @@ export async function fetchFilesystemSources(results: Map<string, SourceData>): 
 /**
  * Check serve mode from systemd override file
  */
-async function checkServeMode(slug: string): Promise<"dev" | "build" | "unknown"> {
-  const overridePath = `/etc/systemd/system/site@${slug}.service.d/override.conf`
+async function checkServeMode(
+  slug: string,
+  prefix: "site" | "template" = "site",
+): Promise<"dev" | "build" | "unknown"> {
+  const overridePath = `/etc/systemd/system/${prefix}@${slug}.service.d/override.conf`
   try {
     const { stdout } = await execAsync(`cat "${overridePath}" 2>/dev/null || echo ""`)
     if (stdout.includes("preview")) return "build"
@@ -94,33 +102,41 @@ async function checkServeMode(slug: string): Promise<"dev" | "build" | "unknown"
 }
 
 /**
- * Fetch systemd service status for domains
+ * Fetch systemd service status for domains.
+ * Checks both site@*.service and template@*.service units.
  */
 export async function fetchSystemdSources(results: Map<string, SourceData>): Promise<void> {
-  const { stdout: services } = await execAsync("systemctl list-units 'site@*.service' --no-legend --no-pager")
-  const serviceMatches = services.matchAll(/site@([a-zA-Z0-9-]+)\.service\s+loaded\s+(\w+)/g)
+  const [{ stdout: siteServices }, { stdout: templateServices }] = await Promise.all([
+    execAsync("systemctl list-units 'site@*.service' --no-legend --no-pager"),
+    execAsync("systemctl list-units 'template@*.service' --no-legend --no-pager"),
+  ])
 
   const updates: Promise<void>[] = []
 
-  for (const match of serviceMatches) {
-    const slug = match[1]
-    const domain = slug.replace(/-/g, ".")
-    const state = match[2]
+  for (const [prefix, output] of [
+    ["site", siteServices],
+    ["template", templateServices],
+  ] as const) {
+    const regex = new RegExp(`${prefix}@([a-zA-Z0-9-]+)\\.service\\s+loaded\\s+(\\w+)`, "g")
+    for (const match of output.matchAll(regex)) {
+      const slug = match[1]
+      const domain = slug.replace(/-/g, ".")
+      const state = match[2]
 
-    if (isPreviewDomain(domain)) continue
+      if (isPreviewDomain(domain)) continue
 
-    // Only update if domain already exists (systemd doesn't create new domains)
-    if (results.has(domain)) {
-      updates.push(
-        checkServeMode(slug).then(serveMode => {
-          const domainData = results.get(domain)!
-          domainData.systemd = {
-            exists: true,
-            active: state === "active",
-            serveMode,
-          }
-        }),
-      )
+      if (results.has(domain)) {
+        updates.push(
+          checkServeMode(slug, prefix).then(serveMode => {
+            const domainData = results.get(domain)!
+            domainData.systemd = {
+              exists: true,
+              active: state === "active",
+              serveMode,
+            }
+          }),
+        )
+      }
     }
   }
 
