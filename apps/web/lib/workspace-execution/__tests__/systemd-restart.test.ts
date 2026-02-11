@@ -58,21 +58,30 @@ describe("restartSystemdService", () => {
       })
     })
 
-    it("reports serviceActive=false if service doesn't become active in time", () => {
+    it("fails if service doesn't become active in time", () => {
       mockExecSync.mockImplementation((cmd: string) => {
         if (typeof cmd === "string" && cmd.startsWith("systemctl restart")) return ""
         // is-active always fails (service slow to start)
         if (typeof cmd === "string" && cmd.startsWith("systemctl is-active")) {
           throw new Error("inactive")
         }
+        // not failed state
+        if (typeof cmd === "string" && cmd.startsWith("systemctl is-failed")) {
+          throw new Error("not failed")
+        }
+        if (typeof cmd === "string" && cmd.startsWith("journalctl")) {
+          return "service never became active"
+        }
         if (typeof cmd === "string" && cmd.startsWith("sleep")) return ""
         return ""
       })
 
       const result = restartSystemdService("site@test.service", { waitForActive: 100 })
-      expect(result.success).toBe(true)
-      expect(result.action).toBe("restarted")
+      expect(result.success).toBe(false)
+      expect(result.action).toBe("failed")
       expect(result.serviceActive).toBe(false)
+      expect(result.error).toContain("did not become active")
+      expect(result.diagnostics).toContain("never became active")
     })
   })
 
@@ -100,6 +109,37 @@ describe("restartSystemdService", () => {
       })
 
       const result = restartSystemdService("site@test.service")
+      expect(result).toEqual({
+        success: true,
+        action: "reset-then-restarted",
+        serviceActive: true,
+      })
+    })
+
+    it("recovers when restart command succeeds but service never becomes active", () => {
+      let restartAttempt = 0
+
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (typeof cmd === "string" && cmd.startsWith("systemctl restart")) {
+          restartAttempt++
+          return ""
+        }
+        if (typeof cmd === "string" && cmd.startsWith("systemctl is-active")) {
+          // First restart never becomes active; second restart does
+          if (restartAttempt === 1) throw new Error("inactive")
+          return ""
+        }
+        if (typeof cmd === "string" && cmd.startsWith("systemctl is-failed")) {
+          return "failed"
+        }
+        if (typeof cmd === "string" && cmd.startsWith("systemctl reset-failed")) {
+          return ""
+        }
+        if (typeof cmd === "string" && cmd.startsWith("sleep")) return ""
+        return ""
+      })
+
+      const result = restartSystemdService("site@test.service", { waitForActive: 100 })
       expect(result).toEqual({
         success: true,
         action: "reset-then-restarted",

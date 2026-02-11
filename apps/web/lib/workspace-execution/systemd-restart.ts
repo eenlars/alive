@@ -25,6 +25,11 @@ export interface RestartResult {
   diagnostics?: string
 }
 
+interface RestartAttemptResult {
+  ok: boolean
+  error?: string
+}
+
 /** Shell-safe service name: only allow alphanumeric, dash, underscore, @, dot */
 function validateServiceName(name: string): void {
   if (!/^[a-zA-Z0-9@._-]+$/.test(name)) {
@@ -65,6 +70,30 @@ function getJournalDiagnostics(serviceName: string): string {
   }
 }
 
+function restartAndConfirmActive(serviceName: string, timeout: number, waitTimeout: number): RestartAttemptResult {
+  try {
+    execSync(`systemctl restart ${serviceName}`, {
+      encoding: "utf-8",
+      timeout,
+    })
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+    }
+  }
+
+  const active = waitForActive(serviceName, waitTimeout)
+  if (!active) {
+    return {
+      ok: false,
+      error: `systemctl restart succeeded but service did not become active within ${waitTimeout}ms`,
+    }
+  }
+
+  return { ok: true }
+}
+
 /**
  * Wait for a service to become active, polling every 500ms.
  */
@@ -95,16 +124,9 @@ export function restartSystemdService(
   validateServiceName(serviceName)
 
   // Attempt 1: straight restart
-  try {
-    execSync(`systemctl restart ${serviceName}`, {
-      encoding: "utf-8",
-      timeout,
-    })
-
-    const active = waitForActive(serviceName, waitTimeout)
-    return { success: true, action: "restarted", serviceActive: active }
-  } catch {
-    // Restart failed — check if the unit is in failed state
+  const firstAttempt = restartAndConfirmActive(serviceName, timeout, waitTimeout)
+  if (firstAttempt.ok) {
+    return { success: true, action: "restarted", serviceActive: true }
   }
 
   // Check if it's a failed-state issue
@@ -115,7 +137,9 @@ export function restartSystemdService(
       success: false,
       action: "failed",
       serviceActive: false,
-      error: "systemctl restart failed and service is not in failed state",
+      error: firstAttempt.error
+        ? `${firstAttempt.error} (service is not in failed state)`
+        : "systemctl restart failed and service is not in failed state",
       diagnostics,
     }
   }
@@ -137,22 +161,17 @@ export function restartSystemdService(
     }
   }
 
-  try {
-    execSync(`systemctl restart ${serviceName}`, {
-      encoding: "utf-8",
-      timeout,
-    })
+  const secondAttempt = restartAndConfirmActive(serviceName, timeout, waitTimeout)
+  if (secondAttempt.ok) {
+    return { success: true, action: "reset-then-restarted", serviceActive: true }
+  }
 
-    const active = waitForActive(serviceName, waitTimeout)
-    return { success: true, action: "reset-then-restarted", serviceActive: active }
-  } catch (e) {
-    const diagnostics = getJournalDiagnostics(serviceName)
-    return {
-      success: false,
-      action: "failed",
-      serviceActive: false,
-      error: `restart failed after reset-failed: ${e instanceof Error ? e.message : String(e)}`,
-      diagnostics,
-    }
+  const diagnostics = getJournalDiagnostics(serviceName)
+  return {
+    success: false,
+    action: "failed",
+    serviceActive: false,
+    error: `restart failed after reset-failed: ${secondAttempt.error || "unknown error"}`,
+    diagnostics,
   }
 }
