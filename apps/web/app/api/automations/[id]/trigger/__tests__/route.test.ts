@@ -30,8 +30,10 @@ vi.mock("@/lib/automation/cron-service", () => ({
   pokeCronService: vi.fn(),
 }))
 
+const claimJobMock = vi.fn()
+
 vi.mock("@/lib/automation/engine", () => ({
-  claimJob: vi.fn(),
+  claimJob: (...args: unknown[]) => claimJobMock(...args),
   executeJob: vi.fn(),
   extractSummary: vi.fn(),
   finishJob: vi.fn(),
@@ -44,6 +46,11 @@ vi.mock("@webalive/shared", async importOriginal => {
     getServerId: vi.fn(() => "srv_test"),
   }
 })
+
+vi.mock("@/lib/automation/validation", () => ({
+  validateActionPrompt: vi.fn(() => ({ valid: true })),
+  validateWorkspace: vi.fn(() => Promise.resolve({ valid: true })),
+}))
 
 const { POST } = await import("../route")
 
@@ -69,6 +76,54 @@ describe("POST /api/automations/[id]/trigger", () => {
     expect(response.status).toBe(401)
     const payload = await response.json()
     expect(payload.error).toBe(ErrorCodes.UNAUTHORIZED)
+  })
+
+  it("returns 202 with queued status on successful trigger", async () => {
+    getSessionUserMock.mockResolvedValueOnce({
+      id: "user_1",
+      email: "owner@example.com",
+      name: "Owner",
+    })
+
+    const mockJob = {
+      id: "job_1",
+      name: "test-job",
+      user_id: "user_1",
+      running_at: null,
+      action_timeout_seconds: 300,
+      action_type: "prompt",
+      action_prompt: "Do something",
+      domains: { hostname: "test.example.com", server_id: "srv_test" },
+    }
+
+    createServiceAppClientMock.mockReturnValueOnce({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({ data: mockJob, error: null }),
+          }),
+        }),
+      }),
+    })
+
+    claimJobMock.mockResolvedValueOnce({
+      supabase: {},
+      job: mockJob,
+      hostname: "test.example.com",
+      runId: "run_abc",
+      claimedAt: "2026-01-01T00:00:00Z",
+      serverId: "srv_test",
+      timeoutSeconds: 300,
+      triggeredBy: "manual",
+      heartbeatInterval: null,
+    })
+
+    const response = await POST(makeRequest(), { params: Promise.resolve({ id: "job_1" }) })
+
+    expect(response.status).toBe(202)
+    const payload = await response.json()
+    expect(payload.ok).toBe(true)
+    expect(payload.status).toBe("queued")
   })
 
   it("returns 403 when automation execution is disabled on this environment/server", async () => {

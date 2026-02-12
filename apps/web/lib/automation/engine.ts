@@ -474,35 +474,6 @@ async function writeMessagesToFile(runId: string, messages: unknown[]): Promise<
   }
 }
 
-/** Read messages from file storage by URI */
-export async function readMessagesFromUri(uri: string): Promise<unknown[] | null> {
-  if (!uri.startsWith("file://")) return null
-
-  const filePath = uri.slice("file://".length)
-  if (!filePath.endsWith(".json")) return null
-  if (!isWithinDirectory(filePath, MESSAGES_DIR)) return null
-
-  try {
-    const [messagesDirRealPath, fileRealPath] = await Promise.all([
-      fs.realpath(MESSAGES_DIR).catch(() => path.resolve(MESSAGES_DIR)),
-      fs.realpath(filePath),
-    ])
-    if (!isWithinDirectory(fileRealPath, messagesDirRealPath)) return null
-
-    const data = await fs.readFile(fileRealPath, "utf-8")
-    const parsed: unknown = JSON.parse(data)
-    return Array.isArray(parsed) ? parsed : null
-  } catch {
-    return null
-  }
-}
-
-function isWithinDirectory(candidatePath: string, baseDir: string): boolean {
-  const resolvedCandidate = path.resolve(candidatePath)
-  const resolvedBaseDir = path.resolve(baseDir)
-  return resolvedCandidate === resolvedBaseDir || resolvedCandidate.startsWith(`${resolvedBaseDir}${path.sep}`)
-}
-
 /** Extend the lease for a running job (heartbeat) */
 async function extendLease(ctx: RunContext): Promise<void> {
   const newExpiry = new Date(Date.now() + (ctx.timeoutSeconds + LEASE_BUFFER_SECONDS) * 1000).toISOString()
