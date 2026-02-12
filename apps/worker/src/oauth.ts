@@ -50,7 +50,6 @@ const TokenRefreshResponseSchema = z.object({
   refresh_token: z.string(),
   expires_in: z.number(),
 })
-type TokenRefreshResponse = z.infer<typeof TokenRefreshResponseSchema>
 
 function readClaudeCredentials(): ClaudeOAuthCredentials | null {
   try {

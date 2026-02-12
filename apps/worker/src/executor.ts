@@ -10,8 +10,7 @@
 
 import { existsSync } from "node:fs"
 import { query } from "@anthropic-ai/claude-agent-sdk"
-import { allowTool, DEFAULTS, denyTool } from "@webalive/shared"
-import { getWorkspacePath } from "@webalive/shared"
+import { allowTool, DEFAULTS, denyTool, getWorkspacePath } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
 import { getAccessToken } from "./oauth"
 
