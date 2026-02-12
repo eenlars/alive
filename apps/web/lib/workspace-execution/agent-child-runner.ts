@@ -10,6 +10,7 @@
 import { spawn } from "node:child_process"
 import { statSync } from "node:fs"
 import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { createSandboxEnv } from "./sandbox-env"
 
 interface WorkspaceCredentials {
@@ -52,9 +53,10 @@ export function shouldUseChildProcess(workspaceRoot: string): boolean {
 }
 
 export function runAgentChild(workspaceRoot: string, payload: AgentRequest): ReadableStream<Uint8Array> {
-  // Use import.meta.dirname (ESM) or fallback to __dirname pattern
-  // The script is at apps/web/scripts/run-agent.mjs relative to this file
-  const runnerPath = resolve(import.meta.dirname, "../../scripts/run-agent.mjs")
+  // import.meta.dirname is NOT available in Next.js production bundles.
+  // Use fileURLToPath(import.meta.url) which IS preserved by the bundler.
+  const currentDir = dirname(fileURLToPath(import.meta.url))
+  const runnerPath = resolve(currentDir, "../../scripts/run-agent.mjs")
 
   // SUPERADMIN: Skip privilege drop - run as root
   // Only applies when user is superadmin AND workspace is alive

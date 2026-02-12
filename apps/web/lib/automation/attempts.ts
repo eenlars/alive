@@ -61,6 +61,9 @@ export interface AttemptResult {
   textMessages: string[]
   allMessages: unknown[]
   finalResponse: string
+  costUsd?: number
+  numTurns?: number
+  usage?: { input_tokens: number; output_tokens: number }
 }
 
 /** Create a fresh, isolated message collector for a single attempt */
@@ -90,22 +93,39 @@ function createMessageCollector(): {
       }
       if (content.messageType === "assistant" && isRecord(content.content)) {
         const inner = content.content
-        if (Array.isArray(inner.content)) {
-          for (const block of inner.content) {
-            if (isRecord(block) && block.type === "text" && typeof block.text === "string") {
-              state.textMessages.push(block.text)
+        // Worker pool wraps SDK messages: content.message.content has the text blocks
+        if (isRecord(inner.message)) {
+          const message = inner.message
+          if (Array.isArray(message.content)) {
+            for (const block of message.content) {
+              if (isRecord(block) && block.type === "text" && typeof block.text === "string") {
+                state.textMessages.push(block.text)
+              }
             }
           }
         }
       }
     } else if (msg.type === "complete" && isRecord(msg.result)) {
+      state.allMessages.push(msg)
       const result = msg.result
-      if (isRecord(result.result) && result.result.subtype === "success") {
-        if (isRecord(result.result.data) && typeof result.result.data.resultText === "string") {
-          state.finalResponse = result.result.data.resultText
+      // Worker pool: result.result is the SDK result object
+      if (isRecord(result.result)) {
+        const sdkResult = result.result
+        if (sdkResult.subtype === "success" && typeof sdkResult.result === "string") {
+          state.finalResponse = sdkResult.result
         }
-      } else if (result.type === "result" && isRecord(result.data) && typeof result.data.resultText === "string") {
-        state.finalResponse = result.data.resultText
+        if (typeof sdkResult.total_cost_usd === "number") {
+          state.costUsd = sdkResult.total_cost_usd
+        }
+        if (typeof sdkResult.num_turns === "number") {
+          state.numTurns = sdkResult.num_turns
+        }
+        if (isRecord(sdkResult.usage)) {
+          const u = sdkResult.usage
+          if (typeof u.input_tokens === "number" && typeof u.output_tokens === "number") {
+            state.usage = { input_tokens: u.input_tokens, output_tokens: u.output_tokens }
+          }
+        }
       }
     }
   }

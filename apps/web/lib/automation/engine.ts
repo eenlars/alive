@@ -57,6 +57,9 @@ export interface FinishOptions {
   error?: string
   summary?: string
   messages?: unknown[]
+  costUsd?: number
+  numTurns?: number
+  usage?: { input_tokens: number; output_tokens: number }
   /** Config for retry behavior */
   maxRetries?: number
   retryBaseDelayMs?: number
@@ -262,6 +265,9 @@ export async function executeJob(ctx: RunContext): Promise<{
   error?: string
   response?: string
   messages?: unknown[]
+  costUsd?: number
+  numTurns?: number
+  usage?: { input_tokens: number; output_tokens: number }
 }> {
   const startTime = Date.now()
 
@@ -285,6 +291,9 @@ export async function executeJob(ctx: RunContext): Promise<{
       error: result.error,
       response: result.response,
       messages: result.messages,
+      costUsd: result.costUsd,
+      numTurns: result.numTurns,
+      usage: result.usage,
     }
   } catch (error) {
     return {
@@ -401,7 +410,14 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     duration_ms: result.durationMs,
     status: result.status,
     error: result.error ?? null,
-    result: result.summary ? { summary: result.summary } : null,
+    result: result.summary
+      ? {
+          summary: result.summary,
+          ...(result.costUsd != null && { cost_usd: result.costUsd }),
+          ...(result.numTurns != null && { num_turns: result.numTurns }),
+          ...(result.usage && { usage: result.usage }),
+        }
+      : null,
     messages: null,
     messages_uri: messagesUri,
     triggered_by: ctx.triggeredBy,

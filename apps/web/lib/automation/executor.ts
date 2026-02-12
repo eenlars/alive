@@ -60,6 +60,9 @@ export interface AutomationJobResult {
   response?: string
   /** Full Claude SDK message stream for logging/debugging */
   messages?: unknown[]
+  costUsd?: number
+  numTurns?: number
+  usage?: { input_tokens: number; output_tokens: number }
 }
 
 // =============================================================================
@@ -282,7 +285,15 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       `[Automation ${requestId}] Completed in ${durationMs}ms via ${mode}, ${attempt.allMessages.length} messages captured`,
     )
 
-    return { success: true, durationMs, response, messages: attempt.allMessages }
+    return {
+      success: true,
+      durationMs,
+      response,
+      messages: attempt.allMessages,
+      costUsd: attempt.costUsd,
+      numTurns: attempt.numTurns,
+      usage: attempt.usage,
+    }
   } catch (error) {
     const durationMs = Date.now() - startTime
     const errorMessage = error instanceof Error ? error.message : String(error)
