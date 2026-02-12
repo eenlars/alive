@@ -86,6 +86,9 @@ export async function POST(req: NextRequest) {
       error: result.error,
       summary: result.success ? extractSummary(result.response) : undefined,
       messages: result.messages,
+      costUsd: result.costUsd,
+      numTurns: result.numTurns,
+      usage: result.usage,
     })
 
     // Poke CronService so it re-arms with the new next_run_at

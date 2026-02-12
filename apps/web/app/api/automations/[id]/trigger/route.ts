@@ -133,6 +133,9 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           error: result.error,
           summary: result.success ? extractSummary(result.response) : undefined,
           messages: result.messages,
+          costUsd: result.costUsd,
+          numTurns: result.numTurns,
+          usage: result.usage,
         })
 
         console.log(

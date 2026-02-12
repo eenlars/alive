@@ -48,6 +48,9 @@ export interface FinishOptions {
   error?: string
   summary?: string
   messages?: unknown[]
+  costUsd?: number
+  numTurns?: number
+  usage?: { input_tokens: number; output_tokens: number }
   /** Config for retry behavior */
   maxRetries?: number
   retryBaseDelayMs?: number

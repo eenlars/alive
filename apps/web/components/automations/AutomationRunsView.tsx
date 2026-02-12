@@ -4,6 +4,40 @@ import { AlertCircle, CheckCircle2, Clock, History, RefreshCw, XCircle } from "l
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner"
 import { type AutomationJob, useAutomationRunsQuery } from "@/lib/hooks/useSettingsQueries"
 
+function RunMetaBadges({ result }: { result: Record<string, unknown> | null }) {
+  if (!result) return null
+  const numTurns = typeof result.num_turns === "number" ? result.num_turns : null
+  const costUsd = typeof result.cost_usd === "number" ? result.cost_usd : null
+  const usage =
+    result.usage && typeof result.usage === "object" && !Array.isArray(result.usage)
+      ? (result.usage as Record<string, unknown>)
+      : null
+  const inputTokens = usage && typeof usage.input_tokens === "number" ? usage.input_tokens : null
+  const outputTokens = usage && typeof usage.output_tokens === "number" ? usage.output_tokens : null
+
+  if (numTurns == null && costUsd == null && inputTokens == null) return null
+
+  return (
+    <div className="flex gap-2 mt-1 flex-wrap">
+      {numTurns != null && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-black/50 dark:text-white/50">
+          {numTurns} turn{numTurns === 1 ? "" : "s"}
+        </span>
+      )}
+      {costUsd != null && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-black/50 dark:text-white/50">
+          ${costUsd.toFixed(3)}
+        </span>
+      )}
+      {inputTokens != null && outputTokens != null && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-black/50 dark:text-white/50">
+          {inputTokens.toLocaleString()}&#8595; {outputTokens.toLocaleString()}&#8593;
+        </span>
+      )}
+    </div>
+  )
+}
+
 interface AutomationRunsViewProps {
   job: AutomationJob | null
 }
@@ -115,6 +149,12 @@ export function AutomationRunsView({ job }: AutomationRunsViewProps) {
                   {run.triggered_by && (
                     <p className="text-black/50 dark:text-white/50 mb-0.5">Triggered by: {run.triggered_by}</p>
                   )}
+
+                  {typeof run.result?.summary === "string" && (
+                    <p className="text-black/70 dark:text-white/70 mt-1 line-clamp-3">{run.result.summary}</p>
+                  )}
+
+                  <RunMetaBadges result={run.result} />
 
                   {run.error && (
                     <div className="mt-1.5 p-1.5 rounded bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30">

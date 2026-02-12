@@ -620,6 +620,7 @@ export const apiSchemas = {
           error: z.string().nullable(),
           triggered_by: z.string().nullable(),
           changes_made: z.array(z.string()).nullable(),
+          result: z.record(z.string(), z.unknown()).nullable(),
         }),
       ),
       job: z.object({

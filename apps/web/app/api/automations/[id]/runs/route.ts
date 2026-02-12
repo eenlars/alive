@@ -66,7 +66,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     // Build query
     let query = supabase
       .from("automation_runs")
-      .select("id, job_id, started_at, completed_at, duration_ms, status, error, triggered_by, changes_made")
+      .select("id, job_id, started_at, completed_at, duration_ms, status, error, triggered_by, changes_made, result")
       .eq("job_id", jobId)
       .order("started_at", { ascending: false })
       .range(offset, offset + limit - 1)

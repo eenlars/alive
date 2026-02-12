@@ -324,7 +324,14 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     duration_ms: result.durationMs,
     status: result.status,
     error: result.error ?? null,
-    result: result.summary ? { summary: result.summary } : null,
+    result: result.summary
+      ? {
+          summary: result.summary,
+          ...(result.costUsd != null && { cost_usd: result.costUsd }),
+          ...(result.numTurns != null && { num_turns: result.numTurns }),
+          ...(result.usage && { usage: result.usage }),
+        }
+      : null,
     messages: messagesFallback,
     messages_uri: messagesUri,
     triggered_by: ctx.triggeredBy,
