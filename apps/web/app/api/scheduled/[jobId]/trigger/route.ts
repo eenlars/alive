@@ -4,6 +4,7 @@
  * Manually trigger a scheduled task to run immediately.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { getJob, triggerJob } from "@webalive/tools"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -50,6 +51,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     })
   } catch (error) {
     console.error("[Scheduled API] Trigger error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

@@ -3,6 +3,7 @@
  * Returns available skills from filesystem (SKILL.md files)
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { listGlobalSkills } from "@webalive/tools"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -28,6 +29,7 @@ export async function GET() {
     )
   } catch (error) {
     console.error("[Skills List API] Error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       exception: error instanceof Error ? error.message : String(error),
     })

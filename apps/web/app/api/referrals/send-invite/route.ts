@@ -13,6 +13,7 @@
  *
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { REFERRAL } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import { z } from "zod"
@@ -93,6 +94,7 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error("Failed to send invite email:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 

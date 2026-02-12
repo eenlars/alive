@@ -5,6 +5,7 @@
  * This bypasses the schedule and runs the job now.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { createClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
 import { type NextRequest, NextResponse } from "next/server"
@@ -127,6 +128,8 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           .eq("running_at", startedAtIso)
 
         console.error(`[Automation Trigger] Background job "${job.name}" crashed:`, error)
+
+        Sentry.captureException(error)
         return
       }
 
@@ -191,6 +194,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     )
   } catch (error) {
     console.error("[Automation Trigger] Error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

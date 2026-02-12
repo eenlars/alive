@@ -12,6 +12,7 @@
  * - Conversion: 1 credit = 100 LLM tokens (used only at charge time)
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { createClient } from "@supabase/supabase-js"
 import type { AppDatabase, IamDatabase } from "@webalive/database"
 import { llmTokensToCredits } from "@/lib/credits"
@@ -59,6 +60,7 @@ async function updateCreditsInDatabase(orgId: string, newCredits: number): Promi
 
   if (error) {
     console.error("[Supabase Credits] Failed to update credits:", error)
+    Sentry.captureException(error)
     return false
   }
 
@@ -128,6 +130,7 @@ async function getOrgIdForDomain(domain: string): Promise<string | null> {
 
   if (error || !data || !data.org_id) {
     console.error(`[Supabase Credits] Domain not found: ${domain}`, error)
+    Sentry.captureException(error)
     // Remove from cache if domain no longer exists
     domainOrgCache.delete(domain)
     return null
@@ -161,6 +164,7 @@ export async function getOrgCredits(domain: string): Promise<number | null> {
 
   if (error || !data) {
     console.error(`[Supabase Credits] Org not found: ${orgId}`, error)
+    Sentry.captureException(error)
     return null
   }
 
@@ -229,6 +233,7 @@ export async function chargeTokensFromCredits(domain: string, llmTokensUsed: num
       chargedCredits,
       error: error.message,
     })
+    Sentry.captureException(error)
     return null
   }
 
@@ -312,6 +317,7 @@ export async function chargeCreditsDirectly(domain: string, creditsToCharge: num
       creditsToCharge,
       error: error.message,
     })
+    Sentry.captureException(error)
     return null
   }
 
@@ -383,6 +389,7 @@ export async function updateOrgCredits(domain: string, newCredits: number): Prom
     return success
   } catch (error) {
     console.error("[Supabase Credits] Error updating credits:", error)
+    Sentry.captureException(error)
     return false
   }
 }
@@ -431,6 +438,7 @@ export async function getAllOrganizationCredits(): Promise<Map<string, number>> 
     return creditsMap
   } catch (error) {
     console.error("[Supabase Credits] Error fetching organization credits:", error)
+    Sentry.captureException(error)
     return creditsMap
   }
 }

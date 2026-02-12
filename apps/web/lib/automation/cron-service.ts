@@ -12,6 +12,7 @@
  * - Posts summaries back to user's chat
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
 import { getServerId } from "@webalive/shared"
@@ -226,6 +227,7 @@ async function armTimer(): Promise<void> {
   state.timer = setTimeout(() => {
     void onTimerTick().catch(err => {
       console.error("[CronService] Timer tick failed:", err)
+      Sentry.captureException(err)
     })
   }, clampedDelay)
 }
@@ -347,6 +349,7 @@ async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promi
 
   if (claimError) {
     console.error(`[CronService] Claim error for "${job.name}" (${job.id}):`, claimError)
+    Sentry.captureException(claimError)
     return
   }
 
@@ -424,6 +427,12 @@ async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promi
     }
   } catch (error) {
     const durationMs = Date.now() - startedAt
+    Sentry.withScope(scope => {
+      scope.setTag("category", "cron")
+      scope.setTag("jobId", job.id)
+      scope.setTag("jobName", job.name)
+      Sentry.captureException(error)
+    })
     await finishJob(job, {
       status: "failure",
       durationMs,
@@ -522,6 +531,7 @@ async function finishJob(
 
   if (runInsertError) {
     console.error(`[CronService] Failed to insert run record for "${job.name}":`, runInsertError)
+    Sentry.captureException(runInsertError)
   }
 
   // Emit finished event

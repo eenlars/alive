@@ -5,6 +5,7 @@
  * Used by scheduled_* tools.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { createJob, listJobs, type ScheduledJobCreate, type ScheduledJobListParams } from "@webalive/tools"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, ...result })
   } catch (error) {
     console.error("[Scheduled API] GET error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -85,6 +87,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, job }, { status: 201 })
   } catch (error) {
     console.error("[Scheduled API] POST error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

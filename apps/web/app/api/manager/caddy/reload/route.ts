@@ -5,6 +5,7 @@ import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/re
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
+import * as Sentry from "@sentry/nextjs"
 
 /**
  * POST /api/manager/caddy/reload
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error("[Manager] Caddy reload failed:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { jwtVerify } from "jose"
 import { cookies } from "next/headers"
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Unauthorized", { status: 401 })
   } catch (error) {
     console.error("[preview-guard] Error:", error)
+    Sentry.captureException(error)
     return new NextResponse("Internal Server Error", { status: 500 })
   }
 }

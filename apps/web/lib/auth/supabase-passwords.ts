@@ -3,6 +3,7 @@
  * Updates user passwords in iam.users table
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
 import { hashPassword } from "@/types/guards/api"
@@ -22,6 +23,7 @@ export async function updateUserPasswordByEmail(email: string, newPassword: stri
 
     if (error) {
       console.error("[Supabase Passwords] Failed to update password for email:", email, error)
+      Sentry.captureException(error)
       return false
     }
 
@@ -29,6 +31,7 @@ export async function updateUserPasswordByEmail(email: string, newPassword: stri
     return true
   } catch (error) {
     console.error("[Supabase Passwords] Error updating password:", error)
+    Sentry.captureException(error)
     return false
   }
 }
@@ -84,6 +87,7 @@ export async function updateDomainOwnerPassword(domain: string, newPassword: str
     return true
   } catch (error) {
     console.error("[Supabase Passwords] Error updating domain owner password:", error)
+    Sentry.captureException(error)
     return false
   }
 }
@@ -101,6 +105,7 @@ export async function updateUserEmail(oldEmail: string, newEmail: string): Promi
 
     if (error) {
       console.error("[Supabase Passwords] Failed to update email:", error)
+      Sentry.captureException(error)
       return false
     }
 
@@ -108,6 +113,7 @@ export async function updateUserEmail(oldEmail: string, newEmail: string): Promi
     return true
   } catch (error) {
     console.error("[Supabase Passwords] Error updating email:", error)
+    Sentry.captureException(error)
     return false
   }
 }

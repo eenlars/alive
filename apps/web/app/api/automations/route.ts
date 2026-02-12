@@ -4,6 +4,7 @@
  * List and manage automation jobs for an organization.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { createClient } from "@supabase/supabase-js"
 import { computeNextRunAtMs } from "@webalive/automation"
 import type { NextRequest } from "next/server"
@@ -81,6 +82,7 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error("[Automations API] Query error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
@@ -110,6 +112,7 @@ export async function GET(req: NextRequest) {
     return alrighty("automations", { ok: true, automations, total: automations.length })
   } catch (error) {
     console.error("[Automations API] GET error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -262,6 +265,7 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("[Automations API] Insert error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
@@ -272,6 +276,7 @@ export async function POST(req: NextRequest) {
     return alrighty("automations/create", response, { status: 201 })
   } catch (error) {
     console.error("[Automations API] POST error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

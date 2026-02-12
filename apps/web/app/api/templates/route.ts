@@ -3,6 +3,7 @@
  * Returns available site templates for deployment
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -28,6 +29,7 @@ export async function GET() {
 
     if (error) {
       console.error("[Templates API] Failed to fetch templates:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
         status: 500,
         details: { message: error.message },
@@ -45,6 +47,7 @@ export async function GET() {
     )
   } catch (error) {
     console.error("[Templates API] Unexpected error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
       status: 500,
       details: { message: error instanceof Error ? error.message : "Unknown error" },

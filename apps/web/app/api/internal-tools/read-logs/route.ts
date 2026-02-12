@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process"
+import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -111,6 +112,8 @@ export async function POST(req: Request) {
         const errorMessage = error instanceof Error ? error.message : String(error)
 
         console.error(`[read-logs ${requestId}] Error:`, error)
+
+        Sentry.captureException(error)
 
         return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
           requestId,

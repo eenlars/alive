@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { requireManagerAuth } from "@/features/manager/lib/api-helpers"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error("[Manager] Error fetching templates:", error)
+      Sentry.captureException(error)
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
         details: { message: error.message },
       })
@@ -37,6 +39,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error("[Manager] Error fetching templates:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
       details: { message: error instanceof Error ? error.message : "Unknown error" },
     })
@@ -83,6 +86,7 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("[Manager] Error creating template:", error)
+      Sentry.captureException(error)
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
         details: { message: error.message },
       })
@@ -91,6 +95,7 @@ export async function POST(req: NextRequest) {
     return createCorsSuccessResponse(origin, { template })
   } catch (error) {
     console.error("[Manager] Error creating template:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
       details: { message: error instanceof Error ? error.message : "Unknown error" },
     })
@@ -129,6 +134,7 @@ export async function PUT(req: NextRequest) {
 
     if (error) {
       console.error("[Manager] Error updating template:", error)
+      Sentry.captureException(error)
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
         details: { message: error.message },
       })
@@ -137,6 +143,7 @@ export async function PUT(req: NextRequest) {
     return createCorsSuccessResponse(origin, { template })
   } catch (error) {
     console.error("[Manager] Error updating template:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
       details: { message: error instanceof Error ? error.message : "Unknown error" },
     })
@@ -170,6 +177,7 @@ export async function DELETE(req: NextRequest) {
 
     if (error) {
       console.error("[Manager] Error deleting template:", error)
+      Sentry.captureException(error)
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
         details: { message: error.message },
       })
@@ -178,6 +186,7 @@ export async function DELETE(req: NextRequest) {
     return createCorsSuccessResponse(origin, { deleted: true, template_id })
   } catch (error) {
     console.error("[Manager] Error deleting template:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
       details: { message: error instanceof Error ? error.message : "Unknown error" },
     })

@@ -2,13 +2,22 @@
  * Next.js Instrumentation
  *
  * This file is loaded when the Next.js server starts.
- * Used to initialize background services like the CronService.
+ * Used to initialize Sentry and background services like the CronService.
  *
  * @see https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 
 export async function register() {
-  // Only run on the server, not during build
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Initialize Sentry server-side
+    await import("./sentry.server.config")
+  }
+
+  if (process.env.NEXT_RUNTIME === "edge") {
+    await import("./sentry.edge.config")
+  }
+
+  // Only run background services on nodejs runtime, not during build
   if (process.env.NEXT_RUNTIME === "nodejs") {
     console.log("[Instrumentation] Initializing server-side services...")
 
@@ -65,3 +74,6 @@ export async function register() {
     console.log("[Instrumentation] Server-side services initialized")
   }
 }
+
+// Sentry captures server errors via its Next.js integration automatically
+// (no need for onRequestError export — the SDK hooks into Next.js internally)

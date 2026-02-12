@@ -1,5 +1,6 @@
 "use client"
 
+import * as Sentry from "@sentry/nextjs"
 import React from "react"
 import { captureException } from "@/components/providers/PostHogProvider"
 
@@ -34,6 +35,12 @@ export class MessageErrorBoundary extends React.Component<Props, State> {
       error_source: "message_error_boundary",
       messageId: this.props.messageId,
       componentStack: errorInfo.componentStack,
+    })
+    Sentry.withScope(scope => {
+      scope.setTag("source", "message_error_boundary")
+      scope.setTag("messageId", this.props.messageId)
+      scope.setContext("react", { componentStack: errorInfo.componentStack })
+      Sentry.captureException(error)
     })
   }
 

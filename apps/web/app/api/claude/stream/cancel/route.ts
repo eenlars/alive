@@ -1,4 +1,5 @@
 import { appendFileSync, mkdirSync } from "node:fs"
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { tabKey } from "@/features/auth/lib/sessionStore"
@@ -59,6 +60,7 @@ function logCancelDebug(entry: CancelDebugEntry): void {
   } catch (err) {
     // Don't let logging failures break the endpoint
     console.error("[Cancel Debug] Failed to write to log file:", err)
+    Sentry.captureException(err)
   }
 }
 
@@ -276,6 +278,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (error) {
     console.error("[Cancel Stream] Error processing cancellation:", error)
+    Sentry.captureException(error)
     // Log even if we don't have a user (auth failure case)
     logCancelDebug({
       timestamp,

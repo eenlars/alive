@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { isManagerAuthenticated } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
 
     if (!result.success) {
       console.error(`[Manager] Service restart failed for ${serviceName}:`, result.error)
+      Sentry.captureException(new Error(`Service restart failed: ${serviceName} - ${result.error}`))
       return createCorsErrorResponse(origin, ErrorCodes.WORKSPACE_RESTART_FAILED, 500, {
         requestId,
         details: {
