@@ -22,11 +22,20 @@ EOF
 chmod 640 "$ENV_FILE_PATH"
 chown root:"$SITE_USER" "$ENV_FILE_PATH"
 
-# Generate config if script exists
-if [[ -f "${TARGET_DIR}/scripts/generate-config.js" ]]; then
-    log_info "Generating site config..."
-    cd "$TARGET_DIR"
-    bun run scripts/generate-config.js "$SITE_DOMAIN" "$SITE_PORT" || log_warn "Config generation failed, continuing..."
+# Patch vite.config.ts to use assigned PORT from environment
+# Templates have hardcoded ports for preview hosting — deployed sites must read PORT at runtime
+VITE_CONFIG="${TARGET_DIR}/user/vite.config.ts"
+if [[ -f "$VITE_CONFIG" ]]; then
+    if grep -q "process.env.PORT" "$VITE_CONFIG"; then
+        log_info "vite.config.ts already reads PORT from environment"
+    else
+        log_info "Patching vite.config.ts to use PORT=$SITE_PORT from environment..."
+        # Insert PORT const before export default defineConfig
+        sed -i '/export default defineConfig/i\const PORT = Number(process.env.PORT) || '"$SITE_PORT"';\n' "$VITE_CONFIG"
+        # Replace hardcoded port numbers with PORT variable
+        sed -i 's/port: [0-9]\+/port: PORT/g' "$VITE_CONFIG"
+        log_success "vite.config.ts patched"
+    fi
 fi
 
 # Fix ownership before build
