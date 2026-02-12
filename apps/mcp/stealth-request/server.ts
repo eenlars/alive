@@ -127,8 +127,9 @@ app.post("/fetch", async (req: Request, res: Response) => {
   }
 })
 
-app.listen(PORT, "127.0.0.1", () => {
-  console.log(`🚀 Stealth server running on http://0.0.0.0:${PORT}`)
-  console.log(`📌 Health check: http://0.0.0.0:${PORT}/health`)
-  console.log(`📮 POST requests to: http://0.0.0.0:${PORT}/fetch`)
+const HOST = "127.0.0.1"
+app.listen(PORT, HOST, () => {
+  console.log(`Stealth server running on http://${HOST}:${PORT}`)
+  console.log(`Health check: http://${HOST}:${PORT}/health`)
+  console.log(`POST requests to: http://${HOST}:${PORT}/fetch`)
 })

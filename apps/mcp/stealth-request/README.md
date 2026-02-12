@@ -39,7 +39,7 @@ export PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
 bun apps/mcp/stealth-request/server.ts
 ```
 
-Service will listen on `http://0.0.0.0:1234`
+Service will listen on `http://127.0.0.1:1234` (local-only)
 
 ## API
 
