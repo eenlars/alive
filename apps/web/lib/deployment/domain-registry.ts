@@ -166,14 +166,16 @@ export async function getAllDomains(includeTestData = false, thisServerOnly = tr
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class DomainRegistrationError extends Error {
-  constructor(
-    public readonly errorCode: ErrorCode,
-    message: string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    public readonly details: Record<string, any> = {},
-  ) {
+  readonly errorCode: ErrorCode
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly details: Record<string, any>
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(errorCode: ErrorCode, message: string, details: Record<string, any> = {}) {
     super(message)
     this.name = "DomainRegistrationError"
+    this.errorCode = errorCode
+    this.details = details
   }
 }
 

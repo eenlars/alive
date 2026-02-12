@@ -211,7 +211,7 @@ const TreeNode = memo(function TreeNode({
   }, [isFolder, item.path, onToggleFolder, onSelectFile])
 
   const handleDelete = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.SyntheticEvent) => {
       e.stopPropagation()
       onDeleteFile(item.path, isFolder)
     },
@@ -227,6 +227,10 @@ const TreeNode = memo(function TreeNode({
         onClick={handleClick}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={e => {
+          if (!e.currentTarget.contains(e.relatedTarget)) setHovered(false)
+        }}
         className={`w-full h-7 flex items-center gap-1 text-left transition-colors ${
           isActive
             ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white"
@@ -256,10 +260,10 @@ const TreeNode = memo(function TreeNode({
           // biome-ignore lint/a11y/useSemanticElements: nested inside button, can't use button element
           <span
             role="button"
-            tabIndex={-1}
+            tabIndex={0}
             onClick={handleDelete}
             onKeyDown={e => {
-              if (e.key === "Enter") handleDelete(e as unknown as React.MouseEvent)
+              if (e.key === "Enter") handleDelete(e)
             }}
             className="shrink-0 p-0.5 mr-1 text-neutral-400 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors"
             title="Delete"

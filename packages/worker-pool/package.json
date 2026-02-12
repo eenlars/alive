@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsgo --noEmit",
     "typecheck": "bun run type-check",
     "test": "bun test",
     "check:imports": "node scripts/check-import-order.mjs",

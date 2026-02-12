@@ -56,7 +56,9 @@ export class InMemoryRefreshLockManager implements IRefreshLockManager {
   private readonly LOCK_TTL_MS = 30000 // 30 seconds
   private hasWarnedAboutMultiInstance = false
 
-  constructor(private readonly warnOnUse: boolean = false) {
+  private readonly warnOnUse: boolean
+  constructor(warnOnUse: boolean = false) {
+    this.warnOnUse = warnOnUse
     if (this.warnOnUse) {
       this.logMultiInstanceWarning()
     }

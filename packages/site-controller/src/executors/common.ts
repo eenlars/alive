@@ -6,14 +6,18 @@ import { PATHS } from "@webalive/shared"
  * Error thrown when a script execution fails
  */
 export class ScriptError extends Error {
-  constructor(
-    public script: string,
-    public exitCode: number,
-    public stderr: string,
-    public stdout: string,
-  ) {
+  script: string
+  exitCode: number
+  stderr: string
+  stdout: string
+
+  constructor(script: string, exitCode: number, stderr: string, stdout: string) {
     super(`Script ${script} failed with exit code ${exitCode}`)
     this.name = "ScriptError"
+    this.script = script
+    this.exitCode = exitCode
+    this.stderr = stderr
+    this.stdout = stdout
   }
 }
 

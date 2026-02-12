@@ -10,7 +10,6 @@
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
       "@/app/*": ["./app/*"],
       "@/features/*": ["./features/*"],

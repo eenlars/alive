@@ -11,7 +11,10 @@ import { expect, type Page } from "@playwright/test"
 import { TEST_SELECTORS, TEST_TIMEOUTS } from "../fixtures/test-data"
 
 export class ChatPage {
-  constructor(private page: Page) {}
+  private page: Page
+  constructor(page: Page) {
+    this.page = page
+  }
 
   /**
    * Navigate to chat page

@@ -9,7 +9,7 @@
     "build": "tsc",
     "start": "bun dist/server.js",
     "start:bun": "bun src/server.ts",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsgo --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "ci": "biome ci .",
