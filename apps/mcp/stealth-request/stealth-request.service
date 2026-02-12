@@ -9,7 +9,7 @@ User=root
 WorkingDirectory=/root/webalive/alive
 ExecStart=/root/.bun/bin/bun apps/mcp/stealth-request/server.ts
 ExecReload=/bin/kill -HUP $MAINPID
-KillMode=process
+KillMode=mixed
 Restart=always
 RestartSec=5
 

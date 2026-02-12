@@ -114,7 +114,7 @@ journalctl -u stealth-request --since "1 hour ago"
 ```bash
 # Re-install Chrome
 export PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
-npx puppeteer browsers install --chrome
+npx puppeteer browsers install chrome
 
 # Restart service
 systemctl restart stealth-request

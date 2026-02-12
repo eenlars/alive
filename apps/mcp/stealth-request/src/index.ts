@@ -4,9 +4,9 @@ import stealthPlugin from "puppeteer-extra-plugin-stealth"
 import { USER_AGENTS, DEFAULT_TIMEOUT } from "./constants"
 import { RequestSchema, type ProxyConfig, type RequestConfig, type RequestResponse, type NetworkRequest } from "./types"
 
-async function setupBrowser(proxy?: ProxyConfig): Promise<Browser> {
-  puppeteerExtra.use(stealthPlugin())
+puppeteerExtra.use(stealthPlugin())
 
+async function setupBrowser(proxy?: ProxyConfig): Promise<Browser> {
   const args = ["--no-sandbox", "--disable-setuid-sandbox"]
 
   if (proxy) {
@@ -15,7 +15,7 @@ async function setupBrowser(proxy?: ProxyConfig): Promise<Browser> {
 
   const launchOptions: LaunchOptions = {
     headless: true,
-    args
+    args,
   }
 
   return await puppeteerExtra.launch(launchOptions)
@@ -23,8 +23,12 @@ async function setupBrowser(proxy?: ProxyConfig): Promise<Browser> {
 
 async function cleanupBrowser(browser: Browser) {
   const pages = await browser.pages()
-  await Promise.all(pages.map((page: Page) => page.close()))
-  await browser.close()
+  await Promise.allSettled(pages.map((page: Page) => page.close()))
+  try {
+    await browser.close()
+  } catch {
+    // browser may already be closed
+  }
 }
 
 function setupNetworkCapture(page: Page): {
@@ -47,7 +51,7 @@ function setupNetworkCapture(page: Page): {
       resourceType: request.resourceType(),
       requestHeaders: headers,
       postData: request.postData(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
     }
 
     pendingRequests.set(request.url() + request.method(), networkRequest)
@@ -70,7 +74,7 @@ function setupNetworkCapture(page: Page): {
         statusText: response.statusText(),
         headers: responseHeaders,
         fromCache: response.fromCache(),
-        fromServiceWorker: response.fromServiceWorker()
+        fromServiceWorker: response.fromServiceWorker(),
       }
 
       networkRequests.push(networkRequest)
@@ -86,7 +90,7 @@ function setupNetworkCapture(page: Page): {
     cleanup: () => {
       page.off("request", requestHandler)
       page.off("response", responseHandler)
-    }
+    },
   }
 }
 
@@ -111,22 +115,16 @@ const FORBIDDEN_FETCH_HEADERS = new Set([
   "transfer-encoding",
   "upgrade",
   "user-agent",
-  "via"
+  "via",
 ])
 
-function sanitizeHeadersForFetch(
-  headers?: Record<string, string> | null
-): Record<string, string> {
+function sanitizeHeadersForFetch(headers?: Record<string, string> | null): Record<string, string> {
   if (!headers) return {}
 
   const sanitized: Record<string, string> = {}
   for (const [key, value] of Object.entries(headers)) {
     const lowerKey = key.toLowerCase()
-    if (
-      FORBIDDEN_FETCH_HEADERS.has(lowerKey) ||
-      lowerKey.startsWith("sec-") ||
-      lowerKey.startsWith("proxy-")
-    ) {
+    if (FORBIDDEN_FETCH_HEADERS.has(lowerKey) || lowerKey.startsWith("sec-") || lowerKey.startsWith("proxy-")) {
       continue
     }
     sanitized[key] = value
@@ -135,10 +133,21 @@ function sanitizeHeadersForFetch(
   return sanitized
 }
 
-export async function stealthRequest(
-  input: RequestConfig,
-  proxy?: ProxyConfig
-): Promise<RequestResponse> {
+interface BrowserFetchResult {
+  status?: number
+  statusText?: string
+  headers?: Record<string, string>
+  body?: string
+  url?: string
+  error?: string
+}
+
+function parseBrowserFetchResult(raw: unknown): BrowserFetchResult {
+  if (typeof raw === "object" && raw !== null) return raw as BrowserFetchResult
+  return { error: "Unexpected evaluate result" }
+}
+
+export async function stealthRequest(input: RequestConfig, proxy?: ProxyConfig): Promise<RequestResponse> {
   let browser: Browser | null = null
   let networkCapture: ReturnType<typeof setupNetworkCapture> | null = null
 
@@ -155,7 +164,7 @@ export async function stealthRequest(
     if (proxy) {
       await page.authenticate({
         username: proxy.username,
-        password: proxy.password
+        password: proxy.password,
       })
     }
 
@@ -172,32 +181,25 @@ export async function stealthRequest(
     if (validated.method === "GET") {
       const response = await page.goto(validated.url, {
         waitUntil: "networkidle0",
-        timeout: validated.timeout ?? DEFAULT_TIMEOUT
+        timeout: validated.timeout ?? DEFAULT_TIMEOUT,
       })
 
       if (!response) {
-        const capturedRequests = networkCapture?.getNetworkRequests()
-        networkCapture?.cleanup()
-        await cleanupBrowser(browser)
         return {
           success: false,
           error: "No response received",
           url: validated.url,
           method: validated.method,
-          networkRequests: capturedRequests
+          networkRequests: networkCapture?.getNetworkRequests(),
         }
       }
 
       const html = await page.content()
       const responseHeaders: Record<string, string> = {}
       const headers = response.headers()
-      Object.keys(headers).forEach((key) => {
+      Object.keys(headers).forEach(key => {
         responseHeaders[key] = headers[key] || ""
       })
-
-      const capturedRequests = networkCapture?.getNetworkRequests()
-      networkCapture?.cleanup()
-      await cleanupBrowser(browser)
 
       return {
         success: response.ok(),
@@ -207,7 +209,7 @@ export async function stealthRequest(
         responseHeaders,
         url: validated.url,
         method: validated.method,
-        networkRequests: capturedRequests
+        networkRequests: networkCapture?.getNetworkRequests(),
       }
     }
 
@@ -218,7 +220,7 @@ export async function stealthRequest(
       const navigationUrl = validated.originUrl ?? new URL(validated.url).origin
       await page.goto(navigationUrl, {
         waitUntil: "domcontentloaded",
-        timeout: timeoutMs
+        timeout: timeoutMs,
       })
     } catch {
       // ignore navigation errors; cookies may still have been set
@@ -227,73 +229,61 @@ export async function stealthRequest(
     const sanitizedHeaders = sanitizeHeadersForFetch(validated.headers)
     const postBody = validated.body ? JSON.stringify(validated.body) : undefined
 
-    const fetchResult = (await page.evaluate(
-      async ({ url, method, headers, body, timeout }) => {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), timeout)
+    const fetchResult = parseBrowserFetchResult(
+      await page.evaluate(
+        async ({ url, method, headers, body, timeout }) => {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-        try {
-          const response = await fetch(url, {
-            method,
-            headers,
-            body,
-            credentials: "include",
-            signal: controller.signal
-          })
+          try {
+            const response = await fetch(url, {
+              method,
+              headers,
+              body,
+              credentials: "include",
+              signal: controller.signal,
+            })
 
-          const text = await response.text()
-          const responseHeaders: Record<string, string> = {}
-          response.headers.forEach((value, key) => {
-            responseHeaders[key] = value
-          })
+            const text = await response.text()
+            const responseHeaders: Record<string, string> = {}
+            response.headers.forEach((value, key) => {
+              responseHeaders[key] = value
+            })
 
-          return {
-            status: response.status,
-            statusText: response.statusText,
-            headers: responseHeaders,
-            body: text,
-            url: response.url
+            return {
+              status: response.status,
+              statusText: response.statusText,
+              headers: responseHeaders,
+              body: text,
+              url: response.url,
+            }
+          } catch (error) {
+            return {
+              error: error instanceof Error ? error.message : String(error),
+            }
+          } finally {
+            clearTimeout(timeoutId)
           }
-        } catch (error) {
-          return {
-            error: error instanceof Error ? error.message : String(error)
-          }
-        } finally {
-          clearTimeout(timeoutId)
-        }
-      },
-      {
-        url: validated.url,
-        method: validated.method,
-        headers: sanitizedHeaders,
-        body: postBody,
-        timeout: timeoutMs
-      }
-    )) as {
-      status?: number
-      statusText?: string
-      headers?: Record<string, string>
-      body?: string
-      url?: string
-      error?: string
-    }
+        },
+        {
+          url: validated.url,
+          method: validated.method,
+          headers: sanitizedHeaders,
+          body: postBody,
+          timeout: timeoutMs,
+        },
+      ),
+    )
 
     if (fetchResult.error || !fetchResult.status) {
-      const capturedRequests = networkCapture?.getNetworkRequests()
-      networkCapture?.cleanup()
-      await cleanupBrowser(browser)
       return {
         success: false,
         error: fetchResult.error || "No response received",
         url: validated.url,
         method: validated.method,
-        networkRequests: capturedRequests
+        networkRequests: networkCapture?.getNetworkRequests(),
       }
     }
-
-    const capturedRequests = networkCapture?.getNetworkRequests()
-    networkCapture?.cleanup()
-    await cleanupBrowser(browser)
 
     return {
       success: fetchResult.status >= 200 && fetchResult.status < 300,
@@ -303,21 +293,24 @@ export async function stealthRequest(
       responseHeaders: fetchResult.headers || {},
       url: fetchResult.url || validated.url,
       method: validated.method,
-      networkRequests: capturedRequests
+      networkRequests: networkCapture?.getNetworkRequests(),
     }
   } catch (error) {
-    const capturedRequests = networkCapture?.getNetworkRequests()
-    networkCapture?.cleanup()
-    if (browser) {
-      await cleanupBrowser(browser)
-    }
-
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
       url: input.url,
       method: input.method || "POST",
-      networkRequests: capturedRequests
+      networkRequests: networkCapture?.getNetworkRequests(),
+    }
+  } finally {
+    try {
+      networkCapture?.cleanup()
+    } catch {
+      /* ignore */
+    }
+    if (browser) {
+      await cleanupBrowser(browser).catch(() => {})
     }
   }
 }

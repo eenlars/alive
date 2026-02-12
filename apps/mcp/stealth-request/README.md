@@ -156,7 +156,7 @@ curl -X POST http://localhost:1234/fetch \
   }' | jq -r '.body'
 ```
 
-## Features
+## Advanced Features
 
 ### Network Request Recording
 

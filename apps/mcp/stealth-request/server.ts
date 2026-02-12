@@ -1,18 +1,21 @@
 import express from "express"
 import cors from "cors"
 import { stealthFetch } from "./src/index"
+import type { StealthFetchOptions } from "./src/index"
 import TurndownService from "turndown"
 import type { Request, Response } from "express"
 
-// Set puppeteer cache directory
-process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || "/root/.cache/puppeteer"
+// Require puppeteer cache directory
+if (!process.env.PUPPETEER_CACHE_DIR) {
+  throw new Error("PUPPETEER_CACHE_DIR environment variable is required")
+}
 
 // Initialize Turndown for HTML to Markdown conversion
 const turndownService = new TurndownService({
   headingStyle: "atx", // Use # instead of underlines
   hr: "---",
   bulletListMarker: "-",
-  codeBlockStyle: "fenced"
+  codeBlockStyle: "fenced",
 })
 
 // Custom rules to remove nav, header, footer before conversion
@@ -65,14 +68,16 @@ app.post("/fetch", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Format must be 'html' or 'markdown'" })
     }
 
-    console.log(`[${new Date().toISOString()}] ${method} ${url}${originUrl ? ` (origin: ${originUrl})` : ''}${recordNetworkRequests ? ' (recording network)' : ''}${format === 'markdown' ? ' (→ markdown)' : ''}`)
+    console.log(
+      `[${new Date().toISOString()}] ${method} ${url}${originUrl ? ` (origin: ${originUrl})` : ""}${recordNetworkRequests ? " (recording network)" : ""}${format === "markdown" ? " (→ markdown)" : ""}`,
+    )
 
-    const options: Record<string, unknown> = {
+    const options: StealthFetchOptions = {
       method,
       headers,
       timeout,
       recordNetworkRequests: recordNetworkRequests ?? false,
-      originUrl: originUrl ?? null
+      originUrl: originUrl ?? undefined,
     }
 
     if (body && method !== "GET") {
@@ -85,7 +90,7 @@ app.post("/fetch", async (req: Request, res: Response) => {
     const responseHeaders: Record<string, string> = {}
     response.headers.forEach((value: string, key: string) => {
       // Replace newlines and carriage returns in header values
-      responseHeaders[key] = value.replace(/[\r\n]/g, ' ').trim()
+      responseHeaders[key] = value.replace(/[\r\n]/g, " ").trim()
     })
 
     const contentType = response.headers.get("content-type") || ""
@@ -111,18 +116,18 @@ app.post("/fetch", async (req: Request, res: Response) => {
       body: responseBody,
       url: response.url,
       format: format,
-      networkRequests: response.networkRequests
+      networkRequests: response.networkRequests,
     })
   } catch (error) {
     console.error(`[${new Date().toISOString()}] Error:`, error)
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred"
+      error: error instanceof Error ? error.message : "Unknown error occurred",
     })
   }
 })
 
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "127.0.0.1", () => {
   console.log(`🚀 Stealth server running on http://0.0.0.0:${PORT}`)
   console.log(`📌 Health check: http://0.0.0.0:${PORT}/health`)
   console.log(`📮 POST requests to: http://0.0.0.0:${PORT}/fetch`)

@@ -75,10 +75,7 @@ function parseBody(body: BodyInit | null | undefined): Record<string, unknown> |
  * const data = await jsonResponse.json()
  * ```
  */
-export async function stealthFetch(
-  input: string | URL,
-  init?: StealthFetchOptions
-): Promise<StealthResponse> {
+export async function stealthFetch(input: string | URL, init?: StealthFetchOptions): Promise<StealthResponse> {
   const url = typeof input === "string" ? input : input.toString()
 
   // Extract headers
@@ -107,7 +104,7 @@ export async function stealthFetch(
     GET: "GET",
     PUT: "PUT",
     PATCH: "PATCH",
-    DELETE: "DELETE"
+    DELETE: "DELETE",
   }
   const method = init?.method?.toUpperCase() ?? "GET"
 
@@ -118,7 +115,7 @@ export async function stealthFetch(
     body: parseBody(init?.body),
     timeout: init?.timeout ?? null,
     recordNetworkRequests: init?.recordNetworkRequests ?? false,
-    originUrl: init?.originUrl ?? null
+    originUrl: init?.originUrl ?? null,
   }
 
   // Make the stealth request
@@ -126,15 +123,13 @@ export async function stealthFetch(
 
   // Return response-like object
   return new StealthResponse(
-    typeof result.responseBody === "string"
-      ? result.responseBody
-      : JSON.stringify(result.responseBody),
+    typeof result.responseBody === "string" ? result.responseBody : JSON.stringify(result.responseBody),
     {
-      status: result.statusCode || (result.success ? 200 : 500),
-      statusText: result.statusText || (result.success ? "OK" : result.error || "Error"),
+      status: result.statusCode ?? (result.success ? 200 : 500),
+      statusText: result.statusText ?? (result.success ? "OK" : (result.error ?? "Error")),
       headers: result.responseHeaders || {},
       url: result.url,
-      networkRequests: result.networkRequests
-    }
+      networkRequests: result.networkRequests,
+    },
   )
 }
