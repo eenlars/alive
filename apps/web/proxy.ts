@@ -1,5 +1,5 @@
 /**
- * Next.js Middleware - Preview subdomain routing
+ * Next.js Proxy - Preview subdomain routing
  *
  * Detects requests from preview subdomains (preview--{label}.{WILDCARD}) and
  * internally rewrites them to /api/preview-router/... which handles
@@ -11,7 +11,7 @@
  * Flow:
  * 1. Browser requests https://preview--foo-sonno-tech.sonno.tech/about
  * 2. Caddy *.sonno.tech catch-all forwards to Next.js
- * 3. This middleware detects the preview-- prefix and rewrites to /api/preview-router/about
+ * 3. This proxy detects the preview-- prefix and rewrites to /api/preview-router/about
  * 4. Preview-router extracts hostname, checks auth, looks up port, and proxies
  */
 
@@ -19,7 +19,7 @@ import { type NextRequest, NextResponse } from "next/server"
 
 const PREVIEW_PREFIX = "preview--"
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
 
   // Check if this is a preview subdomain request (starts with "preview--")
