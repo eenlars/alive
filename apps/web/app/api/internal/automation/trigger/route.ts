@@ -8,7 +8,7 @@
  */
 
 import type { AppDatabase } from "@webalive/database"
-import { getServerId } from "@webalive/shared"
+import { AutomationTriggerRequestSchema, type AutomationTriggerResponse, getServerId } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { pokeCronService } from "@/lib/automation/cron-service"
@@ -17,6 +17,10 @@ import { ErrorCodes } from "@/lib/error-codes"
 import { createServiceAppClient } from "@/lib/supabase/service"
 
 type AutomationJob = AppDatabase["app"]["Tables"]["automation_jobs"]["Row"]
+
+function triggerResponse(data: AutomationTriggerResponse, status = 200): NextResponse {
+  return NextResponse.json(data, { status })
+}
 
 export async function POST(req: NextRequest) {
   // Validate internal secret
@@ -32,18 +36,13 @@ export async function POST(req: NextRequest) {
     return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
   }
 
-  // Parse request body
-  let body: { jobId?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
-  }
-
-  const { jobId } = body
-  if (!jobId) {
+  // Parse and validate request body
+  const parseResult = AutomationTriggerRequestSchema.safeParse(await req.json().catch(() => null))
+  if (!parseResult.success) {
     return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { field: "jobId" })
   }
+
+  const { jobId } = parseResult.data
 
   // Get job from database
   const supabase = createServiceAppClient()
@@ -74,11 +73,10 @@ export async function POST(req: NextRequest) {
   // Synchronous execution — wait for completion
   try {
     const result = await executeJob(ctx)
-    const durationMs = result.durationMs
 
     await finishJob(ctx, {
       status: result.success ? "success" : "failure",
-      durationMs,
+      durationMs: result.durationMs,
       error: result.error,
       summary: result.success ? extractSummary(result.response) : undefined,
       messages: result.messages,
@@ -87,27 +85,30 @@ export async function POST(req: NextRequest) {
     // Poke CronService so it re-arms with the new next_run_at
     pokeCronService()
 
-    return NextResponse.json({
+    return triggerResponse({
       ok: result.success,
       durationMs: result.durationMs,
       error: result.error,
       response: result.response?.substring(0, 2000),
     })
   } catch (error) {
+    const durationMs = Date.now() - new Date(ctx.claimedAt).getTime()
+
     await finishJob(ctx, {
       status: "failure",
-      durationMs: Date.now() - new Date(ctx.claimedAt).getTime(),
+      durationMs,
       error: error instanceof Error ? error.message : String(error),
     })
 
     pokeCronService()
 
-    return NextResponse.json(
+    return triggerResponse(
       {
         ok: false,
+        durationMs,
         error: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 },
+      500,
     )
   }
 }
