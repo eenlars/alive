@@ -212,6 +212,38 @@ interface ErrorWithWorkerDebug extends Error {
   diagnostics?: unknown
 }
 
+interface PidsDiagnosticsPayload {
+  current: number
+  max: number
+  headroom?: number
+  usagePercent?: number
+  cgroupPath?: string
+}
+
+function extractPidsDiagnostics(diagnostics: unknown): PidsDiagnosticsPayload | null {
+  if (!diagnostics || typeof diagnostics !== "object") return null
+  const asRecord = diagnostics as Record<string, unknown>
+
+  const fromRoot =
+    typeof asRecord.current === "number" && typeof asRecord.max === "number"
+      ? asRecord
+      : asRecord.pids && typeof asRecord.pids === "object"
+        ? (asRecord.pids as Record<string, unknown>)
+        : null
+
+  if (!fromRoot || typeof fromRoot.current !== "number" || typeof fromRoot.max !== "number") {
+    return null
+  }
+
+  return {
+    current: fromRoot.current,
+    max: fromRoot.max,
+    headroom: typeof fromRoot.headroom === "number" ? fromRoot.headroom : undefined,
+    usagePercent: typeof fromRoot.usagePercent === "number" ? fromRoot.usagePercent : undefined,
+    cgroupPath: typeof fromRoot.cgroupPath === "string" ? fromRoot.cgroupPath : undefined,
+  }
+}
+
 function safeJsonForLog(value: unknown): string {
   try {
     return JSON.stringify(value)
@@ -253,6 +285,12 @@ export function logStreamError(context: StreamErrorContext): void {
 
   if (diagnostics) {
     console.error(`[STREAM_ERROR:${requestId}] Worker diagnostics: ${safeJsonForLog(diagnostics)}`)
+    const pids = extractPidsDiagnostics(diagnostics)
+    if (pids) {
+      console.error(
+        `[STREAM_ERROR:${requestId}] PID pressure detected: current=${pids.current} max=${pids.max}${typeof pids.headroom === "number" ? ` headroom=${pids.headroom}` : ""}${typeof pids.usagePercent === "number" ? ` usage=${pids.usagePercent.toFixed(1)}%` : ""}${pids.cgroupPath ? ` cgroup=${pids.cgroupPath}` : ""}`,
+      )
+    }
   }
 
   // Stack trace on separate line if available

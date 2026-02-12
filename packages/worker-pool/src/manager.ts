@@ -7,7 +7,7 @@
 
 import { type ChildProcess, execFile, spawn } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { chmod, mkdir, stat } from "node:fs/promises"
+import { chmod, mkdir, readFile, stat } from "node:fs/promises"
 import { cpus, loadavg, platform } from "node:os"
 import * as path from "node:path"
 import { setTimeout as sleep } from "node:timers/promises"
@@ -47,7 +47,81 @@ interface PendingQuery {
 
 interface WorkerPoolQueryError extends Error {
   stderr?: string
-  diagnostics?: WorkerQueryFailureDiagnostics
+  diagnostics?: unknown
+}
+
+interface CgroupPidsPaths {
+  cgroupPath: string
+  currentPath: string
+  maxPath: string
+}
+
+interface PidsPressureSnapshot {
+  source: "cgroup_pids"
+  checkedAt: string
+  pid: number
+  cgroupPath: string
+  current: number
+  max: number
+  headroom: number
+  usageRatio: number
+  usagePercent: number
+  thresholdRatio: number
+  thresholdHeadroom: number
+}
+
+interface PidsPressureCheck {
+  pressured: boolean
+  reason: "ratio" | "headroom" | null
+  snapshot: PidsPressureSnapshot
+}
+
+export function parseCgroupPathFromProcSelfCgroup(raw: string): string | null {
+  const lines = raw
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean)
+  if (lines.length === 0) return null
+
+  for (const line of lines) {
+    // cgroup v2 format: 0::/system.slice/alive-production.service
+    const matchV2 = line.match(/^\d+::(\/.+)$/)
+    if (matchV2?.[1]) return matchV2[1]
+
+    // cgroup v1 format: 2:pids:/system.slice/...
+    const parts = line.split(":")
+    if (parts.length === 3 && parts[1].split(",").includes("pids") && parts[2].startsWith("/")) {
+      return parts[2]
+    }
+  }
+
+  return null
+}
+
+export function parsePidsMaxValue(raw: string): number | null {
+  const value = raw.trim()
+  if (value === "max") return null
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed <= 0) return null
+  return parsed
+}
+
+export function evaluatePidsPressure(
+  current: number,
+  max: number,
+  thresholdRatio: number,
+  thresholdHeadroom: number,
+): { pressured: boolean; reason: "ratio" | "headroom" | null; usageRatio: number; headroom: number } {
+  const usageRatio = max > 0 ? current / max : 0
+  const headroom = max - current
+  const overRatio = usageRatio >= thresholdRatio
+  const lowHeadroom = headroom <= thresholdHeadroom
+  return {
+    pressured: overRatio || lowHeadroom,
+    reason: overRatio ? "ratio" : lowHeadroom ? "headroom" : null,
+    usageRatio,
+    headroom,
+  }
 }
 
 /** Internal worker handle with IPC and pending queries */
@@ -173,6 +247,11 @@ export class WorkerPoolManager extends EventEmitter {
     loadShedEvents: 0,
     orphansReaped: 0,
   }
+  private cgroupPidsPaths: CgroupPidsPaths | null | undefined = undefined
+  private lastPidsCheckAtMs = 0
+  private lastPidsPressureCheck: PidsPressureCheck | null = null
+  private lastPidsPressureLogAtMs = 0
+  private pidsPressureActive = false
 
   constructor(config?: Partial<WorkerPoolConfig>) {
     super()
@@ -524,6 +603,124 @@ export class WorkerPoolManager extends EventEmitter {
     const currentLoad = loadavg()[0]
     const threshold = cpuCount * this.config.loadShedThreshold
     return currentLoad > threshold
+  }
+
+  private async resolveCgroupPidsPaths(): Promise<CgroupPidsPaths | null> {
+    if (this.cgroupPidsPaths !== undefined) {
+      return this.cgroupPidsPaths
+    }
+
+    try {
+      const cgroupRaw = await readFile("/proc/self/cgroup", "utf8")
+      const cgroupPath = parseCgroupPathFromProcSelfCgroup(cgroupRaw)
+      if (!cgroupPath) {
+        this.cgroupPidsPaths = null
+        return null
+      }
+
+      const normalizedPath = cgroupPath.startsWith("/") ? cgroupPath : `/${cgroupPath}`
+      const cgroupRoot = normalizedPath === "/" ? "/sys/fs/cgroup" : `/sys/fs/cgroup${normalizedPath}`
+      this.cgroupPidsPaths = {
+        cgroupPath: normalizedPath,
+        currentPath: `${cgroupRoot}/pids.current`,
+        maxPath: `${cgroupRoot}/pids.max`,
+      }
+      return this.cgroupPidsPaths
+    } catch {
+      this.cgroupPidsPaths = null
+      return null
+    }
+  }
+
+  private maybeLogPidsPressure(check: PidsPressureCheck, context: string, force = false): void {
+    const now = Date.now()
+    const shouldLog = force || !this.pidsPressureActive || now - this.lastPidsPressureLogAtMs >= 10_000
+    if (!shouldLog) return
+
+    this.lastPidsPressureLogAtMs = now
+    this.pidsPressureActive = true
+    console.error("[pool][PID_PRESSURE] spawn throttled", {
+      context,
+      reason: check.reason,
+      current: check.snapshot.current,
+      max: check.snapshot.max,
+      headroom: check.snapshot.headroom,
+      usagePercent: Number(check.snapshot.usagePercent.toFixed(1)),
+      thresholdPercent: Number((check.snapshot.thresholdRatio * 100).toFixed(1)),
+      thresholdHeadroom: check.snapshot.thresholdHeadroom,
+      cgroupPath: check.snapshot.cgroupPath,
+      pid: check.snapshot.pid,
+    })
+  }
+
+  private maybeLogPidsPressureRecovery(): void {
+    if (!this.pidsPressureActive) return
+    this.pidsPressureActive = false
+    console.error("[pool][PID_PRESSURE] recovered")
+  }
+
+  private async getPidsPressureCheck(force = false): Promise<PidsPressureCheck | null> {
+    const now = Date.now()
+    if (!force && this.lastPidsPressureCheck && now - this.lastPidsCheckAtMs < this.config.pidPressureCheckIntervalMs) {
+      return this.lastPidsPressureCheck
+    }
+
+    this.lastPidsCheckAtMs = now
+
+    const paths = await this.resolveCgroupPidsPaths()
+    if (!paths) {
+      this.lastPidsPressureCheck = null
+      return null
+    }
+
+    try {
+      const [currentRaw, maxRaw] = await Promise.all([
+        readFile(paths.currentPath, "utf8"),
+        readFile(paths.maxPath, "utf8"),
+      ])
+
+      const current = Number(currentRaw.trim())
+      const max = parsePidsMaxValue(maxRaw)
+      if (!Number.isInteger(current) || current < 0 || max === null) {
+        this.lastPidsPressureCheck = null
+        return null
+      }
+
+      const evaluation = evaluatePidsPressure(
+        current,
+        max,
+        this.config.pidPressureThresholdRatio,
+        this.config.pidPressureMinHeadroom,
+      )
+      const snapshot: PidsPressureSnapshot = {
+        source: "cgroup_pids",
+        checkedAt: new Date(now).toISOString(),
+        pid: process.pid,
+        cgroupPath: paths.cgroupPath,
+        current,
+        max,
+        headroom: evaluation.headroom,
+        usageRatio: evaluation.usageRatio,
+        usagePercent: evaluation.usageRatio * 100,
+        thresholdRatio: this.config.pidPressureThresholdRatio,
+        thresholdHeadroom: this.config.pidPressureMinHeadroom,
+      }
+      const check: PidsPressureCheck = {
+        pressured: evaluation.pressured,
+        reason: evaluation.reason,
+        snapshot,
+      }
+      this.lastPidsPressureCheck = check
+
+      if (!check.pressured) {
+        this.maybeLogPidsPressureRecovery()
+      }
+
+      return check
+    } catch {
+      this.lastPidsPressureCheck = null
+      return null
+    }
   }
 
   private getWorkspaceQueue(workspaceKey: string): WorkspaceQueue {
@@ -884,6 +1081,13 @@ export class WorkerPoolManager extends EventEmitter {
       return { worker: null, reason: "workspace_limit" }
     }
 
+    const pidsPressure = await this.getPidsPressureCheck()
+    if (pidsPressure?.pressured) {
+      this.telemetry.loadShedEvents += 1
+      this.maybeLogPidsPressure(pidsPressure, "get_or_create_worker")
+      return { worker: null, reason: "load_shed" }
+    }
+
     if (this.shouldLoadShed()) {
       this.telemetry.loadShedEvents += 1
       return { worker: null, reason: "load_shed" }
@@ -939,18 +1143,46 @@ export class WorkerPoolManager extends EventEmitter {
           WORKER_SOCKET_PATH: socketPath,
           WORKER_WORKSPACE_KEY: workspaceKey,
         },
-        stdio: ["ignore", "inherit", "inherit"],
+        stdio: ["ignore", "inherit", "pipe"],
         // Detached ensures each worker owns a process group so we can terminate the full tree with -pid.
         detached: true,
       })
     } catch (spawnError) {
+      const pidsPressure = await this.getPidsPressureCheck(true)
+      if (pidsPressure?.pressured) {
+        this.maybeLogPidsPressure(pidsPressure, "spawn_exception", true)
+      }
       await ipc.close()
-      throw spawnError
+      const spawnErr = spawnError instanceof Error ? spawnError : new Error(String(spawnError))
+      const wrappedError: WorkerPoolQueryError = new Error(`Worker spawn error for ${workerKey}: ${spawnErr.message}`)
+      wrappedError.stack = spawnErr.stack ?? wrappedError.stack
+      wrappedError.diagnostics = {
+        type: "worker_spawn_error",
+        workerKey,
+        code: (spawnErr as NodeJS.ErrnoException).code ?? null,
+        errno: (spawnErr as NodeJS.ErrnoException).errno ?? null,
+        syscall: (spawnErr as NodeJS.ErrnoException).syscall ?? null,
+        pids: pidsPressure?.snapshot ?? null,
+      }
+      throw wrappedError
     }
 
     const pid = child.pid ?? -1
     if (pid > 0) {
       this.knownWorkerPids.add(pid)
+    }
+
+    // Capture stderr for crash diagnostics while also forwarding to parent stderr
+    const stderrChunks: Buffer[] = []
+    if (child.stderr) {
+      child.stderr.on("data", (chunk: Buffer) => {
+        process.stderr.write(chunk)
+        stderrChunks.push(chunk)
+        // Cap at 64KB to prevent memory leaks from chatty workers
+        if (stderrChunks.reduce((sum, c) => sum + c.length, 0) > 65536) {
+          stderrChunks.shift()
+        }
+      })
     }
 
     const handle: WorkerHandleInternal = {
@@ -973,7 +1205,8 @@ export class WorkerPoolManager extends EventEmitter {
     }
 
     child.on("exit", (code, signal) => {
-      this.handleWorkerExit(workerKey, code, signal)
+      const stderr = Buffer.concat(stderrChunks).toString("utf-8").trim()
+      this.handleWorkerExit(workerKey, code, signal, stderr)
     })
 
     child.on("error", err => {
@@ -1088,7 +1321,7 @@ export class WorkerPoolManager extends EventEmitter {
     }
   }
 
-  private handleWorkerExit(workspaceKey: string, code: number | null, signal: string | null): void {
+  private handleWorkerExit(workspaceKey: string, code: number | null, signal: string | null, stderr?: string): void {
     const worker = this.workers.get(workspaceKey)
     if (!worker) {
       return
@@ -1103,7 +1336,17 @@ export class WorkerPoolManager extends EventEmitter {
     worker.ipc?.close()
 
     if (!wasShuttingDown && !this.isShuttingDown) {
-      this.emit("worker:crashed", { workspaceKey, exitCode: code, signal })
+      const pidsSnapshot = this.lastPidsPressureCheck?.pressured ? this.lastPidsPressureCheck.snapshot : undefined
+      console.error(
+        `[pool] Worker ${workspaceKey} crashed: ${exitReason}, pid=${worker.process.pid}, uptime=${Date.now() - worker.createdAt.getTime()}ms${stderr ? `, stderr: ${stderr.slice(0, 2000)}` : ", stderr: (empty)"}${pidsSnapshot ? `, pids=${pidsSnapshot.current}/${pidsSnapshot.max}` : ""}`,
+      )
+      this.emit("worker:crashed", {
+        workspaceKey,
+        exitCode: code,
+        signal,
+        stderr,
+        diagnostics: pidsSnapshot ? { pids: pidsSnapshot } : undefined,
+      })
     } else {
       this.emit("worker:shutdown", {
         workspaceKey,
@@ -1235,10 +1478,29 @@ export class WorkerPoolManager extends EventEmitter {
         }
       }
 
-      const onCrash = (event: { workspaceKey: string }) => {
+      const onCrash = (event: {
+        workspaceKey: string
+        exitCode: number | null
+        signal: string | null
+        stderr?: string
+        diagnostics?: unknown
+      }) => {
         if (event.workspaceKey === worker.workspaceKey) {
           cleanup()
-          reject(new Error(`Worker ${worker.workspaceKey} crashed before becoming ready`))
+          const exitInfo = event.signal ? `signal=${event.signal}` : `code=${event.exitCode}`
+          const err = new Error(
+            `Worker ${worker.workspaceKey} crashed before becoming ready (${exitInfo})`,
+          ) as Error & { stderr?: string; diagnostics?: unknown }
+          if (event.stderr) {
+            err.stderr = event.stderr
+          }
+          err.diagnostics = {
+            exitCode: event.exitCode,
+            signal: event.signal,
+            pid: worker.process.pid,
+            ...(event.diagnostics && typeof event.diagnostics === "object" ? event.diagnostics : {}),
+          }
+          reject(err)
         }
       }
 

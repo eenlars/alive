@@ -41,6 +41,9 @@ export const DEFAULT_CONFIG: WorkerPoolConfig = {
   maxQueuedGlobal: WORKER_POOL.MAX_QUEUED_GLOBAL,
   workersPerCore: WORKER_POOL.WORKERS_PER_CORE,
   loadShedThreshold: WORKER_POOL.LOAD_SHED_THRESHOLD,
+  pidPressureThresholdRatio: WORKER_POOL.PID_PRESSURE_THRESHOLD_RATIO,
+  pidPressureMinHeadroom: WORKER_POOL.PID_PRESSURE_MIN_HEADROOM,
+  pidPressureCheckIntervalMs: WORKER_POOL.PID_PRESSURE_CHECK_INTERVAL_MS,
   killGraceMs: WORKER_POOL.KILL_GRACE_MS,
   orphanSweepIntervalMs: WORKER_POOL.ORPHAN_SWEEP_INTERVAL_MS,
   orphanMaxAgeMs: WORKER_POOL.ORPHAN_MAX_AGE_MS,
@@ -103,6 +106,22 @@ export function createConfig(overrides?: Partial<WorkerPoolConfig>): WorkerPoolC
     config.loadShedThreshold <= 0
   ) {
     throw new Error(`Invalid loadShedThreshold: ${config.loadShedThreshold} (must be positive number)`)
+  }
+  if (
+    typeof config.pidPressureThresholdRatio !== "number" ||
+    !Number.isFinite(config.pidPressureThresholdRatio) ||
+    config.pidPressureThresholdRatio <= 0 ||
+    config.pidPressureThresholdRatio >= 1
+  ) {
+    throw new Error(`Invalid pidPressureThresholdRatio: ${config.pidPressureThresholdRatio} (must be > 0 and < 1)`)
+  }
+  if (!Number.isInteger(config.pidPressureMinHeadroom) || config.pidPressureMinHeadroom < 1) {
+    throw new Error(`Invalid pidPressureMinHeadroom: ${config.pidPressureMinHeadroom} (must be positive integer)`)
+  }
+  if (!Number.isInteger(config.pidPressureCheckIntervalMs) || config.pidPressureCheckIntervalMs < 1) {
+    throw new Error(
+      `Invalid pidPressureCheckIntervalMs: ${config.pidPressureCheckIntervalMs} (must be positive integer)`,
+    )
   }
   if (!Number.isInteger(config.killGraceMs) || config.killGraceMs < 1) {
     throw new Error(`Invalid killGraceMs: ${config.killGraceMs} (must be positive integer)`)

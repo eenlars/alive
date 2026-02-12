@@ -1,7 +1,14 @@
 import { STREAM_TYPES } from "@webalive/shared"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createConfig, DEFAULT_CONFIG } from "../src/config"
-import { getWorkerPool, resetWorkerPool, WorkerPoolManager } from "../src/manager"
+import {
+  evaluatePidsPressure,
+  getWorkerPool,
+  parseCgroupPathFromProcSelfCgroup,
+  parsePidsMaxValue,
+  resetWorkerPool,
+  WorkerPoolManager,
+} from "../src/manager"
 
 // NOTE: We intentionally do NOT use vi.mock() for any node modules here.
 // Bun's mock system applies globally across ALL test files in the process,
@@ -435,6 +442,16 @@ describe("createConfig validation", () => {
       expect(() => createConfig({ loadShedThreshold: 0 })).toThrow("Invalid loadShedThreshold")
       expect(() => createConfig({ loadShedThreshold: -1 })).toThrow("Invalid loadShedThreshold")
       expect(() => createConfig({ loadShedThreshold: NaN })).toThrow("Invalid loadShedThreshold")
+      expect(() => createConfig({ pidPressureThresholdRatio: 0 })).toThrow("Invalid pidPressureThresholdRatio")
+      expect(() => createConfig({ pidPressureThresholdRatio: 1 })).toThrow("Invalid pidPressureThresholdRatio")
+      expect(() => createConfig({ pidPressureThresholdRatio: -0.1 })).toThrow("Invalid pidPressureThresholdRatio")
+      expect(() => createConfig({ pidPressureThresholdRatio: NaN })).toThrow("Invalid pidPressureThresholdRatio")
+      expect(() => createConfig({ pidPressureMinHeadroom: 0 })).toThrow("Invalid pidPressureMinHeadroom")
+      expect(() => createConfig({ pidPressureMinHeadroom: -1 })).toThrow("Invalid pidPressureMinHeadroom")
+      expect(() => createConfig({ pidPressureMinHeadroom: 1.5 })).toThrow("Invalid pidPressureMinHeadroom")
+      expect(() => createConfig({ pidPressureCheckIntervalMs: 0 })).toThrow("Invalid pidPressureCheckIntervalMs")
+      expect(() => createConfig({ pidPressureCheckIntervalMs: -1 })).toThrow("Invalid pidPressureCheckIntervalMs")
+      expect(() => createConfig({ pidPressureCheckIntervalMs: 1.5 })).toThrow("Invalid pidPressureCheckIntervalMs")
       expect(() => createConfig({ killGraceMs: 0 })).toThrow("Invalid killGraceMs")
       expect(() => createConfig({ killGraceMs: -1 })).toThrow("Invalid killGraceMs")
       expect(() => createConfig({ killGraceMs: 1.5 })).toThrow("Invalid killGraceMs")
@@ -448,5 +465,40 @@ describe("createConfig validation", () => {
       expect(() => createConfig({ orphanMaxAgeMs: 1.5 })).toThrow("Invalid orphanMaxAgeMs")
       expect(() => createConfig({ orphanMaxAgeMs: NaN })).toThrow("Invalid orphanMaxAgeMs")
     })
+  })
+})
+
+describe("PID pressure helpers", () => {
+  it("parses cgroup v2 path", () => {
+    const parsed = parseCgroupPathFromProcSelfCgroup("0::/system.slice/alive-production.service\n")
+    expect(parsed).toBe("/system.slice/alive-production.service")
+  })
+
+  it("parses cgroup v1 pids controller path", () => {
+    const parsed = parseCgroupPathFromProcSelfCgroup("2:pids:/system.slice/alive-production.service\n")
+    expect(parsed).toBe("/system.slice/alive-production.service")
+  })
+
+  it("parses pids.max numeric and max values", () => {
+    expect(parsePidsMaxValue("512\n")).toBe(512)
+    expect(parsePidsMaxValue("max\n")).toBeNull()
+  })
+
+  it("flags pressure when usage ratio exceeds threshold", () => {
+    const result = evaluatePidsPressure(490, 512, 0.85, 64)
+    expect(result.pressured).toBe(true)
+    expect(result.reason).toBe("ratio")
+  })
+
+  it("flags pressure when headroom is too low", () => {
+    const result = evaluatePidsPressure(460, 512, 0.99, 64)
+    expect(result.pressured).toBe(true)
+    expect(result.reason).toBe("headroom")
+  })
+
+  it("does not flag pressure when ratio and headroom are healthy", () => {
+    const result = evaluatePidsPressure(200, 512, 0.85, 64)
+    expect(result.pressured).toBe(false)
+    expect(result.reason).toBeNull()
   })
 })
