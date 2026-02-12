@@ -26,11 +26,11 @@ export function DriveUpload({ workspace, worktree, onUploadComplete }: DriveUplo
         for (const file of files) {
           await uploadDriveItem(workspace, file, worktree)
         }
-        onUploadComplete()
       } catch (err) {
         setError(err instanceof Error ? err.message : "Upload failed")
       } finally {
         setUploading(false)
+        onUploadComplete()
       }
     },
     [workspace, worktree, onUploadComplete],

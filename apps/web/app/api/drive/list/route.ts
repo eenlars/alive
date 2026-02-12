@@ -1,4 +1,4 @@
-import { lstat, readdir, readlink } from "node:fs/promises"
+import { readdir, readlink, stat } from "node:fs/promises"
 import path from "node:path"
 import type { NextRequest } from "next/server"
 import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
@@ -63,12 +63,13 @@ export async function POST(request: NextRequest) {
       const entries = await readdir(fullPath, { withFileTypes: true })
 
       // Get stat info for size/modified (needed for drive view)
-      // Uses lstat to avoid following symlinks outside drive
+      // Uses stat (follows symlinks) so symlinks-to-directories show as "directory"
       const files = await Promise.all(
         entries.map(async entry => {
           const entryPath = path.join(fullPath, entry.name)
           let size = 0
           let modified = ""
+          let isDir = entry.isDirectory()
           try {
             if (entry.isSymbolicLink()) {
               const target = await readlink(entryPath)
@@ -84,15 +85,16 @@ export async function POST(request: NextRequest) {
                 }
               }
             }
-            const stats = await lstat(entryPath)
+            const stats = await stat(entryPath)
             size = stats.size
             modified = stats.mtime.toISOString()
+            isDir = stats.isDirectory()
           } catch {
             // Skip stat errors (broken symlinks etc.)
           }
           return {
             name: entry.name,
-            type: entry.isDirectory() ? ("directory" as const) : ("file" as const),
+            type: isDir ? ("directory" as const) : ("file" as const),
             size,
             modified,
             path: path.join(targetPath, entry.name),

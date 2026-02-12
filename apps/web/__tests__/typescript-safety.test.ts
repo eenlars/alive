@@ -32,10 +32,9 @@ export function TestComponent() {
         writeFileSync(testFile, badCode)
 
         // Try to compile it - should FAIL
-        // Pass strict flags inline (can't use --project with file path)
-        // Use local tsc binary for faster execution
+        // Use tsgo directly with --ignoreConfig (tsconfig can't be loaded alongside file args)
         try {
-          execSync(`bun tsc --noEmit --strict --jsx react-jsx ${testFile}`, {
+          execSync(`npx tsgo --noEmit --strict --jsx react-jsx --ignoreConfig ${testFile}`, {
             cwd: process.cwd(),
             encoding: "utf-8",
             stdio: "pipe",
@@ -105,18 +104,19 @@ export function TestComponent() {
   })
 
   it("documents TypeScript strict mode is enabled", () => {
-    // Use resolved compiler settings (includes inherited settings via "extends")
-    const resolvedConfigRaw = execSync("npx tsc --showConfig", {
-      cwd: process.cwd(),
-      encoding: "utf-8",
-      stdio: "pipe",
-    })
-    const resolvedConfig = JSON.parse(resolvedConfigRaw)
+    // Read tsconfig directly and verify strict mode
+    const tsconfig = JSON.parse(readFileSync(join(process.cwd(), "tsconfig.json"), "utf-8"))
 
-    // These settings catch undefined variables
-    expect(resolvedConfig.compilerOptions.strict).toBe(true)
-
-    // Note: noUnusedLocals is optional, but strict mode should catch undefined vars
-    // The important thing is that strict is true
+    // Check strict in current config or inherited base
+    if (tsconfig.compilerOptions?.strict === true) {
+      expect(tsconfig.compilerOptions.strict).toBe(true)
+    } else if (tsconfig.extends) {
+      // Resolve base config
+      const basePath = join(process.cwd(), tsconfig.extends)
+      const baseConfig = JSON.parse(readFileSync(basePath, "utf-8"))
+      expect(baseConfig.compilerOptions?.strict).toBe(true)
+    } else {
+      expect.fail("strict mode is not enabled in tsconfig.json or its base config")
+    }
   })
 })

@@ -679,7 +679,7 @@ export const apiSchemas = {
       .object({
         workspace: z.string().min(1),
         path: z.string().default(""),
-        worktree: z.string().optional(),
+        worktree: OptionalWorktreeSlugSchema, // Validated to prevent session key corruption
       })
       .brand<"DriveListRequest">(),
     res: z.object({
@@ -706,7 +706,7 @@ export const apiSchemas = {
       .object({
         workspace: z.string().min(1),
         path: z.string().min(1),
-        worktree: z.string().optional(),
+        worktree: OptionalWorktreeSlugSchema, // Validated to prevent session key corruption
       })
       .brand<"DriveReadRequest">(),
     res: z.object({
@@ -728,7 +728,7 @@ export const apiSchemas = {
       .object({
         workspace: z.string().min(1),
         path: z.string().min(1),
-        worktree: z.string().optional(),
+        worktree: OptionalWorktreeSlugSchema, // Validated to prevent session key corruption
         recursive: z.boolean().optional(),
       })
       .brand<"DriveDeleteRequest">(),

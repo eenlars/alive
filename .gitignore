@@ -189,6 +189,7 @@ ops/caddy/Caddyfile
 ops/caddy/generated/
 ops/caddy/Caddyfile.main
 ops/caddy/Caddyfile.restore_backup
+.playwright-mcp/
 ops/caddy/Caddyfile.shell
 !ops/caddy/Caddyfile.example
 !ops/caddy/Caddyfile.snippets

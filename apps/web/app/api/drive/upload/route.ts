@@ -14,7 +14,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 const ALLOWED_MIME_TYPES = new Set([
   "image/png",
   "image/jpeg",
-  "image/jpg",
   "image/gif",
   "image/webp",
   "application/pdf",
@@ -158,7 +157,7 @@ export async function POST(request: NextRequest) {
     console.error(`[Drive Upload ${requestId}] Unexpected error:`, error)
     return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
       requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: "Internal server error",
     })
   }
 }

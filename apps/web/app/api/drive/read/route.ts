@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises"
+import { readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import type { NextRequest } from "next/server"
 import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
@@ -135,16 +135,17 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const content = await readFile(resolvedPath, "utf-8")
-
-      if (content.length > MAX_FILE_SIZE) {
+      const fileStat = await stat(resolvedPath)
+      if (fileStat.size > MAX_FILE_SIZE) {
         return createErrorResponse(ErrorCodes.FILE_TOO_LARGE_TO_READ, 400, {
           requestId,
           filePath: parsed.path,
-          size: content.length,
+          size: fileStat.size,
           maxSize: MAX_FILE_SIZE,
         })
       }
+
+      const content = await readFile(resolvedPath, "utf-8")
 
       const filename = path.basename(parsed.path)
       const language = getLanguageFromFilename(filename)

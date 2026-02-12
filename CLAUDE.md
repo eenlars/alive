@@ -48,6 +48,7 @@ Use the `/roadmap` skill to manage issues, milestones, and the project board. Th
 16. **NO `as` OR `any`** - Never use `as` type assertions or `any`. Fix the types properly. If TypeScript complains, the types are wrong — fix them at the source, don't silence the compiler.
 17. **NO HARDCODED DOMAINS** - Domain configuration comes from `server-config.json` at runtime. Never bake domains into env files, source code, or build artifacts. The same build must work on any server.
 18. **USE TSGO, NOT TSC** - Type-checking uses `tsgo --noEmit` (TypeScript 7 native compiler, ~5x faster). `tsc` is only for `build` scripts that emit JS. Never add `tsc --noEmit` to new packages. No enums, no constructor parameter properties (`erasableSyntaxOnly` is on).
+19. **FIX WHAT'S BROKEN** - Never dismiss a failing test or CI check as "pre-existing" or "unrelated to my changes". If it's broken on the branch you're working on, it's your problem. Fix it. The branch isn't done until CI is green.
 
 ## Learn from OpenClaw (IMPORTANT)
 
