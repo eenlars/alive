@@ -242,7 +242,7 @@ describe("POST /api/drive/upload", () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe("Internal server error")
+      expect(data.error).toBe("FILE_WRITE_ERROR")
       // Must NOT contain the internal error message
       expect(JSON.stringify(data)).not.toContain("EPERM")
     })
