@@ -9,6 +9,7 @@ import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { PasswordField } from "@/components/ui/primitives/PasswordField"
+import { trackDeployPageViewed, trackDeploySubmitted } from "@/lib/analytics/events"
 import { containerVariants, fieldVariants, itemVariants } from "@/lib/animations"
 import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 import {
@@ -90,6 +91,9 @@ export function DeployForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  useEffect(() => {
+    trackDeployPageViewed()
+  }, [])
   const [showPassword, setShowPassword] = useState<boolean>(false)
   const [isClient, setIsClient] = useState<boolean>(false)
   const [deploymentMode, setDeploymentModeState] = useState<"choose" | DeploymentMode>("choose")
@@ -173,6 +177,7 @@ export function DeployForm() {
   }, [])
 
   const onSubmitWithDomain = async (data: DeployWithDomainInput): Promise<void> => {
+    trackDeploySubmitted({ domain: data.domain.toLowerCase() })
     await deploy(data.domain.toLowerCase(), data.password)
   }
 

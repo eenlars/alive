@@ -35,6 +35,16 @@ import { useWorkspace } from "@/features/workspace/hooks/useWorkspace"
 import { validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import { useRedeemReferral } from "@/hooks/useRedeemReferral"
 import {
+  trackChatPageViewed,
+  trackConversationArchived,
+  trackConversationCreated,
+  trackConversationRenamed,
+  trackConversationSwitched,
+  trackConversationUnarchived,
+  trackGithubImportCompleted,
+  trackWorkspaceSelected,
+} from "@/lib/analytics/events"
+import {
   useDexieCurrentConversationId,
   useDexieCurrentTabId,
   useDexieMessageActions,
@@ -265,16 +275,22 @@ function ChatPageContent() {
   // Redeem referral code if stored (from invite link flow)
   useRedeemReferral()
 
-  // Update page title with workspace name
+  // Update page title with workspace name & track
   useEffect(() => {
     if (workspace) {
       const projectName = workspace.split(".")[0]
       const capitalized = projectName.charAt(0).toUpperCase() + projectName.slice(1)
       document.title = `${capitalized} - Alive`
+      trackWorkspaceSelected(workspace)
     } else {
       document.title = "Alive"
     }
   }, [workspace])
+
+  // Track chat page view once on mount
+  useEffect(() => {
+    trackChatPageViewed({ workspace })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch organizations and auto-select if none selected
   const { organizations, loading: organizationsLoading } = useOrganizations()
@@ -507,6 +523,7 @@ function ChatPageContent() {
 
   const handleGithubImported = useCallback(
     (newWorkspace: string) => {
+      trackGithubImportCompleted(newWorkspace)
       const targetOrgId = selectedOrgId || organizations[0]?.org_id
       setWorkspace(newWorkspace, targetOrgId)
       setWorktree(null)
@@ -518,6 +535,7 @@ function ChatPageContent() {
 
   const handleNewTabGroup = useCallback(async () => {
     if (!tabWorkspace) return
+    trackConversationCreated()
 
     const previousTabId = tabId
     // startNewTabGroup creates a new tabGroup + first tab in tabStore
@@ -553,6 +571,7 @@ function ChatPageContent() {
   const handleTabGroupSelect = useCallback(
     (selectedTabGroupId: string) => {
       if (!selectedTabGroupId) return
+      trackConversationSwitched()
       handleOpenTabGroupInTab(selectedTabGroupId)
     },
     [handleOpenTabGroupInTab],
@@ -561,6 +580,7 @@ function ChatPageContent() {
   const handleArchiveTabGroup = useCallback(
     async (tabGroupIdToArchive: string) => {
       if (!tabGroupIdToArchive) return
+      trackConversationArchived()
 
       const nextTab =
         tabGroupIdToArchive === tabGroupId
@@ -603,6 +623,7 @@ function ChatPageContent() {
   const handleRenameTabGroup = useCallback(
     async (tabGroupIdToRename: string, title: string) => {
       if (!tabGroupIdToRename || !title.trim()) return
+      trackConversationRenamed()
       await renameConversation(tabGroupIdToRename, title)
     },
     [renameConversation],
@@ -611,6 +632,7 @@ function ChatPageContent() {
   const handleUnarchiveTabGroup = useCallback(
     async (tabGroupIdToUnarchive: string) => {
       if (!tabGroupIdToUnarchive) return
+      trackConversationUnarchived()
       await unarchiveConversation(tabGroupIdToUnarchive)
     },
     [unarchiveConversation],
@@ -915,7 +937,9 @@ function ChatPageContent() {
       {modals.invite && <InviteModal onClose={modals.closeInvite} />}
       {githubImportOpen && (
         <GithubImportModal
-          onClose={() => setGithubImportOpen(false)}
+          onClose={() => {
+            setGithubImportOpen(false)
+          }}
           onImported={handleGithubImported}
           orgId={selectedOrgId || organizations[0]?.org_id}
         />

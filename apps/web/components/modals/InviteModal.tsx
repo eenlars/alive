@@ -2,9 +2,10 @@
 
 import { REFERRAL } from "@webalive/shared"
 import { Check, ChevronRight, Heart, Link, Send, X } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import useSWR from "swr"
 import { Modal } from "@/components/ui/Modal"
+import { trackInviteEmailSent, trackInviteLinkCopied, trackInviteModalOpened } from "@/lib/analytics/events"
 import type { ReferralData } from "@/lib/api/types"
 
 interface InviteModalProps {
@@ -26,6 +27,10 @@ export function InviteModal({ onClose }: InviteModalProps) {
   const [sendError, setSendError] = useState<string | null>(null)
   const [sendSuccess, setSendSuccess] = useState(false)
 
+  useEffect(() => {
+    trackInviteModalOpened()
+  }, [])
+
   // Fetch referral data from API
   const { data, error, isLoading } = useSWR<ReferralData>("/api/referrals/me", fetcher)
 
@@ -35,6 +40,7 @@ export function InviteModal({ onClose }: InviteModalProps) {
     if (!inviteLink) return
     try {
       await navigator.clipboard.writeText(inviteLink)
+      trackInviteLinkCopied()
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
@@ -60,6 +66,7 @@ export function InviteModal({ onClose }: InviteModalProps) {
       if (!res.ok) {
         setSendError(responseData.error || "Failed to send")
       } else {
+        trackInviteEmailSent()
         setSendSuccess(true)
         setEmail("")
         setTimeout(() => setSendSuccess(false), 3000)

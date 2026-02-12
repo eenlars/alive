@@ -7,6 +7,7 @@ import {
   deriveGithubImportSlug,
   isSupportedGithubRepoInput,
 } from "@/features/deployment/lib/github-import-client"
+import { trackGithubImportFailed, trackGithubImportOpened, trackGithubImportStarted } from "@/lib/analytics/events"
 import { ErrorCodes } from "@/lib/error-codes"
 
 interface GithubImportModalProps {
@@ -38,6 +39,9 @@ export function GithubImportModal({ onClose, onImported, orgId }: GithubImportMo
   const [isImporting, setIsImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    trackGithubImportOpened()
+  }, [])
   const trimmedRepoUrl = repoUrl.trim()
   const branchValue = branch.trim()
   const isValidRepoInput = isSupportedGithubRepoInput(trimmedRepoUrl)
@@ -70,6 +74,7 @@ export function GithubImportModal({ onClose, onImported, orgId }: GithubImportMo
 
     setError(null)
     setIsImporting(true)
+    trackGithubImportStarted(trimmedRepoUrl)
 
     const baseSlug = slugPreview
 
@@ -99,12 +104,16 @@ export function GithubImportModal({ onClose, onImported, orgId }: GithubImportMo
           continue
         }
 
-        setError(data.message || "Failed to import repository. Please try again.")
+        const errMsg = data.message || "Failed to import repository. Please try again."
+        trackGithubImportFailed(errMsg)
+        setError(errMsg)
         return
       }
 
+      trackGithubImportFailed("slug_allocation_failed")
       setError("Could not allocate a unique workspace name. Please retry.")
     } catch {
+      trackGithubImportFailed("network_error")
       setError("Network error while importing. Please check your connection and try again.")
     } finally {
       setIsImporting(false)

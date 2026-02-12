@@ -12,6 +12,7 @@ import { type BridgeWarningContent, isWarningMessage } from "@/features/chat/lib
 import { isCompleteEvent, isDoneEvent, isErrorEvent, isInterruptEvent } from "@/features/chat/types/stream"
 import { formatMessagesAsText } from "@/features/chat/utils/format-messages"
 import { buildPromptWithAttachmentsEx, type PromptBuildResult } from "@/features/chat/utils/prompt-builder"
+import { trackMessageCompleted, trackMessageSent, trackStreamError } from "@/lib/analytics/events"
 import { useDexieMessageStore } from "@/lib/db/dexieMessageStore"
 import { toUIMessage } from "@/lib/db/messageAdapters"
 import { getMessageDb } from "@/lib/db/messageDb"
@@ -528,6 +529,7 @@ export function useChatMessaging({
                       !isErrorEvent(eventData) &&
                       !isInterruptEvent(eventData)
                     ) {
+                      trackMessageCompleted({ workspace })
                       setShowCompletionDots(true)
                       // Clear resumeSessionAt after successful message send
                       useDexieMessageStore.getState().clearResumeSessionAt(targetTabId)
@@ -632,6 +634,11 @@ export function useChatMessaging({
         }
 
         if (error instanceof Error && error.name !== "AbortError") {
+          trackStreamError({
+            workspace,
+            error_code: error instanceof HttpError ? String(error.status) : error.name,
+            error_message: error.message,
+          })
           const isAuthError =
             error instanceof HttpError &&
             (error.status === 401 ||
@@ -708,6 +715,13 @@ export function useChatMessaging({
       streamingActions.startStream(targetTabId)
 
       const attachments = chatInputRef.current?.getAttachments() || []
+
+      trackMessageSent({
+        workspace,
+        has_attachments: attachments.length > 0,
+        plan_mode: getPlanModeState().planMode,
+        message_length: messageToSend.length,
+      })
 
       const userMessage: UIMessage = {
         id: Date.now().toString(),

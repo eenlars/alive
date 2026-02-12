@@ -4,6 +4,15 @@ import { FlaskConical, Image, Layers, MessageCircle, PanelRight, Radio, Settings
 import type { RefObject } from "react"
 import { PhotoMenu } from "@/components/ui/PhotoMenu"
 import type { ChatInputHandle } from "@/features/chat/components/ChatInput/types"
+import {
+  trackComponentsClicked,
+  trackDebugViewToggled,
+  trackFeedbackClicked,
+  trackPhotobookImageSelected,
+  trackPhotosClicked,
+  trackPreviewToggled,
+  trackSettingsClicked,
+} from "@/lib/analytics/events"
 import { isDevelopment, useDebugActions, useDebugView, useSandbox } from "@/lib/stores/debug-store"
 
 interface ChatHeaderProps {
@@ -57,7 +66,10 @@ export function ChatHeader({
           {showDebugToggle && (
             <button
               type="button"
-              onClick={toggleView}
+              onClick={() => {
+                trackDebugViewToggled(!debugModeEnabled)
+                toggleView()
+              }}
               className={`hidden md:flex ${pillButtonStyle} ${
                 debugModeEnabled
                   ? "text-amber-600 dark:text-amber-400 bg-amber-500/[0.12] hover:bg-amber-500/[0.18]"
@@ -77,7 +89,10 @@ export function ChatHeader({
           {showPreviewToggle && (
             <button
               type="button"
-              onClick={toggleSandbox}
+              onClick={() => {
+                trackPreviewToggled(!showSandbox)
+                toggleSandbox()
+              }}
               className={`items-center justify-center h-10 rounded-xl active:scale-95 transition-all duration-150 ease-out gap-2 px-3.5 text-xs font-medium hidden lg:flex ${
                 showSandbox
                   ? "text-purple-600 dark:text-purple-400 bg-purple-500/[0.12] hover:bg-purple-500/[0.18]"
@@ -98,7 +113,10 @@ export function ChatHeader({
           {/* Feedback - hidden on mobile, available in settings */}
           <button
             type="button"
-            onClick={onFeedbackClick}
+            onClick={() => {
+              trackFeedbackClicked()
+              onFeedbackClick()
+            }}
             className={`hidden md:inline-flex ${iconButtonStyle}`}
             aria-label="Send Feedback"
             title="Send Feedback"
@@ -109,7 +127,10 @@ export function ChatHeader({
           {/* Templates - always visible, important action */}
           <button
             type="button"
-            onClick={onTemplatesClick}
+            onClick={() => {
+              trackComponentsClicked()
+              onTemplatesClick()
+            }}
             className={`${iconButtonStyle} size-11 md:size-10`}
             aria-label="Components"
             title="Components"
@@ -122,7 +143,10 @@ export function ChatHeader({
             <button
               ref={photoButtonRef}
               type="button"
-              onClick={onPhotoMenuToggle}
+              onClick={() => {
+                trackPhotosClicked()
+                onPhotoMenuToggle()
+              }}
               className={`${iconButtonStyle} size-11 md:size-10`}
               aria-label="Photos"
               title="Photos"
@@ -132,7 +156,10 @@ export function ChatHeader({
             <PhotoMenu
               isOpen={showPhotoMenu}
               onClose={onPhotoMenuClose}
-              onSelectImage={imageKey => chatInputRef.current?.addPhotobookImage(imageKey)}
+              onSelectImage={imageKey => {
+                trackPhotobookImageSelected(imageKey)
+                chatInputRef.current?.addPhotobookImage(imageKey)
+              }}
               triggerRef={photoButtonRef}
             />
           </div>
@@ -140,7 +167,10 @@ export function ChatHeader({
           {/* Settings - always visible */}
           <button
             type="button"
-            onClick={onSettingsClick}
+            onClick={() => {
+              trackSettingsClicked()
+              onSettingsClick()
+            }}
             className={`${iconButtonStyle} size-11 md:size-10 [&>svg]:transition-transform [&>svg]:duration-200 [&>svg]:ease-out hover:[&>svg]:rotate-90`}
             aria-label="Settings"
             data-testid="settings-button"

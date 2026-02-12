@@ -18,6 +18,7 @@ import {
 import { useQueryState } from "nuqs"
 import { lazy, Suspense, useEffect, useState } from "react"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
+import { trackSettingsTabChanged } from "@/lib/analytics/events"
 import { QUERY_KEYS } from "@/lib/url/queryState"
 import { SettingsTabLayout } from "./tabs/SettingsTabLayout"
 
@@ -125,6 +126,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
   })
 
   const handleTabChange = (tabId: SettingsTab) => {
+    trackSettingsTabChanged(tabId)
     void setActiveTab(tabId)
     setSidebarOpen(false)
   }
