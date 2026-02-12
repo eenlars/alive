@@ -4,18 +4,15 @@
  *
  * Server-aware: only returns templates whose preview_url is routable
  * from this server (hostname ends with this server's MAIN_DOMAIN).
+ *
+ * STRICT: Templates MUST exist on every server. If Supabase fails or
+ * filtering produces zero results, that's a 500 — not an empty array.
  */
 
 import * as Sentry from "@sentry/nextjs"
 import { DOMAINS } from "@webalive/shared"
-import { NextResponse } from "next/server"
-import { structuredErrorResponse } from "@/lib/api/responses"
-import { ErrorCodes } from "@/lib/error-codes"
+import { alrighty } from "@/lib/api/server"
 import { type AppTemplate, createAppClient } from "@/lib/supabase/app"
-
-export interface TemplatesResponse {
-  templates: AppTemplate[]
-}
 
 /**
  * Filter templates to only those routable from this server.
@@ -23,17 +20,11 @@ export interface TemplatesResponse {
  * DOMAINS.MAIN or DOMAINS.WILDCARD (which may differ, e.g. alive.best vs goalive.nl).
  */
 function filterByServer(templates: AppTemplate[]): AppTemplate[] {
-  const domains = [DOMAINS.MAIN, DOMAINS.WILDCARD].filter(Boolean)
-  if (domains.length === 0) return templates
+  const domains = [DOMAINS.MAIN, DOMAINS.WILDCARD]
 
   return templates.filter(t => {
-    if (!t.preview_url) return false
-    try {
-      const hostname = new URL(t.preview_url).hostname
-      return domains.some(d => hostname === d || hostname.endsWith(`.${d}`))
-    } catch {
-      return false
-    }
+    const hostname = new URL(t.preview_url!).hostname
+    return domains.some(d => hostname === d || hostname.endsWith(`.${d}`))
   })
 }
 
@@ -52,31 +43,40 @@ export async function GET() {
       .order("deploy_count", { ascending: false, nullsFirst: false })
 
     if (error) {
-      console.error("[Templates API] Failed to fetch templates:", error)
-      Sentry.captureException(error)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
-        status: 500,
-        details: { message: error.message },
-      })
+      throw new Error(`Supabase query failed: ${error.message}`)
     }
 
-    const serverTemplates = filterByServer(templates || [])
+    if (!templates || templates.length === 0) {
+      throw new Error("No active templates in database — every server must have templates")
+    }
 
-    return NextResponse.json(
+    // Every template must have a preview_url
+    const missingUrls = templates.filter(t => !t.preview_url)
+    if (missingUrls.length > 0) {
+      throw new Error(`Templates missing preview_url: ${missingUrls.map(t => t.template_id).join(", ")}`)
+    }
+
+    const serverTemplates = filterByServer(templates)
+
+    if (serverTemplates.length === 0) {
+      throw new Error(
+        `No templates routable from this server (MAIN=${DOMAINS.MAIN}, WILDCARD=${DOMAINS.WILDCARD}). ` +
+          `Found ${templates.length} active templates but none match this server's domains.`,
+      )
+    }
+
+    return alrighty(
+      "templates",
       { templates: serverTemplates },
       {
         headers: {
-          // Cache for 5 minutes, revalidate in background
           "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
         },
       },
     )
   } catch (error) {
-    console.error("[Templates API] Unexpected error:", error)
+    console.error("[Templates API]", error)
     Sentry.captureException(error)
-    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
-      status: 500,
-      details: { message: error instanceof Error ? error.message : "Unknown error" },
-    })
+    throw error
   }
 }

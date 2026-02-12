@@ -148,6 +148,29 @@ export const apiSchemas = {
     }),
   },
   /**
+   * GET /api/templates
+   * Get active templates for this server (public, no auth)
+   */
+  templates: {
+    req: z.undefined().brand<"TemplatesRequest">(),
+    res: z.object({
+      templates: z.array(
+        z.object({
+          template_id: z.string(),
+          name: z.string(),
+          description: z.string().nullable(),
+          ai_description: z.string().nullable(),
+          source_path: z.string(),
+          preview_url: z.string().nullable(),
+          image_url: z.string().nullable(),
+          is_active: z.boolean().nullable(),
+          deploy_count: z.number().nullable(),
+        }),
+      ),
+    }),
+  },
+
+  /**
    * GET /api/manager/templates
    * Get all templates (manager auth required)
    */
