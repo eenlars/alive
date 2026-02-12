@@ -43,7 +43,7 @@ export async function GET() {
       .order("deploy_count", { ascending: false, nullsFirst: false })
 
     if (error) {
-      throw new Error(`Supabase query failed: ${error.message}`)
+      throw new Error(`[GET /api/templates] app.templates query failed: ${error.message} (code: ${error.code})`)
     }
 
     if (!templates || templates.length === 0) {
