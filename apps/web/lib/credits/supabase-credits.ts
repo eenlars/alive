@@ -130,7 +130,7 @@ async function getOrgIdForDomain(domain: string): Promise<string | null> {
 
   if (error || !data || !data.org_id) {
     console.error(`[Supabase Credits] Domain not found: ${domain}`, error)
-    Sentry.captureException(error)
+    Sentry.captureException(error ?? new Error(`[Supabase Credits] Domain lookup failed for: ${domain}`))
     // Remove from cache if domain no longer exists
     domainOrgCache.delete(domain)
     return null
@@ -164,7 +164,7 @@ export async function getOrgCredits(domain: string): Promise<number | null> {
 
   if (error || !data) {
     console.error(`[Supabase Credits] Org not found: ${orgId}`, error)
-    Sentry.captureException(error)
+    Sentry.captureException(error ?? new Error(`[Supabase Credits] Org not found: ${orgId}`))
     return null
   }
 

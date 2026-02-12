@@ -23,7 +23,7 @@ export async function updateUserPasswordByEmail(email: string, newPassword: stri
 
     if (error) {
       console.error("[Supabase Passwords] Failed to update password for email:", email, error)
-      Sentry.captureException(error)
+      Sentry.captureException(new Error(`[Supabase Passwords] Failed to update password: ${error.code ?? "unknown"}`))
       return false
     }
 
@@ -105,7 +105,7 @@ export async function updateUserEmail(oldEmail: string, newEmail: string): Promi
 
     if (error) {
       console.error("[Supabase Passwords] Failed to update email:", error)
-      Sentry.captureException(error)
+      Sentry.captureException(new Error(`[Supabase Passwords] Failed to update email: ${error.code ?? "unknown"}`))
       return false
     }
 

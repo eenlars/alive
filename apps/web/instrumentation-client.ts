@@ -39,7 +39,16 @@ Sentry.init({
     if (event.request?.url) {
       try {
         const url = new URL(event.request.url)
-        for (const key of ["token", "code", "password", "secret"]) {
+        for (const key of [
+          "token",
+          "code",
+          "password",
+          "secret",
+          "access_token",
+          "refresh_token",
+          "api_key",
+          "auth_code",
+        ]) {
           if (url.searchParams.has(key)) {
             url.searchParams.set(key, "[redacted]")
           }
