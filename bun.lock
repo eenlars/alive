@@ -181,6 +181,27 @@
     "apps/widget-server": {
       "name": "@webalive/widget-server",
     },
+    "apps/worker": {
+      "name": "@webalive/worker",
+      "version": "1.0.0",
+      "dependencies": {
+        "@anthropic-ai/claude-agent-sdk": "0.1.60",
+        "@hono/node-server": "^1.19.9",
+        "@supabase/supabase-js": "^2.49.8",
+        "@webalive/automation": "workspace:*",
+        "@webalive/automation-engine": "workspace:*",
+        "@webalive/database": "workspace:*",
+        "@webalive/shared": "workspace:*",
+        "@webalive/tools": "workspace:*",
+        "hono": "^4.7.10",
+        "proper-lockfile": "^4.1.2",
+      },
+      "devDependencies": {
+        "@biomejs/biome": "^2.3.2",
+        "@types/node": "24.9.1",
+        "typescript": "5.9.3",
+      },
+    },
     "packages/alive-tagger": {
       "name": "@alive-game/alive-tagger",
       "version": "0.1.4",
@@ -213,6 +234,20 @@
       "version": "1.0.0",
       "dependencies": {
         "croner": "^9.0.0",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.3",
+        "typescript": "^5.7.2",
+      },
+    },
+    "packages/automation-engine": {
+      "name": "@webalive/automation-engine",
+      "version": "1.0.0",
+      "dependencies": {
+        "@supabase/supabase-js": "^2.49.8",
+        "@webalive/automation": "workspace:*",
+        "@webalive/database": "workspace:*",
+        "@webalive/shared": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.0.3",
@@ -1005,6 +1040,8 @@
 
     "@webalive/automation": ["@webalive/automation@workspace:packages/automation"],
 
+    "@webalive/automation-engine": ["@webalive/automation-engine@workspace:packages/automation-engine"],
+
     "@webalive/broker": ["@webalive/broker@workspace:apps/broker"],
 
     "@webalive/database": ["@webalive/database@workspace:packages/database"],
@@ -1040,6 +1077,8 @@
     "@webalive/web": ["@webalive/web@workspace:apps/web"],
 
     "@webalive/widget-server": ["@webalive/widget-server@workspace:apps/widget-server"],
+
+    "@webalive/worker": ["@webalive/worker@workspace:apps/worker"],
 
     "@webalive/worker-pool": ["@webalive/worker-pool@workspace:packages/worker-pool"],
 
@@ -2491,6 +2530,8 @@
 
     "@webalive/automation/@types/node": ["@types/node@22.19.9", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-PD03/U8g1F9T9MI+1OBisaIARhSzeidsUjQaf51fOxrfjeiKN9bLVO06lHuHYjxdnqLWJijJHfqXPSJri2EM2A=="],
 
+    "@webalive/automation-engine/@types/node": ["@types/node@22.19.9", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-PD03/U8g1F9T9MI+1OBisaIARhSzeidsUjQaf51fOxrfjeiKN9bLVO06lHuHYjxdnqLWJijJHfqXPSJri2EM2A=="],
+
     "@webalive/broker/@types/node": ["@types/node@24.9.1", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg=="],
 
     "@webalive/database/@types/node": ["@types/node@22.19.9", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-PD03/U8g1F9T9MI+1OBisaIARhSzeidsUjQaf51fOxrfjeiKN9bLVO06lHuHYjxdnqLWJijJHfqXPSJri2EM2A=="],
@@ -2512,6 +2553,10 @@
     "@webalive/web/@types/node": ["@types/node@24.9.1", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg=="],
 
     "@webalive/web/croner": ["croner@10.0.1", "", {}, "sha512-ixNtAJndqh173VQ4KodSdJEI6nuioBWI0V1ITNKhZZsO0pEMoDxz539T4FTTbSZ/xIOSuDnzxLVRqBVSvPNE2g=="],
+
+    "@webalive/worker/@anthropic-ai/claude-agent-sdk": ["@anthropic-ai/claude-agent-sdk@0.1.60", "", { "optionalDependencies": { "@img/sharp-darwin-arm64": "^0.33.5", "@img/sharp-darwin-x64": "^0.33.5", "@img/sharp-linux-arm": "^0.33.5", "@img/sharp-linux-arm64": "^0.33.5", "@img/sharp-linux-x64": "^0.33.5", "@img/sharp-linuxmusl-arm64": "^0.33.5", "@img/sharp-linuxmusl-x64": "^0.33.5", "@img/sharp-win32-x64": "^0.33.5" }, "peerDependencies": { "zod": "^3.24.1" } }, "sha512-Kl7zo4yNiUs3fRc9CQ5kcRuihdPEzH26boC5E8szO9WMNwPFBfJExLfYZDAcYmFaE3+M6mLpuYzmTGLxSoXrhg=="],
+
+    "@webalive/worker/@types/node": ["@types/node@24.9.1", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg=="],
 
     "@webalive/worker-pool/@types/node": ["@types/node@20.19.32", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-Ez8QE4DMfhjjTsES9K2dwfV258qBui7qxUsoaixZDiTzbde4U12e1pXGNu/ECsUIOi5/zoCxAQxIhQnaUQ2VvA=="],
 
@@ -2693,6 +2738,8 @@
 
     "@modelcontextprotocol/sdk/express/type-is": ["type-is@2.0.1", "", { "dependencies": { "content-type": "^1.0.5", "media-typer": "^1.1.0", "mime-types": "^3.0.0" } }, "sha512-OZs6gsjF4vMp32qrCbiVSkrFmXtG/AZhY3t0iAMrMBiAZyV9oALtXO8hsrHbMXF9x6L3grlFuwW2oAz7cav+Gw=="],
 
+    "@webalive/automation-engine/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+
     "@webalive/automation/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 
     "@webalive/database/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
@@ -2712,6 +2759,8 @@
     "@webalive/tools/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 
     "@webalive/worker-pool/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
+
+    "@webalive/worker/@anthropic-ai/claude-agent-sdk/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "accepts/mime-types/mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
 

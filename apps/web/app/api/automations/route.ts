@@ -8,6 +8,7 @@ import { computeNextRunAtMs } from "@webalive/automation"
 import type { NextRequest } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { pokeCronService } from "@/lib/automation/cron-service"
 import type { Res } from "@/lib/api/schemas"
 import { alrighty } from "@/lib/api/server"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -262,6 +263,9 @@ export async function POST(req: NextRequest) {
       console.error("[Automations API] Insert error:", error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
+
+    // Poke CronService so it picks up the new job immediately
+    pokeCronService()
 
     const response: any = { ok: true, automation: data }
     if (nextRunsDisplay) {

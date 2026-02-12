@@ -52,11 +52,11 @@ vi.mock("@/lib/supabase/service", () => ({
   })),
 }))
 
-vi.mock("./run-log", () => ({
+vi.mock("../run-log", () => ({
   appendRunLog: vi.fn(() => Promise.resolve()),
 }))
 
-vi.mock("./executor", () => ({
+vi.mock("../executor", () => ({
   runAutomationJob: vi.fn(() => Promise.resolve({ success: true, durationMs: 100, response: "Done", messages: [] })),
 }))
 
@@ -119,6 +119,27 @@ describe("CronService", () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toBe("Service not started")
+    })
+  })
+
+  describe("pokeCronService", () => {
+    it("is exported and callable", async () => {
+      const { pokeCronService } = await import("../cron-service")
+      expect(typeof pokeCronService).toBe("function")
+    })
+
+    it("is no-op when service not started", async () => {
+      const { pokeCronService } = await import("../cron-service")
+      // Should not throw
+      pokeCronService()
+    })
+
+    it("re-arms timer when service is running", async () => {
+      const { startCronService, pokeCronService } = await import("../cron-service")
+      await startCronService({ enabled: true })
+
+      // Should not throw
+      pokeCronService()
     })
   })
 

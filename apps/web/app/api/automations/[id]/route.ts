@@ -7,6 +7,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { pokeCronService } from "@/lib/automation/cron-service"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createServiceAppClient } from "@/lib/supabase/service"
 
@@ -211,6 +212,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       const cronCheck = validateCronSchedule(data.cron_schedule, data.cron_timezone)
       nextRunsDisplay = formatNextRuns(cronCheck.nextRuns)
     }
+
+    // Poke CronService so it picks up schedule changes immediately
+    pokeCronService()
 
     return NextResponse.json({ automation: data, nextRunsPreview: nextRunsDisplay })
   } catch (error) {
