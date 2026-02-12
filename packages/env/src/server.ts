@@ -102,9 +102,9 @@ export function getAnthropicApiKey(): string {
 }
 
 /**
- * Default Redis URL for local development only
+ * Default Redis URL for local/native Redis (no auth)
  */
-const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
+const LOCAL_DEV_REDIS_URL = "redis://127.0.0.1:6379"
 
 /**
  * Get Redis URL with environment-aware validation

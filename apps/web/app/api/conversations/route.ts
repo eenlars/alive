@@ -4,6 +4,7 @@
  * GET: Fetch user's conversations for a workspace
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
@@ -162,6 +163,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("[conversations] Unexpected error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

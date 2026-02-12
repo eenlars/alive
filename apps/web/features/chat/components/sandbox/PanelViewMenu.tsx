@@ -2,6 +2,8 @@
 
 import { Code, FolderOpen, Globe, Terminal } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { trackSandboxModeChanged } from "@/lib/analytics/events"
+import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import type { PanelView } from "../../lib/sandbox-context"
 
 interface PanelViewMenuProps {
@@ -35,23 +37,21 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
   const isMobile = useIsMobile()
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const driveEnabled = useFeatureFlag("DRIVE")
 
-  // Get available views based on workspace type
-  const availableViews = isSuperadmin ? VIEW_OPTIONS.filter(o => o.view !== "site" && o.view !== "drive") : VIEW_OPTIONS
+  // Get available views based on workspace type and feature flags
+  const availableViews = VIEW_OPTIONS.filter(o => {
+    if (isSuperadmin && (o.view === "site" || o.view === "drive")) return false
+    if (o.view === "drive" && !driveEnabled) return false
+    return true
+  })
 
-  // Force back to site view if on mobile and in code/terminal/files view
+  // Redirect when current view is no longer available (flag toggled off, mobile, superadmin)
   useEffect(() => {
-    if (isMobile && (currentView === "code" || currentView === "terminal" || currentView === "drive")) {
-      onViewChange("site")
+    if (!availableViews.some(v => v.view === currentView)) {
+      onViewChange(isMobile ? "site" : (availableViews[0]?.view ?? "code"))
     }
-  }, [isMobile, currentView, onViewChange])
-
-  // For superadmin, default to code view if somehow on site view
-  useEffect(() => {
-    if (isSuperadmin && currentView === "site") {
-      onViewChange("code")
-    }
-  }, [isSuperadmin, currentView, onViewChange])
+  }, [availableViews, currentView, isMobile, onViewChange])
 
   // Close on click outside
   useEffect(() => {
@@ -81,6 +81,7 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
   }, [isOpen])
 
   const handleSelect = (view: PanelView) => {
+    trackSandboxModeChanged(view)
     onViewChange(view)
     setIsOpen(false)
   }

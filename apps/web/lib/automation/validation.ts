@@ -5,10 +5,9 @@
  * All validators are defensive and won't throw.
  */
 
-import { createClient } from "@supabase/supabase-js"
+import { getWorkspacePath } from "@webalive/shared"
 import { Cron } from "croner"
-import { resolveWorkspace as resolveWorkspacePath } from "@/features/workspace/lib/workspace-secure"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 /**
  * Validate a cron schedule and get the next 3 run times
@@ -237,40 +236,21 @@ export async function validateWorkspace(hostname: string | undefined): Promise<{
     return { valid: false, error: "Workspace hostname is required" }
   }
 
-  // Try to resolve the workspace path
-  // resolveWorkspacePath() throws if /user/src directory doesn't exist
-  try {
-    const cwd = resolveWorkspacePath(hostname)
-    if (!cwd) {
-      return {
-        valid: false,
-        error: `Site not found: "${hostname}". Verify the site exists and is accessible.`,
-      }
-    }
-    return { valid: true }
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error)
-    // Check if it's a path not found error
-    if (errorMsg.includes("ENOENT") || errorMsg.includes("no such file")) {
-      return {
-        valid: false,
-        error:
-          `Site "${hostname}" is not properly deployed. The required directory structure (/user/src) is missing. ` +
-          "The site may need to be redeployed. Please contact support if this persists.",
-      }
-    }
-    // Check if it's a path traversal security error
-    if (errorMsg.includes("escaped")) {
-      return {
-        valid: false,
-        error: `Invalid workspace path for "${hostname}". Contact support to resolve this security issue.`,
-      }
-    }
+  // Use getWorkspacePath (resolves to /user, same as chat flow).
+  // workspace-secure.ts resolves to /user/src which breaks sites without src/.
+  const { existsSync } = await import("node:fs")
+  const cwd = getWorkspacePath(hostname)
+
+  if (!existsSync(cwd)) {
     return {
       valid: false,
-      error: `Failed to validate workspace "${hostname}": ${errorMsg}`,
+      error:
+        `Site "${hostname}" is not properly deployed. The workspace directory is missing (${cwd}). ` +
+        "The site may need to be redeployed. Please contact support if this persists.",
     }
   }
+
+  return { valid: true }
 }
 
 /**
@@ -286,8 +266,7 @@ export async function validateSiteId(siteId: string | undefined): Promise<{
   }
 
   try {
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     const { data: site, error } = await supabase.from("domains").select("hostname").eq("domain_id", siteId).single()
 

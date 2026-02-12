@@ -10,6 +10,7 @@
  * - Query: GET /api/logs/error?category=oauth&limit=50
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 
 export interface ErrorLogEntry {
@@ -52,6 +53,24 @@ export function captureError(entry: Omit<ErrorLogEntry, "id" | "timestamp">): Er
     details: entry.details,
     userId: entry.userId,
     requestId: entry.requestId,
+  })
+
+  // Send to Sentry
+  Sentry.withScope(scope => {
+    scope.setTag("category", entry.category)
+    scope.setTag("source", entry.source)
+    if (entry.requestId) scope.setTag("requestId", entry.requestId)
+    if (entry.userId) scope.setUser({ id: entry.userId })
+    if (entry.details) scope.setContext("details", entry.details)
+
+    if (entry.stack) {
+      // Reconstruct error with original stack
+      const err = new Error(entry.message)
+      err.stack = entry.stack
+      Sentry.captureException(err)
+    } else {
+      Sentry.captureMessage(entry.message, "error")
+    }
   })
 
   return fullEntry
@@ -188,6 +207,19 @@ export interface StreamErrorContext {
   error: unknown
 }
 
+interface ErrorWithWorkerDebug extends Error {
+  stderr?: string
+  diagnostics?: unknown
+}
+
+function safeJsonForLog(value: unknown): string {
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return '"[unserializable]"'
+  }
+}
+
 /**
  * Log a stream error with full context for debugging
  *
@@ -203,8 +235,10 @@ export function logStreamError(context: StreamErrorContext): void {
 
   const errorMessage = error instanceof Error ? error.message : String(error)
   const errorStack = error instanceof Error ? error.stack : undefined
-  // Check for stderr attached by worker-pool (contains actual Claude subprocess output)
-  const stderr = error instanceof Error && "stderr" in error ? (error as Error & { stderr?: string }).stderr : undefined
+  // Check for backend worker diagnostics attached by worker-pool
+  const stderr = error instanceof Error && "stderr" in error ? (error as ErrorWithWorkerDebug).stderr : undefined
+  const diagnostics =
+    error instanceof Error && "diagnostics" in error ? (error as ErrorWithWorkerDebug).diagnostics : undefined
 
   // Structured log line for easy grep in journalctl
   console.error(
@@ -217,10 +251,34 @@ export function logStreamError(context: StreamErrorContext): void {
     console.error(`[STREAM_ERROR:${requestId}] Claude stderr:\n${stderr}`)
   }
 
+  if (diagnostics) {
+    console.error(`[STREAM_ERROR:${requestId}] Worker diagnostics: ${safeJsonForLog(diagnostics)}`)
+  }
+
   // Stack trace on separate line if available
   if (errorStack) {
     console.error(`[STREAM_ERROR:${requestId}] Stack:`, errorStack)
   }
+
+  // Send to Sentry with rich stream context
+  Sentry.withScope(scope => {
+    scope.setTag("category", "stream")
+    scope.setTag("requestId", requestId)
+    scope.setTag("workspace", workspace)
+    scope.setTag("model", model)
+    scope.setTag("build", `${info.branch}@${info.buildTime}`)
+    scope.setContext("stream", {
+      workspace,
+      model,
+      build: `${info.branch}@${info.buildTime}`,
+      env: info.env,
+      stderr,
+      diagnostics,
+    })
+
+    const err = error instanceof Error ? error : new Error(errorMessage)
+    Sentry.captureException(err)
+  })
 
   // Also capture in queryable error buffer
   captureError({
@@ -234,6 +292,7 @@ export function logStreamError(context: StreamErrorContext): void {
       build: `${info.branch}@${info.buildTime}`,
       env: info.env,
       stderr, // Include stderr in queryable buffer too
+      diagnostics,
     },
     stack: errorStack,
   })

@@ -6,6 +6,17 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/primitives/Button"
 import { Input } from "@/components/ui/primitives/Input"
 import {
+  identifyUser,
+  trackAuthEmailChecked,
+  trackAuthModalOpened,
+  trackLoginFailed,
+  trackLoginSubmitted,
+  trackLoginSuccess,
+  trackSignupFailed,
+  trackSignupSubmitted,
+  trackSignupSuccess,
+} from "@/lib/analytics/events"
+import {
   useAuthModalActions,
   useAuthModalDescription,
   useAuthModalEmail,
@@ -132,6 +143,7 @@ export function AuthModal() {
 
       // Store email and transition to appropriate mode
       setStoredEmail(email.trim())
+      trackAuthEmailChecked(data.exists)
       setMode(data.exists ? "login" : "signup")
 
       // Focus password input after mode change
@@ -152,6 +164,7 @@ export function AuthModal() {
 
     setLoading(true)
     setError("")
+    trackLoginSubmitted()
 
     try {
       const response = await fetch("/api/login", {
@@ -164,12 +177,15 @@ export function AuthModal() {
       const data = await response.json()
 
       if (!response.ok || !data.ok) {
+        trackLoginFailed(data.message || "invalid_credentials")
         setError(data.message || "Invalid email or password")
         return
       }
 
       // Update auth store
       authStore.setAuthenticated()
+      trackLoginSuccess()
+      identifyUser(data.userId ?? email, { email: email.trim() })
 
       // Validate current workspace against JWT workspaces
       // If the localStorage workspace isn't in the JWT, clear it to force re-selection
@@ -201,6 +217,7 @@ export function AuthModal() {
 
     setLoading(true)
     setError("")
+    trackSignupSubmitted()
 
     try {
       const response = await fetch("/api/auth/signup", {
@@ -217,12 +234,15 @@ export function AuthModal() {
       const data = await response.json()
 
       if (!response.ok || !data.ok) {
+        trackSignupFailed(data.message || "signup_error")
         setError(data.message || "Failed to create account")
         return
       }
 
       // Update auth store
       authStore.setAuthenticated()
+      trackSignupSuccess()
+      identifyUser(data.userId ?? email, { email: email.trim() })
 
       // Call success callback
       handleSuccess({ id: data.userId, email: email.trim() })
@@ -297,6 +317,11 @@ export function AuthModal() {
         return "Continue"
     }
   }
+
+  // Track modal open
+  useEffect(() => {
+    if (isOpen) trackAuthModalOpened()
+  }, [isOpen])
 
   if (!isOpen) return null
 

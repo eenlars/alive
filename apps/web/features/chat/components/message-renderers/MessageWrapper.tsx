@@ -10,6 +10,7 @@
 
 import { Trash2 } from "lucide-react"
 import { useState } from "react"
+import { trackMessageDeleted } from "@/lib/analytics/events"
 import { useDexieMessageActions } from "@/lib/db/dexieMessageStore"
 import { cn } from "@/lib/utils"
 
@@ -34,6 +35,7 @@ export function MessageWrapper({ messageId, tabId, canDelete, children }: Messag
     try {
       const resumeUuid = await deleteMessagesAfter(messageId, tabId)
       if (resumeUuid) {
+        trackMessageDeleted()
         console.log("[MessageWrapper] Messages deleted, will resume at:", resumeUuid)
       } else {
         console.warn("[MessageWrapper] Could not delete messages (no previous assistant)")

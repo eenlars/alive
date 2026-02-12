@@ -8,6 +8,7 @@ import { AutomationRunsView } from "@/components/automations/AutomationRunsView"
 import { AutomationSidePanel } from "@/components/automations/AutomationSidePanel"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner"
+import { trackAutomationCreated, trackAutomationDeleted, trackAutomationsViewed } from "@/lib/analytics/events"
 import { type AutomationJob, useAutomationsQuery, useSitesQuery } from "@/lib/hooks/useSettingsQueries"
 import { ApiError, queryKeys } from "@/lib/tanstack"
 import { SettingsTabLayout } from "./SettingsTabLayout"
@@ -37,6 +38,10 @@ export function AutomationsSettings() {
   const sites = sitesData?.sites ?? []
   const loading = automationsLoading
   const error = automationsError?.message ?? null
+
+  useEffect(() => {
+    trackAutomationsViewed()
+  }, [])
 
   const [editingJob, setEditingJob] = useState<AutomationJob | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -117,7 +122,10 @@ export function AutomationsSettings() {
         throw new ApiError(data.error || "Failed to save automation", res.status)
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      if (!variables.editingJobId) {
+        trackAutomationCreated({ has_prompt: !!variables.formData.action_prompt })
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.automations.all })
       setEditingJob(null)
     },
@@ -149,6 +157,9 @@ export function AutomationsSettings() {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.automations.list(), context.previous)
       }
+    },
+    onSuccess: () => {
+      trackAutomationDeleted()
     },
     onSettled: () => {
       setDeleteConfirm(null)

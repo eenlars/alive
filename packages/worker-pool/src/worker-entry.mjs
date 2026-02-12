@@ -143,6 +143,48 @@ function ensureStableSessionHome(workspaceKey, uid, gid) {
   }
 }
 
+/**
+ * Extract structured SDK errors from a query result.
+ * Claude often emits these before exiting with a generic code 1.
+ */
+function extractStructuredResultErrors(queryResult) {
+  if (queryResult?.subtype !== "error_during_execution" || !Array.isArray(queryResult.errors)) {
+    return []
+  }
+  return queryResult.errors.filter(msg => typeof msg === "string" && msg.trim().length > 0)
+}
+
+/**
+ * Create compact MCP status counts from system init payload.
+ * Example output: { connected: 3, failed: 2, needsAuth: 1, pending: 0, disabled: 0 }
+ */
+function summarizeMcpStatuses(mcpServers) {
+  const summary = {
+    connected: 0,
+    failed: 0,
+    needsAuth: 0,
+    pending: 0,
+    disabled: 0,
+    unknown: 0,
+  }
+
+  if (!Array.isArray(mcpServers)) {
+    return summary
+  }
+
+  for (const server of mcpServers) {
+    const status = server?.status
+    if (status === "connected") summary.connected++
+    else if (status === "failed") summary.failed++
+    else if (status === "needs-auth") summary.needsAuth++
+    else if (status === "pending") summary.pending++
+    else if (status === "disabled") summary.disabled++
+    else summary.unknown++
+  }
+
+  return summary
+}
+
 // allowTool and denyTool imported from @webalive/shared
 
 // =============================================================================
@@ -534,6 +576,12 @@ async function handleQuery(ipc, requestId, payload) {
   let messageCount = 0
   let queryResult = null
   const stderrBuffer = [] // Captures Claude subprocess stderr for error debugging
+  const recentMessageTypes = [] // Last few SDK message types/subtypes to aid crash diagnosis
+  let initMcpStatusSummary = null
+  let initMcpStatusByServer = null
+  let initSessionId = null
+  let connectedProviders = []
+  let enabledMcpServerKeys = []
 
   try {
     // SECURITY: Always set/clear session cookie at start of each request
@@ -576,7 +624,7 @@ async function handleQuery(ipc, requestId, payload) {
 
     // Get OAuth tokens for connected MCP providers
     const oauthTokens = payload.oauthTokens || {}
-    const connectedProviders = Object.keys(oauthTokens).filter(key => !!oauthTokens[key])
+    connectedProviders = Object.keys(oauthTokens).filter(key => !!oauthTokens[key])
     if (connectedProviders.length > 0) {
       console.error(`[worker] Connected OAuth providers: ${connectedProviders.join(", ")}`)
     }
@@ -658,8 +706,9 @@ async function handleQuery(ipc, requestId, payload) {
       ...globalMcpServers,
       ...(oauthMcpServers || {}),
     }
+    enabledMcpServerKeys = Object.keys(mcpServers)
 
-    console.error("[worker] MCP servers enabled:", Object.keys(mcpServers).join(", "))
+    console.error("[worker] MCP servers enabled:", enabledMcpServerKeys.join(", "))
     console.error("[worker] Resume session:", payload.resume || "none (new session)")
     if (payload.resumeSessionAt) {
       console.error("[worker] Resume at message:", payload.resumeSessionAt)
@@ -694,6 +743,7 @@ async function handleQuery(ipc, requestId, payload) {
         resumeSessionAt: payload.resumeSessionAt,
         abortSignal: signal,
         stderr: stderrHandler,
+        strictMcpConfig: true,
       },
     })
 
@@ -714,13 +764,30 @@ async function handleQuery(ipc, requestId, payload) {
 
       messageCount++
 
+      const messageTag = message.subtype ? `${message.type}:${message.subtype}` : message.type
+      recentMessageTypes.push(messageTag)
+      if (recentMessageTypes.length > 12) {
+        recentMessageTypes.shift()
+      }
+
       if (message.type === "result") {
         queryResult = message
       }
 
       // Capture session ID from system init message
       if (message.type === "system" && message.subtype === "init" && message.session_id) {
+        initSessionId = message.session_id
         console.error(`[worker] Session ID: ${message.session_id}`)
+
+        if (Array.isArray(message.mcp_servers)) {
+          initMcpStatusSummary = summarizeMcpStatuses(message.mcp_servers)
+          initMcpStatusByServer = message.mcp_servers.map(server => ({
+            name: typeof server?.name === "string" ? server.name : "unknown",
+            status: typeof server?.status === "string" ? server.status : "unknown",
+          }))
+          console.error("[worker] MCP status summary:", JSON.stringify(initMcpStatusSummary))
+        }
+
         ipc.send({
           type: "session",
           requestId,
@@ -789,8 +856,40 @@ async function handleQuery(ipc, requestId, payload) {
       queriesProcessed++
       console.error(`[worker] Query complete: ${messageCount} messages (total: ${queriesProcessed})`)
     } else {
-      // No result yet - this is a real error
+      // No successful result yet. If SDK emitted a structured error result before exit,
+      // surface that error text instead of the generic "exited with code 1".
+      let surfacedErrorMessage = error?.message || String(error)
+      const structuredErrors = extractStructuredResultErrors(queryResult)
+      if (structuredErrors.length > 0) {
+        surfacedErrorMessage = structuredErrors.join("; ")
+        console.error("[worker] Structured SDK error before CLI exit:", surfacedErrorMessage)
+      }
+
       const stderrOutput = stderrBuffer?.length ? stderrBuffer.join("\n") : null
+
+      // Emit one compact diagnostics payload so debuggers can identify
+      // stale session vs MCP failure vs permission flow issues quickly.
+      const failureDiagnostics = {
+        requestId,
+        messageCount,
+        permissionMode,
+        resume: payload.resume || null,
+        resumeSessionAt: payload.resumeSessionAt || null,
+        connectedProviders,
+        mcpServersEnabled: enabledMcpServerKeys,
+        initSessionId,
+        initMcpStatusSummary,
+        initMcpStatusByServer,
+        queryResultSubtype: queryResult?.subtype || null,
+        queryResultIsError: queryResult?.is_error === true,
+        queryResultErrors: structuredErrors,
+        recentMessageTypes,
+        stderrLinesCaptured: stderrBuffer.length,
+        surfacedErrorMessage,
+        originalErrorMessage: error?.message || String(error),
+      }
+      console.error("[worker] Query failure diagnostics:", JSON.stringify(failureDiagnostics))
+
       console.error("[worker] Query error:", error?.stack || String(error))
       if (stderrOutput) {
         console.error("[worker] Claude stderr:", stderrOutput)
@@ -798,9 +897,10 @@ async function handleQuery(ipc, requestId, payload) {
       ipc.send({
         type: "error",
         requestId,
-        error: error?.message || String(error),
+        error: surfacedErrorMessage,
         stack: error?.stack,
         stderr: stderrOutput,
+        diagnostics: failureDiagnostics,
       })
     }
   } finally {

@@ -5,6 +5,7 @@
  * Used by A2A tools (sessions_list, sessions_send, sessions_history).
  */
 
+import * as Sentry from "@sentry/nextjs"
 import type { SessionInfo } from "@webalive/tools"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -57,6 +58,7 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error("[Sessions API] Query error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
@@ -109,6 +111,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (err) {
     console.error("[Sessions API] Error:", err)
+    Sentry.captureException(err)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -223,6 +226,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     console.error("[Sessions API] Send error:", err)
+    Sentry.captureException(err)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

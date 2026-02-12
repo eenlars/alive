@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs"
+import * as Sentry from "@sentry/nextjs"
 import { COOKIE_NAMES, getOAuthKeyForProvider, PATHS } from "@webalive/shared"
 import { DeploymentError } from "@webalive/site-controller"
 import { cookies } from "next/headers"
@@ -18,6 +19,7 @@ import { ErrorCodes } from "@/lib/error-codes"
 import { errorLogger } from "@/lib/error-logger"
 import { getOAuthInstance } from "@/lib/oauth/oauth-instances"
 import { siteMetadataStore } from "@/lib/siteMetadataStore"
+import { QUERY_KEYS } from "@/lib/url/queryState"
 
 export async function POST(request: NextRequest) {
   let cleanupDir: string | null = null
@@ -89,31 +91,34 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Get user's GitHub PAT
-    const githubOAuthKey = getOAuthKeyForProvider("github")
-    const githubOAuth = getOAuthInstance(githubOAuthKey)
-    let githubToken: string | null = null
+    // Require GitHub OAuth token — we use the API tarball endpoint which needs auth
+    let githubToken: string
     try {
-      githubToken = await githubOAuth.getAccessToken(sessionUser.id, githubOAuthKey)
+      const githubOAuthKey = getOAuthKeyForProvider("github")
+      const githubOAuth = getOAuthInstance(githubOAuthKey)
+      const token = await githubOAuth.getAccessToken(sessionUser.id, githubOAuthKey)
+      if (!token) {
+        return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
+          status: 400,
+          details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
+        })
+      }
+      githubToken = token
     } catch {
-      // Token fetch failed - user may not be connected
-    }
-
-    if (!githubToken) {
       return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
         status: 400,
         details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
       })
     }
 
-    // Clone and prepare the repo
+    // Download and prepare the repo via GitHub API
     let templatePath: string
     try {
-      const result = importGithubRepo(repoUrl, githubToken, branch)
+      const result = await importGithubRepo(repoUrl, githubToken, branch)
       templatePath = result.templatePath
       cleanupDir = result.cleanupDir
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown clone error"
+      const message = error instanceof Error ? error.message : "Unknown download error"
       return structuredErrorResponse(ErrorCodes.GITHUB_CLONE_FAILED, {
         status: 400,
         details: { message, repoUrl },
@@ -121,11 +126,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Deploy using the strict shared pipeline (deploy -> register -> caddy -> verify)
+    // Skip build: imported repos are arbitrary — user builds via chat
     await runStrictDeployment({
       domain: fullDomain,
       email: sessionUser.email,
       orgId,
       templatePath,
+      skipBuild: true,
     })
 
     // Save metadata (indicate source is github import)
@@ -157,7 +164,7 @@ export async function POST(request: NextRequest) {
       message: `Site ${fullDomain} deployed from GitHub repository!`,
       domain: fullDomain,
       orgId,
-      chatUrl: `/chat?slug=${slug}`,
+      chatUrl: `/chat?${QUERY_KEYS.workspace}=${encodeURIComponent(fullDomain)}`,
     })
 
     // Regenerate JWT with the new workspace
@@ -168,7 +175,7 @@ export async function POST(request: NextRequest) {
       const payload = await verifySessionToken(sessionCookie.value)
       if (payload) {
         const existingWorkspaces = Array.isArray(payload.workspaces) ? payload.workspaces : []
-        const updatedWorkspaces = [...existingWorkspaces, fullDomain]
+        const updatedWorkspaces = Array.from(new Set([...existingWorkspaces, fullDomain]))
         const newToken = await createSessionToken(
           sessionUser.id,
           sessionUser.email,
@@ -204,13 +211,12 @@ export async function POST(request: NextRequest) {
 
     console.error("[Import-Repo] Unexpected error:", error)
 
+    Sentry.captureException(error)
+
     let status = 500
     if (error && typeof error === "object") {
       if ("code" in error && error.code === "ETIMEDOUT") {
         status = 408
-      } else if ("stderr" in error) {
-        // Git clone failure with stderr output indicates a client-side issue (bad repo, auth, etc.)
-        status = 400
       }
     }
 

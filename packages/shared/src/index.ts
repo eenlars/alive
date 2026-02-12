@@ -14,15 +14,19 @@
  */
 
 export {
-  assertConfigValid,
+  type AutomationTriggerRequest,
+  AutomationTriggerRequestSchema,
+  type AutomationTriggerResponse,
+  AutomationTriggerResponseSchema,
+} from "./automation-schemas.js"
+export {
+  assertValidServerId,
   BRIDGE_ENV,
   type BridgeEnv,
   CONFIG_PATH,
-  type ConfigValidationResult,
   DEFAULTS,
   DOMAINS,
   getEnvFilePath,
-  getLocalTemplatePath,
   getServerId,
   getServiceName,
   getSiteHome,
@@ -30,13 +34,13 @@ export {
   PATHS,
   PORTS,
   requireEnv,
+  resolveTemplatePath,
   SECURITY,
   STANDALONE,
   STREAM_ENV,
   type StreamEnv,
   SUPERADMIN,
   TIMEOUTS,
-  validateConfig,
 } from "./config.js"
 export {
   COOKIE_NAMES,
@@ -55,6 +59,7 @@ export {
   STREAM_INTERRUPT_SOURCES,
   STREAM_SYNTHETIC_MESSAGE_TYPES,
   STREAM_TYPES,
+  STREAMING,
   type StorageEntry,
   type StreamType,
   TEST_CONFIG,
@@ -174,6 +179,7 @@ export {
   retryAsync,
   sleepWithAbort,
 } from "./retry.js"
+export { parseServerConfig, type ServerConfig, serverConfigSchema } from "./server-config-schema.js"
 export {
   // Tool permission helpers
   allowTool,

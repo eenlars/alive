@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { DEFAULTS, PATHS } from "@webalive/shared"
 import { SiteOrchestrator } from "@webalive/site-controller"
 
@@ -7,6 +8,7 @@ export interface DeploySiteOptions {
   password?: string // Optional: For new account creation (if user doesn't exist)
   orgId?: string // Optional: Organization ID (for logging/validation, script will resolve independently)
   templatePath?: string // Optional: Path to template (defaults to PATHS.TEMPLATE_PATH)
+  skipBuild?: boolean // Skip build phase (GitHub imports — user builds via chat)
 }
 
 export interface DeploySiteResult {
@@ -49,6 +51,7 @@ export async function deploySite(options: DeploySiteOptions): Promise<DeploySite
       serverIp,
       wildcardDomain,
       rollbackOnFailure: true, // Automatic rollback on failure
+      skipBuild: options.skipBuild, // GitHub imports skip build — user builds via chat
       skipCaddy: true, // Caller (route.ts) handles Caddy after DB write to avoid race condition
     })
 
@@ -69,6 +72,7 @@ export async function deploySite(options: DeploySiteOptions): Promise<DeploySite
   } catch (error) {
     if (error instanceof Error) {
       console.error(`[Deploy] Error: ${error.message}`)
+      Sentry.captureException(error)
       throw error
     }
 

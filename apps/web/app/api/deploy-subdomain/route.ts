@@ -18,6 +18,7 @@ import { getUserQuota } from "@/lib/deployment/user-quotas"
 import { ErrorCodes } from "@/lib/error-codes"
 import { errorLogger } from "@/lib/error-logger"
 import { siteMetadataStore } from "@/lib/siteMetadataStore"
+import { QUERY_KEYS } from "@/lib/url/queryState"
 
 export async function POST(request: NextRequest) {
   try {
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
       message: `Site ${fullDomain} deployed successfully!`,
       domain: fullDomain,
       orgId,
-      chatUrl: `/chat?slug=${slug}`,
+      chatUrl: `/chat?${QUERY_KEYS.workspace}=${encodeURIComponent(fullDomain)}`,
     })
 
     // Regenerate JWT with the new workspace included

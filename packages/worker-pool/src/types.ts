@@ -96,13 +96,60 @@ export interface CompleteResult {
   cancelled: boolean
 }
 
+/** Aggregated MCP status counts from SDK init event */
+export interface WorkerMcpStatusSummary {
+  connected: number
+  failed: number
+  needsAuth: number
+  pending: number
+  disabled: number
+  unknown: number
+}
+
+/** Per-server MCP status from SDK init event */
+export interface WorkerMcpServerStatus {
+  name: string
+  status: string
+}
+
+/**
+ * Structured diagnostics attached to worker query errors.
+ * Backend-only payload used for journald/error-buffer troubleshooting.
+ */
+export interface WorkerQueryFailureDiagnostics {
+  requestId: string
+  messageCount: number
+  permissionMode: string
+  resume: string | null
+  resumeSessionAt: string | null
+  connectedProviders: string[]
+  mcpServersEnabled: string[]
+  initSessionId: string | null
+  initMcpStatusSummary: WorkerMcpStatusSummary | null
+  initMcpStatusByServer: WorkerMcpServerStatus[] | null
+  queryResultSubtype: string | null
+  queryResultIsError: boolean
+  queryResultErrors: string[]
+  recentMessageTypes: string[]
+  stderrLinesCaptured: number
+  surfacedErrorMessage: string
+  originalErrorMessage: string
+}
+
 /** Messages sent from worker to parent */
 export type WorkerToParentMessage =
   | { type: "ready" }
   | { type: "session"; requestId: string; sessionId: string }
   | { type: "message"; requestId: string; content: unknown }
   | { type: "complete"; requestId: string; result: CompleteResult }
-  | { type: "error"; requestId: string; error: string; stack?: string }
+  | {
+      type: "error"
+      requestId: string
+      error: string
+      stack?: string
+      stderr?: string
+      diagnostics?: WorkerQueryFailureDiagnostics
+    }
   | { type: "shutdown_ack" }
   | { type: "health_ok"; uptime: number; queriesProcessed: number }
 

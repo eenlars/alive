@@ -11,6 +11,7 @@
  * not API responses. These are converted to proper ErrorCodes at the API boundary.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { getOAuthKeyForProvider, providerSupportsPat } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
@@ -48,6 +49,7 @@ async function validateGitHubPat(token: string): Promise<{ valid: boolean; usern
     return { valid: true, username: userData.login }
   } catch (error) {
     console.error("[GitHub PAT] Validation failed:", error)
+    Sentry.captureException(error)
     return { valid: false, error: "Failed to validate token with GitHub" }
   }
 }
@@ -192,6 +194,7 @@ export async function POST(
     })
   } catch (error) {
     console.error("[PAT Connection] Unexpected error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500)
   }
 }

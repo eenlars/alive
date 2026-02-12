@@ -5,10 +5,12 @@ import { ErrorCodes } from "@/lib/error-codes"
 const getSessionUserMock = vi.fn()
 const validateUserOrgAccessMock = vi.fn()
 const getUserQuotaMock = vi.fn()
+const parseGithubRepoMock = vi.fn((_url: string) => ({ owner: "example", repo: "repo" }))
 const importGithubRepoMock = vi.fn()
 const cleanupImportDirMock = vi.fn()
 const getAccessTokenMock = vi.fn()
 const runStrictDeploymentMock = vi.fn()
+const siteMetadataExistsMock = vi.fn((_slug: string) => false)
 
 vi.mock("@/features/auth/lib/auth", () => ({
   getSessionUser: () => getSessionUserMock(),
@@ -62,7 +64,7 @@ vi.mock("@/lib/deployment/user-quotas", () => ({
 }))
 
 vi.mock("@/lib/deployment/github-import", () => ({
-  parseGithubRepo: vi.fn(() => ({ owner: "example", repo: "repo" })),
+  parseGithubRepo: (url: string) => parseGithubRepoMock(url),
   importGithubRepo: (...args: unknown[]) => importGithubRepoMock(...args),
   cleanupImportDir: (...args: unknown[]) => cleanupImportDirMock(...args),
 }))
@@ -87,7 +89,7 @@ vi.mock("@/lib/error-logger", () => ({
 
 vi.mock("@/lib/siteMetadataStore", () => ({
   siteMetadataStore: {
-    exists: vi.fn(() => false),
+    exists: (slug: string) => siteMetadataExistsMock(slug),
     setSite: vi.fn(() => Promise.resolve()),
   },
 }))
@@ -125,7 +127,9 @@ describe("POST /api/import-repo", () => {
       currentSites: 1,
     })
     getAccessTokenMock.mockResolvedValue("github-token")
-    importGithubRepoMock.mockReturnValue({
+    siteMetadataExistsMock.mockReturnValue(false)
+    parseGithubRepoMock.mockReturnValue({ owner: "example", repo: "repo" })
+    importGithubRepoMock.mockResolvedValue({
       templatePath: "/tmp/import/template",
       cleanupDir: "/tmp/import",
     })
@@ -185,5 +189,70 @@ describe("POST /api/import-repo", () => {
     expect(response.status).toBe(403)
     expect(runStrictDeploymentMock).not.toHaveBeenCalled()
     expect(cleanupImportDirMock).not.toHaveBeenCalled()
+  })
+
+  it("returns 409 when slug already exists", async () => {
+    siteMetadataExistsMock.mockReturnValueOnce(true)
+
+    const response = await POST(
+      createRequest({
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
+      }),
+    )
+
+    expect(response.status).toBe(409)
+    const payload = (await response.json()) as { error: string }
+    expect(payload.error).toBe(ErrorCodes.SLUG_TAKEN)
+    expect(runStrictDeploymentMock).not.toHaveBeenCalled()
+  })
+
+  it("returns 400 when repository format is invalid", async () => {
+    parseGithubRepoMock.mockImplementationOnce(() => {
+      throw new Error("Invalid GitHub repo format")
+    })
+
+    const response = await POST(
+      createRequest({
+        slug: "testsite",
+        repoUrl: "invalid-input",
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    const payload = (await response.json()) as { error: string }
+    expect(payload.error).toBe(ErrorCodes.VALIDATION_ERROR)
+    expect(runStrictDeploymentMock).not.toHaveBeenCalled()
+  })
+
+  it("returns 400 when download fails", async () => {
+    importGithubRepoMock.mockRejectedValueOnce(new Error("Repository example/repo not found"))
+
+    const response = await POST(
+      createRequest({
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    const payload = (await response.json()) as { error: string }
+    expect(payload.error).toBe(ErrorCodes.GITHUB_CLONE_FAILED)
+  })
+
+  it("returns 400 when GitHub OAuth is not connected", async () => {
+    getAccessTokenMock.mockRejectedValueOnce(new Error("OAuth not configured"))
+
+    const response = await POST(
+      createRequest({
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    const payload = (await response.json()) as { error: string }
+    expect(payload.error).toBe(ErrorCodes.GITHUB_NOT_CONNECTED)
+    expect(importGithubRepoMock).not.toHaveBeenCalled()
   })
 })

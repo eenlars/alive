@@ -10,7 +10,7 @@
 
 import { createClient } from "@supabase/supabase-js"
 import type { AppDatabase, IamDatabase } from "@webalive/database"
-import { getServerId } from "@webalive/shared"
+import { assertValidServerId, getServerId } from "@webalive/shared"
 import { getUserDefaultOrgId } from "@/lib/deployment/org-resolver"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 import { verifyPassword } from "@/types/guards/api"
@@ -92,8 +92,13 @@ export async function getAllDomains(includeTestData = false, thisServerOnly = tr
   // Filter by current server if requested
   if (thisServerOnly) {
     const serverId = getServerId()
-    if (serverId) {
+    try {
+      assertValidServerId(serverId)
       query = query.eq("server_id", serverId)
+    } catch (err) {
+      console.warn(
+        `[Domain Registry] ${err instanceof Error ? err.message : "Invalid serverId"} — returning all domains`,
+      )
     }
   }
 
@@ -282,12 +287,14 @@ async function validateProvidedOrgId(orgId: string): Promise<void> {
  * Create domain entry in app schema
  */
 async function createDomainEntry(hostname: string, port: number, orgId: string): Promise<void> {
-  // Get server ID for multi-server isolation
+  // Get server ID for multi-server isolation — validate format to catch placeholder values
   const serverId = getServerId()
-  if (!serverId) {
+  try {
+    assertValidServerId(serverId)
+  } catch (err) {
     throw new DomainRegistrationError(
       ErrorCodes.DEPLOYMENT_FAILED,
-      "Server ID not configured. Set serverId in server-config.json (path from SERVER_CONFIG_PATH env var)",
+      err instanceof Error ? err.message : "Invalid serverId",
       { domain: hostname },
     )
   }

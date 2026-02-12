@@ -10,6 +10,7 @@
  * Connection status is checked against lockbox.user_secrets (oauth-core storage)
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { getOAuthKeyForProvider } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error("[Integrations] Failed to fetch available integrations:", error)
+      Sentry.captureException(error)
       return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
         reason: error.message,
       })
@@ -145,6 +147,7 @@ export async function GET(req: NextRequest) {
     )
   } catch (error) {
     console.error("[Integrations] Unexpected error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       reason: error instanceof Error ? error.message : "Unknown error",
     })

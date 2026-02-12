@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -48,6 +49,7 @@ export async function POST() {
     return NextResponse.json({ ok: true, token: previewToken })
   } catch (error) {
     console.error("[preview-token] Error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 }

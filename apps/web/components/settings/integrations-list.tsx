@@ -19,6 +19,11 @@ import {
   useDisconnectIntegration,
   useIntegrations,
 } from "@/hooks/use-integrations"
+import {
+  trackIntegrationConnected,
+  trackIntegrationDisconnected,
+  trackIntegrationsViewed,
+} from "@/lib/analytics/events"
 import { getIntegrationUI } from "@/lib/integrations/registry"
 
 // Constants
@@ -126,6 +131,10 @@ interface IntegrationsListProps {
 
 export function IntegrationsList({ layout = "grid", filter }: IntegrationsListProps) {
   const { integrations, loading, error, refetch } = useIntegrations()
+
+  useEffect(() => {
+    trackIntegrationsViewed()
+  }, [])
 
   // Auto-refresh when OAuth callback succeeds (for non-popup fallback)
   const urlSearchParams = typeof window !== "undefined" ? window.location.search : ""
@@ -534,6 +543,7 @@ function IntegrationCard({ integration, onUpdate, layout = "grid" }: Integration
   const handleConnect = async () => {
     const success = await connect()
     if (success) {
+      trackIntegrationConnected(integration.provider_key)
       toast.success(`${integration.display_name} connected`, {
         icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
       })
@@ -543,6 +553,7 @@ function IntegrationCard({ integration, onUpdate, layout = "grid" }: Integration
 
   const handleDisconnect = async () => {
     await disconnect()
+    trackIntegrationDisconnected(integration.provider_key)
     toast.success(`${integration.display_name} disconnected`)
     onUpdate() // Refresh the list
   }

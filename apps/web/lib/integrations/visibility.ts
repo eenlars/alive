@@ -5,6 +5,7 @@
  * based on the database-driven visibility rules.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import type { AvailableIntegration } from "@/app/api/integrations/available/route"
 import { createIntegrationsClient } from "@/lib/supabase/integrations"
 
@@ -26,6 +27,7 @@ export async function canUserAccessIntegration(userId: string, providerKey: stri
 
     if (error) {
       console.error(`[Integration Visibility] Failed to check access for ${providerKey}:`, error)
+      Sentry.captureException(error)
       return false
     }
 
@@ -41,6 +43,7 @@ export async function canUserAccessIntegration(userId: string, providerKey: stri
     return hasAccess
   } catch (error) {
     console.error(`[Integration Visibility] Error checking access for ${providerKey}:`, error)
+    Sentry.captureException(error)
     return false
   }
 }
@@ -61,6 +64,7 @@ export async function getUserIntegrations(userId: string): Promise<AvailableInte
 
     if (error) {
       console.error("[Integration Visibility] Failed to fetch user integrations:", error)
+      Sentry.captureException(error)
       return []
     }
 
@@ -75,6 +79,7 @@ export async function getUserIntegrations(userId: string): Promise<AvailableInte
       : []
   } catch (error) {
     console.error("[Integration Visibility] Error fetching integrations:", error)
+    Sentry.captureException(error)
     return []
   }
 }

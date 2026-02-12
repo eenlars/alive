@@ -6,6 +6,7 @@
  * Only accessible in test environments.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { TEST_CONFIG } from "@webalive/shared"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -83,6 +84,7 @@ export async function GET(req: Request) {
     return Response.json({ ready: true })
   } catch (error) {
     console.error("[Verify Tenant] Error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 }

@@ -32,6 +32,9 @@
     "generate-json": "node dist/generate-environments-json.js",
     "gen:types": "bun scripts/generate-database-types.ts"
   },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
   "devDependencies": {
     "@types/node": "^22.5.2",
     "typescript": "^5.9.3"

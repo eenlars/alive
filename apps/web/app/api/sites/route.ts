@@ -5,6 +5,7 @@
  * Returns domain_id and hostname for use in automation configuration.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
     return alrighty("sites", { ok: true, sites })
   } catch (error) {
     console.error("[Sites API] GET error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

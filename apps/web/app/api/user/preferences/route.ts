@@ -7,6 +7,7 @@
  * Used for cross-device sync of workspace selection.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import type { Json } from "@webalive/database"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -52,6 +53,7 @@ export async function GET() {
     if (error && error.code !== "PGRST116") {
       // PGRST116 = no rows returned (user has no preferences yet)
       console.error("[preferences] Failed to fetch:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
@@ -73,6 +75,7 @@ export async function GET() {
     })
   } catch (error) {
     console.error("[preferences] Unexpected error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -103,12 +106,14 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error("[preferences] Failed to update:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error("[preferences] Unexpected error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

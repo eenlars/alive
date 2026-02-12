@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { uploadImage } from "@webalive/images"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
@@ -102,6 +103,7 @@ export async function POST(request: NextRequest) {
 
     if (result.error) {
       console.error(`[Image Upload ${requestId}] ✗ Upload failed:`, result.error)
+      Sentry.captureException(new Error(`Image upload failed: ${result.error}`))
       return createErrorResponse(ErrorCodes.IMAGE_UPLOAD_FAILED, 500)
     }
 
@@ -117,6 +119,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error(`[Image Upload ${requestId}] ✗ Unexpected error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.IMAGE_UPLOAD_FAILED, 500)
   }
 }

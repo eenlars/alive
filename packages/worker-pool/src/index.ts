@@ -53,12 +53,15 @@ export type {
   StreamType,
   WorkerHandle,
   WorkerInfo,
+  WorkerMcpServerStatus,
+  WorkerMcpStatusSummary,
   WorkerMessageType,
   // Pool
   WorkerPoolConfig,
   WorkerPoolEventListener,
   // Events
   WorkerPoolEvents,
+  WorkerQueryFailureDiagnostics,
   // Worker
   WorkerState,
   WorkerToParentMessage,

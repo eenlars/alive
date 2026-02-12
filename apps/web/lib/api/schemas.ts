@@ -148,6 +148,28 @@ export const apiSchemas = {
     }),
   },
   /**
+   * GET /api/templates
+   * Get active templates for this server (public, no auth)
+   */
+  templates: {
+    req: z.undefined().brand<"TemplatesRequest">(),
+    res: z.object({
+      templates: z.array(
+        z.object({
+          template_id: z.string(),
+          name: z.string(),
+          description: z.string().nullable(),
+          ai_description: z.string().nullable(),
+          preview_url: z.string().nullable(),
+          image_url: z.string().nullable(),
+          is_active: z.boolean().nullable(),
+          deploy_count: z.number().nullable(),
+        }),
+      ),
+    }),
+  },
+
+  /**
    * GET /api/manager/templates
    * Get all templates (manager auth required)
    */
@@ -374,8 +396,8 @@ export const apiSchemas = {
         slug: z
           .string()
           .min(3, "Slug must be at least 3 characters")
-          .max(20, "Slug must be no more than 20 characters")
-          .regex(/^[a-z0-9]([a-z0-9-]{1,18}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
+          .max(16, "Slug must be no more than 16 characters")
+          .regex(/^[a-z0-9]([a-z0-9-]{1,14}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
           .refine(slug => !RESERVED_SLUGS.some(r => r === slug), {
             message: "This slug is reserved and cannot be used. Please choose a different name.",
           }),
@@ -415,8 +437,8 @@ export const apiSchemas = {
         slug: z
           .string()
           .min(3, "Slug must be at least 3 characters")
-          .max(20, "Slug must be no more than 20 characters")
-          .regex(/^[a-z0-9]([a-z0-9-]{1,18}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
+          .max(16, "Slug must be no more than 16 characters")
+          .regex(/^[a-z0-9]([a-z0-9-]{1,14}[a-z0-9])?$/, "Slug must be lowercase letters, numbers, and hyphens only")
           .refine(slug => !RESERVED_SLUGS.some(r => r === slug), {
             message: "This slug is reserved and cannot be used. Please choose a different name.",
           }),

@@ -1,5 +1,6 @@
 import { chown, mkdir, realpath, stat } from "node:fs/promises"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
@@ -179,6 +180,7 @@ export async function POST(request: NextRequest) {
       // Ignore EEXIST, rethrow others
       if ((err as NodeJS.ErrnoException).code !== "EEXIST") {
         console.error(`[Upload ${requestId}] Failed to create uploads directory:`, err)
+        Sentry.captureException(err)
         return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
           requestId,
           reason: "Failed to create uploads directory",
@@ -208,6 +210,7 @@ export async function POST(request: NextRequest) {
       writeAsWorkspaceOwner(resolvedSavePath, buffer, { uid, gid })
     } catch (err) {
       console.error(`[Upload ${requestId}] Failed to write file:`, err)
+      Sentry.captureException(err)
       return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
         requestId,
         reason: "Failed to write uploaded file",
@@ -228,6 +231,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error(`[Upload ${requestId}] Unexpected error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
       requestId,
       error: error instanceof Error ? error.message : "Unknown error",

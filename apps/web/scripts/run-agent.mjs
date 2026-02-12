@@ -114,7 +114,10 @@ async function readStdinJson() {
     // OAuth MCP tools are allowed dynamically in canUseTool
     // Admin users get Bash, BashOutput, TaskStop tools
     // Superadmin users get ALL tools (Task, WebSearch included)
-    const baseAllowedTools = getAllowedTools(targetCwd || process.cwd(), isAdmin, isSuperadmin)
+    // isSuperadmin is also used as isSuperadminWorkspace — the alive workspace
+    // is the only superadmin workspace, and site-specific tools (switch_serve_mode, etc.)
+    // should not be available there since it's not a Vite site.
+    const baseAllowedTools = getAllowedTools(targetCwd || process.cwd(), isAdmin, isSuperadmin, isSuperadmin)
     const disallowedTools = getDisallowedTools(isAdmin, isSuperadmin)
 
     // Plan mode: Filter out blocked tools from allowedTools

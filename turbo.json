@@ -109,6 +109,17 @@
       "cache": false,
       "persistent": true,
       "env": ["BROKER_SHARED_SECRET", "BROKER_PORT", "BROKER_HOST"]
+    },
+    "@webalive/worker#start": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true,
+      "env": ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "JWT_SECRET", "WORKER_PORT"]
+    },
+    "@webalive/worker#dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "JWT_SECRET", "WORKER_PORT"]
     }
   }
 }

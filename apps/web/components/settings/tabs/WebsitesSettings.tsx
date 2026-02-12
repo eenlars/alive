@@ -3,6 +3,7 @@
 import { AlertTriangle, Building2, Globe, Search, Shield, User } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { AddWebsiteModal } from "@/components/modals/AddWebsiteModal"
+import { GithubImportModal } from "@/components/modals/GithubImportModal"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner"
 import { SearchInput } from "@/components/ui/SearchInput"
@@ -144,6 +145,7 @@ export function WebsitesSettings() {
   const { data: allWorkspaces = {}, isLoading: websitesLoading, refetch } = useAllWorkspacesQuery(organizations)
   const { currentWorkspace, switchWorkspace } = useWorkspaceSwitch()
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
   // Superadmin: show all websites toggle
@@ -271,18 +273,34 @@ export function WebsitesSettings() {
         {renderContent()}
 
         {!loading && !showAllWebsites && (
-          <div className="flex justify-start pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowImportModal(true)}
+              className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-sm font-medium hover:opacity-80 active:scale-[0.98] transition-all"
+            >
+              Open from GitHub
+            </button>
             <button
               type="button"
               onClick={() => setShowAddModal(true)}
-              className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-sm font-medium hover:opacity-80 active:scale-[0.98] transition-all"
+              className="w-full sm:w-auto px-4 py-3 sm:py-2 rounded-lg text-sm font-medium border border-black/15 dark:border-white/15 text-black/70 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/5 active:scale-[0.98] transition-all"
             >
-              + Add Website
+              Start from template
             </button>
           </div>
         )}
 
         {showAddModal && <AddWebsiteModal onClose={() => setShowAddModal(false)} onSuccess={refetch} />}
+        {showImportModal && (
+          <GithubImportModal
+            onClose={() => setShowImportModal(false)}
+            onImported={domain => {
+              // JWT is updated by the API — navigate to the new workspace
+              window.location.href = `/chat?wk=${encodeURIComponent(domain)}`
+            }}
+          />
+        )}
       </div>
     </SettingsTabLayout>
   )

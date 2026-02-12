@@ -3,7 +3,7 @@
 // DO NOT EDIT MANUALLY - Run 'bun run gen:types' to regenerate
 //
 // Schema: app
-// Project: YOUR_PROJECT_ID
+// Project: qnvprftdorualkdyogka
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
@@ -22,6 +22,7 @@ export type Database = {
           action_prompt: string | null
           action_source: Json | null
           action_target_page: string | null
+          action_thinking: string | null
           action_timeout_seconds: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures: number | null
@@ -40,6 +41,7 @@ export type Database = {
           next_run_at: string | null
           org_id: string
           run_at: string | null
+          run_id: string | null
           running_at: string | null
           site_id: string
           skills: string[] | null
@@ -47,6 +49,8 @@ export type Database = {
           updated_at: string
           user_id: string
           webhook_secret: string | null
+          claimed_by: string | null
+          lease_expires_at: string | null
         }
         Insert: {
           action_format_prompt?: string | null
@@ -54,6 +58,7 @@ export type Database = {
           action_prompt?: string | null
           action_source?: Json | null
           action_target_page?: string | null
+          action_thinking?: string | null
           action_timeout_seconds?: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures?: number | null
@@ -72,6 +77,7 @@ export type Database = {
           next_run_at?: string | null
           org_id: string
           run_at?: string | null
+          run_id?: string | null
           running_at?: string | null
           site_id: string
           skills?: string[] | null
@@ -79,6 +85,8 @@ export type Database = {
           updated_at?: string
           user_id: string
           webhook_secret?: string | null
+          claimed_by?: string | null
+          lease_expires_at?: string | null
         }
         Update: {
           action_format_prompt?: string | null
@@ -86,6 +94,7 @@ export type Database = {
           action_prompt?: string | null
           action_source?: Json | null
           action_target_page?: string | null
+          action_thinking?: string | null
           action_timeout_seconds?: number | null
           action_type?: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures?: number | null
@@ -104,6 +113,7 @@ export type Database = {
           next_run_at?: string | null
           org_id?: string
           run_at?: string | null
+          run_id?: string | null
           running_at?: string | null
           site_id?: string
           skills?: string[] | null
@@ -111,6 +121,8 @@ export type Database = {
           updated_at?: string
           user_id?: string
           webhook_secret?: string | null
+          claimed_by?: string | null
+          lease_expires_at?: string | null
         }
         Relationships: [
           {
@@ -663,6 +675,55 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_due_jobs: {
+        Args: {
+          p_server_id: string
+          p_limit: number
+          p_claimed_by?: string
+        }
+        Returns: {
+          action_format_prompt: string | null
+          action_model: string | null
+          action_prompt: string | null
+          action_source: Json | null
+          action_target_page: string | null
+          action_thinking: string | null
+          action_timeout_seconds: number | null
+          action_type: Database["app"]["Enums"]["automation_action_type"]
+          consecutive_failures: number | null
+          created_at: string
+          cron_schedule: string | null
+          cron_timezone: string | null
+          delete_after_run: boolean | null
+          description: string | null
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          last_run_duration_ms: number | null
+          last_run_error: string | null
+          last_run_status: Database["app"]["Enums"]["automation_run_status"] | null
+          name: string
+          next_run_at: string | null
+          org_id: string
+          run_at: string | null
+          run_id: string | null
+          running_at: string | null
+          site_id: string
+          skills: string[] | null
+          trigger_type: Database["app"]["Enums"]["automation_trigger_type"]
+          updated_at: string
+          user_id: string
+          webhook_secret: string | null
+          claimed_by: string | null
+          lease_expires_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "automation_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       finish_automation_job: {
         Args: {
           changes_param?: string[]
@@ -701,6 +762,7 @@ export type Database = {
           action_prompt: string | null
           action_source: Json | null
           action_target_page: string | null
+          action_thinking: string | null
           action_timeout_seconds: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures: number | null
@@ -719,6 +781,7 @@ export type Database = {
           next_run_at: string | null
           org_id: string
           run_at: string | null
+          run_id: string | null
           running_at: string | null
           site_id: string
           skills: string[] | null
@@ -726,6 +789,8 @@ export type Database = {
           updated_at: string
           user_id: string
           webhook_secret: string | null
+          claimed_by: string | null
+          lease_expires_at: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -742,6 +807,7 @@ export type Database = {
           action_prompt: string | null
           action_source: Json | null
           action_target_page: string | null
+          action_thinking: string | null
           action_timeout_seconds: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
           consecutive_failures: number | null
@@ -760,6 +826,7 @@ export type Database = {
           next_run_at: string | null
           org_id: string
           run_at: string | null
+          run_id: string | null
           running_at: string | null
           site_id: string
           skills: string[] | null
@@ -767,6 +834,8 @@ export type Database = {
           updated_at: string
           user_id: string
           webhook_secret: string | null
+          claimed_by: string | null
+          lease_expires_at: string | null
         }
         SetofOptions: {
           from: "*"
