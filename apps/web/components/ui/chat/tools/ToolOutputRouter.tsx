@@ -24,6 +24,8 @@ interface ToolOutputRouterProps {
   content: any
   // Original tool input - useful for renderers when output is empty (e.g., create_comment returns {})
   toolInput?: unknown
+  toolUseId?: string
+  tabId?: string
   /** Callback to send a message to the chat (for interactive tools like clarification questions) */
   onSubmitAnswer?: (message: string) => void
 }
@@ -136,7 +138,14 @@ function NumberedCodeOutput({ content }: { content: string }) {
   )
 }
 
-export function ToolOutputRouter({ toolName, content, toolInput, onSubmitAnswer }: ToolOutputRouterProps) {
+export function ToolOutputRouter({
+  toolName,
+  content,
+  toolInput,
+  toolUseId,
+  tabId,
+  onSubmitAnswer,
+}: ToolOutputRouterProps) {
   const tool = toolName.toLowerCase()
 
   // Check component registry for custom renderers
@@ -146,7 +155,16 @@ export function ToolOutputRouter({ toolName, content, toolInput, onSubmitAnswer 
     const data = transformToolData(toolName, content)
     // Validate data is suitable for renderer
     if (validateToolData(toolName, data)) {
-      return <Component data={data} toolName={toolName} toolInput={toolInput} onSubmitAnswer={onSubmitAnswer} />
+      return (
+        <Component
+          data={data}
+          toolName={toolName}
+          toolInput={toolInput}
+          toolUseId={toolUseId}
+          tabId={tabId}
+          onSubmitAnswer={onSubmitAnswer}
+        />
+      )
     }
   }
 
