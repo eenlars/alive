@@ -348,6 +348,9 @@ export const DEFAULTS = {
 
   /** Default template ID for new site deployments */
   DEFAULT_TEMPLATE_ID: "tmpl_blank",
+
+  /** Automation worker HTTP port (standalone scheduler/executor process) */
+  AUTOMATION_WORKER_PORT: 5070,
 } as const
 
 // =============================================================================

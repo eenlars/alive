@@ -23,7 +23,8 @@
     "@webalive/shared": "workspace:*",
     "@webalive/tools": "workspace:*",
     "hono": "^4.7.10",
-    "proper-lockfile": "^4.1.2"
+    "proper-lockfile": "^4.1.2",
+    "zod": "^4.1.5"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.2",

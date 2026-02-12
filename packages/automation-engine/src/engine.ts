@@ -15,6 +15,7 @@
 import { randomUUID } from "node:crypto"
 import { computeNextRunAtMs } from "@webalive/automation"
 import { getServerId } from "@webalive/shared"
+import { appendRunLog } from "./run-log"
 import type { AppClient, AutomationJob, ClaimOptions, FinishOptions, RunContext } from "./types"
 
 // =============================================================================
@@ -297,6 +298,19 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
   if (runInsertError) {
     console.error(`[Engine] Failed to insert run record for "${ctx.job.name}":`, runInsertError)
   }
+
+  // Log to file-based run log
+  await appendRunLog(ctx.job.id, {
+    action: "finished",
+    status: result.status,
+    error: result.error,
+    summary: result.summary,
+    runAtMs: new Date(ctx.claimedAt).getTime(),
+    durationMs: result.durationMs,
+    nextRunAtMs: nextRunAt ? new Date(nextRunAt).getTime() : undefined,
+    retryAttempt: consecutiveFailures > 0 ? consecutiveFailures : undefined,
+    messages: result.messages,
+  }).catch(() => {}) // Don't fail if logging fails
 }
 
 // =============================================================================
