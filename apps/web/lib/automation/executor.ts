@@ -13,6 +13,7 @@
  */
 
 import { setTimeout as sleep } from "node:timers/promises"
+import * as Sentry from "@sentry/nextjs"
 import { CLAUDE_MODELS, getWorkspacePath } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
@@ -266,6 +267,14 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     const errorMessage = error instanceof Error ? error.message : String(error)
 
     console.error(`[Automation ${requestId}] Failed after ${durationMs}ms:`, errorMessage)
+    Sentry.withScope(scope => {
+      scope.setTag("category", "automation")
+      scope.setTag("requestId", requestId)
+      scope.setTag("workspace", workspace)
+      scope.setTag("jobId", jobId)
+      scope.setContext("automation", { workspace, jobId, durationMs, model })
+      Sentry.captureException(error instanceof Error ? error : new Error(errorMessage))
+    })
 
     return { success: false, durationMs, error: errorMessage }
   }

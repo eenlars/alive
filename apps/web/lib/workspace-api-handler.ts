@@ -1,4 +1,5 @@
 import { realpathSync } from "node:fs"
+import * as Sentry from "@sentry/nextjs"
 import { PATHS } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import type { ZodSchema, z } from "zod"
@@ -42,6 +43,7 @@ function validateWorkspaceContainment(
     return { valid: true, resolvedPath: realWorkspaceRoot }
   } catch (error) {
     console.error(`[workspace-api ${requestId}] Workspace validation failed:`, error)
+    Sentry.captureException(error)
     return { valid: false }
   }
 }
@@ -152,6 +154,7 @@ export async function handleWorkspaceApi<T extends z.ZodRawShape>(
 
     // Handle unexpected errors
     console.error(`[workspace-api ${requestId}] Unexpected error:`, error)
+    Sentry.captureException(error)
     return NextResponse.json(
       {
         ok: false,

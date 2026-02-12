@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import { createErrorResponse, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
@@ -58,6 +59,7 @@ export async function DELETE(request: NextRequest) {
       const deleteResult = await imageStorage.delete(variantKey)
       if (deleteResult.error) {
         console.error(`Failed to delete variant ${variantKey}:`, deleteResult.error)
+        Sentry.captureException(new Error(`Image delete failed for variant ${variantKey}: ${deleteResult.error}`))
       }
       return deleteResult
     })
@@ -70,6 +72,7 @@ export async function DELETE(request: NextRequest) {
     })
   } catch (error) {
     console.error("Delete image error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.IMAGE_DELETE_FAILED, 500, {
       exception: error instanceof Error ? error.message : "Failed to delete image",
       requestId,

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createCorsResponse } from "@/lib/api/responses"
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
     return createCorsResponse(origin, response, 200)
   } catch (error) {
     console.error("[CheckEmail] Database error:", error)
+    Sentry.captureException(error)
     return createCorsResponse(
       origin,
       {

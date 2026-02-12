@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import type { z } from "zod"
 import { apiSchemas, type Endpoint, type Req, type Res } from "./schemas"
@@ -67,6 +68,7 @@ export async function handleBody<E extends Endpoint>(endpoint: E, req: NextReque
     )
   } catch (e) {
     console.error("handleBody error:", e)
+    Sentry.captureException(e)
     return NextResponse.json(
       {
         error: {

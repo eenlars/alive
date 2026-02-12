@@ -1,6 +1,7 @@
 import { exec } from "node:child_process"
 import { readFile } from "node:fs/promises"
 import { promisify } from "node:util"
+import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import {
   createBadRequestResponse,
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
     return createSuccessResponse({ info })
   } catch (error) {
     console.error("Failed to get vite config:", error)
+    Sentry.captureException(error)
     return createErrorResponse(error, "Failed to get vite config")
   }
 }
@@ -66,6 +68,7 @@ export async function POST(request: NextRequest) {
     return createSuccessResponse({ message: "Port fixed", info })
   } catch (error) {
     console.error("Failed to fix vite config:", error)
+    Sentry.captureException(error)
     return createErrorResponse(error, "Failed to fix vite config")
   }
 }
@@ -176,6 +179,7 @@ async function fixViteConfigPort(domain: string): Promise<void> {
       await execAsync("systemctl daemon-reload")
     } catch (error) {
       console.error("[Vite Config] Failed to remove systemd override:", error)
+      Sentry.captureException(error)
       throw new Error("Failed to remove systemd override", { cause: error as Error })
     }
   }
@@ -190,6 +194,7 @@ async function fixViteConfigPort(domain: string): Promise<void> {
       )
     } catch (error) {
       console.error("[Vite Config] Failed to update vite config:", error)
+      Sentry.captureException(error)
       throw new Error("Failed to update vite config", { cause: error as Error })
     }
   }
@@ -199,6 +204,7 @@ async function fixViteConfigPort(domain: string): Promise<void> {
     await execAsync(`systemctl restart site@${slug}.service`)
   } catch (error) {
     console.error("Failed to restart service:", error)
+    Sentry.captureException(error)
     // Don't throw - config was updated successfully
   }
 }

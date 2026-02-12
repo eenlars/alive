@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { DEFAULTS, PATHS } from "@webalive/shared"
 import { SiteOrchestrator } from "@webalive/site-controller"
 
@@ -71,6 +72,7 @@ export async function deploySite(options: DeploySiteOptions): Promise<DeploySite
   } catch (error) {
     if (error instanceof Error) {
       console.error(`[Deploy] Error: ${error.message}`)
+      Sentry.captureException(error)
       throw error
     }
 

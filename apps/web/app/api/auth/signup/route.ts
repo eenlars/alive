@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createSessionToken } from "@/features/auth/lib/jwt"
@@ -179,6 +180,7 @@ export async function POST(req: NextRequest) {
     return res
   } catch (error) {
     console.error("[Signup] Unexpected error:", error)
+    Sentry.captureException(error)
     return createCorsResponse(
       origin,
       {

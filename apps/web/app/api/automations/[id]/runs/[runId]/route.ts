@@ -4,6 +4,7 @@
  * Get details for a specific automation run, including the full conversation log.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
@@ -81,6 +82,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     })
   } catch (error) {
     console.error("[Automations API] GET run error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

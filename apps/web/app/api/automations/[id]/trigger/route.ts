@@ -7,6 +7,7 @@
  * Uses the engine module for claim/execute/finish lifecycle.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import type { AppDatabase } from "@webalive/database"
 import { getServerId } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
@@ -156,6 +157,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     )
   } catch (error) {
     console.error("[Automation Trigger] Error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

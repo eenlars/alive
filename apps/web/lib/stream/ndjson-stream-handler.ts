@@ -18,6 +18,7 @@
  * applying credit charges, and sending typed messages to client.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { type OAuthWarning, STREAMING } from "@webalive/shared"
 import { sessionStore, type TabSessionKey } from "@/features/auth/lib/sessionStore"
 import type { BridgeErrorMessage, StreamMessage } from "@/features/chat/lib/streaming/ndjson"
@@ -226,6 +227,7 @@ async function processChildEvent(
       })
       .catch(error => {
         console.error(`[NDJSON Stream ${requestId}] Credit charging failed:`, error)
+        Sentry.captureException(error)
       })
   }
 
@@ -590,6 +592,7 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
       if (cancelState.reader) {
         cancelState.reader.cancel().catch(error => {
           console.error(`[NDJSON Stream ${requestId}] Failed to cancel reader:`, error)
+          Sentry.captureException(error)
         })
       }
     },
