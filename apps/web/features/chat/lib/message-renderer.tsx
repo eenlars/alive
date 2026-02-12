@@ -77,6 +77,7 @@ export function shouldRenderMessage(message: UIMessage, isDebugMode: boolean): b
 }
 
 interface RenderMessageOptions {
+  tabId?: string
   /** Callback to send a message to the chat (for interactive tools like clarification questions) */
   onSubmitAnswer?: (message: string) => void
 }
@@ -114,7 +115,13 @@ function renderMessageContent(message: UIMessage, options?: RenderMessageOptions
       return <AssistantMessage content={message.content as SDKAssistantMessage} />
 
     case COMPONENT_TYPE.TOOL_RESULT:
-      return <ToolResultMessage content={message.content as SDKUserMessage} onSubmitAnswer={options?.onSubmitAnswer} />
+      return (
+        <ToolResultMessage
+          content={message.content as SDKUserMessage}
+          tabId={options?.tabId}
+          onSubmitAnswer={options?.onSubmitAnswer}
+        />
+      )
 
     case COMPONENT_TYPE.RESULT:
       return <ResultMessage content={message.content as SDKResultMessage} />

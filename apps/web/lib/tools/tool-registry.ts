@@ -65,6 +65,8 @@ export interface ToolResultRendererProps<T = unknown> {
   toolName: string
   isError?: boolean
   toolInput?: unknown
+  toolUseId?: string
+  tabId?: string
   /** Callback to send a message to the chat (for interactive tools like clarification questions) */
   onSubmitAnswer?: (message: string) => void
 }

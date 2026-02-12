@@ -755,7 +755,10 @@ function ChatPageContent() {
                   return shouldRenderMessage(message, isDebugMode)
                 })
                 .map((message, index, filteredMessages) => {
-                  const content = renderMessage(message, { onSubmitAnswer: sendMessage })
+                  const content = renderMessage(message, {
+                    onSubmitAnswer: sendMessage,
+                    tabId: sessionTabId ?? undefined,
+                  })
                   // Skip rendering wrapper if component returns null
                   if (!content) return null
 

@@ -6,10 +6,11 @@ import Redis from "ioredis"
 const AUTH_ERROR_CODES = ["WRONGPASS", "NOAUTH", "ERR invalid password"]
 
 /**
- * Default Redis URL for local/native Redis (no auth).
+ * Default Redis URL for local/native Redis (with dev password).
+ * Native systemd Redis uses ACL auth — password required even locally.
  * In production, use getRedisUrl() from @webalive/env which validates REDIS_URL is set.
  */
-const LOCAL_DEV_REDIS_URL = "redis://127.0.0.1:6379"
+const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
 
 /**
  * Creates a Redis client with automatic connection and error handling.
