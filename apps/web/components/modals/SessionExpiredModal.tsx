@@ -1,6 +1,8 @@
 "use client"
 
 import { LogIn } from "lucide-react"
+import { useEffect } from "react"
+import { trackSessionExpired } from "@/lib/analytics/events"
 import { useAuthActions, useSessionExpiredReason } from "@/lib/stores/authStore"
 
 /**
@@ -16,6 +18,9 @@ import { useAuthActions, useSessionExpiredReason } from "@/lib/stores/authStore"
 export function SessionExpiredModal() {
   const { redirectToLogin } = useAuthActions()
   const reason = useSessionExpiredReason()
+  useEffect(() => {
+    trackSessionExpired()
+  }, [])
 
   return (
     <div

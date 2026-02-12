@@ -4,6 +4,12 @@ import { X } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { SuperTemplateCard } from "@/components/ui/SuperTemplateCard"
 import { SuperTemplatePreview } from "@/components/ui/SuperTemplatePreview"
+import {
+  trackTemplateCategoryViewed,
+  trackTemplateInserted,
+  trackTemplateSelected,
+  trackTemplatesModalOpened,
+} from "@/lib/analytics/events"
 import { TEMPLATE_CATEGORIES, type Template, type TemplateCategory } from "@/types/templates"
 
 interface SuperTemplatesModalProps {
@@ -53,6 +59,11 @@ export function SuperTemplatesModal({ onClose, onInsertTemplate }: SuperTemplate
     }
   }, [loading, categoriesWithTemplates, activeCategory])
 
+  // Track modal open
+  useEffect(() => {
+    trackTemplatesModalOpened()
+  }, [])
+
   // Prevent body scroll when modal is open + handle Escape key
   useEffect(() => {
     document.body.style.overflow = "hidden"
@@ -69,6 +80,7 @@ export function SuperTemplatesModal({ onClose, onInsertTemplate }: SuperTemplate
   }, [onClose])
 
   const handleCardClick = (template: Template) => {
+    trackTemplateSelected({ template_name: template.name, category: template.category })
     setSelectedTemplate(template)
   }
 
@@ -78,6 +90,7 @@ export function SuperTemplatesModal({ onClose, onInsertTemplate }: SuperTemplate
 
   const handleInsertClick = () => {
     if (selectedTemplate) {
+      trackTemplateInserted({ template_name: selectedTemplate.name, category: selectedTemplate.category })
       // Insert JSON that will be auto-detected and converted to supertemplate attachment
       const templateJson = JSON.stringify({
         type: "supertemplate",
@@ -161,7 +174,10 @@ export function SuperTemplatesModal({ onClose, onInsertTemplate }: SuperTemplate
                         <button
                           key={category}
                           type="button"
-                          onClick={() => setActiveCategory(category)}
+                          onClick={() => {
+                            trackTemplateCategoryViewed(category)
+                            setActiveCategory(category)
+                          }}
                           className={`px-3 py-1.5 rounded-full whitespace-nowrap text-sm font-[400] transition-colors flex-shrink-0
                             ${
                               isActive
@@ -188,7 +204,10 @@ export function SuperTemplatesModal({ onClose, onInsertTemplate }: SuperTemplate
                     <button
                       key={category}
                       type="button"
-                      onClick={() => setActiveCategory(category)}
+                      onClick={() => {
+                        trackTemplateCategoryViewed(category)
+                        setActiveCategory(category)
+                      }}
                       className={`px-3 py-2 text-sm font-[400] transition-colors
                         ${
                           isActive

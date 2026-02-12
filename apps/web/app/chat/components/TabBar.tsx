@@ -3,6 +3,7 @@
 import { History, Plus, X } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { trackTabClosed, trackTabCreated, trackTabReopened } from "@/lib/analytics/events"
 import type { Tab } from "@/lib/stores/tabStore"
 
 interface TabBarProps {
@@ -150,6 +151,7 @@ export function TabBar({
                           type="button"
                           onClick={e => {
                             e.stopPropagation()
+                            trackTabClosed()
                             onTabClose(tab.id)
                           }}
                           data-testid={`close-tab-${tab.id}`}
@@ -164,7 +166,10 @@ export function TabBar({
                 })}
                 <button
                   type="button"
-                  onClick={onAddTab}
+                  onClick={() => {
+                    trackTabCreated()
+                    onAddTab()
+                  }}
                   data-testid="add-tab-button"
                   className="flex items-center justify-center size-8 rounded-full text-black/50 dark:text-white/50 hover:text-black/80 dark:hover:text-white/80 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-all duration-200 shrink-0"
                   title="Add new tab"
@@ -202,6 +207,7 @@ export function TabBar({
                         key={tab.id}
                         type="button"
                         onClick={() => {
+                          trackTabReopened()
                           onTabReopen(tab.id)
                           setShowClosedMenu(false)
                         }}

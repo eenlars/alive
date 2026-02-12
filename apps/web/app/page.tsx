@@ -2,14 +2,26 @@
 
 import { Eye, EyeOff } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { Suspense, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { Button } from "@/components/ui/primitives/Button"
 import { Input } from "@/components/ui/primitives/Input"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
+import {
+  identifyUser,
+  trackLandingPageView,
+  trackLoginFailed,
+  trackLoginSubmitted,
+  trackLoginSuccess,
+  trackSignupStarted,
+} from "@/lib/analytics/events"
 import { useAuthModalActions } from "@/lib/stores/authModalStore"
 import { authStore } from "@/lib/stores/authStore"
 
 function LoginPageContent() {
+  useEffect(() => {
+    trackLandingPageView()
+  }, [])
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -24,6 +36,7 @@ function LoginPageContent() {
     e.preventDefault()
     setLoading(true)
     setError("")
+    trackLoginSubmitted()
 
     try {
       const loginResponse = await fetch("/api/login", {
@@ -36,6 +49,7 @@ function LoginPageContent() {
       const data = await loginResponse.json()
 
       if (!loginResponse.ok || !data.ok) {
+        trackLoginFailed("invalid_credentials")
         setError("Invalid email or password")
         setLoading(false)
         return
@@ -43,6 +57,8 @@ function LoginPageContent() {
 
       // Reset auth state on successful login (clears any stale session_expired state)
       authStore.setAuthenticated()
+      trackLoginSuccess()
+      identifyUser(data.userId ?? email, { email })
 
       // Redirect to chat
       router.push("/chat")
@@ -54,6 +70,7 @@ function LoginPageContent() {
   }
 
   function handleCreateAccount() {
+    trackSignupStarted()
     openAuthModal({
       title: "Create your account",
       description: "Enter your email to get started",

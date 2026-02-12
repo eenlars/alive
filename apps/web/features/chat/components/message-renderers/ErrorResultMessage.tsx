@@ -1,6 +1,7 @@
 import { ExternalLink, RotateCcw, WifiOff } from "lucide-react"
 import { useCallback } from "react"
 import { useRetry } from "@/features/chat/lib/retry-context"
+import { trackMessageRetried } from "@/lib/analytics/events"
 import { useDexieMessageStore } from "@/lib/db/dexieMessageStore"
 import { toUIMessage } from "@/lib/db/messageAdapters"
 import { getMessageDb } from "@/lib/db/messageDb"
@@ -409,7 +410,10 @@ export function ErrorResultMessage({ content }: ErrorResultMessageProps) {
             {canRetry && !isSessionCorrupt && (
               <button
                 type="button"
-                onClick={retryLastMessage}
+                onClick={() => {
+                  trackMessageRetried()
+                  retryLastMessage()
+                }}
                 className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium ${buttonClass} rounded transition-colors`}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
