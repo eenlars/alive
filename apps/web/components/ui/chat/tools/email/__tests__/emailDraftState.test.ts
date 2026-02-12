@@ -7,7 +7,7 @@ describe("emailDraftState", () => {
       {
         type: "text",
         text: JSON.stringify({
-          to: ["n.peet@historischgoud.nl"],
+          to: ["user@example.com"],
           subject: "Re: FW: Online versie van het Romeinse bordspel",
           body: "Concept body",
           status: "draft",

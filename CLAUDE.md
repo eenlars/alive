@@ -721,8 +721,8 @@ const { data } = await iam.rpc('deduct_credits', {
 |---|---|---|---|
 | `tmpl_blank` | `blank.alive.best` | 3594 | `bun run preview` |
 | `tmpl_gallery` | `template1.alive.best` | 3352 | `bun run dev` |
-| `tmpl_event` | `four.goalive.nl` | 3345 | `bun run dev` |
-| `tmpl_saas` | `one.goalive.nl` | 3346 | `bun run dev` |
+| `tmpl_event` | `event.alive.best` | 3345 | `bun run dev` |
+| `tmpl_saas` | `saas.alive.best` | 3346 | `bun run dev` |
 | `tmpl_business` | `loodgieter.alive.best` | 3389 | `bun run dev` |
 | — | `components.alive.best` | 3364 | `bun run dev` |
 

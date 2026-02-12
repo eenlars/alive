@@ -336,7 +336,7 @@ describe("useChatMessaging payload safety", () => {
             {
               type: "tool_result",
               tool_use_id: "toolu_email_1",
-              content: [{ type: "text", text: '{"to":["n.peet@historischgoud.nl"],"status":"sent"}' }],
+              content: [{ type: "text", text: '{"to":["user@example.com"],"status":"sent"}' }],
             },
           ],
         },

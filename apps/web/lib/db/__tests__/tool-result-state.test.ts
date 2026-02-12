@@ -49,7 +49,7 @@ describe("updateToolResultContentByToolUseId", () => {
                 {
                   type: "text",
                   text: JSON.stringify({
-                    to: ["n.peet@historischgoud.nl"],
+                    to: ["user@example.com"],
                     subject: "Re: FW: Online versie",
                     body: "Body",
                     status: "draft",

@@ -668,8 +668,8 @@ const { data } = await iam.rpc('deduct_credits', {
 **Template sites** (in Supabase `app.templates`):
 - `blank.alive.best` (`tmpl_blank`) - Minimal starter
 - `template1.alive.best` (`tmpl_gallery`) - Gallery template
-- `four.goalive.nl` (`tmpl_event`) - Event template
-- `one.goalive.nl` (`tmpl_saas`) - SaaS template
+- `event.alive.best` (`tmpl_event`) - Event template
+- `saas.alive.best` (`tmpl_saas`) - SaaS template
 - `loodgieter.alive.best` (`tmpl_business`) - Business template
 
 **Key points:**
