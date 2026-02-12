@@ -19,8 +19,12 @@ const WORKER_URL = `http://localhost:${DEFAULTS.AUTOMATION_WORKER_PORT}`
  * Call this when jobs are created, updated, or re-enabled.
  */
 export function pokeCronService(): void {
-  // Fire-and-forget POST to worker
-  fetch(`${WORKER_URL}/poke`, { method: "POST" }).catch(err => {
+  // Fire-and-forget POST to worker (authenticated)
+  const headers: Record<string, string> = {}
+  if (process.env.JWT_SECRET) {
+    headers["X-Internal-Secret"] = process.env.JWT_SECRET
+  }
+  fetch(`${WORKER_URL}/poke`, { method: "POST", headers }).catch(err => {
     console.warn("[CronService] Failed to poke worker:", err instanceof Error ? err.message : err)
   })
 }

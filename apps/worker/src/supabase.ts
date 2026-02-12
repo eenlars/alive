@@ -5,9 +5,10 @@
  * No cookie-based auth — worker is a background process.
  */
 
-import { createClient } from "@supabase/supabase-js"
-import type { AppClient } from "@webalive/automation-engine"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import type { AppDatabase } from "@webalive/database"
+
+type AppClient = SupabaseClient<AppDatabase, "app">
 
 let cachedClient: AppClient | null = null
 

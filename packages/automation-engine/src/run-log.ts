@@ -75,7 +75,12 @@ const writesByPath = new Map<string, Promise<void>>()
  */
 export function getLogPath(jobId: string, config?: RunLogConfig): string {
   const logDir = config?.logDir ?? DEFAULT_LOG_DIR
-  return path.join(logDir, `${jobId}.jsonl`)
+  const resolved = path.resolve(logDir, `${jobId}.jsonl`)
+  const resolvedDir = path.resolve(logDir)
+  if (!resolved.startsWith(`${resolvedDir}${path.sep}`) && resolved !== resolvedDir) {
+    throw new Error(`[RunLog] Invalid jobId — path traversal detected: ${jobId}`)
+  }
+  return resolved
 }
 
 /**
@@ -101,6 +106,12 @@ export async function appendRunLog(
       await fs.mkdir(path.dirname(logPath), { recursive: true })
       await fs.appendFile(logPath, `${JSON.stringify(fullEntry)}\n`, "utf-8")
       await pruneIfNeeded(logPath, config)
+    })
+    .finally(() => {
+      // Clean up if this is still the latest write for this path
+      if (writesByPath.get(logPath) === next) {
+        writesByPath.delete(logPath)
+      }
     })
 
   writesByPath.set(logPath, next)

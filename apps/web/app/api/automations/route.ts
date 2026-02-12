@@ -267,11 +267,7 @@ export async function POST(req: NextRequest) {
     // Poke CronService so it picks up the new job immediately
     pokeCronService()
 
-    const response: any = { ok: true, automation: data }
-    if (nextRunsDisplay) {
-      response.nextRunsPreview = nextRunsDisplay
-    }
-    return alrighty("automations/create", response, { status: 201 })
+    return alrighty("automations/create", { ok: true, automation: data }, { status: 201 })
   } catch (error) {
     console.error("[Automations API] POST error:", error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })

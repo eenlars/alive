@@ -1,16 +1,17 @@
 /**
  * Automation Worker Entry Point
  *
- * Standalone Bun process that owns scheduling + execution.
- * Runs independently from the Next.js web app.
+ * Pure scheduler — finds due jobs, delegates execution to the web app.
+ * Runs independently from Next.js. Survives web deploys.
  *
  * Features:
- * - CronService: setTimeout-based scheduler with lease-based locking
- * - Executor: Claude Agent SDK in-process (no worker pool needed)
- * - HTTP API: /poke, /trigger/:id, /status for web app integration
- * - Graceful shutdown: SIGTERM/SIGINT stop scheduler, wait for running jobs
+ * - CronService: setTimeout-based scheduler, wakes when next job is due
+ * - Stale reaping: clears stuck jobs based on lease_expires_at
+ * - HTTP API: /poke, /trigger/:id, /health, /status
+ * - Delegates execution to web app's /api/internal/automation/trigger
  */
 
+import { timingSafeEqual } from "node:crypto"
 import { serve } from "@hono/node-server"
 import { getServerId } from "@webalive/shared"
 import { Hono } from "hono"
@@ -20,6 +21,14 @@ import { createWorkerAppClient } from "./supabase"
 // =============================================================================
 // Configuration
 // =============================================================================
+
+/** Constant-time secret comparison to prevent timing attacks */
+function verifySecret(secret: string | undefined): boolean {
+  const expected = process.env.JWT_SECRET
+  if (!secret || !expected) return false
+  if (secret.length !== expected.length) return false
+  return timingSafeEqual(Buffer.from(secret), Buffer.from(expected))
+}
 
 const PORT = parseInt(process.env.WORKER_PORT ?? "5070", 10)
 const serverId: string = getServerId() ?? ""
@@ -43,15 +52,16 @@ app.get("/health", c => {
 
 // Poke: re-arm timer immediately (called after job create/update)
 app.post("/poke", c => {
+  if (!verifySecret(c.req.header("X-Internal-Secret"))) {
+    return c.json({ ok: false, error: "Unauthorized" }, 401)
+  }
   pokeCronService()
   return c.json({ ok: true })
 })
 
-// Trigger: manually run a job
+// Trigger: manually run a job via the web app
 app.post("/trigger/:id", async c => {
-  // Validate internal secret
-  const secret = c.req.header("X-Internal-Secret")
-  if (!secret || secret !== process.env.JWT_SECRET) {
+  if (!verifySecret(c.req.header("X-Internal-Secret"))) {
     return c.json({ ok: false, error: "Unauthorized" }, 401)
   }
 
@@ -60,8 +70,11 @@ app.post("/trigger/:id", async c => {
   return c.json(result, result.success ? 200 : 409)
 })
 
-// Status: detailed service info
+// Status: detailed service info (authenticated)
 app.get("/status", c => {
+  if (!verifySecret(c.req.header("X-Internal-Secret"))) {
+    return c.json({ ok: false, error: "Unauthorized" }, 401)
+  }
   const status = getCronServiceStatus()
   return c.json({
     ok: true,
@@ -82,20 +95,8 @@ async function main() {
 
   const supabase = createWorkerAppClient()
 
-  // Start CronService
-  await startCronService(supabase, serverId, {
-    maxConcurrent: 3,
-    maxRetries: 3,
-    retryBaseDelayMs: 60_000,
-    onEvent: event => {
-      console.log(`[Worker Event] ${event.action}:`, {
-        jobId: event.jobId,
-        status: event.status,
-        durationMs: event.durationMs,
-        error: event.error,
-      })
-    },
-  })
+  // Start CronService (pure scheduler — delegates execution to web app)
+  await startCronService(supabase, serverId)
 
   // Start HTTP server
   const server = serve({ fetch: app.fetch, port: PORT }, info => {
@@ -107,7 +108,6 @@ async function main() {
     console.log("[Worker] Shutting down...")
     stopCronService()
     server.close()
-    // Give running jobs a moment to finish their current heartbeat
     setTimeout(() => process.exit(0), 2000)
   }
 

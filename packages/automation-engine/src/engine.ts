@@ -68,19 +68,25 @@ export async function claimDueJobs(opts: {
   const contexts: RunContext[] = []
 
   for (const job of claimedJobs as AutomationJob[]) {
-    const { data: site } = await supabase.from("domains").select("hostname").eq("domain_id", job.site_id).single()
-
-    if (!site?.hostname) {
-      // Can't resolve site — release claim (only if run_id still matches)
-      const releaseQuery = supabase
+    if (!job.run_id) {
+      // RPC should always set run_id — release and skip if it didn't
+      await supabase
         .from("automation_jobs")
         .update({ running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
         .eq("id", job.id)
-      if (job.run_id) {
-        await releaseQuery.eq("run_id", job.run_id)
-      } else {
-        await releaseQuery
-      }
+      console.error(`[Engine] RPC returned no run_id for claimed job "${job.name}" (${job.id}), released`)
+      continue
+    }
+
+    const { data: site } = await supabase.from("domains").select("hostname").eq("domain_id", job.site_id).single()
+
+    if (!site?.hostname) {
+      // Can't resolve site — release claim (guarded by run_id)
+      await supabase
+        .from("automation_jobs")
+        .update({ running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
+        .eq("id", job.id)
+        .eq("run_id", job.run_id)
       console.error(`[Engine] Site not found for claimed job "${job.name}" (site_id: ${job.site_id}), released`)
       continue
     }
@@ -89,7 +95,7 @@ export async function claimDueJobs(opts: {
       supabase,
       job,
       hostname: site.hostname,
-      runId: job.run_id ?? "",
+      runId: job.run_id,
       claimedAt: job.running_at ?? new Date().toISOString(),
       serverId,
       timeoutSeconds: job.action_timeout_seconds ?? 300,
@@ -291,7 +297,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     status: result.status,
     error: result.error ?? null,
     result: result.summary ? { summary: result.summary } : null,
-    messages: result.messages ? JSON.parse(JSON.stringify(result.messages)) : null,
+    messages: result.messages ? safeSerialize(result.messages) : null,
     triggered_by: ctx.triggeredBy,
   })
 
@@ -316,6 +322,15 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
 // =============================================================================
 // Helpers
 // =============================================================================
+
+/** Safely serialize data that may contain circular references */
+function safeSerialize(data: unknown): ReturnType<typeof JSON.parse> | null {
+  try {
+    return JSON.parse(JSON.stringify(data))
+  } catch {
+    return null
+  }
+}
 
 /** Extend the lease for a running job (heartbeat) */
 async function extendLease(ctx: RunContext): Promise<void> {

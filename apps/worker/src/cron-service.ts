@@ -1,34 +1,26 @@
 /**
- * CronService - Standalone automation scheduler
+ * CronService - Pure Scheduler
  *
- * Runs as a separate process from Next.js. Survives web deploys.
+ * Finds due jobs and delegates execution to the web app's internal trigger.
+ * The web handles claim → execute → finish using its existing infrastructure
+ * (worker pool, OAuth, credits, SSE broadcasting).
  *
- * Uses setTimeout-based scheduling that wakes exactly when the next job is due.
- *
- * Hardened features:
- * - RunContext pattern: DB client captured at claim time
- * - Lease-based locking: run_id + claimed_by + lease_expires_at
- * - Conditional finish: only updates if our run_id still owns the job
- * - Heartbeat: extends lease every 30s during long-running jobs
- * - Promise.allSettled: one failing job doesn't block others
- * - Jitter: prevents thundering herd on timer wakeups
- * - pokeCronService(): immediate re-arm when jobs are created/updated
- * - Dynamic reaper: uses lease_expires_at instead of hardcoded 1h threshold
+ * This process just owns the SCHEDULE — when to wake, what's due, stale reaping.
+ * Survives web deploys since it's a separate systemd service.
  */
 
-import {
-  type AppClient,
-  appendRunLog,
-  type CronEvent,
-  type CronServiceConfig,
-  claimDueJobs,
-  claimJob,
-  extractSummary,
-  finishJob,
-  type RunContext,
-} from "@webalive/automation-engine"
+import type { SupabaseClient } from "@supabase/supabase-js"
+import type { AppDatabase } from "@webalive/database"
+import { AutomationTriggerResponseSchema } from "@webalive/shared"
 
-import { runAutomationJob } from "./executor"
+type AppClient = SupabaseClient<AppDatabase, "app">
+
+// ============================================
+// Configuration
+// ============================================
+
+/** Web app URL for internal trigger calls */
+const WEB_URL = `http://localhost:${process.env.PORT ?? "9000"}`
 
 // ============================================
 // Service State
@@ -36,43 +28,38 @@ import { runAutomationJob } from "./executor"
 
 type ServiceState = {
   supabase: AppClient
-  config: Required<CronServiceConfig>
   serverId: string
+  jwtSecret: string
   timer: ReturnType<typeof setTimeout> | null
-  runningJobs: Map<string, RunContext>
+  triggeredJobs: Set<string>
   started: boolean
   stopping: boolean
 }
 
-// Singleton state
 let state: ServiceState | null = null
 
 // ============================================
 // Public API
 // ============================================
 
-export async function startCronService(
-  supabase: AppClient,
-  serverId: string,
-  config: CronServiceConfig = {},
-): Promise<void> {
+export async function startCronService(supabase: AppClient, serverId: string): Promise<void> {
   if (state?.started) {
     console.log("[CronService] Already started")
     return
   }
 
+  const jwtSecret = process.env.JWT_SECRET
+  if (!jwtSecret) {
+    console.error("[CronService] FATAL: JWT_SECRET not set")
+    process.exit(1)
+  }
+
   state = {
     supabase,
     serverId,
-    config: {
-      maxConcurrent: config.maxConcurrent ?? 3,
-      maxRetries: config.maxRetries ?? 3,
-      retryBaseDelayMs: config.retryBaseDelayMs ?? 60_000,
-      onEvent: config.onEvent ?? (() => {}),
-      enabled: true,
-    },
+    jwtSecret,
     timer: null,
-    runningJobs: new Map(),
+    triggeredJobs: new Set(),
     started: true,
     stopping: false,
   }
@@ -100,15 +87,15 @@ export function stopCronService(): void {
 
 export function getCronServiceStatus(): {
   started: boolean
-  runningJobs: number
+  triggeredJobs: number
   nextWakeAt: Date | null
 } {
   if (!state) {
-    return { started: false, runningJobs: 0, nextWakeAt: null }
+    return { started: false, triggeredJobs: 0, nextWakeAt: null }
   }
   return {
     started: state.started,
-    runningJobs: state.runningJobs.size,
+    triggeredJobs: state.triggeredJobs.size,
     nextWakeAt: null,
   }
 }
@@ -120,31 +107,12 @@ export function pokeCronService(): void {
   void armTimer()
 }
 
-/** Manually trigger a job */
+/** Manually trigger a job via the web's internal endpoint */
 export async function triggerJob(jobId: string): Promise<{ success: boolean; error?: string }> {
   if (!state) {
     return { success: false, error: "Service not started" }
   }
-
-  const { data: job } = await state.supabase.from("automation_jobs").select("*").eq("id", jobId).single()
-
-  if (!job) {
-    return { success: false, error: "Job not found" }
-  }
-
-  const ctx = await claimJob(job, {
-    supabase: state.supabase,
-    triggeredBy: "scheduler",
-    serverId: state.serverId,
-  })
-
-  if (!ctx) {
-    return { success: false, error: "Job already running" }
-  }
-
-  state.runningJobs.set(job.id, ctx)
-  await runClaimedJob(ctx)
-  return { success: true }
+  return triggerViaWeb(jobId)
 }
 
 // ============================================
@@ -209,7 +177,7 @@ async function onTimerTick(): Promise<void> {
   if (!state || state.stopping) return
 
   try {
-    await runDueJobs()
+    await triggerDueJobs()
   } finally {
     await armTimer()
   }
@@ -274,105 +242,80 @@ async function reapStaleJobs(): Promise<void> {
 }
 
 // ============================================
-// Internal: Job Execution
+// Internal: Job Triggering (via Web App)
 // ============================================
 
-async function runDueJobs(): Promise<void> {
+/**
+ * Find due jobs and trigger each via the web app's internal endpoint.
+ * The web handles claim → execute → finish. We just tell it WHAT to run.
+ */
+async function triggerDueJobs(): Promise<void> {
   if (!state) return
 
-  const availableSlots = state.config.maxConcurrent - state.runningJobs.size
-  if (availableSlots <= 0) {
-    console.log(`[CronService] All slots full (${state.runningJobs.size}/${state.config.maxConcurrent}), skipping`)
-    return
-  }
+  // Find due jobs (not running, next_run_at <= now, on this server)
+  const { data: dueJobs } = await state.supabase
+    .from("automation_jobs")
+    .select("id, name, domains!inner(server_id)")
+    .eq("is_active", true)
+    .is("running_at", null)
+    .not("next_run_at", "is", null)
+    .lte("next_run_at", new Date().toISOString())
+    .eq("domains.server_id", state.serverId)
+    .limit(5)
 
-  const contexts = await claimDueJobs({
-    supabase: state.supabase,
-    serverId: state.serverId,
-    limit: availableSlots,
-    triggeredBy: "scheduler",
-  })
+  if (!dueJobs?.length) return
 
-  if (!contexts.length) return
+  console.log(
+    `[CronService] Found ${dueJobs.length} due job(s): ${dueJobs.map(j => `"${j.name}" (${j.id})`).join(", ")}`,
+  )
 
-  console.log(`[CronService] Executing ${contexts.length} claimed job(s)`)
-
-  for (const ctx of contexts) {
-    state.runningJobs.set(ctx.job.id, ctx)
-  }
-
-  const results = await Promise.allSettled(contexts.map(ctx => runClaimedJob(ctx)))
+  // Trigger each via the web app — fire and forget
+  const results = await Promise.allSettled(dueJobs.map(job => triggerViaWeb(job.id)))
 
   for (let i = 0; i < results.length; i++) {
     const result = results[i]
+    const job = dueJobs[i]
     if (result.status === "rejected") {
-      console.error(`[CronService] Unexpected rejection for job ${contexts[i].job.id}:`, result.reason)
+      console.error(`[CronService] Failed to trigger "${job.name}" (${job.id}):`, result.reason)
+    } else if (!result.value.success) {
+      console.warn(`[CronService] Trigger "${job.name}" (${job.id}): ${result.value.error}`)
     }
   }
 }
 
-async function runClaimedJob(ctx: RunContext): Promise<void> {
-  const startedAt = Date.now()
-
-  emit({ jobId: ctx.job.id, action: "started", runAtMs: startedAt })
-  await appendRunLog(ctx.job.id, { action: "started", runAtMs: startedAt }).catch(() => {})
+/**
+ * POST to the web app's internal automation trigger.
+ * The web claims the job, runs it via worker pool, and finishes it.
+ */
+async function triggerViaWeb(jobId: string): Promise<{ success: boolean; error?: string }> {
+  if (!state) return { success: false, error: "Service not started" }
 
   try {
-    const result = await runAutomationJob({
-      jobId: ctx.job.id,
-      userId: ctx.job.user_id,
-      orgId: ctx.job.org_id,
-      workspace: ctx.hostname,
-      prompt: ctx.job.action_prompt ?? "",
-      timeoutSeconds: ctx.timeoutSeconds,
-      model: ctx.job.action_model ?? undefined,
-      thinkingPrompt: ctx.job.action_thinking ?? undefined,
-      skills: ctx.job.skills ?? undefined,
+    state.triggeredJobs.add(jobId)
+
+    const res = await fetch(`${WEB_URL}/api/internal/automation/trigger`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": state.jwtSecret,
+      },
+      body: JSON.stringify({ jobId }),
+      signal: AbortSignal.timeout(10 * 60 * 1000), // 10 min max
     })
 
-    const durationMs = Date.now() - startedAt
+    const data = AutomationTriggerResponseSchema.parse(await res.json())
 
-    await finishJob(ctx, {
-      status: result.success ? "success" : "failure",
-      durationMs,
-      error: result.error,
-      summary: result.success ? extractSummary(result.response) : undefined,
-      messages: result.messages,
-      maxRetries: state?.config.maxRetries,
-      retryBaseDelayMs: state?.config.retryBaseDelayMs,
-    })
+    if (res.ok) {
+      console.log(`[CronService] Job ${jobId} completed: ${data.ok ? "success" : "failure"} (${data.durationMs}ms)`)
+      return { success: data.ok ?? false, error: data.error }
+    }
 
-    emit({
-      jobId: ctx.job.id,
-      action: "finished",
-      status: result.success ? "success" : "failure",
-      durationMs,
-      error: result.error,
-      summary: result.success ? extractSummary(result.response) : undefined,
-    })
-  } catch (error) {
-    const durationMs = Date.now() - startedAt
-    await finishJob(ctx, {
-      status: "failure",
-      durationMs,
-      error: error instanceof Error ? error.message : String(error),
-      maxRetries: state?.config.maxRetries,
-      retryBaseDelayMs: state?.config.retryBaseDelayMs,
-    })
+    return { success: false, error: data.error ?? `HTTP ${res.status}` }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error(`[CronService] Trigger request failed for ${jobId}:`, msg)
+    return { success: false, error: msg }
   } finally {
-    state?.runningJobs.delete(ctx.job.id)
-  }
-}
-
-// ============================================
-// Internal: Helpers
-// ============================================
-
-function emit(event: CronEvent): void {
-  if (!state) return
-  try {
-    state.config.onEvent(event)
-  } catch {
-    // Ignore callback errors
+    state?.triggeredJobs.delete(jobId)
   }
 }
