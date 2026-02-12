@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import { resetPostHogIdentity } from "@/components/providers/PostHogProvider"
+import { resetPostHogIdentity } from "@/lib/posthog"
 
 /**
  * Auth Store - Manages authentication state and session expiry
