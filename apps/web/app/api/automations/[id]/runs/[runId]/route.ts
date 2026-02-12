@@ -5,6 +5,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
+import { readMessagesFromUri } from "@webalive/automation-engine"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
@@ -64,6 +65,14 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       })
     }
 
+    // Load messages from file storage if available, fall back to inline DB blob
+    let messages: unknown[] = []
+    if (run.messages_uri) {
+      messages = (await readMessagesFromUri(run.messages_uri)) ?? []
+    } else if (run.messages) {
+      messages = run.messages as unknown[]
+    }
+
     return NextResponse.json({
       run: {
         id: run.id,
@@ -76,8 +85,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         result: run.result,
         triggered_by: run.triggered_by,
         changes_made: run.changes_made,
-        // Full conversation log
-        messages: run.messages ?? [],
+        messages,
       },
     })
   } catch (error) {

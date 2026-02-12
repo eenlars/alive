@@ -22,6 +22,7 @@ interface AutomationJobOwnership {
   cron_schedule: string | null
   cron_timezone: string | null
   action_type: string | null
+  running_at: string | null
 }
 
 /**
@@ -44,7 +45,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         id, user_id, org_id, site_id, name, description,
         trigger_type, cron_schedule, cron_timezone, run_at,
         action_type, action_prompt, action_source, action_target_page,
-        action_model, action_timeout_seconds, skills, is_active,
+        action_model, action_timeout_seconds, skills, is_active, status,
         next_run_at, last_run_at, last_run_status, created_at, updated_at,
         domains:site_id (hostname)
       `,
@@ -97,7 +98,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     // Check ownership first
     const { data: existing } = await supabase
       .from("automation_jobs")
-      .select("user_id, cron_schedule, cron_timezone, action_type")
+      .select("user_id, cron_schedule, cron_timezone, action_type, running_at")
       .eq("id", id)
       .single()
 
@@ -199,6 +200,17 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
           details: { field: "action_prompt", message: promptCheck.error },
         })
       }
+    }
+
+    // Sync status with is_active when toggled
+    if ("is_active" in updates) {
+      if (existingRow.running_at) {
+        return structuredErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, {
+          status: 409,
+          details: { startedAt: existingRow.running_at },
+        })
+      }
+      updates.status = updates.is_active ? "idle" : "disabled"
     }
 
     const { data, error } = await supabase.from("automation_jobs").update(updates).eq("id", id).select().single()

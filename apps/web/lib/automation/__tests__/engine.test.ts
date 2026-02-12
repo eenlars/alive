@@ -10,6 +10,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 // Mock dependencies
 // ============================================
 
+const mkdirMock = vi.fn()
+const writeFileMock = vi.fn()
+const renameMock = vi.fn()
+const rmMock = vi.fn()
+const readFileMock = vi.fn()
+const realpathMock = vi.fn()
+
 const mockUpdate = vi.fn()
 const mockInsert = vi.fn()
 const mockSelect = vi.fn()
@@ -32,6 +39,17 @@ function createMockBuilder() {
 
 const mockFrom = vi.fn()
 const mockSupabase = { from: mockFrom }
+
+vi.mock("node:fs/promises", () => ({
+  default: {
+    mkdir: mkdirMock,
+    writeFile: writeFileMock,
+    rename: renameMock,
+    rm: rmMock,
+    readFile: readFileMock,
+    realpath: realpathMock,
+  },
+}))
 
 vi.mock("@webalive/shared", () => ({
   getServerId: vi.fn(() => "srv_test"),
@@ -69,6 +87,7 @@ function makeJob(overrides: Record<string, unknown> = {}) {
     user_id: "user_789",
     org_id: "org_abc",
     is_active: true,
+    status: "idle" as const,
     trigger_type: "cron" as const,
     action_type: "prompt" as const,
     action_prompt: "Do something",
@@ -215,6 +234,58 @@ describe("Engine", () => {
     it("takes only first line of multi-line text", async () => {
       const { extractSummary } = await import("../engine")
       expect(extractSummary("first line\nsecond line")).toBe("first line")
+    })
+  })
+
+  describe("readMessagesFromUri", () => {
+    it("reads messages from allowed file path", async () => {
+      const { readMessagesFromUri } = await import("../engine")
+      const basePath = "/var/log/automation-runs/messages"
+      const filePath = "/var/log/automation-runs/messages/run_123.json"
+
+      realpathMock.mockResolvedValueOnce(basePath).mockResolvedValueOnce(filePath)
+      readFileMock.mockResolvedValueOnce('[{"role":"assistant","content":"ok"}]')
+
+      const result = await readMessagesFromUri(`file://${filePath}`)
+
+      expect(result).toEqual([{ role: "assistant", content: "ok" }])
+    })
+
+    it("blocks traversal paths outside messages directory", async () => {
+      const { readMessagesFromUri } = await import("../engine")
+      const traversalPath = "file:///var/log/automation-runs/messages/../../etc/passwd.json"
+
+      const result = await readMessagesFromUri(traversalPath)
+
+      expect(result).toBeNull()
+      expect(realpathMock).not.toHaveBeenCalled()
+      expect(readFileMock).not.toHaveBeenCalled()
+    })
+
+    it("blocks symlink escapes when realpath resolves outside messages directory", async () => {
+      const { readMessagesFromUri } = await import("../engine")
+      const basePath = "/var/log/automation-runs/messages"
+      const filePath = "/var/log/automation-runs/messages/run_456.json"
+
+      realpathMock.mockResolvedValueOnce(basePath).mockResolvedValueOnce("/etc/shadow.json")
+
+      const result = await readMessagesFromUri(`file://${filePath}`)
+
+      expect(result).toBeNull()
+      expect(readFileMock).not.toHaveBeenCalled()
+    })
+
+    it("returns null when JSON payload is not an array", async () => {
+      const { readMessagesFromUri } = await import("../engine")
+      const basePath = "/var/log/automation-runs/messages"
+      const filePath = "/var/log/automation-runs/messages/run_789.json"
+
+      realpathMock.mockResolvedValueOnce(basePath).mockResolvedValueOnce(filePath)
+      readFileMock.mockResolvedValueOnce('{"ok":true}')
+
+      const result = await readMessagesFromUri(`file://${filePath}`)
+
+      expect(result).toBeNull()
     })
   })
 

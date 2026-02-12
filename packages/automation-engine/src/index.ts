@@ -1,5 +1,5 @@
 // Engine: claim/finish lifecycle
-export { claimDueJobs, claimJob, extractSummary, finishJob } from "./engine"
+export { claimDueJobs, claimJob, extractSummary, finishJob, readMessagesFromUri } from "./engine"
 // Run logs
 export {
   appendRunLog,

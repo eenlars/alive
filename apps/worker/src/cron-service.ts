@@ -160,6 +160,8 @@ async function getNextWakeTime(): Promise<number | null> {
     .from("automation_jobs")
     .select("next_run_at, domains!inner(server_id)")
     .eq("is_active", true)
+    .eq("status", "idle")
+    .is("run_id", null)
     .is("running_at", null)
     .not("next_run_at", "is", null)
     .eq("domains.server_id", state.serverId)
@@ -195,6 +197,7 @@ async function reapStaleJobs(): Promise<void> {
     .from("automation_jobs")
     .select("id, name, running_at, lease_expires_at, run_id, domains!inner(server_id)")
     .eq("is_active", true)
+    .eq("status", "running")
     .not("running_at", "is", null)
     .eq("domains.server_id", state.serverId)
     .lt("lease_expires_at", now)
@@ -218,7 +221,7 @@ async function reapStaleJobs(): Promise<void> {
         )
         await state.supabase
           .from("automation_jobs")
-          .update({ running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
+          .update({ status: "idle", running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
           .eq("id", stale.id)
       }
     }
@@ -231,7 +234,7 @@ async function reapStaleJobs(): Promise<void> {
     )
     const reapQuery = state.supabase
       .from("automation_jobs")
-      .update({ running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
+      .update({ status: "idle", running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
       .eq("id", stale.id)
     if (stale.run_id) {
       await reapQuery.eq("run_id", stale.run_id)
@@ -257,6 +260,8 @@ async function triggerDueJobs(): Promise<void> {
     .from("automation_jobs")
     .select("id, name, domains!inner(server_id)")
     .eq("is_active", true)
+    .eq("status", "idle")
+    .is("run_id", null)
     .is("running_at", null)
     .not("next_run_at", "is", null)
     .lte("next_run_at", new Date().toISOString())

@@ -16,6 +16,7 @@ import { serve } from "@hono/node-server"
 import { getServerId } from "@webalive/shared"
 import { Hono } from "hono"
 import { getCronServiceStatus, pokeCronService, startCronService, stopCronService, triggerJob } from "./cron-service"
+import { getAutomationExecutionGate } from "./execution-guard"
 import { createWorkerAppClient } from "./supabase"
 
 // =============================================================================
@@ -32,6 +33,7 @@ function verifySecret(secret: string | undefined): boolean {
 
 const PORT = parseInt(process.env.WORKER_PORT ?? "5070", 10)
 const serverId: string = getServerId() ?? ""
+const executionGate = getAutomationExecutionGate()
 
 if (!serverId) {
   console.error("[Worker] FATAL: serverId not found in server-config.json")
@@ -47,13 +49,22 @@ const app = new Hono()
 // Health check
 app.get("/health", c => {
   const status = getCronServiceStatus()
-  return c.json({ ok: true, ...status, serverId })
+  return c.json({
+    ok: true,
+    ...status,
+    serverId,
+    automationEnabled: executionGate.allowed,
+    automationReason: executionGate.reason,
+  })
 })
 
 // Poke: re-arm timer immediately (called after job create/update)
 app.post("/poke", c => {
   if (!verifySecret(c.req.header("X-Internal-Secret"))) {
     return c.json({ ok: false, error: "Unauthorized" }, 401)
+  }
+  if (!executionGate.allowed) {
+    return c.json({ ok: false, error: executionGate.reason }, 503)
   }
   pokeCronService()
   return c.json({ ok: true })
@@ -63,6 +74,9 @@ app.post("/poke", c => {
 app.post("/trigger/:id", async c => {
   if (!verifySecret(c.req.header("X-Internal-Secret"))) {
     return c.json({ ok: false, error: "Unauthorized" }, 401)
+  }
+  if (!executionGate.allowed) {
+    return c.json({ ok: false, error: executionGate.reason }, 503)
   }
 
   const jobId = c.req.param("id")
@@ -81,6 +95,8 @@ app.get("/status", c => {
     service: "automation-worker",
     ...status,
     serverId,
+    automationEnabled: executionGate.allowed,
+    automationReason: executionGate.reason,
     uptime: process.uptime(),
     memory: process.memoryUsage(),
   })
@@ -92,11 +108,17 @@ app.get("/status", c => {
 
 async function main() {
   console.log(`[Worker] Starting automation worker (server: ${serverId}, port: ${PORT})...`)
+  console.log(
+    `[Worker] Automation execution gate: ${executionGate.allowed ? "enabled" : "disabled"} (${executionGate.reason})`,
+  )
 
-  const supabase = createWorkerAppClient()
-
-  // Start CronService (pure scheduler — delegates execution to web app)
-  await startCronService(supabase, serverId)
+  // Start CronService only where automation execution is explicitly allowed.
+  if (executionGate.allowed) {
+    const supabase = createWorkerAppClient()
+    await startCronService(supabase, serverId)
+  } else {
+    console.warn("[Worker] CronService disabled by execution gate")
+  }
 
   // Start HTTP server
   const server = serve({ fetch: app.fetch, port: PORT }, info => {

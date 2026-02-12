@@ -13,6 +13,8 @@
  */
 
 import { randomUUID } from "node:crypto"
+import fs from "node:fs/promises"
+import path from "node:path"
 import { computeNextRunAtMs } from "@webalive/automation"
 import { getServerId } from "@webalive/shared"
 import { appendRunLog } from "./run-log"
@@ -27,6 +29,9 @@ const LEASE_BUFFER_SECONDS = 120
 
 /** Heartbeat interval: extend lease every 30 seconds */
 const HEARTBEAT_INTERVAL_MS = 30_000
+
+/** Directory for message transcripts (kept out of DB to avoid bloat) */
+const MESSAGES_DIR = "/var/log/automation-runs/messages"
 
 // =============================================================================
 // Batch Claim (FOR UPDATE SKIP LOCKED)
@@ -72,7 +77,7 @@ export async function claimDueJobs(opts: {
       // RPC should always set run_id — release and skip if it didn't
       await supabase
         .from("automation_jobs")
-        .update({ running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
+        .update({ status: "idle", running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
         .eq("id", job.id)
       console.error(`[Engine] RPC returned no run_id for claimed job "${job.name}" (${job.id}), released`)
       continue
@@ -84,7 +89,7 @@ export async function claimDueJobs(opts: {
       // Can't resolve site — release claim (guarded by run_id)
       await supabase
         .from("automation_jobs")
-        .update({ running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
+        .update({ status: "idle", running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
         .eq("id", job.id)
         .eq("run_id", job.run_id)
       console.error(`[Engine] Site not found for claimed job "${job.name}" (site_id: ${job.site_id}), released`)
@@ -142,6 +147,7 @@ export async function claimJob(job: AutomationJob, opts: ClaimOptions): Promise<
     .from("automation_jobs")
     .update(
       {
+        status: "running",
         running_at: claimedAt,
         run_id: runId,
         claimed_by: serverId,
@@ -169,7 +175,7 @@ export async function claimJob(job: AutomationJob, opts: ClaimOptions): Promise<
     // Release claim since we can't resolve the site
     await supabase
       .from("automation_jobs")
-      .update({ running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
+      .update({ status: "idle", running_at: null, run_id: null, claimed_by: null, lease_expires_at: null })
       .eq("id", job.id)
       .eq("run_id", runId)
     console.error(`[Engine] Site not found for job "${job.name}" (site_id: ${job.site_id})`)
@@ -227,12 +233,14 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
   let nextRunAt: string | null = null
   let consecutiveFailures = ctx.job.consecutive_failures ?? 0
   let isActive = ctx.job.is_active
+  let jobStatus: "idle" | "disabled" = "idle"
 
   if (result.status === "success") {
     consecutiveFailures = 0
 
     if (ctx.job.trigger_type === "one-time") {
       isActive = false
+      jobStatus = "disabled"
     } else if (ctx.job.trigger_type === "cron" && ctx.job.cron_schedule) {
       const nextMs = computeNextRunAtMs(
         { kind: "cron", expr: ctx.job.cron_schedule, tz: ctx.job.cron_timezone ?? undefined },
@@ -250,6 +258,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
         `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) DISABLED after ${consecutiveFailures}/${maxRetries} failures`,
       )
       isActive = false
+      jobStatus = "disabled"
     } else {
       // Exponential backoff with jitter for retry
       const baseMs = retryBaseDelayMs * 2 ** (consecutiveFailures - 1)
@@ -259,11 +268,18 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     }
   }
 
+  // Write messages to file storage instead of DB (avoids bloat)
+  let messagesUri: string | null = null
+  if (result.messages?.length) {
+    messagesUri = await writeMessagesToFile(ctx.runId, result.messages)
+  }
+
   // Conditional update: only if our run_id still owns the job
   const { count: updateCount } = await ctx.supabase
     .from("automation_jobs")
     .update(
       {
+        status: jobStatus,
         running_at: null,
         run_id: null,
         claimed_by: null,
@@ -288,7 +304,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     return
   }
 
-  // Insert run record
+  // Insert run record (messages stored as file, not in DB)
   const { error: runInsertError } = await ctx.supabase.from("automation_runs").insert({
     job_id: ctx.job.id,
     started_at: ctx.claimedAt,
@@ -297,7 +313,8 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     status: result.status,
     error: result.error ?? null,
     result: result.summary ? { summary: result.summary } : null,
-    messages: result.messages ? safeSerialize(result.messages) : null,
+    messages: null,
+    messages_uri: messagesUri,
     triggered_by: ctx.triggeredBy,
   })
 
@@ -323,13 +340,62 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
 // Helpers
 // =============================================================================
 
-/** Safely serialize data that may contain circular references */
-function safeSerialize(data: unknown): ReturnType<typeof JSON.parse> | null {
+/** Write messages to file storage, return the file URI */
+async function writeMessagesToFile(runId: string, messages: unknown[]): Promise<string | null> {
+  let tempPath: string | null = null
   try {
-    return JSON.parse(JSON.stringify(data))
+    // run_id should be a UUID, but we still sanitize to avoid accidental path injection.
+    const safeRunId = runId.replace(/[^a-zA-Z0-9_-]/g, "")
+    if (!safeRunId) {
+      console.error(`[Engine] Invalid runId for message write: ${runId}`)
+      return null
+    }
+
+    const serialized = JSON.stringify(messages)
+    await fs.mkdir(MESSAGES_DIR, { recursive: true })
+    const filePath = path.join(MESSAGES_DIR, `${safeRunId}.json`)
+    tempPath = path.join(MESSAGES_DIR, `${safeRunId}.${randomUUID()}.tmp`)
+
+    // Atomic write: write temp file then rename.
+    await fs.writeFile(tempPath, serialized, { encoding: "utf-8", mode: 0o600 })
+    await fs.rename(tempPath, filePath)
+    return `file://${filePath}`
+  } catch (err) {
+    console.error(`[Engine] Failed to write messages to file for run ${runId}:`, err)
+    if (tempPath) {
+      await fs.rm(tempPath, { force: true }).catch(() => {})
+    }
+    return null
+  }
+}
+
+/** Read messages from file storage by URI */
+export async function readMessagesFromUri(uri: string): Promise<unknown[] | null> {
+  if (!uri.startsWith("file://")) return null
+
+  const filePath = uri.slice("file://".length)
+  if (!filePath.endsWith(".json")) return null
+  if (!isWithinDirectory(filePath, MESSAGES_DIR)) return null
+
+  try {
+    const [messagesDirRealPath, fileRealPath] = await Promise.all([
+      fs.realpath(MESSAGES_DIR).catch(() => path.resolve(MESSAGES_DIR)),
+      fs.realpath(filePath),
+    ])
+    if (!isWithinDirectory(fileRealPath, messagesDirRealPath)) return null
+
+    const data = await fs.readFile(fileRealPath, "utf-8")
+    const parsed: unknown = JSON.parse(data)
+    return Array.isArray(parsed) ? parsed : null
   } catch {
     return null
   }
+}
+
+function isWithinDirectory(candidatePath: string, baseDir: string): boolean {
+  const resolvedCandidate = path.resolve(candidatePath)
+  const resolvedBaseDir = path.resolve(baseDir)
+  return resolvedCandidate === resolvedBaseDir || resolvedCandidate.startsWith(`${resolvedBaseDir}${path.sep}`)
 }
 
 /** Extend the lease for a running job (heartbeat) */
