@@ -25,6 +25,7 @@ export type Database = {
           action_thinking: string | null
           action_timeout_seconds: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
+          claimed_by: string | null
           consecutive_failures: number | null
           created_at: string
           cron_schedule: string | null
@@ -37,6 +38,7 @@ export type Database = {
           last_run_duration_ms: number | null
           last_run_error: string | null
           last_run_status: Database["app"]["Enums"]["automation_run_status"] | null
+          lease_expires_at: string | null
           name: string
           next_run_at: string | null
           org_id: string
@@ -45,12 +47,11 @@ export type Database = {
           running_at: string | null
           site_id: string
           skills: string[] | null
+          status: Database["app"]["Enums"]["automation_job_status"]
           trigger_type: Database["app"]["Enums"]["automation_trigger_type"]
           updated_at: string
           user_id: string
           webhook_secret: string | null
-          claimed_by: string | null
-          lease_expires_at: string | null
         }
         Insert: {
           action_format_prompt?: string | null
@@ -61,6 +62,7 @@ export type Database = {
           action_thinking?: string | null
           action_timeout_seconds?: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
+          claimed_by?: string | null
           consecutive_failures?: number | null
           created_at?: string
           cron_schedule?: string | null
@@ -73,6 +75,7 @@ export type Database = {
           last_run_duration_ms?: number | null
           last_run_error?: string | null
           last_run_status?: Database["app"]["Enums"]["automation_run_status"] | null
+          lease_expires_at?: string | null
           name: string
           next_run_at?: string | null
           org_id: string
@@ -81,12 +84,11 @@ export type Database = {
           running_at?: string | null
           site_id: string
           skills?: string[] | null
+          status?: Database["app"]["Enums"]["automation_job_status"]
           trigger_type: Database["app"]["Enums"]["automation_trigger_type"]
           updated_at?: string
           user_id: string
           webhook_secret?: string | null
-          claimed_by?: string | null
-          lease_expires_at?: string | null
         }
         Update: {
           action_format_prompt?: string | null
@@ -97,6 +99,7 @@ export type Database = {
           action_thinking?: string | null
           action_timeout_seconds?: number | null
           action_type?: Database["app"]["Enums"]["automation_action_type"]
+          claimed_by?: string | null
           consecutive_failures?: number | null
           created_at?: string
           cron_schedule?: string | null
@@ -109,6 +112,7 @@ export type Database = {
           last_run_duration_ms?: number | null
           last_run_error?: string | null
           last_run_status?: Database["app"]["Enums"]["automation_run_status"] | null
+          lease_expires_at?: string | null
           name?: string
           next_run_at?: string | null
           org_id?: string
@@ -117,12 +121,11 @@ export type Database = {
           running_at?: string | null
           site_id?: string
           skills?: string[] | null
+          status?: Database["app"]["Enums"]["automation_job_status"]
           trigger_type?: Database["app"]["Enums"]["automation_trigger_type"]
           updated_at?: string
           user_id?: string
           webhook_secret?: string | null
-          claimed_by?: string | null
-          lease_expires_at?: string | null
         }
         Relationships: [
           {
@@ -143,6 +146,7 @@ export type Database = {
           id: string
           job_id: string
           messages: Json | null
+          messages_uri: string | null
           result: Json | null
           started_at: string
           status: Database["app"]["Enums"]["automation_run_status"]
@@ -157,6 +161,7 @@ export type Database = {
           id?: string
           job_id: string
           messages?: Json | null
+          messages_uri?: string | null
           result?: Json | null
           started_at?: string
           status?: Database["app"]["Enums"]["automation_run_status"]
@@ -171,6 +176,7 @@ export type Database = {
           id?: string
           job_id?: string
           messages?: Json | null
+          messages_uri?: string | null
           result?: Json | null
           started_at?: string
           status?: Database["app"]["Enums"]["automation_run_status"]
@@ -676,11 +682,7 @@ export type Database = {
     }
     Functions: {
       claim_due_jobs: {
-        Args: {
-          p_server_id: string
-          p_limit: number
-          p_claimed_by?: string
-        }
+        Args: { p_claimed_by?: string; p_limit: number; p_server_id: string }
         Returns: {
           action_format_prompt: string | null
           action_model: string | null
@@ -690,6 +692,7 @@ export type Database = {
           action_thinking: string | null
           action_timeout_seconds: number | null
           action_type: Database["app"]["Enums"]["automation_action_type"]
+          claimed_by: string | null
           consecutive_failures: number | null
           created_at: string
           cron_schedule: string | null
@@ -702,6 +705,7 @@ export type Database = {
           last_run_duration_ms: number | null
           last_run_error: string | null
           last_run_status: Database["app"]["Enums"]["automation_run_status"] | null
+          lease_expires_at: string | null
           name: string
           next_run_at: string | null
           org_id: string
@@ -710,144 +714,24 @@ export type Database = {
           running_at: string | null
           site_id: string
           skills: string[] | null
+          status: Database["app"]["Enums"]["automation_job_status"]
           trigger_type: Database["app"]["Enums"]["automation_trigger_type"]
           updated_at: string
           user_id: string
           webhook_secret: string | null
-          claimed_by: string | null
-          lease_expires_at: string | null
         }[]
         SetofOptions: {
           from: "*"
           to: "automation_jobs"
           isOneToOne: false
           isSetofReturn: true
-        }
-      }
-      finish_automation_job: {
-        Args: {
-          changes_param?: string[]
-          error_param?: string
-          job_id_param: string
-          next_run_param?: string
-          result_param?: Json
-          status_param: Database["app"]["Enums"]["automation_run_status"]
-        }
-        Returns: {
-          changes_made: string[] | null
-          completed_at: string | null
-          duration_ms: number | null
-          error: string | null
-          id: string
-          job_id: string
-          messages: Json | null
-          result: Json | null
-          started_at: string
-          status: Database["app"]["Enums"]["automation_run_status"]
-          trigger_context: Json | null
-          triggered_by: string | null
-        }
-        SetofOptions: {
-          from: "*"
-          to: "automation_runs"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
-      get_due_automation_jobs: {
-        Args: never
-        Returns: {
-          action_format_prompt: string | null
-          action_model: string | null
-          action_prompt: string | null
-          action_source: Json | null
-          action_target_page: string | null
-          action_thinking: string | null
-          action_timeout_seconds: number | null
-          action_type: Database["app"]["Enums"]["automation_action_type"]
-          consecutive_failures: number | null
-          created_at: string
-          cron_schedule: string | null
-          cron_timezone: string | null
-          delete_after_run: boolean | null
-          description: string | null
-          id: string
-          is_active: boolean
-          last_run_at: string | null
-          last_run_duration_ms: number | null
-          last_run_error: string | null
-          last_run_status: Database["app"]["Enums"]["automation_run_status"] | null
-          name: string
-          next_run_at: string | null
-          org_id: string
-          run_at: string | null
-          run_id: string | null
-          running_at: string | null
-          site_id: string
-          skills: string[] | null
-          trigger_type: Database["app"]["Enums"]["automation_trigger_type"]
-          updated_at: string
-          user_id: string
-          webhook_secret: string | null
-          claimed_by: string | null
-          lease_expires_at: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "automation_jobs"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
-      start_automation_job: {
-        Args: { job_id_param: string }
-        Returns: {
-          action_format_prompt: string | null
-          action_model: string | null
-          action_prompt: string | null
-          action_source: Json | null
-          action_target_page: string | null
-          action_thinking: string | null
-          action_timeout_seconds: number | null
-          action_type: Database["app"]["Enums"]["automation_action_type"]
-          consecutive_failures: number | null
-          created_at: string
-          cron_schedule: string | null
-          cron_timezone: string | null
-          delete_after_run: boolean | null
-          description: string | null
-          id: string
-          is_active: boolean
-          last_run_at: string | null
-          last_run_duration_ms: number | null
-          last_run_error: string | null
-          last_run_status: Database["app"]["Enums"]["automation_run_status"] | null
-          name: string
-          next_run_at: string | null
-          org_id: string
-          run_at: string | null
-          run_id: string | null
-          running_at: string | null
-          site_id: string
-          skills: string[] | null
-          trigger_type: Database["app"]["Enums"]["automation_trigger_type"]
-          updated_at: string
-          user_id: string
-          webhook_secret: string | null
-          claimed_by: string | null
-          lease_expires_at: string | null
-        }
-        SetofOptions: {
-          from: "*"
-          to: "automation_jobs"
-          isOneToOne: true
-          isSetofReturn: false
         }
       }
       sub: { Args: never; Returns: string }
     }
     Enums: {
       automation_action_type: "prompt" | "sync" | "publish"
+      automation_job_status: "idle" | "running" | "paused" | "disabled"
       automation_run_status: "pending" | "running" | "success" | "failure" | "skipped"
       automation_trigger_type: "cron" | "webhook" | "one-time"
       severity_level: "info" | "warn" | "error" | "debug" | "fatal"
@@ -971,6 +855,7 @@ export const Constants = {
   app: {
     Enums: {
       automation_action_type: ["prompt", "sync", "publish"],
+      automation_job_status: ["idle", "running", "paused", "disabled"],
       automation_run_status: ["pending", "running", "success", "failure", "skipped"],
       automation_trigger_type: ["cron", "webhook", "one-time"],
       severity_level: ["info", "warn", "error", "debug", "fatal"],

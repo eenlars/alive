@@ -94,7 +94,7 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: { disable: true },
 
   // Don't widen the tracing for build-time (keeps builds fast)
-  disableLogger: true,
+  webpack: { treeshake: { removeDebugLogging: true } },
 
   // Use the org/project from our self-hosted Sentry
   org: "sentry",

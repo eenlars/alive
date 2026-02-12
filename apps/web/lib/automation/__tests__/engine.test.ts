@@ -10,6 +10,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 // Mock dependencies
 // ============================================
 
+const mkdirMock = vi.fn()
+const writeFileMock = vi.fn()
+const renameMock = vi.fn()
+const rmMock = vi.fn()
+
 const mockUpdate = vi.fn()
 const mockInsert = vi.fn()
 const mockSelect = vi.fn()
@@ -32,6 +37,17 @@ function createMockBuilder() {
 
 const mockFrom = vi.fn()
 const mockSupabase = { from: mockFrom }
+
+vi.mock("node:fs/promises", () => ({
+  default: {
+    mkdir: mkdirMock,
+    writeFile: writeFileMock,
+    rename: renameMock,
+    rm: rmMock,
+    readFile: vi.fn(),
+    realpath: vi.fn(),
+  },
+}))
 
 vi.mock("@webalive/shared", () => ({
   getServerId: vi.fn(() => "srv_test"),
@@ -69,6 +85,7 @@ function makeJob(overrides: Record<string, unknown> = {}) {
     user_id: "user_789",
     org_id: "org_abc",
     is_active: true,
+    status: "idle" as const,
     trigger_type: "cron" as const,
     action_type: "prompt" as const,
     action_prompt: "Do something",

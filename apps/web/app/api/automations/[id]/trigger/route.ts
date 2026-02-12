@@ -15,6 +15,7 @@ import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { pokeCronService } from "@/lib/automation/cron-service"
 import { claimJob, executeJob, extractSummary, finishJob } from "@/lib/automation/engine"
+import { getAutomationExecutionGate } from "@/lib/automation/execution-guard"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createServiceAppClient } from "@/lib/supabase/service"
 
@@ -32,6 +33,14 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     const user = await getSessionUser()
     if (!user) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
+    }
+
+    const executionGate = getAutomationExecutionGate()
+    if (!executionGate.allowed) {
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
+        status: 403,
+        details: { message: executionGate.reason },
+      })
     }
 
     const { id } = await context.params

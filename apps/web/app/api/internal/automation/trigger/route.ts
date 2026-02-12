@@ -13,6 +13,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { pokeCronService } from "@/lib/automation/cron-service"
 import { claimJob, executeJob, extractSummary, finishJob } from "@/lib/automation/engine"
+import { getAutomationExecutionGate } from "@/lib/automation/execution-guard"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createServiceAppClient } from "@/lib/supabase/service"
 
@@ -34,6 +35,11 @@ export async function POST(req: NextRequest) {
 
   if (!secret || secret !== expectedSecret) {
     return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+  }
+
+  const executionGate = getAutomationExecutionGate()
+  if (!executionGate.allowed) {
+    return createErrorResponse(ErrorCodes.FORBIDDEN, 403, { message: executionGate.reason })
   }
 
   // Parse and validate request body

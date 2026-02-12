@@ -5,6 +5,12 @@
  * React version mismatch issues in monorepo workspace.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+// Mock PostHogProvider to avoid React/JSX dependency in node environment
+vi.mock("@/components/providers/PostHogProvider", () => ({
+  resetPostHogIdentity: vi.fn(),
+}))
+
 import { authStore } from "../authStore"
 
 // Access the store's internal state and actions directly
