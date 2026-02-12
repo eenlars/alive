@@ -1,5 +1,12 @@
 "use client"
 
+import {
+  trackEmptyStateBrowseTemplates,
+  trackEmptyStateLaunchTemplate,
+  trackEmptyStateOpenGithub,
+  trackEmptyStateSelectSite,
+} from "@/lib/analytics/events"
+
 interface ChatEmptyStateProps {
   workspace: string | null
   totalDomainCount: number
@@ -31,7 +38,10 @@ export function ChatEmptyState({
             <div className="pt-2">
               <button
                 type="button"
-                onClick={onTemplatesClick}
+                onClick={() => {
+                  trackEmptyStateBrowseTemplates()
+                  onTemplatesClick()
+                }}
                 className="h-10 px-5 rounded-xl bg-black/[0.05] dark:bg-white/[0.05] hover:bg-black/[0.08] dark:hover:bg-white/[0.08] active:bg-black/[0.12] dark:active:bg-white/[0.12] text-sm font-medium text-black/80 dark:text-white/80 transition-all duration-150 active:scale-95"
               >
                 Browse templates
@@ -46,7 +56,10 @@ export function ChatEmptyState({
               {onImportGithub && (
                 <button
                   type="button"
-                  onClick={onImportGithub}
+                  onClick={() => {
+                    trackEmptyStateOpenGithub()
+                    onImportGithub()
+                  }}
                   className="inline-flex items-center justify-center h-10 px-5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-sm font-medium hover:brightness-[0.85] active:brightness-75 active:scale-95 transition-all duration-150"
                 >
                   Open from GitHub
@@ -54,6 +67,7 @@ export function ChatEmptyState({
               )}
               <a
                 href="/deploy"
+                onClick={() => trackEmptyStateLaunchTemplate()}
                 className="inline-flex items-center justify-center h-10 px-5 rounded-xl bg-black/[0.05] dark:bg-white/[0.05] hover:bg-black/[0.08] dark:hover:bg-white/[0.08] active:bg-black/[0.12] dark:active:bg-white/[0.12] text-sm font-medium text-black/80 dark:text-white/80 transition-all duration-150 active:scale-95"
               >
                 Launch a template
@@ -68,7 +82,10 @@ export function ChatEmptyState({
               {onSelectSite && (
                 <button
                   type="button"
-                  onClick={onSelectSite}
+                  onClick={() => {
+                    trackEmptyStateSelectSite()
+                    onSelectSite()
+                  }}
                   className="inline-flex items-center justify-center h-10 px-5 rounded-xl bg-black/[0.05] dark:bg-white/[0.05] hover:bg-black/[0.08] dark:hover:bg-white/[0.08] active:bg-black/[0.12] dark:active:bg-white/[0.12] text-sm font-medium text-black/80 dark:text-white/80 transition-all duration-150 active:scale-95"
                 >
                   Select a site
@@ -77,7 +94,10 @@ export function ChatEmptyState({
               {onImportGithub && (
                 <button
                   type="button"
-                  onClick={onImportGithub}
+                  onClick={() => {
+                    trackEmptyStateOpenGithub()
+                    onImportGithub()
+                  }}
                   className="inline-flex items-center justify-center h-10 px-5 rounded-xl bg-black dark:bg-white text-white dark:text-black text-sm font-medium hover:brightness-[0.85] active:brightness-75 active:scale-95 transition-all duration-150"
                 >
                   Open from GitHub

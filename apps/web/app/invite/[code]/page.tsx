@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation"
 import { useEffect } from "react"
+import { trackReferralLanding } from "@/lib/analytics/events"
 import { storeReferralCode } from "@/lib/referral"
 
 /**
@@ -26,6 +27,7 @@ export default function InvitePage() {
   useEffect(() => {
     // Store the referral code if present
     if (code) {
+      trackReferralLanding(code)
       storeReferralCode(code)
     }
 

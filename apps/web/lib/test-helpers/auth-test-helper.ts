@@ -5,13 +5,11 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { createClient } from "@supabase/supabase-js"
-import type { IamDatabase } from "@webalive/database"
 import { TEST_CONFIG } from "@webalive/shared"
 import { hash } from "bcrypt"
 import jwt from "jsonwebtoken"
 import { getUserDefaultOrgId } from "@/lib/deployment/org-resolver"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { createServiceAppClient, createServiceIamClient } from "@/lib/supabase/service"
 import { generateTestEmail, validateTestEmail } from "./test-email-domains"
 
 export interface TestUser {
@@ -50,10 +48,7 @@ export async function createTestUser(
   validateTestEmail(testEmail)
 
   // Create client directly for tests (bypasses Next.js cookies)
-  const { url, key } = getSupabaseCredentials("service")
-  const iam = createClient<IamDatabase>(url, key, {
-    db: { schema: "iam" },
-  })
+  const iam = createServiceIamClient()
 
   // Check if user already exists
   const { data: existingUser } = await iam.from("users").select("user_id").eq("email", testEmail).single()
@@ -110,10 +105,7 @@ export async function createTestUser(
  */
 export async function cleanupTestUser(userId: string): Promise<void> {
   // Create client directly for tests (bypasses Next.js cookies)
-  const { url, key } = getSupabaseCredentials("service")
-  const iam = createClient<IamDatabase>(url, key, {
-    db: { schema: "iam" },
-  })
+  const iam = createServiceIamClient()
 
   // Get user's orgs
   const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", userId)
@@ -124,9 +116,7 @@ export async function cleanupTestUser(userId: string): Promise<void> {
   // Delete orgs
   if (memberships) {
     // Create app client for domain deletion
-    const app = createClient(url, key, {
-      db: { schema: "app" },
-    })
+    const app = createServiceAppClient()
 
     for (const membership of memberships) {
       // Delete domains in this org first

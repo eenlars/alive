@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, isWorkspaceAuthenticated } from "@/features/auth/lib/auth"
 import type { TokensResponse } from "@/lib/api/types"
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error("[Tokens] Error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 }

@@ -661,29 +661,24 @@ const { data } = await iam.rpc('deduct_credits', {
 
 ### Template Sites Maintenance
 
-**Template sites** are live sites used as deployment sources. They need `node_modules` to run their previews, but these MUST NOT be copied during deployment.
+**Template sites** live in `/srv/webalive/templates/` (dedicated git repo). They are used as deployment sources. They need `node_modules` to run their previews, but these MUST NOT be copied during deployment.
+
+**Systemd**: `template@{slug}.service` (separate from `site@` services)
 
 **Template sites** (in Supabase `app.templates`):
-- `blank.alive.best` - Minimal starter
-- `template1.alive.best` - Gallery template
-- `four.goalive.nl` - Event template
-- `one.goalive.nl` - SaaS template
-- `loodgieter.alive.best` - Business template
+- `blank.alive.best` (`tmpl_blank`) - Minimal starter
+- `template1.alive.best` (`tmpl_gallery`) - Gallery template
+- `four.goalive.nl` (`tmpl_event`) - Event template
+- `one.goalive.nl` (`tmpl_saas`) - SaaS template
+- `loodgieter.alive.best` (`tmpl_business`) - Business template
 
 **Key points:**
 1. **rsync excludes** `node_modules` and `.bun` (see `02-setup-fs.sh`)
 2. Template sites need their `node_modules` for previews to work
 3. If template preview returns 502, reinstall deps and restart:
 ```bash
-# For template with root package.json
-cd /srv/webalive/sites/blank.alive.best
-sudo -u site-blank-alive-best bun install
-systemctl restart site@blank-alive-best.service
-
-# For template with user/package.json
-cd /srv/webalive/sites/four.goalive.nl/user
-sudo -u site-four-goalive-nl bun install
-systemctl restart site@four-goalive-nl.service
+sudo -u site-blank-alive-best bun install --cwd /srv/webalive/templates/blank.alive.best/user
+systemctl restart template@blank-alive-best.service
 ```
 
 **IMPORTANT:** When updating `@alive-game/alive-tagger` or similar packages:

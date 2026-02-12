@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { isValidSlug } from "@/features/deployment/lib/slug-utils"
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error(`[Metadata API] Failed to fetch metadata for slug ${slug}:`, error)
+    Sentry.captureException(error)
 
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }

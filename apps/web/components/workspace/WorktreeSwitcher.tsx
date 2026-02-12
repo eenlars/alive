@@ -4,6 +4,7 @@ import { ChevronDown, RefreshCcw } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Modal } from "@/components/ui/Modal"
 import { buildWorkspaceKey, validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
+import { trackWorktreeCreated, trackWorktreeSwitched } from "@/lib/analytics/events"
 import { ApiError, delly, getty, postty } from "@/lib/api/api-client"
 import { validateRequest } from "@/lib/api/schemas"
 
@@ -83,6 +84,7 @@ export function WorktreeSwitcher({
   }, [modalOpen, loadWorktrees])
 
   const handleSelect = (target: string | null) => {
+    trackWorktreeSwitched(target)
     onChange(target)
     setModalOpen(false)
   }
@@ -145,6 +147,7 @@ export function WorktreeSwitcher({
       })
 
       const response = await postty("worktrees/create", payload, undefined, "/api/worktrees")
+      trackWorktreeCreated(response.slug)
       setWorktrees(prev => {
         const existing = prev.filter(item => item.slug !== response.slug)
         return [

@@ -3,6 +3,7 @@
  * Returns available Alive Super Templates from filesystem frontmatter
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { listTemplates } from "@webalive/tools"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -28,6 +29,7 @@ export async function GET() {
     )
   } catch (error) {
     console.error("[Templates List API] Error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       exception: error instanceof Error ? error.message : String(error),
     })

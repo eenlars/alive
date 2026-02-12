@@ -7,15 +7,18 @@ description: Fetch and fix unresolved CodeRabbit review comments on the current 
 
 Fetch **only unresolved** CodeRabbit comments on the current PR, fix them, resolve the threads, and ensure CI passes.
 
-## Step 1: Identify the PR
+## Step 1: Get PR number
 
 ```bash
-gh pr view --json number,title,url,headRefName
+gh pr view --json number,headRefName --jq '{number, headRefName}'
 ```
 
-## Step 2: Fetch unresolved review threads
+## Step 2: Fetch unresolved threads + CI status (in parallel)
 
-Use the GraphQL API to get only unresolved threads:
+**CRITICAL: Always use the `filter-threads.jq` file to filter the GraphQL response.** The raw response contains ALL threads (resolved + unresolved) with verbose comment bodies. The jq filter:
+- Keeps only unresolved coderabbitai threads
+- Extracts only needed fields (threadId, file, line, commentId, body)
+- Strips HTML comments, "Prompt for AI Agents" blocks, "Learnings used" blocks, and "Analysis chain" blocks
 
 ```bash
 gh api graphql -f query='
@@ -31,6 +34,7 @@ query {
               body
               path
               line
+              databaseId
               author { login }
             }
           }
@@ -38,10 +42,12 @@ query {
       }
     }
   }
-}'
+}' | jq -f .claude/skills/coderabbit/filter-threads.jq
 ```
 
-Filter to only `isResolved: false` threads from `coderabbitai[bot]`.
+Run `gh pr checks <PR_NUMBER>` in parallel with the above.
+
+**If the jq output is `[]`**: Report "0 unresolved comments" and CI status, then stop.
 
 ## Step 3: For each unresolved comment
 
@@ -110,10 +116,7 @@ gh pr checks <PR_NUMBER>
 
 If any checks are failing:
 
-1. **Read the CI logs** to understand what failed:
-   ```bash
-   gh run view <RUN_ID> --log-failed
-   ```
+1. **Read the CI logs**: `gh run view <RUN_ID> --log-failed`
 2. **Fix the failures** (lint, type errors, test failures, etc.)
 3. **Push fixes** and wait for CI to re-run
 4. **Verify all checks pass** before declaring done
@@ -127,7 +130,7 @@ Report what was done:
 
 ## Rules
 
-- **Only fetch unresolved comments** — resolved ones are already handled
+- **ALWAYS use filter-threads.jq** — never dump raw GraphQL thread responses into context
 - **Always resolve threads** — even if you disagree, explain and resolve (no stale threads)
 - **Run type-check after fixes** — don't leave broken code
 - **Check CI** — the PR isn't done until CI is green

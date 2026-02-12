@@ -13,39 +13,7 @@
 import { constants } from "node:fs"
 import { access, mkdir, readFile } from "node:fs/promises"
 import { createClient } from "@supabase/supabase-js"
-import { requireEnv } from "@webalive/shared"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ServerConfig {
-  serverId?: string
-  serverIp?: string
-  paths?: {
-    aliveRoot?: string
-    sitesRoot?: string
-    imagesStorage?: string
-  }
-  domains?: {
-    main?: string
-    wildcard?: string
-    previewBase?: string
-    cookieDomain?: string
-    frameAncestors?: string[]
-  }
-  shell?: {
-    domains?: string[]
-    listen?: string
-    upstream?: string
-  }
-  generated?: {
-    dir?: string
-    caddySites?: string
-    caddyShell?: string
-    nginxMap?: string
-  }
-}
+import { parseServerConfig, requireEnv, type ServerConfig } from "@webalive/shared"
 
 interface CheckResult {
   name: string
@@ -129,26 +97,7 @@ async function checkServerConfig(): Promise<{ result: CheckResult; config?: Serv
 
   try {
     const raw = await readFile(SERVER_CONFIG_PATH, "utf8")
-    const config = JSON.parse(raw) as ServerConfig
-
-    const issues: string[] = []
-
-    if (!config.serverId) issues.push("serverId is required")
-    if (!config.paths?.aliveRoot) issues.push("paths.aliveRoot is required")
-    if (!config.paths?.sitesRoot) issues.push("paths.sitesRoot is required")
-    if (!config.generated?.dir) issues.push("generated.dir is required")
-
-    if (issues.length > 0) {
-      return {
-        result: {
-          name,
-          status: "fail",
-          message: `Invalid config: ${issues.join(", ")}`,
-          fix: "Update server-config.json with required fields",
-        },
-        config,
-      }
-    }
+    const config = parseServerConfig(raw)
 
     return {
       result: {
@@ -163,8 +112,8 @@ async function checkServerConfig(): Promise<{ result: CheckResult; config?: Serv
       result: {
         name,
         status: "fail",
-        message: `Failed to parse: ${e instanceof Error ? e.message : "unknown error"}`,
-        fix: "Ensure server-config.json is valid JSON",
+        message: `Failed to validate: ${e instanceof Error ? e.message : "unknown error"}`,
+        fix: "Ensure server-config.json matches the required schema (see packages/shared/src/server-config-schema.ts)",
       },
     }
   }
@@ -424,10 +373,10 @@ async function main() {
   // 2. Check directories
   print(`${COLORS.dim}[2/6] Checking directories...${COLORS.reset}`)
   const dirChecks = await Promise.all([
-    checkDirectory("Bridge Root", config?.paths?.aliveRoot),
-    checkDirectory("Sites Root", config?.paths?.sitesRoot),
-    checkDirectory("Images Storage", config?.paths?.imagesStorage),
-    checkDirectory("Generated Output", config?.generated?.dir, true), // Create if missing
+    checkDirectory("Bridge Root", config?.paths.aliveRoot),
+    checkDirectory("Sites Root", config?.paths.sitesRoot),
+    checkDirectory("Images Storage", config?.paths.imagesStorage),
+    checkDirectory("Generated Output", config?.generated.dir, true), // Create if missing
   ])
   dirChecks.forEach(r => {
     results.push(r)
@@ -466,7 +415,7 @@ async function main() {
   results.push(caddyCheck)
   printResult(caddyCheck)
 
-  const snippetsCheck = await checkSnippetsExist(config?.paths?.aliveRoot)
+  const snippetsCheck = await checkSnippetsExist(config?.paths.aliveRoot)
   results.push(snippetsCheck)
   printResult(snippetsCheck)
   print("")

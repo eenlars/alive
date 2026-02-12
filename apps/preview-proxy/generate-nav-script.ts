@@ -10,12 +10,12 @@
  * Called automatically by: bun run --cwd apps/preview-proxy generate
  */
 
+import { execSync } from "node:child_process"
+import { readFileSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
 // Import directly from constants source to avoid triggering server config loading
 // via the @webalive/shared barrel export.
 import { PREVIEW_MESSAGES } from "../../packages/shared/src/constants"
-import { readFileSync, writeFileSync } from "fs"
-import { join } from "path"
-import { execSync } from "child_process"
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 

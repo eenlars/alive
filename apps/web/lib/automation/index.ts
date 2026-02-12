@@ -1,42 +1,18 @@
 /**
  * Automation System
  *
- * Scheduled automation for sites with features inspired by ClawdBot:
- * - In-process scheduler using setTimeout (precise timing)
- * - Retry logic with exponential backoff
- * - Concurrent job limits
- * - Per-job JSONL run logs with auto-pruning
- * - Real-time SSE events
- * - Model and thinking prompt overrides
- *
- * @example
- * ```typescript
- * // Start the service (automatically done via instrumentation.ts)
- * import { startCronService, getCronServiceStatus } from "@/lib/automation"
- *
- * await startCronService()
- * const status = getCronServiceStatus()
- * console.log(status.runningJobs)
- *
- * // Read run logs
- * import { readRunLog, getRunStats } from "@/lib/automation/run-log"
- *
- * const entries = await readRunLog(jobId, { limit: 10 })
- * const stats = await getRunStats(jobId)
- * ```
+ * Scheduling and execution live in apps/worker (standalone Bun process).
+ * The web app provides:
+ * - API routes for CRUD operations on automation jobs
+ * - Thin client to poke/query the worker process
+ * - Engine module for claim/execute/finish lifecycle (used by trigger routes)
+ * - Run log reading for the UI
  */
 
-// CronService - in-process scheduler
-export {
-  type CronEvent,
-  type CronServiceConfig,
-  getCronServiceStatus,
-  startCronService,
-  stopCronService,
-  triggerJob,
-} from "./cron-service"
+// Worker client — pokeCronService delegates to worker HTTP API
+export { type CronEvent, type CronServiceConfig, getCronServiceStatus, pokeCronService } from "./cron-service"
 
-// Executor - runs individual jobs
+// Executor - runs individual jobs (used by trigger routes in web process)
 export { type AutomationJobParams, type AutomationJobResult, runAutomationJob } from "./executor"
 
 // Run logs - per-job JSONL logs

@@ -7,6 +7,7 @@
  * Used by sessions_history tool.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import type { SessionMessage } from "@webalive/tools"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -105,6 +106,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (err) {
     console.error("[Sessions History API] Error:", err)
+    Sentry.captureException(err)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

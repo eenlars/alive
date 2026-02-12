@@ -6,6 +6,7 @@
  */
 
 import { auth as gauth, gmail_v1 } from "@googleapis/gmail"
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
       accessToken = await oauthManager.getAccessToken(user.id, "google")
     } catch (error) {
       console.error("[Gmail Draft] Failed to get OAuth token:", error)
+      Sentry.captureException(error)
       return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 403, {
         reason: "Gmail not connected. Please connect Gmail in Settings.",
       })
@@ -118,6 +120,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result)
   } catch (error) {
     console.error("[Gmail Draft] Error:", error)
+    Sentry.captureException(error)
     const message = error instanceof Error ? error.message : "Failed to save draft"
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, { reason: message })
   }

@@ -4,14 +4,14 @@
  * Removes all test data for this run after tests complete.
  */
 
-import { createClient } from "@supabase/supabase-js"
-import type { AppDatabase, IamDatabase } from "@webalive/database"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { createServiceAppClient, createServiceIamClient } from "@/lib/supabase/service"
 
 function formatError(error: unknown): string {
   if (error instanceof Error) return error.message
-  if (typeof error === "object" && error !== null && "message" in error)
-    return String((error as { message: unknown }).message)
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const err: { message: unknown } = error
+    return String(err.message)
+  }
   return JSON.stringify(error)
 }
 
@@ -25,18 +25,16 @@ export default async function globalTeardown() {
 
   console.log(`\n🧹 [Global Teardown] Cleaning up test run: ${runId}`)
 
-  const { url, key } = getSupabaseCredentials("service")
-
-  const iam = createClient<IamDatabase>(url, key, { db: { schema: "iam" } })
-  const app = createClient<AppDatabase>(url, key, { db: { schema: "app" } })
+  const iam = createServiceIamClient()
+  const app = createServiceAppClient()
 
   // 1. Get test user IDs
   const { data: users } = await iam.from("users").select("user_id").eq("test_run_id", runId)
-  const userIds = users?.map(u => u.user_id) || []
+  const userIds = users?.map((u: { user_id: string }) => u.user_id) || []
 
   // 2. Get test org IDs
   const { data: orgs } = await iam.from("orgs").select("org_id").eq("test_run_id", runId)
-  const orgIds = orgs?.map(o => o.org_id) || []
+  const orgIds = orgs?.map((o: { org_id: string }) => o.org_id) || []
 
   const stats = {
     sessions: 0,

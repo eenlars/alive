@@ -11,6 +11,7 @@
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { retryAsync } from "@webalive/shared"
 import lockfile from "proper-lockfile"
 
@@ -80,6 +81,7 @@ export function readClaudeCredentials(): ClaudeOAuthCredentials | null {
     return data.claudeAiOauth
   } catch (error) {
     console.error("[anthropic-oauth] Failed to read credentials:", error)
+    Sentry.captureException(error)
     return null
   }
 }
@@ -191,6 +193,7 @@ function saveCredentials(credentials: ClaudeOAuthCredentials): void {
     console.log("[anthropic-oauth] Saved refreshed credentials to disk")
   } catch (error) {
     console.error("[anthropic-oauth] Failed to save credentials:", error)
+    Sentry.captureException(error)
     // Don't throw - the refresh succeeded, just saving failed
   }
 }
@@ -277,6 +280,7 @@ export async function getValidAccessToken(): Promise<{
     }
   } catch (error) {
     console.error("[anthropic-oauth] Token refresh failed:", error)
+    Sentry.captureException(error)
     throw error
   }
 }

@@ -8,7 +8,7 @@ import { useDomainConfig } from "@/lib/providers/DomainConfigProvider"
 type Template = AppDatabase["app"]["Tables"]["templates"]["Row"]
 
 const TEMPLATE_PREFIX = DEFAULTS.TEMPLATE_ID_PREFIX
-const SITES_ROOT_PATH = `${PATHS.SITES_ROOT}/`
+const TEMPLATES_ROOT_PATH = `${PATHS.TEMPLATES_ROOT}/`
 
 const INPUT_BASE_CLASSES =
   "w-full px-3 py-2 text-sm border border-slate-300 dark:border-white/10 bg-white dark:bg-[#1a1a1a] text-slate-900 dark:text-white rounded focus:outline-none focus:ring-2"
@@ -46,7 +46,7 @@ export function TemplatesList({
     name: "",
     description: "",
     ai_description: "",
-    source_path: SITES_ROOT_PATH,
+    source_path: TEMPLATES_ROOT_PATH,
     preview_url: "",
     image_url: "",
     is_active: true,
@@ -108,7 +108,7 @@ export function TemplatesList({
       name: "",
       description: "",
       ai_description: "",
-      source_path: SITES_ROOT_PATH,
+      source_path: TEMPLATES_ROOT_PATH,
       preview_url: "",
       image_url: "",
       is_active: true,
@@ -187,7 +187,7 @@ export function TemplatesList({
                     <ol className="list-decimal list-inside space-y-0.5">
                       <li>Deploy a site with the desired template design</li>
                       <li>
-                        Copy the site path (e.g., {SITES_ROOT_PATH}
+                        Copy the site path (e.g., {TEMPLATES_ROOT_PATH}
                         {EXAMPLE_DOMAIN})
                       </li>
                       <li>Paste it here as the source path</li>
@@ -200,7 +200,7 @@ export function TemplatesList({
                 type="text"
                 value={addForm.source_path ?? ""}
                 onChange={e => setAddForm(prev => ({ ...prev, source_path: e.target.value }))}
-                placeholder={`${SITES_ROOT_PATH}example.${wildcard}`}
+                placeholder={`${TEMPLATES_ROOT_PATH}example.${wildcard}`}
                 className={ADD_INPUT_CLASSES}
               />
             </div>

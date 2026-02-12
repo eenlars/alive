@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, dirname, join } from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -192,6 +193,7 @@ export async function POST(req: Request) {
             }
           } catch (e) {
             console.error(`[switch-serve-mode ${requestId}] Failed to update package.json:`, e)
+            Sentry.captureException(e)
           }
         }
 
@@ -248,6 +250,7 @@ ExecStart=${execStart}
 
         if (!restartResult.success) {
           console.error(`[switch-serve-mode ${requestId}] Restart failed:`, restartResult.error)
+          Sentry.captureException(new Error(`switch-serve-mode restart failed: ${restartResult.error}`))
           return NextResponse.json(
             {
               ok: false,
@@ -304,6 +307,7 @@ ExecStart=${execStart}
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         console.error(`[switch-serve-mode ${requestId}] Error:`, error)
+        Sentry.captureException(error)
 
         return NextResponse.json({
           ok: false,

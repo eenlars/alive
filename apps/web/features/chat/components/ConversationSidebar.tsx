@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { trackSidebarClosed, trackSidebarOpened } from "@/lib/analytics/events"
 import { useDexieArchivedConversations, useDexieConversations, useDexieSession } from "@/lib/db/dexieMessageStore"
 import type { DbConversation } from "@/lib/db/messageDb"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
@@ -201,6 +202,15 @@ export function ConversationSidebar({
       openSidebar()
     }
   }, [openSidebar])
+
+  // Track sidebar open/close
+  useEffect(() => {
+    if (isOpen) {
+      trackSidebarOpened()
+    } else if (didInitRef.current) {
+      trackSidebarClosed()
+    }
+  }, [isOpen])
 
   // Get streaming state for all tabs to show activity indicator
   const streamingTabs = useStreamingStore(state => state.tabs)

@@ -1,4 +1,5 @@
 import { appendFileSync } from "node:fs"
+import * as Sentry from "@sentry/nextjs"
 import { askAIFull } from "@webalive/tools"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
@@ -474,6 +475,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(response)
   } catch (error) {
     console.error("[EvaluateProgress] Error:", error)
+    Sentry.captureException(error)
 
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       requestId,
@@ -523,6 +525,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ ok: true, cancelled: false, message: "No active evaluation found" })
   } catch (error) {
     console.error("[EvaluateProgress] Cancel error:", error)
+    Sentry.captureException(error)
 
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       requestId,

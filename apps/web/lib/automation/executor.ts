@@ -13,12 +13,11 @@
  */
 
 import { setTimeout as sleep } from "node:timers/promises"
-import { getWorkspacePath } from "@webalive/shared"
+import * as Sentry from "@sentry/nextjs"
+import { CLAUDE_MODELS, getWorkspacePath } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
-import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { getOrgCredits } from "@/lib/credits/supabase-credits"
-import { DEFAULT_MODEL } from "@/lib/models/claude-models"
 import { generateRequestId } from "@/lib/utils"
 import { type AttemptResult, classifyFailure, runChildProcess, tryWorkerPool, WORKER_POOL } from "./attempts"
 
@@ -73,6 +72,29 @@ async function loadSkillPrompts(skillIds: string[]): Promise<string | null> {
 
   const skillBlocks = loadedSkills.map(skill => `<skill name="${skill.displayName}">\n${skill.prompt}\n</skill>`)
   return `The following skills have been loaded to guide your work:\n\n${skillBlocks.join("\n\n")}`
+}
+
+// =============================================================================
+// System Prompt
+// =============================================================================
+
+/**
+ * Build a lean system prompt for automation execution.
+ * Unlike the chat system prompt, this skips "Read CLAUDE.md" and workflow instructions
+ * since automations run unattended and need to act directly.
+ */
+function buildAutomationSystemPrompt(cwd: string, thinkingPrompt?: string): string {
+  const now = new Date()
+  let prompt = `Current time: ${now.toISOString()}. Workspace: ${cwd}.`
+  prompt += " This is an automated task — no human is watching. Complete it efficiently and report what was done."
+  prompt +=
+    " Use Bash for shell commands (e.g. date, curl). Use Write/Edit for file changes. Use parallel tool calls when possible."
+
+  if (thinkingPrompt) {
+    prompt += `\n\nAgent guidance: ${thinkingPrompt}`
+  }
+
+  return prompt
 }
 
 // =============================================================================
@@ -217,17 +239,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     console.log(`[Automation ${requestId}] OAuth ready (refreshed: ${oauthResult.refreshed})`)
 
     // === Build Prompts ===
-    const automationContext = thinkingPrompt
-      ? `This is an automated task triggered by a scheduled automation.\n\nAgent guidance: ${thinkingPrompt}\n\nComplete the task efficiently and report what was done.`
-      : "This is an automated task triggered by a scheduled automation. The automation name is associated with this workspace. Complete the task efficiently and report what was done."
-
-    const systemPrompt = getSystemPrompt({
-      workspaceFolder: cwd,
-      hasStripeMcpAccess: false,
-      hasGmailAccess: false,
-      isProduction: false,
-      additionalContext: automationContext,
-    })
+    const systemPrompt = buildAutomationSystemPrompt(cwd, thinkingPrompt)
 
     // === Execute ===
     const { attempt, mode } = await executeWithFallback({
@@ -236,7 +248,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       workspace,
       userId: params.userId,
       fullPrompt,
-      selectedModel: model || DEFAULT_MODEL,
+      selectedModel: model || CLAUDE_MODELS.OPUS_4_6,
       systemPrompt,
       timeoutSeconds,
       apiKey: oauthResult.accessToken,
@@ -255,6 +267,14 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     const errorMessage = error instanceof Error ? error.message : String(error)
 
     console.error(`[Automation ${requestId}] Failed after ${durationMs}ms:`, errorMessage)
+    Sentry.withScope(scope => {
+      scope.setTag("category", "automation")
+      scope.setTag("requestId", requestId)
+      scope.setTag("workspace", workspace)
+      scope.setTag("jobId", jobId)
+      scope.setContext("automation", { workspace, jobId, durationMs, model })
+      Sentry.captureException(error instanceof Error ? error : new Error(errorMessage))
+    })
 
     return { success: false, durationMs, error: errorMessage }
   }

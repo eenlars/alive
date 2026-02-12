@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import * as Sentry from "@sentry/nextjs"
 import { SECURITY } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -115,6 +116,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error("[Organizations API] Unexpected error:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }
@@ -184,6 +186,7 @@ export async function PATCH(req: NextRequest) {
     })
   } catch (error) {
     console.error("[Organizations API] Unexpected error in PATCH:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }

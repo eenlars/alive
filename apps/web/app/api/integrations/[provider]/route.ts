@@ -8,6 +8,7 @@
  * not API responses. These are converted to proper ErrorCodes at the API boundary.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { providerSupportsPat } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
@@ -111,6 +112,7 @@ export async function GET(
     })
   } catch (error) {
     console.error(`[${provider} Integration] Status check failed:`, error)
+    Sentry.captureException(error)
 
     // Security: Don't expose internal error details
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
@@ -173,6 +175,7 @@ export async function DELETE(
     })
   } catch (error) {
     console.error(`[${provider} Integration] Disconnect failed:`, error)
+    Sentry.captureException(error)
 
     // Security: Don't expose internal error details
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
@@ -359,6 +362,7 @@ export async function POST(
     })
   } catch (error) {
     console.error(`[${provider} Integration] PAT connection failed:`, error)
+    Sentry.captureException(error)
 
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
       provider,

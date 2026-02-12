@@ -8,9 +8,7 @@
  * - Organizations belonging to test users
  */
 
-import { createClient } from "@supabase/supabase-js"
-import type { AppDatabase, IamDatabase } from "@webalive/database"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { createServiceAppClient, createServiceIamClient } from "@/lib/supabase/service"
 import { isTestEmail } from "./test-email-domains"
 
 interface CleanupStats {
@@ -45,15 +43,8 @@ interface CleanupStats {
  * @returns Cleanup statistics
  */
 export async function cleanupTestDatabase(dryRun: boolean = false): Promise<CleanupStats> {
-  const { url, key } = getSupabaseCredentials("service")
-
-  const iam = createClient<IamDatabase>(url, key, {
-    db: { schema: "iam" },
-  })
-
-  const app = createClient<AppDatabase>(url, key, {
-    db: { schema: "app" },
-  })
+  const iam = createServiceIamClient()
+  const app = createServiceAppClient()
 
   console.log(`🧹 [Test Cleanup] Starting database cleanup... ${dryRun ? "(DRY RUN)" : ""}`)
 
@@ -69,7 +60,7 @@ export async function cleanupTestDatabase(dryRun: boolean = false): Promise<Clea
       return isTestEmail(email)
     }) || []
 
-  const testUserIds = safeTestUsers.map(u => u.user_id)
+  const testUserIds = safeTestUsers.map((u: { user_id: string }) => u.user_id)
   const skippedUsers = (testUsers?.length || 0) - safeTestUsers.length
 
   if (skippedUsers > 0) {
@@ -101,7 +92,7 @@ export async function cleanupTestDatabase(dryRun: boolean = false): Promise<Clea
   // Get test org IDs
   const { data: testMemberships } = await iam.from("org_memberships").select("org_id").in("user_id", testUserIds)
 
-  const testOrgIds = [...new Set(testMemberships?.map(m => m.org_id) || [])]
+  const testOrgIds = [...new Set(testMemberships?.map((m: { org_id: string }) => m.org_id) || [])]
   console.log(`📊 [Test Cleanup] Found ${testOrgIds.length} test organizations`)
 
   // Step 1: Delete sessions for test users
@@ -262,22 +253,15 @@ export async function cleanupTestDatabase(dryRun: boolean = false): Promise<Clea
  * @param userId - User ID to clean up
  */
 export async function cleanupSpecificTestUser(userId: string): Promise<void> {
-  const { url, key } = getSupabaseCredentials("service")
-
-  const iam = createClient<IamDatabase>(url, key, {
-    db: { schema: "iam" },
-  })
-
-  const app = createClient<AppDatabase>(url, key, {
-    db: { schema: "app" },
-  })
+  const iam = createServiceIamClient()
+  const app = createServiceAppClient()
 
   console.log(`🧹 [Test Cleanup] Cleaning up user: ${userId}`)
 
   // Get user's orgs
   const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", userId)
 
-  const orgIds = memberships?.map(m => m.org_id) || []
+  const orgIds = memberships?.map((m: { org_id: string }) => m.org_id) || []
 
   // Delete sessions
   await iam.from("sessions").delete().eq("user_id", userId)

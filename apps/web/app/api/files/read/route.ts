@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -179,6 +180,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("Files/Read API error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
       requestId,
       error: error instanceof Error ? error.message : "Unknown error",

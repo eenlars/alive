@@ -17,6 +17,10 @@
     # For direct mode (Caddy handles 80/443), comment out the above
 
     admin localhost:2019
+
+    on_demand_tls {
+        ask http://localhost:9000/api/tls-check
+    }
 }
 
 # Shared snippets (common_headers, image_serving, preview_auth)

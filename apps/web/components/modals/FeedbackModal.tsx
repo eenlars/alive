@@ -3,6 +3,7 @@
 import { Check, Loader2, Sparkles } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
+import { trackFeedbackModalOpened, trackFeedbackSubmitted } from "@/lib/analytics/events"
 
 interface FeedbackModalProps {
   onClose: () => void
@@ -20,8 +21,9 @@ export function FeedbackModal({ onClose, workspace, conversationId }: FeedbackMo
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Focus textarea on mount and handle Escape key
+  // Track open & focus textarea on mount
   useEffect(() => {
+    trackFeedbackModalOpened()
     textareaRef.current?.focus()
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
@@ -56,6 +58,7 @@ export function FeedbackModal({ onClose, workspace, conversationId }: FeedbackMo
         throw new Error(errorData.message || "Failed to submit feedback")
       }
 
+      trackFeedbackSubmitted()
       setSuccess(true)
       setTimeout(() => {
         onClose()

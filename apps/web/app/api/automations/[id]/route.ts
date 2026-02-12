@@ -4,15 +4,24 @@
  * Get, update, or delete a specific automation job.
  */
 
-import { createClient } from "@supabase/supabase-js"
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { pokeCronService } from "@/lib/automation/cron-service"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
   params: Promise<{ id: string }>
+}
+
+/** Fields needed for ownership + validation in PATCH handler (user_id exists in DB but not yet in generated types) */
+interface AutomationJobOwnership {
+  user_id: string
+  cron_schedule: string | null
+  cron_timezone: string | null
+  action_type: string | null
 }
 
 /**
@@ -26,14 +35,17 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     const { data, error } = await supabase
       .from("automation_jobs")
       .select(
         `
-        *,
+        id, user_id, org_id, site_id, name, description,
+        trigger_type, cron_schedule, cron_timezone, run_at,
+        action_type, action_prompt, action_source, action_target_page,
+        action_model, action_timeout_seconds, skills, is_active,
+        next_run_at, last_run_at, last_run_status, created_at, updated_at,
         domains:site_id (hostname)
       `,
       )
@@ -44,19 +56,22 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
+    const row = data as unknown as { user_id: string; domains?: { hostname: string } }
+
     // Verify ownership
-    if ((data as any).user_id !== user.id) {
+    if (row.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 
     return NextResponse.json({
       automation: {
         ...data,
-        hostname: (data as any).domains?.hostname,
+        hostname: row.domains?.hostname,
       },
     })
   } catch (error) {
     console.error("[Automations API] GET by ID error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -73,21 +88,26 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const { id } = await context.params
     const body = await req.json()
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Import validators
     const { validateCronSchedule, validateTimezone, validateTimeout, validateActionPrompt, formatNextRuns } =
       await import("@/lib/automation/validation")
 
     // Check ownership first
-    const { data: existing } = await supabase.from("automation_jobs").select("*").eq("id", id).single()
+    const { data: existing } = await supabase
+      .from("automation_jobs")
+      .select("user_id, cron_schedule, cron_timezone, action_type")
+      .eq("id", id)
+      .single()
 
     if (!existing) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
-    if ((existing as any).user_id !== user.id) {
+    const existingRow = existing as unknown as AutomationJobOwnership
+
+    if (existingRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 
@@ -126,8 +146,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     // Validate schedule changes
     if ("cron_schedule" in updates || "cron_timezone" in updates) {
-      const cronExpr = (updates.cron_schedule as string) || (existing as any).cron_schedule
-      const cronTz = (updates.cron_timezone as string) || (existing as any).cron_timezone
+      const cronExpr = (updates.cron_schedule as string) ?? existingRow.cron_schedule
+      const cronTz = (updates.cron_timezone as string) ?? existingRow.cron_timezone
 
       if (cronExpr) {
         const cronCheck = validateCronSchedule(cronExpr, cronTz)
@@ -172,7 +192,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     // Validate prompt if changed
     if ("action_prompt" in updates) {
-      const promptCheck = validateActionPrompt((existing as any).action_type, updates.action_prompt as string)
+      const promptCheck = validateActionPrompt(existingRow.action_type ?? "prompt", updates.action_prompt as string)
       if (!promptCheck.valid) {
         return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
           status: 400,
@@ -185,6 +205,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     if (error) {
       console.error("[Automations API] Update error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
@@ -195,9 +216,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       nextRunsDisplay = formatNextRuns(cronCheck.nextRuns)
     }
 
+    // Poke CronService so it picks up schedule changes immediately
+    pokeCronService()
+
     return NextResponse.json({ automation: data, nextRunsPreview: nextRunsDisplay })
   } catch (error) {
     console.error("[Automations API] PATCH error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -213,8 +238,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Check ownership first
     const { data: existing } = await supabase.from("automation_jobs").select("user_id").eq("id", id).single()
@@ -223,7 +247,9 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
-    if ((existing as any).user_id !== user.id) {
+    const existingRow = existing as unknown as { user_id: string }
+
+    if (existingRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 
@@ -231,12 +257,14 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
     if (error) {
       console.error("[Automations API] Delete error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error("[Automations API] DELETE error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
