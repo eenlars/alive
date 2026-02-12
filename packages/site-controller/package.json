@@ -17,7 +17,7 @@
     "lint": "biome lint .",
     "format": "biome format --write .",
     "ci": "biome ci .",
-    "test": "bun test",
+    "test": "SERVER_CONFIG_PATH=/var/lib/alive/server-config.json bun test",
     "clean": "rm -rf dist",
     "setup:validate": "bun run src/infra/validate-setup.ts",
     "routing:generate": "bun run src/infra/generate-routing.ts"
