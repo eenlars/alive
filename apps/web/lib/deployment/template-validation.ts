@@ -7,7 +7,7 @@
  */
 
 import { existsSync } from "node:fs"
-import { getLocalTemplatePath } from "@webalive/shared"
+import { resolveTemplatePath } from "@webalive/shared"
 import { createAppClient } from "@/lib/supabase/app"
 
 export interface ValidatedTemplate {
@@ -71,8 +71,8 @@ export async function validateTemplateFromDb(templateId: string | undefined): Pr
     }
   }
 
-  // Use local server override if configured, otherwise fall back to DB path
-  const sourcePath = getLocalTemplatePath(template.template_id) ?? template.source_path
+  // Resolve path using TEMPLATES_ROOT + directory name from DB source_path
+  const sourcePath = resolveTemplatePath(template.source_path)
 
   if (!existsSync(sourcePath)) {
     return {
@@ -80,7 +80,7 @@ export async function validateTemplateFromDb(templateId: string | undefined): Pr
       error: {
         code: "TEMPLATE_NOT_FOUND",
         templateId,
-        message: `Template source path does not exist: ${sourcePath}`,
+        message: `Template source path does not exist: ${sourcePath}. Sync template files to this server (git pull in templates dir).`,
       },
     }
   }

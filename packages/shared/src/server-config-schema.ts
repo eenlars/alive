@@ -77,8 +77,6 @@ export const serverConfigSchema = z
         nginxMap: pathStr,
       })
       .strict(),
-
-    templates: z.record(z.string(), z.string()).optional(),
   })
   .strict()
 
@@ -124,5 +122,24 @@ export function parseServerConfig(raw: string): ServerConfig {
     throw new Error(`Invalid JSON in server config: ${e instanceof Error ? e.message : String(e)}`)
   }
   stripCommentKeys(data)
+  rejectRemovedKeys(data)
   return serverConfigSchema.parse(data)
+}
+
+/**
+ * Reject known removed keys with actionable error messages.
+ * Crashes on startup so operators fix config immediately.
+ */
+function rejectRemovedKeys(obj: unknown): void {
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) return
+  const record = obj as Record<string, unknown>
+
+  if ("templates" in record) {
+    throw new Error(
+      'server-config.json contains removed key "templates". ' +
+        "Template paths are now resolved dynamically from paths.templatesRoot + the template directory name. " +
+        'Remove the "templates" object from server-config.json. ' +
+        'Ensure "paths.templatesRoot" points to your templates directory (e.g. "/srv/webalive/templates").',
+    )
+  }
 }

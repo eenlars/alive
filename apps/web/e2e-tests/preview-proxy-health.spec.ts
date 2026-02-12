@@ -58,36 +58,12 @@ describeProxy("Preview Proxy Health", () => {
   }
 
   /**
-   * Fetch a list of active template sites from the API.
-   * Only returns templates whose preview_url is on the current server
-   * (hostname ends with PREVIEW_BASE). Templates on other servers
-   * are unreachable through the local preview proxy.
+   * The test domain for HTML serving tests.
+   * Uses blank.${PREVIEW_BASE} — the blank template is deployed on every server.
+   * We don't rely on preview_url hostnames from the API since templates are
+   * shared across servers and their preview_url may point to a different server.
    */
-  async function getTemplateSites(baseURL: string): Promise<string[]> {
-    try {
-      const res = await fetch(`${baseURL}/api/templates`)
-      if (!res.ok) return []
-      const data = await res.json()
-      // Extract domain from preview_url (e.g. "https://blank.alive.best" → "blank.alive.best")
-      // and filter to only include sites on the current server
-      return (data.templates || [])
-        .filter((t: { is_active: boolean }) => t.is_active)
-        .map((t: { preview_url: string }) => {
-          try {
-            return new URL(t.preview_url).hostname
-          } catch {
-            return null
-          }
-        })
-        .filter((hostname: string | null): hostname is string => {
-          if (!hostname) return false
-          // Only include templates routable through this server's preview proxy
-          return hostname.endsWith(`.${PREVIEW_BASE}`) || hostname === PREVIEW_BASE
-        })
-    } catch {
-      return []
-    }
-  }
+  const testDomain = `blank.${PREVIEW_BASE}`
 
   test.describe("Authentication", () => {
     test("rejects request without preview_token", async () => {
@@ -127,16 +103,9 @@ describeProxy("Preview Proxy Health", () => {
   })
 
   test.describe("HTML Serving", () => {
-    test("returns HTML for template site preview", async ({ baseURL }) => {
-      const apiBase = baseURL || "http://localhost:8998"
-      const sites = await getTemplateSites(apiBase)
-
-      // Need at least one template site to test
-      test.skip(sites.length === 0, "No active template sites found")
-
-      const domain = sites[0]
+    test("returns HTML for template site preview", async () => {
       const token = createPreviewToken()
-      const url = previewUrl(domain, `/?preview_token=${token}`)
+      const url = previewUrl(testDomain, `/?preview_token=${token}`)
 
       const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(15000) })
 
@@ -152,17 +121,12 @@ describeProxy("Preview Proxy Health", () => {
       // Should NOT have X-Frame-Options (proxy strips it for iframe embedding)
       expect(res.headers.get("x-frame-options")).toBeNull()
 
-      console.log(`  ✓ ${domain}: ${body.length} bytes HTML`)
+      console.log(`  ✓ ${testDomain}: ${body.length} bytes HTML`)
     })
 
-    test("injects navigation sync script into HTML", async ({ baseURL }) => {
-      const apiBase = baseURL || "http://localhost:8998"
-      const sites = await getTemplateSites(apiBase)
-      test.skip(sites.length === 0, "No active template sites found")
-
-      const domain = sites[0]
+    test("injects navigation sync script into HTML", async () => {
       const token = createPreviewToken()
-      const url = previewUrl(domain, `/?preview_token=${token}`)
+      const url = previewUrl(testDomain, `/?preview_token=${token}`)
 
       const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(15000) })
       expect(res.status).toBe(200)
@@ -172,17 +136,12 @@ describeProxy("Preview Proxy Health", () => {
       // Must contain the preview-navigation message type (from @webalive/shared PREVIEW_MESSAGES)
       expect(body).toContain("preview-navigation")
 
-      console.log(`  ✓ ${domain}: nav script injected`)
+      console.log(`  ✓ ${testDomain}: nav script injected`)
     })
 
-    test("sets frame-ancestors CSP header", async ({ baseURL }) => {
-      const apiBase = baseURL || "http://localhost:8998"
-      const sites = await getTemplateSites(apiBase)
-      test.skip(sites.length === 0, "No active template sites found")
-
-      const domain = sites[0]
+    test("sets frame-ancestors CSP header", async () => {
       const token = createPreviewToken()
-      const url = previewUrl(domain, `/?preview_token=${token}`)
+      const url = previewUrl(testDomain, `/?preview_token=${token}`)
 
       const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(15000) })
       expect(res.status).toBe(200)
@@ -196,16 +155,11 @@ describeProxy("Preview Proxy Health", () => {
   })
 
   test.describe("Sub-resource Auth (Cookie)", () => {
-    test("session cookie authenticates sub-resource requests", async ({ baseURL }) => {
-      const apiBase = baseURL || "http://localhost:8998"
-      const sites = await getTemplateSites(apiBase)
-      test.skip(sites.length === 0, "No active template sites found")
-
-      const domain = sites[0]
+    test("session cookie authenticates sub-resource requests", async () => {
       const token = createPreviewToken()
 
       // Step 1: Initial request with token → get session cookie
-      const initialUrl = previewUrl(domain, `/?preview_token=${token}`)
+      const initialUrl = previewUrl(testDomain, `/?preview_token=${token}`)
       const initialRes = await fetch(initialUrl, { redirect: "manual", signal: AbortSignal.timeout(15000) })
       expect(initialRes.status).not.toBe(401)
 
@@ -218,7 +172,7 @@ describeProxy("Preview Proxy Health", () => {
       const cookieValue = cookieMatch![1]
 
       // Step 2: Sub-resource request with cookie only (no token)
-      const subResourceUrl = previewUrl(domain, "/favicon.ico")
+      const subResourceUrl = previewUrl(testDomain, "/favicon.ico")
       const subRes = await fetch(subResourceUrl, {
         headers: { cookie: `__alive_preview=${cookieValue}` },
         redirect: "follow",
@@ -240,18 +194,11 @@ describeProxy("Preview Proxy Health", () => {
      * Currently FAILS: the Go proxy forwards /_images/* to the site backend
      * which returns text/html. Fix tracked in GitHub issue #68.
      */
-    test.fixme("/_images/* returns image content, not HTML", async ({ baseURL }) => {
-      const apiBase = baseURL || "http://localhost:8998"
-      const sites = await getTemplateSites(apiBase)
-      test.skip(sites.length === 0, "No active template sites found")
-
-      // Find a site that has images by checking a known template
-      // The image path includes the domain: /_images/t/{domain}/o/{hash}/v/orig.webp
-      const domain = sites[0]
+    test.fixme("/_images/* returns image content, not HTML", async () => {
       const token = createPreviewToken()
 
       // First get the session cookie
-      const initialUrl = previewUrl(domain, `/?preview_token=${token}`)
+      const initialUrl = previewUrl(testDomain, `/?preview_token=${token}`)
       const initialRes = await fetch(initialUrl, { redirect: "manual", signal: AbortSignal.timeout(15000) })
       const setCookieHeader = initialRes.headers.get("set-cookie")
       const cookieMatch = setCookieHeader?.match(/__alive_preview=([^;]+)/)
@@ -261,8 +208,8 @@ describeProxy("Preview Proxy Health", () => {
       const cookieValue = cookieMatch![1]
 
       // Try to fetch an image through the preview proxy
-      // Use the storage listing approach: check if any images exist for this domain
-      const imageCheckUrl = previewUrl(domain, `/_images/t/${domain}/`)
+      // The image path includes the domain: /_images/t/{domain}/o/{hash}/v/orig.webp
+      const imageCheckUrl = previewUrl(testDomain, `/_images/t/${testDomain}/`)
       const imageRes = await fetch(imageCheckUrl, {
         headers: { cookie: `__alive_preview=${cookieValue}` },
         redirect: "follow",
