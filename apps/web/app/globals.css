@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/login/login.css";
 @import "../features/chat/components/ChatInput/composer.css";
 
 @custom-variant dark (.dark &);

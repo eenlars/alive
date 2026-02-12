@@ -8,6 +8,7 @@ import {
   Globe,
   Key,
   Link,
+  LogOut,
   Menu,
   Settings,
   Shield,
@@ -17,8 +18,11 @@ import {
 } from "lucide-react"
 import { useQueryState } from "nuqs"
 import { lazy, Suspense, useEffect, useState } from "react"
+import { resetPostHogIdentity } from "@/components/providers/PostHogProvider"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
 import { trackSettingsTabChanged } from "@/lib/analytics/events"
+import { clientLogger } from "@/lib/client-error-logger"
+import { useWorkspaceActions } from "@/lib/stores/workspaceStore"
 import { QUERY_KEYS } from "@/lib/url/queryState"
 import { SettingsTabLayout } from "./tabs/SettingsTabLayout"
 
@@ -96,8 +100,27 @@ interface SettingsPageClientProps {
 
 export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientProps) {
   const { user, loading } = useAuth()
+  const { setCurrentWorkspace } = useWorkspaceActions()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+
+  const handleLogout = () => {
+    // Clear local state and redirect immediately — don't wait for the server
+    resetPostHogIdentity()
+    setCurrentWorkspace(null)
+    // Derive root domain: app.alive.best → alive.best, staging.sonno.tech → sonno.tech
+    // Uses window.location.href because this is a cross-domain redirect (Next.js router is same-origin only)
+    const parts = window.location.hostname.split(".")
+    const logoutUrl = parts.length > 2 ? `https://${parts.slice(1).join(".")}` : "/"
+    // Fire logout before navigating — sendBeacon survives page unload
+    const logoutFired = navigator.sendBeacon("/api/logout")
+    if (!logoutFired) {
+      fetch("/api/logout", { method: "POST", credentials: "include" }).catch((error: unknown) => {
+        clientLogger.api("Logout API call failed", { error })
+      })
+    }
+    window.location.href = logoutUrl
+  }
 
   // Mark hydration as complete after first render
   // This prevents hydration mismatch when user data loads asynchronously
@@ -250,6 +273,19 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
             )
           })}
         </nav>
+
+        {/* Logout — pinned to bottom */}
+        <div className="flex-shrink-0 p-2 border-t border-zinc-200 dark:border-zinc-800">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-3 md:py-2 rounded-lg md:rounded-md text-sm text-red-600 dark:text-red-400 hover:bg-red-500/8 active:bg-red-500/12 transition-colors"
+            data-testid="logout-button"
+          >
+            <LogOut className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0" />
+            Log out
+          </button>
+        </div>
       </aside>
 
       {/* Main Content — single scroll container, overscroll-contain prevents bleed to body */}
