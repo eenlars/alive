@@ -179,6 +179,23 @@ export const WORKER_POOL = {
 
   /** Kill orphaned claude-agent-sdk subprocesses older than this age */
   ORPHAN_MAX_AGE_MS: 5 * 60 * 1000,
+
+  /**
+   * PID pressure shed threshold against cgroup Task/PID limit.
+   * If usage exceeds this ratio, new worker spawns are deferred.
+   */
+  PID_PRESSURE_THRESHOLD_RATIO: 0.85,
+
+  /**
+   * Minimum pids headroom required before allowing a new worker spawn.
+   * Prevents flapping when near the process/thread limit.
+   */
+  PID_PRESSURE_MIN_HEADROOM: 64,
+
+  /**
+   * How often to re-check cgroup pids usage when deciding spawn behavior.
+   */
+  PID_PRESSURE_CHECK_INTERVAL_MS: 2_000,
 } as const
 
 /**

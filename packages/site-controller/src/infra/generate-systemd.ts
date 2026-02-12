@@ -23,6 +23,7 @@ interface ServiceConfig {
   envFiles: string[]
   memory: { max: string; high: string }
   cpu: string
+  tasksMax: number
   syslogId: string
 }
 
@@ -149,7 +150,7 @@ ${cfg.env === "production" ? `Environment="ALIVE_API_PORT=${cfg.port}"` : ""}
 MemoryMax=${cfg.memory.max}
 MemoryHigh=${cfg.memory.high}
 CPUQuota=${cfg.cpu}
-TasksMax=${cfg.env === "development" ? 1024 : 512}
+TasksMax=${cfg.tasksMax}
 LimitNOFILE=${cfg.env === "development" ? 8192 : 4096}
 
 Restart=on-failure
@@ -243,6 +244,7 @@ async function main() {
       envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.local`],
       memory: { max: "4G", high: "3G" },
       cpu: "400%",
+      tasksMax: 2048,
       syslogId: "alive-dev",
     },
     {
@@ -255,6 +257,7 @@ async function main() {
       envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.staging`],
       memory: { max: "2G", high: "1.5G" },
       cpu: "200%",
+      tasksMax: 4096,
       syslogId: "alive-staging",
     },
     {
@@ -267,6 +270,7 @@ async function main() {
       envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.production`],
       memory: { max: "2G", high: "1.5G" },
       cpu: "200%",
+      tasksMax: 4096,
       syslogId: "alive-production",
     },
     {
@@ -279,6 +283,7 @@ async function main() {
       envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/broker/.env.local`],
       memory: { max: "512M", high: "384M" },
       cpu: "100%",
+      tasksMax: 1000,
       syslogId: "alive-broker",
     },
   ]

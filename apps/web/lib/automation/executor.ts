@@ -21,6 +21,19 @@ import { getOrgCredits } from "@/lib/credits/supabase-credits"
 import { generateRequestId } from "@/lib/utils"
 import { type AttemptResult, classifyFailure, runChildProcess, tryWorkerPool, WORKER_POOL } from "./attempts"
 
+function safeJsonForLog(value: unknown): string {
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return '"[unserializable]"'
+  }
+}
+
+function extractDiagnostics(error: unknown): unknown {
+  if (!error || typeof error !== "object" || !("diagnostics" in error)) return undefined
+  return (error as { diagnostics?: unknown }).diagnostics
+}
+
 // =============================================================================
 // Public Types
 // =============================================================================
@@ -131,6 +144,10 @@ async function executeWithFallback(
   } catch (firstError) {
     const failure = classifyFailure(firstError)
     console.warn(`[Automation ${requestId}] Worker pool failed (${failure.kind}): ${failure.message}`)
+    const firstDiagnostics = extractDiagnostics(firstError)
+    if (firstDiagnostics) {
+      console.warn(`[Automation ${requestId}] Worker diagnostics: ${safeJsonForLog(firstDiagnostics)}`)
+    }
 
     if (failure.transient) {
       console.log(`[Automation ${requestId}] Retrying worker pool in 2s...`)
@@ -149,6 +166,10 @@ async function executeWithFallback(
         console.warn(
           `[Automation ${requestId}] Retry failed (${retryFailure.kind}): ${retryFailure.message}. Falling back to child process.`,
         )
+        const retryDiagnostics = extractDiagnostics(retryError)
+        if (retryDiagnostics) {
+          console.warn(`[Automation ${requestId}] Retry diagnostics: ${safeJsonForLog(retryDiagnostics)}`)
+        }
       }
     }
 
