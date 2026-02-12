@@ -527,14 +527,28 @@ export function assertValidServerId(serverId: string | undefined): asserts serve
 }
 
 /**
- * Get local template source path override for a given template ID.
- * Returns the local path if configured in server-config.json, otherwise undefined.
+ * Resolve a template's local filesystem path from its DB source_path.
  *
- * This allows each server to override the DB's source_path with a local path,
- * since template files live at different locations on different servers.
+ * Extracts the directory name (e.g. "blank.alive.best") from the DB path
+ * and joins it with this server's TEMPLATES_ROOT. This way both servers
+ * resolve to the correct local path without per-template config.
+ *
+ * Example: source_path "/srv/webalive/templates/blank.alive.best"
+ *        → TEMPLATES_ROOT + "/blank.alive.best"
+ *        → "/srv/webalive/templates/blank.alive.best"
  */
-export function getLocalTemplatePath(templateId: string): string | undefined {
-  return serverConfig.templates?.[templateId]
+export function resolveTemplatePath(dbSourcePath: string): string {
+  if (!TEMPLATES_ROOT) {
+    throw new Error(
+      "TEMPLATES_ROOT is not configured. " +
+        'Set "paths.templatesRoot" in server-config.json (e.g. "/srv/webalive/templates").',
+    )
+  }
+  const dirName = dbSourcePath.split("/").pop()
+  if (!dirName) {
+    throw new Error(`Invalid template source_path: "${dbSourcePath}" — cannot extract directory name`)
+  }
+  return `${TEMPLATES_ROOT}/${dirName}`
 }
 
 // NOTE: validateConfig() and assertConfigValid() have been removed.

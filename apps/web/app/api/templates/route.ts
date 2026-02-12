@@ -1,35 +1,17 @@
 /**
  * Templates API
- * Returns available site templates for deployment.
+ * Returns all active site templates for deployment.
  *
- * Server-aware: only returns templates whose preview_url is routable
- * from this server (hostname ends with this server's MAIN_DOMAIN).
- *
- * STRICT: Templates MUST exist on every server. If Supabase fails or
- * filtering produces zero results, that's a 500 — not an empty array.
+ * Templates are shared across all servers — both servers host
+ * template files locally (synced via git) and serve the same set.
  */
 
 import * as Sentry from "@sentry/nextjs"
-import { DOMAINS } from "@webalive/shared"
 import { alrighty } from "@/lib/api/server"
-import { type AppTemplate, createAppClient } from "@/lib/supabase/app"
+import { createAppClient } from "@/lib/supabase/app"
 
 /**
- * Filter templates to only those routable from this server.
- * A template is routable if its preview_url hostname matches either
- * DOMAINS.MAIN or DOMAINS.WILDCARD (which may differ, e.g. alive.best vs goalive.nl).
- */
-function filterByServer(templates: AppTemplate[]): AppTemplate[] {
-  const domains = [DOMAINS.MAIN, DOMAINS.WILDCARD]
-
-  return templates.filter(t => {
-    const hostname = new URL(t.preview_url!).hostname
-    return domains.some(d => hostname === d || hostname.endsWith(`.${d}`))
-  })
-}
-
-/**
- * GET - Get active templates for this server
+ * GET - Get all active templates
  * Public endpoint - no authentication required
  */
 export async function GET() {
@@ -56,18 +38,9 @@ export async function GET() {
       throw new Error(`Templates missing preview_url: ${missingUrls.map(t => t.template_id).join(", ")}`)
     }
 
-    const serverTemplates = filterByServer(templates)
-
-    if (serverTemplates.length === 0) {
-      throw new Error(
-        `No templates routable from this server (MAIN=${DOMAINS.MAIN}, WILDCARD=${DOMAINS.WILDCARD}). ` +
-          `Found ${templates.length} active templates but none match this server's domains.`,
-      )
-    }
-
     return alrighty(
       "templates",
-      { templates: serverTemplates },
+      { templates },
       {
         headers: {
           "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
