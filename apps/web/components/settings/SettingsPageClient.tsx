@@ -112,11 +112,14 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
     // Uses window.location.href because this is a cross-domain redirect (Next.js router is same-origin only)
     const parts = window.location.hostname.split(".")
     const logoutUrl = parts.length > 2 ? `https://${parts.slice(1).join(".")}` : "/"
+    // Fire logout before navigating — sendBeacon survives page unload
+    const logoutFired = navigator.sendBeacon("/api/logout")
+    if (!logoutFired) {
+      fetch("/api/logout", { method: "POST", credentials: "include" }).catch((error: unknown) => {
+        clientLogger.api("Logout API call failed", { error })
+      })
+    }
     window.location.href = logoutUrl
-    // Server cleans up the session in the background
-    fetch("/api/logout", { method: "POST", credentials: "include" }).catch((error: unknown) => {
-      clientLogger.api("Logout API call failed", { error })
-    })
   }
 
   // Mark hydration as complete after first render
