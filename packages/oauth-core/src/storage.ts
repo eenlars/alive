@@ -21,26 +21,8 @@ type LockboxGetRow = {
   auth_tag: string
 }
 
-type LockboxListRow = {
-  user_secret_id: string
-  user_id: string
-  instance_id: string
-  namespace: string
-  name: string
-  ciphertext: string
-  iv: string
-  auth_tag: string
-  version: number
-  is_current: boolean
-  scope: Record<string, unknown> | string | null
-  expires_at: string | null
-  last_used_at: string | null
-  deleted_at: string | null
-  created_at: string
-  updated_at: string
-  created_by: string | null
-  updated_by: string | null
-}
+/** LockboxListRow matches UserSecret — RPC returns the same columns */
+type LockboxListRow = UserSecret
 
 type LockboxRpcFunctions = {
   lockbox_delete: {
@@ -207,7 +189,7 @@ export class LockboxAdapter {
       throw new Error(`[Lockbox] List failed (instance: ${this.instanceId}): ${error.message}`)
     }
 
-    return (data || []) as unknown as UserSecret[]
+    return data || []
   }
 
   /**

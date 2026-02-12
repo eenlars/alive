@@ -69,8 +69,8 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     let messages: unknown[] = []
     if (run.messages_uri) {
       messages = (await readMessagesFromUri(run.messages_uri)) ?? []
-    } else if (run.messages) {
-      messages = run.messages as unknown[]
+    } else if (Array.isArray(run.messages)) {
+      messages = run.messages
     }
 
     return NextResponse.json({

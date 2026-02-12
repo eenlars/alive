@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto"
 import fs from "node:fs/promises"
 import path from "node:path"
 import { computeNextRunAtMs } from "@webalive/automation"
+import type { Json } from "@webalive/database"
 import { getServerId } from "@webalive/shared"
 import { appendRunLog } from "./run-log"
 import type { AppClient, AutomationJob, ClaimOptions, FinishOptions, RunContext } from "./types"
@@ -269,9 +270,20 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
   }
 
   // Write messages to file storage instead of DB (avoids bloat)
+  // Falls back to inline DB storage if file write fails
   let messagesUri: string | null = null
+  let messagesFallback: Json[] | null = null
   if (result.messages?.length) {
     messagesUri = await writeMessagesToFile(ctx.runId, result.messages)
+    if (!messagesUri) {
+      // File write failed — fall back to storing inline in DB
+      // Round-trip through JSON to prove messages are Json-compatible
+      try {
+        messagesFallback = JSON.parse(JSON.stringify(result.messages))
+      } catch {
+        console.error(`[Engine] Messages not JSON-serializable for run ${ctx.runId}, messages lost`)
+      }
+    }
   }
 
   // Conditional update: only if our run_id still owns the job
@@ -313,7 +325,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     status: result.status,
     error: result.error ?? null,
     result: result.summary ? { summary: result.summary } : null,
-    messages: null,
+    messages: messagesFallback,
     messages_uri: messagesUri,
     triggered_by: ctx.triggeredBy,
   })

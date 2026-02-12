@@ -22,12 +22,9 @@ vi.mock("@/lib/supabase/service", () => ({
   createServiceAppClient: () => createServiceAppClientMock(),
 }))
 
-vi.mock("@/lib/api/responses", () => ({
-  structuredErrorResponse: vi.fn(
-    (code: string, opts: { status: number; details?: Record<string, unknown> }) =>
-      new Response(JSON.stringify({ ok: false, error: code, ...opts.details }), { status: opts.status }),
-  ),
-}))
+vi.mock("@/lib/api/responses", async importOriginal => {
+  return await importOriginal<typeof import("@/lib/api/responses")>()
+})
 
 vi.mock("@/lib/automation/cron-service", () => ({
   pokeCronService: vi.fn(),
