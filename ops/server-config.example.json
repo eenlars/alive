@@ -28,12 +28,5 @@
     "caddySites": "/path/to/generated/Caddyfile.sites",
     "caddyShell": "/path/to/generated/Caddyfile.shell",
     "nginxMap": "/path/to/generated/nginx.sni.map"
-  },
-  "templates": {
-    "tmpl_blank": "/srv/webalive/templates/blank.alive.best",
-    "tmpl_gallery": "/srv/webalive/templates/template1.alive.best",
-    "tmpl_event": "/srv/webalive/templates/four.goalive.nl",
-    "tmpl_saas": "/srv/webalive/templates/one.goalive.nl",
-    "tmpl_business": "/srv/webalive/templates/loodgieter.alive.best"
   }
 }
