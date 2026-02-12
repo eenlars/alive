@@ -24,7 +24,7 @@ const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.postho
 let isInitialized = false
 
 function initPostHog() {
-  if (isInitialized || typeof window === "undefined" || !posthogKey) {
+  if (isInitialized || typeof window === "undefined" || !posthogKey || process.env.NODE_ENV !== "production") {
     return
   }
 
