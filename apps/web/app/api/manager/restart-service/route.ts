@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process"
 import * as Sentry from "@sentry/nextjs"
 import { PATHS } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
@@ -8,8 +7,8 @@ import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 import { runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
-import { domainToServiceName } from "@/lib/workspace-service-manager"
 import { restartSystemdService } from "@/lib/workspace-execution/systemd-restart"
+import { domainToServiceName } from "@/lib/workspace-service-manager"
 
 /**
  * POST /api/manager/restart-service

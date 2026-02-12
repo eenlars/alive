@@ -138,7 +138,6 @@ export async function POST(req: NextRequest) {
       validateCronSchedule,
       validateTimezone,
       validateSiteId,
-      formatNextRuns,
     } = await import("@/lib/automation/validation")
 
     // Step 1: Validate required fields
@@ -215,7 +214,6 @@ export async function POST(req: NextRequest) {
 
     // Step 8: Validate and compute cron schedule if present
     let nextRunAt: string | null = null
-    let nextRunsDisplay: string | undefined
     if (body.trigger_type === "cron" && body.cron_schedule) {
       const cronCheck = validateCronSchedule(body.cron_schedule, body.cron_timezone)
       if (!cronCheck.valid) {
@@ -230,7 +228,6 @@ export async function POST(req: NextRequest) {
       if (nextMs) {
         nextRunAt = new Date(nextMs).toISOString()
       }
-      nextRunsDisplay = formatNextRuns(cronCheck.nextRuns)
     } else if (body.trigger_type === "one-time" && body.run_at) {
       nextRunAt = body.run_at
     }
