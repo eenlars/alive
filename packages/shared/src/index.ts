@@ -14,6 +14,12 @@
  */
 
 export {
+  type AutomationTriggerRequest,
+  AutomationTriggerRequestSchema,
+  type AutomationTriggerResponse,
+  AutomationTriggerResponseSchema,
+} from "./automation-schemas.js"
+export {
   assertValidServerId,
   BRIDGE_ENV,
   type BridgeEnv,
