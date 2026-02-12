@@ -55,15 +55,22 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
     }
 
     // Handle HTTP errors
+    // Supports: { error: { message, code } }, { error: "CODE", message: "..." }, { message: "..." }
     if (!res.ok) {
       const err = json as Record<string, unknown>
       const nested = err?.error as Record<string, unknown> | string | undefined
-      throw new ApiError(
-        String((typeof nested === "object" ? nested?.message : nested) ?? err?.message ?? `HTTP ${res.status}`),
-        res.status,
-        String((typeof nested === "object" ? nested?.code : undefined) ?? err?.code ?? "HTTP_ERROR"),
-        json,
-      )
+      // Prefer top-level message (user-friendly from server) over raw error code string
+      const message =
+        (typeof err?.message === "string" && err.message ? err.message : undefined) ??
+        (typeof nested === "object" && typeof nested?.message === "string" ? nested.message : undefined) ??
+        (typeof nested === "string" ? nested : undefined) ??
+        `HTTP ${res.status}`
+      const code =
+        (typeof nested === "object" && typeof nested?.code === "string" ? nested.code : undefined) ??
+        (typeof nested === "string" ? nested : undefined) ??
+        (typeof err?.code === "string" ? err.code : undefined) ??
+        "HTTP_ERROR"
+      throw new ApiError(message, res.status, code, json)
     }
 
     // Validate response
