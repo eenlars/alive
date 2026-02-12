@@ -26,7 +26,7 @@
     "cli": "docker exec -it redis redis-cli -a dev_password_only",
     "monitor": "docker exec -it redis redis-cli -a dev_password_only MONITOR",
     "health": "bash scripts/health-check.sh",
-    "test": "bash -c 'if docker ps >/dev/null 2>&1 && docker ps | grep -q \"redis\"; then bash scripts/test.sh; else echo \"(packages/redis) skipped: redis container not running (run: bun run redis:start)\"; fi'",
+    "test": "bash -c 'if docker ps --format \"{{.Names}}\" 2>/dev/null | grep -qx \"redis\"; then bash scripts/test.sh; else echo \"(packages/redis) skipped: redis container not running (run: bun run redis:start)\"; fi'",
     "test:integration": "bash scripts/test.sh",
     "clean": "docker-compose down -v"
   },
