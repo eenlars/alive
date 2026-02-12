@@ -4,10 +4,8 @@
  * Tests the core organization resolution logic for deployments
  */
 
-import { createClient } from "@supabase/supabase-js"
-import type { IamDatabase } from "@webalive/database"
 import { beforeEach, describe, expect, test } from "vitest"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { createServiceIamClient } from "@/lib/supabase/service"
 import { assertSupabaseServiceEnv } from "@/lib/test-helpers/integration-env"
 import { getUserDefaultOrgId, getUserOrganizations, validateUserOrgAccess } from "../org-resolver"
 
@@ -19,14 +17,11 @@ assertSupabaseServiceEnv()
 describe("Organization Resolver", () => {
   let testUserId: string
   let _testOrgId: string
-  let iam: ReturnType<typeof createClient<IamDatabase>>
+  let iam: ReturnType<typeof createServiceIamClient>
 
   beforeEach(async () => {
     // Create client directly for tests (bypasses Next.js cookies)
-    const { url, key } = getSupabaseCredentials("service")
-    iam = createClient<IamDatabase>(url, key, {
-      db: { schema: "iam" },
-    })
+    iam = createServiceIamClient()
 
     // Clean up any existing test data
     const { data: existingUsers } = await iam.from("users").select("user_id").eq("email", TEST_EMAIL)
@@ -39,8 +34,9 @@ describe("Organization Resolver", () => {
           .select("org_id")
           .in(
             "org_id",
-            (await iam.from("org_memberships").select("org_id").eq("user_id", user.user_id)).data?.map(m => m.org_id) ||
-              [],
+            (await iam.from("org_memberships").select("org_id").eq("user_id", user.user_id)).data?.map(
+              (m: { org_id: string }) => m.org_id,
+            ) || [],
           )
 
         if (orgs) {

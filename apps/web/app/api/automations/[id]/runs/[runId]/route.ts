@@ -5,15 +5,19 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
-import { createClient } from "@supabase/supabase-js"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
-import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
   params: Promise<{ id: string; runId: string }>
+}
+
+/** Subset returned by ownership-check queries (user_id exists in DB but not yet in generated types) */
+interface JobOwnershipRow {
+  user_id: string
 }
 
 /**
@@ -27,8 +31,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const { id: jobId, runId } = await context.params
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Verify job ownership first
     const { data: job } = await supabase.from("automation_jobs").select("user_id").eq("id", jobId).single()
@@ -40,7 +43,9 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       })
     }
 
-    if ((job as any).user_id !== user.id) {
+    const jobRow = job as unknown as JobOwnershipRow
+
+    if (jobRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 

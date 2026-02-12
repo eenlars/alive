@@ -1,617 +1,76 @@
 /**
- * CronService - In-process automation scheduler
+ * CronService - Worker Client
  *
- * Inspired by ClawdBot's cron system. Uses setTimeout-based scheduling
- * that wakes exactly when the next job is due, instead of polling.
+ * Scheduling and execution now live in apps/worker (standalone Bun process).
+ * This module provides thin wrappers that delegate to the worker's HTTP API.
  *
- * Features:
- * - Precise timing (wakes exactly when needed)
- * - Event system for real-time monitoring
- * - Retry logic with exponential backoff
- * - Concurrent job limits
- * - Posts summaries back to user's chat
+ * Routes that previously called pokeCronService() continue to work unchanged —
+ * the function now POSTs to the worker instead of re-arming a local timer.
  */
 
-import * as Sentry from "@sentry/nextjs"
-import { createClient, type SupabaseClient } from "@supabase/supabase-js"
-import { computeNextRunAtMs } from "@webalive/automation"
-import { getServerId } from "@webalive/shared"
-import { getSupabaseCredentials } from "@/lib/env/server"
-import { appendRunLog } from "./run-log"
+import { DEFAULTS } from "@webalive/shared"
 
-// ============================================
-// Types
-// ============================================
+export type { CronEvent, CronServiceConfig } from "@webalive/automation-engine"
 
-export type CronEvent = {
-  jobId: string
-  action: "started" | "finished" | "error" | "scheduled"
-  runAtMs?: number
-  durationMs?: number
-  status?: "success" | "failure" | "skipped"
-  error?: string
-  summary?: string
-  nextRunAtMs?: number
-}
-
-export type CronServiceConfig = {
-  /** Maximum concurrent jobs (default: 3) */
-  maxConcurrent?: number
-  /** Maximum retries before disabling job (default: 3) */
-  maxRetries?: number
-  /** Base retry delay in ms (default: 60000 = 1 minute) */
-  retryBaseDelayMs?: number
-  /** Event callback for monitoring */
-  onEvent?: (event: CronEvent) => void
-  /** Whether service is enabled (default: true in production) */
-  enabled?: boolean
-}
-
-type AutomationJob = {
-  id: string
-  site_id: string
-  user_id: string
-  org_id: string
-  name: string
-  trigger_type: "cron" | "webhook" | "one-time"
-  cron_schedule: string | null
-  cron_timezone: string | null
-  run_at: string | null
-  action_prompt: string | null
-  action_timeout_seconds: number | null
-  action_model: string | null
-  action_thinking: string | null
-  is_active: boolean
-  next_run_at: string | null
-  running_at: string | null
-  last_run_status: string | null
-  consecutive_failures?: number
-}
-
-// ============================================
-// Service State
-// ============================================
-
-type ServiceState = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any, "public", any>
-  config: Required<CronServiceConfig>
-  serverId: string
-  timer: NodeJS.Timeout | null
-  runningJobs: Set<string>
-  started: boolean
-  stopping: boolean
-}
-
-// Singleton state
-let state: ServiceState | null = null
-
-// ============================================
-// Public API
-// ============================================
+const WORKER_URL = `http://localhost:${DEFAULTS.AUTOMATION_WORKER_PORT}`
 
 /**
- * Start the cron service
+ * Poke the automation worker to immediately re-check for due jobs.
+ * Call this when jobs are created, updated, or re-enabled.
  */
-export async function startCronService(config: CronServiceConfig = {}): Promise<void> {
-  if (state?.started) {
-    console.log("[CronService] Already started")
-    return
+export function pokeCronService(): void {
+  // Fire-and-forget POST to worker (authenticated)
+  const headers: Record<string, string> = {}
+  if (process.env.JWT_SECRET) {
+    headers["X-Internal-Secret"] = process.env.JWT_SECRET
   }
-
-  const { url, key } = getSupabaseCredentials("service")
-  const supabase = createClient(url, key, { db: { schema: "app" } })
-
-  const enabled = config.enabled ?? process.env.NODE_ENV === "production"
-  if (!enabled) {
-    console.log("[CronService] Disabled (not production)")
-    return
-  }
-
-  const serverId = getServerId()
-  if (!serverId) {
-    throw new Error("[CronService] Cannot start: serverId not configured in server-config.json")
-  }
-
-  state = {
-    supabase,
-    serverId,
-    config: {
-      maxConcurrent: config.maxConcurrent ?? 3,
-      maxRetries: config.maxRetries ?? 3,
-      retryBaseDelayMs: config.retryBaseDelayMs ?? 60_000,
-      onEvent: config.onEvent ?? (() => {}),
-      enabled: true,
-    },
-    timer: null,
-    runningJobs: new Set(),
-    started: true,
-    stopping: false,
-  }
-
-  console.log(`[CronService] Starting (server: ${serverId})...`)
-  await armTimer()
-  console.log("[CronService] Started")
+  fetch(`${WORKER_URL}/poke`, { method: "POST", headers }).catch(err => {
+    console.warn("[CronService] Failed to poke worker:", err instanceof Error ? err.message : err)
+  })
 }
 
 /**
- * Stop the cron service
+ * Get worker service status.
+ * Returns a default if the worker is unreachable.
  */
-export function stopCronService(): void {
-  if (!state) return
-
-  console.log("[CronService] Stopping...")
-  state.stopping = true
-
-  if (state.timer) {
-    clearTimeout(state.timer)
-    state.timer = null
-  }
-
-  state.started = false
-  state = null
-  console.log("[CronService] Stopped")
-}
-
-/**
- * Get service status
- */
-export function getCronServiceStatus(): {
+export async function getCronServiceStatus(): Promise<{
   started: boolean
   runningJobs: number
   nextWakeAt: Date | null
-} {
-  if (!state) {
-    return { started: false, runningJobs: 0, nextWakeAt: null }
+}> {
+  try {
+    const res = await fetch(`${WORKER_URL}/health`, { signal: AbortSignal.timeout(2000) })
+    if (res.ok) {
+      const data = await res.json()
+      return {
+        started: data.started ?? false,
+        runningJobs: data.runningJobs ?? 0,
+        nextWakeAt: null,
+      }
+    }
+  } catch {
+    // Worker unreachable
   }
-
-  return {
-    started: state.started,
-    runningJobs: state.runningJobs.size,
-    nextWakeAt: null, // Would need to track this
-  }
+  return { started: false, runningJobs: 0, nextWakeAt: null }
 }
 
 /**
- * Manually trigger a job (for testing or immediate execution)
+ * @deprecated Scheduling now lives in apps/worker. This is a no-op.
  */
-export async function triggerJob(jobId: string): Promise<{
-  success: boolean
-  error?: string
-}> {
-  if (!state) {
-    return { success: false, error: "Service not started" }
-  }
-
-  const { data: job } = await state.supabase.from("automation_jobs").select("*").eq("id", jobId).single()
-
-  if (!job) {
-    return { success: false, error: "Job not found" }
-  }
-
-  await executeJob(job, { forced: true })
-  return { success: true }
+export async function startCronService(): Promise<void> {
+  console.log("[CronService] Scheduling is handled by the automation worker (apps/worker)")
 }
 
-// ============================================
-// Internal: Timer Management
-// ============================================
-
-const MAX_TIMEOUT_MS = 2 ** 31 - 1 // Max setTimeout value
-
-async function armTimer(): Promise<void> {
-  if (!state || state.stopping) return
-
-  // Clear existing timer
-  if (state.timer) {
-    clearTimeout(state.timer)
-    state.timer = null
-  }
-
-  // Find next wake time
-  const nextWakeMs = await getNextWakeTime()
-  if (!nextWakeMs) {
-    console.log("[CronService] No jobs scheduled, sleeping...")
-    // Re-check in 5 minutes even if no jobs (new jobs might be added)
-    state.timer = setTimeout(() => void armTimer(), 5 * 60 * 1000)
-    return
-  }
-
-  // Floor at 1s to prevent hot-looping when next_run_at is in the past
-  const delay = Math.max(1000, nextWakeMs - Date.now())
-  const clampedDelay = Math.min(delay, MAX_TIMEOUT_MS)
-  const nextWakeDate = new Date(nextWakeMs)
-
-  console.log(`[CronService] Next wake: ${nextWakeDate.toISOString()} (in ${Math.round(clampedDelay / 1000)}s)`)
-
-  state.timer = setTimeout(() => {
-    void onTimerTick().catch(err => {
-      console.error("[CronService] Timer tick failed:", err)
-      Sentry.captureException(err)
-    })
-  }, clampedDelay)
+/**
+ * @deprecated Scheduling now lives in apps/worker. This is a no-op.
+ */
+export function stopCronService(): void {
+  // No-op — worker manages its own lifecycle
 }
 
-async function getNextWakeTime(): Promise<number | null> {
-  if (!state) return null
-
-  const { data: jobs } = await state.supabase
-    .from("automation_jobs")
-    .select("next_run_at, domains!inner(server_id)")
-    .eq("is_active", true)
-    .is("running_at", null)
-    .not("next_run_at", "is", null)
-    .eq("domains.server_id", state.serverId)
-    .order("next_run_at", { ascending: true })
-    .limit(1)
-
-  if (!jobs?.length || !jobs[0].next_run_at) {
-    return null
-  }
-
-  return new Date(jobs[0].next_run_at).getTime()
-}
-
-async function onTimerTick(): Promise<void> {
-  if (!state || state.stopping) return
-
-  try {
-    await runDueJobs()
-  } finally {
-    await armTimer()
-  }
-}
-
-// ============================================
-// Internal: Job Execution
-// ============================================
-
-async function runDueJobs(): Promise<void> {
-  if (!state) return
-
-  const now = Date.now()
-
-  // Reap stale jobs: if running_at is older than 1 hour, the executor likely crashed.
-  // Clear running_at so the job can be picked up again. Scoped to this server.
-  const staleThreshold = new Date(now - 60 * 60 * 1000).toISOString()
-  const { data: staleJobs } = await state.supabase
-    .from("automation_jobs")
-    .select("id, name, running_at, domains!inner(server_id)")
-    .eq("is_active", true)
-    .not("running_at", "is", null)
-    .eq("domains.server_id", state.serverId)
-    .lt("running_at", staleThreshold)
-
-  if (staleJobs?.length) {
-    for (const stale of staleJobs) {
-      console.warn(`[CronService] Reaping stale job "${stale.name}" (${stale.id}), stuck since ${stale.running_at}`)
-      await state.supabase.from("automation_jobs").update({ running_at: null }).eq("id", stale.id)
-    }
-  }
-
-  // Get due jobs that aren't already running (scoped to this server)
-  const { data: dueJobs } = await state.supabase
-    .from("automation_jobs")
-    .select("*, domains!inner(server_id)")
-    .eq("is_active", true)
-    .is("running_at", null)
-    .eq("domains.server_id", state.serverId)
-    .lte("next_run_at", new Date(now).toISOString())
-    .order("next_run_at", { ascending: true })
-
-  if (!dueJobs?.length) return
-
-  const jobDetails = dueJobs.map(j => `"${j.name}" (${j.id})`).join(", ")
-  console.log(`[CronService] Found ${dueJobs.length} due job(s): ${jobDetails}`)
-
-  // Deduplicate by job ID (PostgREST joins can theoretically return duplicates)
-  const seen = new Set<string>()
-  const uniqueJobs = dueJobs.filter(j => {
-    if (seen.has(j.id)) return false
-    seen.add(j.id)
-    return true
-  })
-
-  if (uniqueJobs.length < dueJobs.length) {
-    console.warn(`[CronService] Deduplicated ${dueJobs.length} → ${uniqueJobs.length} jobs`)
-  }
-
-  // Filter out already running and respect concurrency limit
-  const availableSlots = state.config.maxConcurrent - state.runningJobs.size
-  const jobsToRun = uniqueJobs.filter(j => !state!.runningJobs.has(j.id)).slice(0, availableSlots)
-
-  if (jobsToRun.length < uniqueJobs.length) {
-    console.log(
-      `[CronService] Concurrency limit: executing ${jobsToRun.length}/${uniqueJobs.length} jobs (${state.runningJobs.size}/${state.config.maxConcurrent} slots in use)`,
-    )
-  }
-
-  console.log(`[CronService] Executing ${jobsToRun.length} job(s): ${jobsToRun.map(j => j.id).join(", ")}`)
-
-  // Execute jobs concurrently
-  await Promise.all(jobsToRun.map(job => executeJob(job, { forced: false })))
-}
-
-async function executeJob(job: AutomationJob, _opts: { forced: boolean }): Promise<void> {
-  if (!state) return
-
-  const startedAt = Date.now()
-
-  // Atomic claim: only proceed if we're the one who sets running_at.
-  // This prevents duplicate execution when multiple instances share the same DB.
-  const claimTs = new Date(startedAt).toISOString()
-  const { data: claimed, error: claimError } = await state.supabase
-    .from("automation_jobs")
-    .update({ running_at: claimTs })
-    .eq("id", job.id)
-    .is("running_at", null)
-    .select("id")
-
-  if (claimError) {
-    console.error(`[CronService] Claim error for "${job.name}" (${job.id}):`, claimError)
-    Sentry.captureException(claimError)
-    return
-  }
-
-  if (!claimed?.length) {
-    console.log(`[CronService] Job "${job.name}" (${job.id}) already claimed by another instance, skipping`)
-    return
-  }
-
-  console.log(`[CronService] Claimed job "${job.name}" (${job.id}) at ${claimTs}`)
-  state.runningJobs.add(job.id)
-
-  // Emit started event
-  emit({
-    jobId: job.id,
-    action: "started",
-    runAtMs: startedAt,
-  })
-
-  // Log to run log
-  await appendRunLog(job.id, {
-    action: "started",
-    runAtMs: startedAt,
-  }).catch(() => {}) // Don't fail if logging fails
-
-  try {
-    // Get site hostname
-    console.log(`[CronService] Looking up site for site_id: ${job.site_id}`)
-    const { data: site, error: siteError } = await state.supabase
-      .from("domains")
-      .select("hostname")
-      .eq("domain_id", job.site_id)
-      .single()
-
-    if (siteError) {
-      console.error("[CronService] Error querying domains table:", siteError)
-      throw new Error(`Failed to lookup site: ${siteError.message}`)
-    }
-
-    if (!site?.hostname) {
-      console.error(`[CronService] Site not found for site_id: ${job.site_id}`)
-      throw new Error(`Site not found (site_id: ${job.site_id})`)
-    }
-
-    console.log(`[CronService] Resolved site ${job.site_id} to hostname: ${site.hostname}`)
-
-    // Run the automation
-    const { runAutomationJob } = await import("./executor")
-    const result = await runAutomationJob({
-      jobId: job.id,
-      userId: job.user_id,
-      orgId: job.org_id,
-      workspace: site.hostname,
-      prompt: job.action_prompt || "",
-      timeoutSeconds: job.action_timeout_seconds || 300,
-      model: job.action_model || undefined,
-      thinkingPrompt: job.action_thinking || undefined,
-    })
-
-    const durationMs = Date.now() - startedAt
-
-    if (result.success) {
-      await finishJob(job, {
-        status: "success",
-        durationMs,
-        summary: extractSummary(result.response),
-        messages: result.messages,
-      })
-    } else {
-      await finishJob(job, {
-        status: "failure",
-        durationMs,
-        error: result.error,
-        messages: result.messages,
-      })
-    }
-  } catch (error) {
-    const durationMs = Date.now() - startedAt
-    Sentry.withScope(scope => {
-      scope.setTag("category", "cron")
-      scope.setTag("jobId", job.id)
-      scope.setTag("jobName", job.name)
-      Sentry.captureException(error)
-    })
-    await finishJob(job, {
-      status: "failure",
-      durationMs,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  } finally {
-    state.runningJobs.delete(job.id)
-  }
-}
-
-async function finishJob(
-  job: AutomationJob,
-  result: {
-    status: "success" | "failure" | "skipped"
-    durationMs: number
-    error?: string
-    summary?: string
-    messages?: unknown[]
-  },
-): Promise<void> {
-  if (!state) return
-
-  console.log(
-    `[CronService] finishJob "${job.name}" (${job.id}): ${result.status} in ${result.durationMs}ms${result.error ? ` - ${result.error.slice(0, 100)}` : ""}`,
-  )
-
-  const now = Date.now()
-
-  // Compute next run time
-  let nextRunAt: string | null = null
-  let consecutiveFailures = job.consecutive_failures || 0
-  let isActive = job.is_active
-
-  if (result.status === "success") {
-    consecutiveFailures = 0
-
-    if (job.trigger_type === "one-time") {
-      // One-time job completed, disable it
-      isActive = false
-    } else if (job.trigger_type === "cron" && job.cron_schedule) {
-      // Compute next cron run
-      const nextMs = computeNextRunAtMs(
-        { kind: "cron", expr: job.cron_schedule, tz: job.cron_timezone || undefined },
-        now,
-      )
-      if (nextMs) {
-        nextRunAt = new Date(nextMs).toISOString()
-      }
-    }
-  } else if (result.status === "failure") {
-    consecutiveFailures += 1
-
-    if (consecutiveFailures >= state.config.maxRetries) {
-      // Too many failures, disable the job
-      console.warn(
-        `[CronService] Job "${job.name}" (${job.id}) DISABLED after ${consecutiveFailures}/${state.config.maxRetries} failures. Last error: ${result.error}`,
-      )
-      isActive = false
-    } else {
-      // Exponential backoff for retry
-      const backoffMs = state.config.retryBaseDelayMs * 2 ** (consecutiveFailures - 1)
-      nextRunAt = new Date(now + backoffMs).toISOString()
-      console.log(
-        `[CronService] Job "${job.name}" (${job.id}) failed: ${result.error || "unknown error"} (attempt ${consecutiveFailures}/${state.config.maxRetries}) - retrying in ${Math.round(backoffMs / 1000)}s`,
-      )
-    }
-  }
-
-  // Update job in DB
-  await state.supabase
-    .from("automation_jobs")
-    .update({
-      running_at: null,
-      last_run_at: new Date(now - result.durationMs).toISOString(),
-      last_run_status: result.status,
-      last_run_error: result.error || null,
-      last_run_duration_ms: result.durationMs,
-      next_run_at: nextRunAt,
-      is_active: isActive,
-      consecutive_failures: consecutiveFailures,
-    })
-    .eq("id", job.id)
-
-  // Create run record with full message log
-  const { error: runInsertError } = await state.supabase.from("automation_runs").insert({
-    job_id: job.id,
-    started_at: new Date(now - result.durationMs).toISOString(),
-    completed_at: new Date(now).toISOString(),
-    duration_ms: result.durationMs,
-    status: result.status,
-    error: result.error,
-    result: result.summary ? { summary: result.summary } : null,
-    messages: result.messages ?? null, // Full conversation log
-    triggered_by: "scheduler",
-  })
-
-  if (runInsertError) {
-    console.error(`[CronService] Failed to insert run record for "${job.name}":`, runInsertError)
-    Sentry.captureException(runInsertError)
-  }
-
-  // Emit finished event
-  emit({
-    jobId: job.id,
-    action: "finished",
-    status: result.status,
-    durationMs: result.durationMs,
-    error: result.error,
-    summary: result.summary,
-    nextRunAtMs: nextRunAt ? new Date(nextRunAt).getTime() : undefined,
-  })
-
-  // Log to run log (includes full messages for debugging)
-  await appendRunLog(job.id, {
-    action: "finished",
-    status: result.status,
-    error: result.error,
-    summary: result.summary,
-    runAtMs: now - result.durationMs,
-    durationMs: result.durationMs,
-    nextRunAtMs: nextRunAt ? new Date(nextRunAt).getTime() : undefined,
-    retryAttempt: consecutiveFailures > 0 ? consecutiveFailures : undefined,
-    messages: result.messages,
-  }).catch(() => {}) // Don't fail if logging fails
-
-  // Post summary to user's chat (if successful)
-  if (result.status === "success" && result.summary) {
-    await postSummaryToChat(job, result.summary)
-  }
-}
-
-// ============================================
-// Internal: Helpers
-// ============================================
-
-function emit(event: CronEvent): void {
-  if (!state) return
-  try {
-    state.config.onEvent(event)
-  } catch {
-    // Ignore callback errors
-  }
-}
-
-function extractSummary(response: string | undefined): string | undefined {
-  if (!response) return undefined
-
-  // Try to extract a concise summary from the response
-  // Look for common patterns like "I added X articles" or "Updated Y files"
-  const lines = response.split("\n").filter(l => l.trim())
-
-  // Return first meaningful line, truncated
-  const firstLine = lines[0]?.trim() || ""
-  if (firstLine.length > 200) {
-    return `${firstLine.slice(0, 197)}...`
-  }
-  return firstLine || undefined
-}
-
-async function postSummaryToChat(job: AutomationJob, summary: string): Promise<void> {
-  // Broadcast to connected SSE clients
-  try {
-    const { broadcastAutomationEvent } = await import("@/app/api/automations/events/route")
-    broadcastAutomationEvent(job.user_id, {
-      type: "finished",
-      jobId: job.id,
-      jobName: job.name,
-      status: "success",
-      summary,
-    })
-    console.log(`[CronService] Job "${job.name}" (${job.id}) completed and broadcasted to user ${job.user_id}`)
-  } catch (error) {
-    // SSE broadcast failed, not critical but log it
-    console.warn(
-      `[CronService] Failed to broadcast completion for job "${job.name}" (${job.id}):`,
-      error instanceof Error ? error.message : String(error),
-    )
-  }
-
-  // Log summary for debugging
-  console.log(`[CronService] Job "${job.name}" (${job.id}) summary: ${summary}`)
+/**
+ * @deprecated Use the worker's /trigger/:id endpoint instead.
+ */
+export async function triggerJob(_jobId: string): Promise<{ success: boolean; error?: string }> {
+  return { success: false, error: "Use the worker HTTP API to trigger jobs" }
 }

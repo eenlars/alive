@@ -1,0 +1,28 @@
+{
+  "name": "@webalive/worker",
+  "version": "1.0.0",
+  "description": "Automation scheduler. Finds due jobs, delegates execution to the web app.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "ci": "biome ci ."
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.9",
+    "@supabase/supabase-js": "^2.49.8",
+    "@webalive/database": "workspace:*",
+    "@webalive/shared": "workspace:*",
+    "hono": "^4.7.10"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.2",
+    "@types/node": "24.9.1",
+    "typescript": "5.9.3"
+  }
+}

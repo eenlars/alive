@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs"
+import { PATHS } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { isManagerAuthenticated } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -7,6 +8,7 @@ import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 import { runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
 import { restartSystemdService } from "@/lib/workspace-execution/systemd-restart"
+import { domainToServiceName } from "@/lib/workspace-service-manager"
 
 /**
  * POST /api/manager/restart-service
@@ -34,9 +36,10 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const workspaceRoot = `/srv/webalive/sites/${domain}/user`
-    const serviceSlug = domain.replace(/\./g, "-")
-    const serviceName = `site@${serviceSlug}.service`
+    const serviceName = domainToServiceName(domain)
+    const isTemplate = serviceName.startsWith("template@")
+    const baseDir = isTemplate ? PATHS.TEMPLATES_ROOT : PATHS.SITES_ROOT
+    const workspaceRoot = `${baseDir}/${domain}/user`
 
     console.log(`[Manager] Restarting service for domain: ${domain}`)
 

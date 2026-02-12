@@ -29,7 +29,8 @@ function loadEnvFile() {
 }
 
 export const sharedConfig = {
-  plugins: [tsconfigPaths() as Plugin],
+  // Restrict tsconfig resolution to this app so vitest doesn't scan build artifacts under .builds/*
+  plugins: [tsconfigPaths({ projects: [join(process.cwd(), "tsconfig.json")], ignoreConfigErrors: true }) as Plugin],
   resolve: {
     preserveSymlinks: false,
     // Use development builds for testing (required for React act() and testing-library)

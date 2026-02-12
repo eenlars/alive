@@ -1,6 +1,7 @@
 "use client"
 
 import { create } from "zustand"
+import { resetPostHogIdentity } from "@/components/providers/PostHogProvider"
 
 /**
  * Auth Store - Manages authentication state and session expiry
@@ -103,6 +104,9 @@ const useAuthStoreBase = create<AuthStore>()((set, _get) => {
     },
 
     redirectToLogin: () => {
+      // Clear PostHog identity before redirect
+      resetPostHogIdentity()
+
       // Clear state before redirect
       set({
         status: "unauthenticated",

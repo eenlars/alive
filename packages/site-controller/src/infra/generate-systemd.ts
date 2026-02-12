@@ -11,28 +11,7 @@
 import { execSync } from "node:child_process"
 import { constants } from "node:fs"
 import { access, mkdir, readFile, writeFile } from "node:fs/promises"
-import { requireEnv } from "@webalive/shared"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ServerConfig {
-  serverId?: string
-  paths?: {
-    aliveRoot?: string
-  }
-  domains?: {
-    previewBase?: string
-    frameAncestors?: string[]
-  }
-  previewProxy?: {
-    port?: number
-  }
-  generated?: {
-    dir?: string
-  }
-}
+import { parseServerConfig, requireEnv, type ServerConfig } from "@webalive/shared"
 
 interface ServiceConfig {
   name: string
@@ -240,21 +219,12 @@ async function main() {
   // Check dependencies first
   const bunPath = await checkDependencies()
 
-  // Load config
+  // Load and validate config (Zod schema validates all required fields)
   const raw = await readFile(CONFIG_PATH, "utf8")
-  const config: ServerConfig = JSON.parse(raw)
+  const config: ServerConfig = parseServerConfig(raw)
 
-  const aliveRoot = config.paths?.aliveRoot
-  if (!aliveRoot) {
-    console.error(`${COLORS.red}✗ paths.aliveRoot not set in ${CONFIG_PATH}${COLORS.reset}`)
-    process.exit(1)
-  }
-
-  const generatedDir = config.generated?.dir
-  if (!generatedDir) {
-    console.error(`${COLORS.red}✗ generated.dir not set in ${CONFIG_PATH}${COLORS.reset}`)
-    process.exit(1)
-  }
+  const { aliveRoot } = config.paths
+  const { dir: generatedDir } = config.generated
   await mkdir(generatedDir, { recursive: true })
 
   console.log(`  aliveRoot: ${aliveRoot}`)
@@ -324,15 +294,8 @@ async function main() {
   // Generate preview-proxy service (opt-in: only when previewProxy.port is set)
   const previewPort = config.previewProxy?.port
   if (previewPort) {
-    const previewBase = config.domains?.previewBase
-    if (!previewBase) {
-      console.error(
-        `${COLORS.red}✗ domains.previewBase not set in ${CONFIG_PATH} (required for preview-proxy)${COLORS.reset}`,
-      )
-      process.exit(1)
-    }
-
-    const frameAncestors = config.domains?.frameAncestors ?? []
+    const previewBase = config.domains.previewBase
+    const frameAncestors = config.domains.frameAncestors ?? []
     const portMapPath = `${generatedDir}/port-map.json`
 
     const previewProxyCfg: GoServiceConfig = {

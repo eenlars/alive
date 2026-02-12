@@ -13,31 +13,19 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
-import { createClient } from "@supabase/supabase-js"
-import type { AppDatabase, IamDatabase } from "@webalive/database"
 import { llmTokensToCredits } from "@/lib/credits"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { createServiceAppClient, createServiceIamClient } from "@/lib/supabase/service"
 
 // Always use direct service role clients (no cookies needed for service operations)
 // This allows the credit system to work in both request contexts (API routes)
 // and non-request contexts (automation executor, background jobs)
 
-async function getIamClient() {
-  const { url, key } = getSupabaseCredentials("service")
-  return createClient<IamDatabase>(url, key, {
-    db: {
-      schema: "iam",
-    },
-  })
+function getIamClient() {
+  return createServiceIamClient()
 }
 
-async function getAppClient() {
-  const { url, key } = getSupabaseCredentials("service")
-  return createClient<AppDatabase>(url, key, {
-    db: {
-      schema: "app",
-    },
-  })
+function getAppClient() {
+  return createServiceAppClient()
 }
 
 /**
@@ -49,7 +37,7 @@ async function getAppClient() {
  * @returns true if successful, false otherwise
  */
 async function updateCreditsInDatabase(orgId: string, newCredits: number): Promise<boolean> {
-  const iam = await getIamClient()
+  const iam = getIamClient()
   const { error } = await iam
     .from("orgs")
     .update({
@@ -125,7 +113,7 @@ async function getOrgIdForDomain(domain: string): Promise<string | null> {
   }
 
   // Cache miss or expired - query database
-  const app = await getAppClient()
+  const app = getAppClient()
   const { data, error } = await app.from("domains").select("org_id").eq("hostname", domain).single()
 
   if (error || !data || !data.org_id) {
@@ -159,7 +147,7 @@ export async function getOrgCredits(domain: string): Promise<number | null> {
   }
 
   // Step 2: Get credits from org
-  const iam = await getIamClient()
+  const iam = getIamClient()
   const { data, error } = await iam.from("orgs").select("credits").eq("org_id", orgId).single()
 
   if (error || !data) {
@@ -220,7 +208,7 @@ export async function chargeTokensFromCredits(domain: string, llmTokensUsed: num
 
   // Step 3: Atomic deduction using Supabase RPC
   // This prevents race conditions by performing the check and update atomically in the database
-  const iam = await getIamClient()
+  const iam = getIamClient()
   const { data, error } = await iam.rpc("deduct_credits", {
     p_org_id: orgId,
     p_amount: chargedCredits,
@@ -304,7 +292,7 @@ export async function chargeCreditsDirectly(domain: string, creditsToCharge: num
 
   // Step 2: Atomic deduction using Supabase RPC
   // This prevents race conditions by performing the check and update atomically in the database
-  const iam = await getIamClient()
+  const iam = getIamClient()
   const { data, error } = await iam.rpc("deduct_credits", {
     p_org_id: orgId,
     p_amount: creditsToCharge,
@@ -403,8 +391,8 @@ export async function getAllOrganizationCredits(): Promise<Map<string, number>> 
   const creditsMap = new Map<string, number>()
 
   try {
-    const app = await getAppClient()
-    const iam = await getIamClient()
+    const app = getAppClient()
+    const iam = getIamClient()
 
     // Get all domains with their org IDs
     const { data: domains, error: domainsError } = await app.from("domains").select("hostname, org_id")

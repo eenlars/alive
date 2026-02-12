@@ -15,41 +15,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { createClient } from "@supabase/supabase-js"
-import { requireEnv } from "@webalive/shared"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ServerConfig {
-  serverId: string
-  paths: {
-    aliveRoot: string
-    sitesRoot: string
-    imagesStorage: string
-  }
-  domains: {
-    main: string // Base domain - all env domains derived from this
-    cookieDomain: string
-    previewBase?: string // e.g., "sonno.tech" — the wildcard domain for preview subdomains
-  }
-  shell: {
-    domains: string[]
-    listen: string
-    upstream: string
-  }
-  generated: {
-    dir: string
-    caddySites: string
-    caddyShell: string
-    nginxMap: string
-  }
-  // Go preview proxy — when set, wildcard preview routing goes to this port
-  // instead of each environment's Next.js port. Enables native WebSocket support.
-  previewProxy?: {
-    port: number // e.g., 5055
-  }
-}
+import { parseServerConfig, requireEnv, type ServerConfig } from "@webalive/shared"
 
 interface EnvironmentConfigRaw {
   key: string
@@ -91,11 +57,7 @@ function filterReservedDomains(domains: DomainRow[], environments: EnvironmentCo
 
 async function loadServerConfig(): Promise<ServerConfig> {
   const raw = await readFile(SERVER_CONFIG_PATH, "utf8")
-  const cfg = JSON.parse(raw) as ServerConfig
-  must(cfg.serverId, "server-config.json missing serverId")
-  must(cfg.domains?.main, "server-config.json missing domains.main")
-  must(cfg.generated?.dir, "server-config.json missing generated.dir")
-  return cfg
+  return parseServerConfig(raw)
 }
 
 async function loadEnvironments(aliveRoot: string, mainDomain: string): Promise<EnvironmentConfig[]> {

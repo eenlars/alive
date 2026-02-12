@@ -87,10 +87,18 @@ export const isHandleBodyError = (x: unknown): x is NextResponse => x instanceof
  * Creates a typed JSON response that is validated against the
  * apiSchemas[endpoint].res schema *before* sending to the client.
  *
+ * The payload must have the same top-level keys as the response schema,
+ * but values can be wider types (e.g. DB rows with `Json` where the
+ * schema expects `string | null`). Zod validates exact types at runtime.
+ *
  * Usage:
- *   return ok('call', { success: true, data: {...} })
+ *   return alrighty('automations/create', { ok: true, automation: dbRow })
  */
-export function alrighty<E extends Endpoint>(endpoint: E, payload: Res<E>, init?: ResponseInit): NextResponse {
+export function alrighty<E extends Endpoint, P extends { [K in keyof Res<E>]: unknown }>(
+  endpoint: E,
+  payload: P,
+  init?: ResponseInit,
+): NextResponse {
   const schema = apiSchemas[endpoint].res
   const parsed = schema.parse(payload)
   return NextResponse.json(parsed, init)

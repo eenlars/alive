@@ -53,6 +53,7 @@
     "@tanstack/react-query-devtools": "^5.91.3",
     "@types/bcrypt": "^6.0.0",
     "@webalive/automation": "workspace:*",
+    "@webalive/automation-engine": "workspace:*",
     "@webalive/database": "workspace:*",
     "@webalive/env": "workspace:*",
     "@webalive/images": "workspace:*",

@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "alive-mono",
@@ -110,6 +111,7 @@
         "@tanstack/react-query-devtools": "^5.91.3",
         "@types/bcrypt": "^6.0.0",
         "@webalive/automation": "workspace:*",
+        "@webalive/automation-engine": "workspace:*",
         "@webalive/database": "workspace:*",
         "@webalive/env": "workspace:*",
         "@webalive/images": "workspace:*",
@@ -181,6 +183,22 @@
     "apps/widget-server": {
       "name": "@webalive/widget-server",
     },
+    "apps/worker": {
+      "name": "@webalive/worker",
+      "version": "1.0.0",
+      "dependencies": {
+        "@hono/node-server": "^1.19.9",
+        "@supabase/supabase-js": "^2.49.8",
+        "@webalive/database": "workspace:*",
+        "@webalive/shared": "workspace:*",
+        "hono": "^4.7.10",
+      },
+      "devDependencies": {
+        "@biomejs/biome": "^2.3.2",
+        "@types/node": "24.9.1",
+        "typescript": "5.9.3",
+      },
+    },
     "packages/alive-tagger": {
       "name": "@alive-game/alive-tagger",
       "version": "0.1.4",
@@ -213,6 +231,20 @@
       "version": "1.0.0",
       "dependencies": {
         "croner": "^9.0.0",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.3",
+        "typescript": "^5.7.2",
+      },
+    },
+    "packages/automation-engine": {
+      "name": "@webalive/automation-engine",
+      "version": "1.0.0",
+      "dependencies": {
+        "@supabase/supabase-js": "^2.49.8",
+        "@webalive/automation": "workspace:*",
+        "@webalive/database": "workspace:*",
+        "@webalive/shared": "workspace:*",
       },
       "devDependencies": {
         "@types/node": "^22.0.3",
@@ -291,6 +323,9 @@
     "packages/shared": {
       "name": "@webalive/shared",
       "version": "1.0.0",
+      "dependencies": {
+        "zod": "^4.1.5",
+      },
       "devDependencies": {
         "@types/node": "^22.5.2",
         "typescript": "^5.9.3",
@@ -1138,6 +1173,8 @@
 
     "@webalive/automation": ["@webalive/automation@workspace:packages/automation"],
 
+    "@webalive/automation-engine": ["@webalive/automation-engine@workspace:packages/automation-engine"],
+
     "@webalive/broker": ["@webalive/broker@workspace:apps/broker"],
 
     "@webalive/database": ["@webalive/database@workspace:packages/database"],
@@ -1173,6 +1210,8 @@
     "@webalive/web": ["@webalive/web@workspace:apps/web"],
 
     "@webalive/widget-server": ["@webalive/widget-server@workspace:apps/widget-server"],
+
+    "@webalive/worker": ["@webalive/worker@workspace:apps/worker"],
 
     "@webalive/worker-pool": ["@webalive/worker-pool@workspace:packages/worker-pool"],
 
@@ -2778,6 +2817,8 @@
 
     "@webalive/automation/@types/node": ["@types/node@22.19.9", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-PD03/U8g1F9T9MI+1OBisaIARhSzeidsUjQaf51fOxrfjeiKN9bLVO06lHuHYjxdnqLWJijJHfqXPSJri2EM2A=="],
 
+    "@webalive/automation-engine/@types/node": ["@types/node@22.19.9", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-PD03/U8g1F9T9MI+1OBisaIARhSzeidsUjQaf51fOxrfjeiKN9bLVO06lHuHYjxdnqLWJijJHfqXPSJri2EM2A=="],
+
     "@webalive/broker/@types/node": ["@types/node@24.9.1", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg=="],
 
     "@webalive/database/@types/node": ["@types/node@22.19.9", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-PD03/U8g1F9T9MI+1OBisaIARhSzeidsUjQaf51fOxrfjeiKN9bLVO06lHuHYjxdnqLWJijJHfqXPSJri2EM2A=="],
@@ -2799,6 +2840,8 @@
     "@webalive/web/@types/node": ["@types/node@24.9.1", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg=="],
 
     "@webalive/web/croner": ["croner@10.0.1", "", {}, "sha512-ixNtAJndqh173VQ4KodSdJEI6nuioBWI0V1ITNKhZZsO0pEMoDxz539T4FTTbSZ/xIOSuDnzxLVRqBVSvPNE2g=="],
+
+    "@webalive/worker/@types/node": ["@types/node@24.9.1", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg=="],
 
     "@webalive/worker-pool/@types/node": ["@types/node@20.19.32", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-Ez8QE4DMfhjjTsES9K2dwfV258qBui7qxUsoaixZDiTzbde4U12e1pXGNu/ECsUIOi5/zoCxAQxIhQnaUQ2VvA=="],
 
@@ -3003,6 +3046,8 @@
     "@prisma/instrumentation/@opentelemetry/instrumentation/@opentelemetry/api-logs": ["@opentelemetry/api-logs@0.207.0", "", { "dependencies": { "@opentelemetry/api": "^1.3.0" } }, "sha512-lAb0jQRVyleQQGiuuvCOTDVspc14nx6XJjP4FspJ1sNARo3Regq4ZZbrc3rN4b1TYSuUCvgH+UXUPug4SLOqEQ=="],
 
     "@sentry/cli/https-proxy-agent/agent-base": ["agent-base@6.0.2", "", { "dependencies": { "debug": "4" } }, "sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ=="],
+
+    "@webalive/automation-engine/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 
     "@webalive/automation/@types/node/undici-types": ["undici-types@6.21.0", "", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 

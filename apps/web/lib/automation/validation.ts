@@ -5,10 +5,9 @@
  * All validators are defensive and won't throw.
  */
 
-import { createClient } from "@supabase/supabase-js"
 import { getWorkspacePath } from "@webalive/shared"
 import { Cron } from "croner"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 /**
  * Validate a cron schedule and get the next 3 run times
@@ -267,8 +266,7 @@ export async function validateSiteId(siteId: string | undefined): Promise<{
   }
 
   try {
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     const { data: site, error } = await supabase.from("domains").select("hostname").eq("domain_id", siteId).single()
 
