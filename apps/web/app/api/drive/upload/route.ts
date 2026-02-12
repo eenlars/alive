@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
     Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
       requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: "Internal server error",
     })
   }
 }

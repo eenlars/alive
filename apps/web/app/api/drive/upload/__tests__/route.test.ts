@@ -217,6 +217,22 @@ describe("POST /api/drive/upload", () => {
   })
 
   describe("Security", () => {
+    it("should sanitize path traversal filenames", async () => {
+      const file = new File(["hack"], "../../../etc/passwd", { type: "text/plain" })
+      const req = createMockUploadRequest({ file, workspace: "test" })
+      const response = await POST(req)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      // The saved path should NOT contain traversal sequences
+      expect(data.path).not.toContain("..")
+      expect(data.path).not.toContain("/")
+      // writeAsWorkspaceOwner should have been called with a path inside the drive
+      const writePath = vi.mocked(writeAsWorkspaceOwner).mock.calls[0]?.[0]
+      expect(writePath).toBeDefined()
+      expect(writePath!.startsWith(TEST_DRIVE)).toBe(true)
+    })
+
     it("should not leak internal error messages", async () => {
       mockStat.mockRejectedValue(new Error("EPERM: operation not permitted"))
 

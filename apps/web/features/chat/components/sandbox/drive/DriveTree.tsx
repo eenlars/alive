@@ -227,6 +227,10 @@ const TreeNode = memo(function TreeNode({
         onClick={handleClick}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={e => {
+          if (!e.currentTarget.contains(e.relatedTarget)) setHovered(false)
+        }}
         className={`w-full h-7 flex items-center gap-1 text-left transition-colors ${
           isActive
             ? "bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white"

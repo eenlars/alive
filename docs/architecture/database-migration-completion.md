@@ -31,11 +31,11 @@ Legacy JSON file (domain-passwords.json — now removed)
 3. JWT contains: `{ workspaces: ["example.com"] }`
 
 #### After (User-first)
-```
+```text
 Supabase Database
 ├─ users (id, email, name, passwordHash)
 ├─ workspaces (id, domain, tenantId)
-├─ domains (hostname, port, server_id)       ← port assignments
+├─ app.domains (hostname, port, server_id)   ← port assignments
 ├─ user_workspaces (userId, workspaceId)
 └─ sessions (userId, workspaceId, conversationId, sessionId)
 ```
