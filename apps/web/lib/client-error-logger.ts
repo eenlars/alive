@@ -14,6 +14,7 @@
  * }
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { captureException } from "@/components/providers/PostHogProvider"
 
 interface ErrorDetails {
@@ -62,6 +63,14 @@ export async function logError(category: string, message: string, details?: Erro
     }
 
     captureException(error, properties)
+
+    // Also send to Sentry with structured context
+    Sentry.withScope(scope => {
+      scope.setTag("category", category)
+      scope.setTag("source", "client_error_logger")
+      if (properties) scope.setContext("details", properties)
+      Sentry.captureException(error)
+    })
   } catch {
     // Don't let error logging break the app
     console.error("[ClientErrorLogger] Failed to send error:", message, details)
@@ -76,13 +85,4 @@ export const clientLogger = {
   api: (message: string, details?: ErrorDetails) => logError("api", message, details),
   ui: (message: string, details?: ErrorDetails) => logError("ui", message, details),
   integration: (message: string, details?: ErrorDetails) => logError("integration", message, details),
-}
-
-/**
- * @deprecated Global error handling is now managed by PostHogProvider.
- * This function is kept for backwards compatibility but does nothing.
- */
-export function setupGlobalErrorHandler(): void {
-  // PostHog provider handles global error capture automatically
-  // See: components/providers/PostHogProvider.tsx
 }

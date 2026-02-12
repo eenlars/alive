@@ -2,6 +2,7 @@ import { spawn } from "node:child_process"
 import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { createDedupeCache } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -134,6 +135,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error("[WEBHOOK] Error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       exception: error instanceof Error ? error.message : "Unknown error",
     })

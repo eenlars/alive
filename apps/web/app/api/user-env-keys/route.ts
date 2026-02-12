@@ -9,6 +9,7 @@
  * DELETE - Remove an env key
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error("[User Env Keys] Failed to save key:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       reason: error instanceof Error ? error.message : "Unknown error",
     })
@@ -112,6 +114,7 @@ export async function GET() {
     })
   } catch (error) {
     console.error("[User Env Keys] Failed to list keys:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       reason: error instanceof Error ? error.message : "Unknown error",
     })
@@ -154,6 +157,7 @@ export async function DELETE(req: NextRequest) {
     })
   } catch (error) {
     console.error("[User Env Keys] Failed to delete key:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       reason: error instanceof Error ? error.message : "Unknown error",
     })

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { DEFAULTS, DOMAINS, PATHS } from "@webalive/shared"
 import { DeploymentError } from "@webalive/site-controller"
 import { type NextRequest, NextResponse } from "next/server"
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
     const domainResult = normalizeAndValidateDomain(body.domain)
     if (!domainResult.isValid) {
       console.error(`❌ [DEPLOY API] Domain validation failed: ${domainResult.error}`)
+      Sentry.captureException(new Error(`Deploy: domain validation failed: ${domainResult.error}`))
       return createErrorResponse(ErrorCodes.INVALID_DOMAIN, 400, { error: domainResult.error })
     }
 
@@ -90,6 +92,7 @@ export async function POST(request: NextRequest) {
     if (!templateValidation.valid || !templateValidation.template) {
       const error = templateValidation.error!
       console.error(`❌ [DEPLOY API] Template validation failed: ${error.code}`, error)
+      Sentry.captureException(error)
       return createErrorResponse(
         error.code === "INVALID_TEMPLATE" ? ErrorCodes.INVALID_TEMPLATE : ErrorCodes.TEMPLATE_NOT_FOUND,
         400,
@@ -143,6 +146,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.error(`💥 [DEPLOY API] Error after ${duration}ms:`, error)
+
+    Sentry.captureException(error)
 
     let errorMessage = "Deployment failed"
     let statusCode = 500

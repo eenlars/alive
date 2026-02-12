@@ -4,6 +4,7 @@
  * List all runs for a specific automation job.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { createClient } from "@supabase/supabase-js"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -70,6 +71,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     if (error) {
       console.error("[Automations API] List runs error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
@@ -87,6 +89,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     })
   } catch (error) {
     console.error("[Automations API] GET runs error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

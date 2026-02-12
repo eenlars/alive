@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
 
     if (!ocrResponse.ok) {
       console.error(`[OCR ${requestId}] MCP server error: ${ocrResponse.status}`)
+      Sentry.captureException(new Error(`OCR MCP server error: ${ocrResponse.status}`))
       return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
         requestId,
         message: "OCR service unavailable",
@@ -153,6 +155,7 @@ export async function POST(request: NextRequest) {
     // Extract the actual result from MCP response
     if (mpcResult.error) {
       console.error(`[OCR ${requestId}] MCP error:`, mpcResult.error)
+      Sentry.captureException(new Error(`OCR MCP error: ${mpcResult.error.message || "unknown"}`))
       return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
         requestId,
         message: mpcResult.error.message || "OCR processing failed",
@@ -185,6 +188,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error(`[OCR ${requestId}] API error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
       requestId,
       error: error instanceof Error ? error.message : "Unknown error",

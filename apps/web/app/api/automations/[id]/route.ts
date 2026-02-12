@@ -4,6 +4,7 @@
  * Get, update, or delete a specific automation job.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { createClient } from "@supabase/supabase-js"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -57,6 +58,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     })
   } catch (error) {
     console.error("[Automations API] GET by ID error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -185,6 +187,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     if (error) {
       console.error("[Automations API] Update error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
@@ -198,6 +201,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ automation: data, nextRunsPreview: nextRunsDisplay })
   } catch (error) {
     console.error("[Automations API] PATCH error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -231,12 +235,14 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
     if (error) {
       console.error("[Automations API] Delete error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error("[Automations API] DELETE error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
