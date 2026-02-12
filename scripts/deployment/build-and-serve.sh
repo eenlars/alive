@@ -181,12 +181,19 @@ if [ -z "$TEMPLATES_ROOT" ]; then
     log_warn "paths.templatesRoot not set in server-config.json — skipping templates sync"
 elif [ ! -d "$TEMPLATES_ROOT/.git" ]; then
     phase_start "Cloning templates repository"
-    git clone "$TEMPLATES_REPO" "$TEMPLATES_ROOT"
-    phase_end ok "Templates cloned to $TEMPLATES_ROOT"
+    if git clone --depth 1 "$TEMPLATES_REPO" "$TEMPLATES_ROOT"; then
+        phase_end ok "Templates cloned to $TEMPLATES_ROOT"
+    else
+        phase_end error "Failed to clone templates repository"
+        exit 1
+    fi
 else
     phase_start "Syncing templates"
-    git -C "$TEMPLATES_ROOT" pull --ff-only 2>&1 | tail -3
-    phase_end ok "Templates up to date"
+    if git -C "$TEMPLATES_ROOT" pull --ff-only 2>&1 | tail -3; then
+        phase_end ok "Templates up to date"
+    else
+        phase_end warn "Templates sync failed (non-fast-forward?) — continuing with existing templates"
+    fi
 fi
 
 # =============================================================================

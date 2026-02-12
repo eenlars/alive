@@ -20,7 +20,7 @@ export async function GET() {
 
     const { data: templates, error } = await supabase
       .from("templates")
-      .select("*")
+      .select("template_id, name, description, ai_description, preview_url, image_url, is_active, deploy_count")
       .eq("is_active", true)
       .order("deploy_count", { ascending: false, nullsFirst: false })
 
@@ -50,6 +50,6 @@ export async function GET() {
   } catch (error) {
     console.error("[Templates API]", error)
     Sentry.captureException(error)
-    throw error
+    return Response.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status: 500 })
   }
 }

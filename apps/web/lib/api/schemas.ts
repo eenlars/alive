@@ -160,7 +160,6 @@ export const apiSchemas = {
           name: z.string(),
           description: z.string().nullable(),
           ai_description: z.string().nullable(),
-          source_path: z.string(),
           preview_url: z.string().nullable(),
           image_url: z.string().nullable(),
           is_active: z.boolean().nullable(),
