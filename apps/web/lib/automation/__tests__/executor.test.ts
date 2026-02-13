@@ -1,7 +1,7 @@
 /**
  * Automation Executor Tests
  *
- * Verifies: input validation, no fallback/retry, worker pool only.
+ * Verifies: input validation and strict worker-pool-only execution.
  * Mocks ../attempts to cut the deep dependency chain (worker pool, agent SDK, etc).
  */
 
@@ -16,23 +16,11 @@ const mockTryWorkerPool = vi.fn(() =>
   }),
 )
 
-const mockRunChildProcess = vi.fn(() =>
-  Promise.resolve({
-    textMessages: ["Done"],
-    allMessages: [{ role: "assistant", content: [{ type: "text", text: "Done" }] }],
-    finalResponse: "Done",
-  }),
-)
+const mockWorkerPoolState = { ENABLED: true }
 
 vi.mock("../attempts", () => ({
   tryWorkerPool: mockTryWorkerPool,
-  runChildProcess: mockRunChildProcess,
-  classifyFailure: vi.fn((error: unknown) => ({
-    kind: "unknown",
-    transient: false,
-    message: error instanceof Error ? error.message : String(error),
-  })),
-  WORKER_POOL: { ENABLED: true },
+  WORKER_POOL: mockWorkerPoolState,
 }))
 
 vi.mock("@webalive/shared", async importOriginal => {
@@ -76,6 +64,7 @@ vi.mock("node:fs", () => ({
 describe("runAutomationJob", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockWorkerPoolState.ENABLED = true
   })
 
   it("rejects empty workspace", async () => {
@@ -152,27 +141,8 @@ describe("runAutomationJob", () => {
     expect(result.response).toBe("Done")
   })
 
-  it("falls back to child process when worker pool throws non-transient error", async () => {
+  it("returns failure when worker pool throws", async () => {
     mockTryWorkerPool.mockRejectedValueOnce(new Error("Worker crashed"))
-
-    const { runAutomationJob } = await import("../executor")
-    const result = await runAutomationJob({
-      jobId: "j1",
-      userId: "u1",
-      orgId: "o1",
-      workspace: "test.alive.best",
-      prompt: "test prompt",
-    })
-
-    // Non-transient failure falls back to child process, which succeeds
-    expect(result.success).toBe(true)
-    expect(mockTryWorkerPool).toHaveBeenCalledTimes(1)
-    expect(mockRunChildProcess).toHaveBeenCalledTimes(1)
-  })
-
-  it("returns failure when both worker pool and child process throw", async () => {
-    mockTryWorkerPool.mockRejectedValueOnce(new Error("Worker crashed"))
-    mockRunChildProcess.mockRejectedValueOnce(new Error("Child process failed"))
 
     const { runAutomationJob } = await import("../executor")
     const result = await runAutomationJob({
@@ -184,6 +154,23 @@ describe("runAutomationJob", () => {
     })
 
     expect(result.success).toBe(false)
-    expect(result.error).toContain("Child process failed")
+    expect(mockTryWorkerPool).toHaveBeenCalledTimes(1)
+    expect(result.error).toContain("Worker crashed")
+  })
+
+  it("fails fast when worker pool is disabled", async () => {
+    mockWorkerPoolState.ENABLED = false
+
+    const { runAutomationJob } = await import("../executor")
+    const result = await runAutomationJob({
+      jobId: "j1",
+      userId: "u1",
+      orgId: "o1",
+      workspace: "test.alive.best",
+      prompt: "test prompt",
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain("WORKER_POOL.ENABLED=true")
   })
 })

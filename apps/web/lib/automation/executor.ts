@@ -1,38 +1,20 @@
 /**
  * Automation Job Executor
  *
- * Orchestrates automation execution with retry and fallback:
- * 1. Try worker pool (fast, pre-warmed)
- * 2. On transient failure (disconnect/crash), retry once after 2s delay
- * 3. If worker pool still fails, fall back to child process runner
- *
- * Each attempt is fully isolated — only the successful attempt's data is used.
+ * Orchestrates automation execution via worker pool only.
+ * No child-process fallback path is allowed.
  *
  * Uses OAuth credentials from ~/.claude/.credentials.json when org has credits,
  * same as the main chat flow.
  */
 
-import { setTimeout as sleep } from "node:timers/promises"
 import * as Sentry from "@sentry/nextjs"
 import { CLAUDE_MODELS, getWorkspacePath } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { getOrgCredits } from "@/lib/credits/supabase-credits"
 import { generateRequestId } from "@/lib/utils"
-import { type AttemptResult, classifyFailure, runChildProcess, tryWorkerPool, WORKER_POOL } from "./attempts"
-
-function safeJsonForLog(value: unknown): string {
-  try {
-    return JSON.stringify(value)
-  } catch {
-    return '"[unserializable]"'
-  }
-}
-
-function extractDiagnostics(error: unknown): unknown {
-  if (!error || typeof error !== "object" || !("diagnostics" in error)) return undefined
-  return (error as { diagnostics?: unknown }).diagnostics
-}
+import { type AttemptResult, tryWorkerPool, WORKER_POOL } from "./attempts"
 
 // =============================================================================
 // Public Types
@@ -135,65 +117,20 @@ interface ExecutionContext {
   selectedModel: string
   systemPrompt: string
   timeoutSeconds: number
-  apiKey: string
   /** Additional MCP tool names to register */
   extraTools?: string[]
   /** Extract response from this tool's input.text */
   responseToolName?: string
 }
 
-async function executeWithFallback(
-  ctx: ExecutionContext,
-): Promise<{ attempt: AttemptResult; mode: "worker-pool" | "child-process" }> {
-  const { requestId, workspace, userId, apiKey, ...sharedParams } = ctx
+async function executeWithWorkerPoolOnly(ctx: ExecutionContext): Promise<AttemptResult> {
+  const { requestId, workspace, userId, ...sharedParams } = ctx
 
   if (!WORKER_POOL.ENABLED) {
-    console.log(`[Automation ${requestId}] Worker pool disabled, using child process`)
-    const attempt = await runChildProcess({ ...sharedParams, requestId, apiKey })
-    return { attempt, mode: "child-process" }
+    throw new Error("Automation execution requires WORKER_POOL.ENABLED=true; no fallback execution path is allowed.")
   }
 
-  // First attempt: worker pool
-  try {
-    const attempt = await tryWorkerPool({ ...sharedParams, requestId, workspace, userId })
-    return { attempt, mode: "worker-pool" }
-  } catch (firstError) {
-    const failure = classifyFailure(firstError)
-    console.warn(`[Automation ${requestId}] Worker pool failed (${failure.kind}): ${failure.message}`)
-    const firstDiagnostics = extractDiagnostics(firstError)
-    if (firstDiagnostics) {
-      console.warn(`[Automation ${requestId}] Worker diagnostics: ${safeJsonForLog(firstDiagnostics)}`)
-    }
-
-    if (failure.transient) {
-      console.log(`[Automation ${requestId}] Retrying worker pool in 2s...`)
-      await sleep(2000)
-
-      try {
-        const attempt = await tryWorkerPool({
-          ...sharedParams,
-          requestId: `${requestId}-retry`,
-          workspace,
-          userId,
-        })
-        return { attempt, mode: "worker-pool" }
-      } catch (retryError) {
-        const retryFailure = classifyFailure(retryError)
-        console.warn(
-          `[Automation ${requestId}] Retry failed (${retryFailure.kind}): ${retryFailure.message}. Falling back to child process.`,
-        )
-        const retryDiagnostics = extractDiagnostics(retryError)
-        if (retryDiagnostics) {
-          console.warn(`[Automation ${requestId}] Retry diagnostics: ${safeJsonForLog(retryDiagnostics)}`)
-        }
-      }
-    }
-
-    // Non-transient or retry exhausted — child process fallback
-    console.log(`[Automation ${requestId}] Falling back to child process.`)
-    const attempt = await runChildProcess({ ...sharedParams, requestId, apiKey })
-    return { attempt, mode: "child-process" }
-  }
+  return tryWorkerPool({ ...sharedParams, requestId, workspace, userId })
 }
 
 // =============================================================================
@@ -279,7 +216,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     const systemPrompt = params.systemPromptOverride ?? buildDefaultSystemPrompt(cwd, thinkingPrompt)
 
     // === Execute ===
-    const { attempt, mode } = await executeWithFallback({
+    const attempt = await executeWithWorkerPoolOnly({
       requestId,
       cwd,
       workspace,
@@ -288,7 +225,6 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       selectedModel: model || CLAUDE_MODELS.OPUS_4_6,
       systemPrompt,
       timeoutSeconds,
-      apiKey: oauthResult.accessToken,
       extraTools: params.extraTools,
       responseToolName: params.responseToolName,
     })
@@ -300,7 +236,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       : attempt.finalResponse || attempt.textMessages.join("\n\n")
 
     console.log(
-      `[Automation ${requestId}] Completed in ${durationMs}ms via ${mode}, ${attempt.allMessages.length} messages captured`,
+      `[Automation ${requestId}] Completed in ${durationMs}ms via worker-pool, ${attempt.allMessages.length} messages captured`,
     )
 
     return {
