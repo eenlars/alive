@@ -175,8 +175,8 @@ export interface AgentConfig {
    * via IPC. The worker imports and creates those locally from @webalive/tools.
    */
   oauthMcpServers: Record<string, unknown>
-  /** Bridge stream type constants (from @webalive/shared) */
-  bridgeStreamTypes: typeof STREAM_TYPES
+  /** Stream type constants (from @webalive/shared) */
+  streamTypes: typeof STREAM_TYPES
   /** Whether the user is an admin (enables Bash tools) */
   isAdmin?: boolean
   /** Whether the user is a superadmin (bypasses heavy bash guardrails) */

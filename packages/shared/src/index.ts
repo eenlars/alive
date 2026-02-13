@@ -21,8 +21,6 @@ export {
 } from "./automation-schemas.js"
 export {
   assertValidServerId,
-  BRIDGE_ENV,
-  type BridgeEnv,
   CONFIG_PATH,
   DEFAULTS,
   DOMAINS,

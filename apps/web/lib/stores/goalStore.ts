@@ -22,7 +22,7 @@ interface GoalState {
  * Hydration is coordinated by HydrationManager to ensure all stores
  * hydrate together, eliminating race conditions in E2E tests.
  */
-export const useGoalStoreBase = create<GoalState>()(
+export const useGoalStore = create<GoalState>()(
   persist(
     set => ({
       goal: "",
@@ -42,9 +42,6 @@ export const useGoalStoreBase = create<GoalState>()(
     },
   ),
 )
-
-// Re-export with original name for backwards compatibility
-export const useGoalStore = useGoalStoreBase
 
 // Atomic selectors
 export const useGoal = () => useGoalStore(s => s.goal)

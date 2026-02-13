@@ -4,12 +4,12 @@ import { createSandboxEnv } from "../sandbox-env"
 /**
  * Tests for workspace sandbox environment.
  *
- * These tests verify that bridge secrets NEVER leak to workspace child processes.
+ * These tests verify that platform secrets NEVER leak to workspace child processes.
  * If any of these fail, it's a critical security vulnerability.
  */
 
-// Secrets that exist in the real Bridge process (from systemd env)
-const BRIDGE_SECRETS = {
+// Secrets that exist in the real Alive process (from systemd env)
+const PLATFORM_SECRETS = {
   SUPABASE_SERVICE_ROLE_KEY: "sbp_fake_service_role_key_12345",
   SUPABASE_URL: "https://fake.supabase.co",
   SUPABASE_ACCESS_TOKEN: "sbp_fake_access_token",
@@ -51,8 +51,8 @@ let savedEnv: NodeJS.ProcessEnv
 
 beforeEach(() => {
   savedEnv = { ...process.env }
-  // Simulate a real Bridge process environment
-  Object.assign(process.env, BRIDGE_SECRETS, SAFE_VARS)
+  // Simulate a real Alive process environment
+  Object.assign(process.env, PLATFORM_SECRETS, SAFE_VARS)
 })
 
 afterEach(() => {

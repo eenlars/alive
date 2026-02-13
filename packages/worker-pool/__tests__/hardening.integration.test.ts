@@ -61,7 +61,7 @@ function createPayload(message: string): AgentRequest {
       permissionMode: "default",
       settingSources: [],
       oauthMcpServers: {},
-      bridgeStreamTypes: STREAM_TYPES,
+      streamTypes: STREAM_TYPES,
     },
   }
 }

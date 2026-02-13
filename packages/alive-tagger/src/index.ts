@@ -21,7 +21,7 @@
  */
 
 // Export the Vite plugin
-export { aliveTagger, default } from "./plugin"
+export { aliveTagger } from "./plugin"
 
 // Export types
 export {

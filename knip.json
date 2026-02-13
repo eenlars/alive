@@ -14,7 +14,6 @@
       "project": ["src/**/*.ts"]
     },
     "apps/broker": {
-      "entry": ["src/server.ts"],
       "project": ["src/**/*.ts"]
     },
     "packages/tools": {
@@ -51,7 +50,8 @@
       "project": ["src/**/*.ts"]
     },
     "packages/worker-pool": {
-      "project": ["src/**/*.ts"]
+      "entry": ["src/**/*.{ts,mjs}"],
+      "project": ["src/**/*.{ts,mjs}"]
     }
   },
   "ignore": [
@@ -78,29 +78,46 @@
     "apps/image-processor/**",
     "apps/preview-proxy/**",
     "apps/widget-server/**",
-    "apps/web/e2e-tests/**"
+    "apps/web/e2e-tests/**",
+    "apps/web/app/dead-components/**",
+    "apps/web/components/linear/LinearIssuesStack.tsx",
+    "apps/web/components/manager/Terminal.tsx",
+    "apps/web/components/ui/primitives/EmailField.tsx",
+    "apps/web/components/workspace/OrganizationSwitcher.tsx",
+    "apps/web/features/deployment/components/SiteIdeasTextarea.tsx",
+    "apps/web/hooks/use-linear-issues.ts",
+    "apps/web/lib/hooks/useFetch.ts",
+    "apps/web/lib/supabase/server-rls.ts",
+    "apps/web/lib/supabase/server.ts",
+    "packages/alive-tagger/src/jsx-dev-runtime.ts",
+    "packages/site-controller/src/infra/generate-systemd.ts",
+    "packages/tools/src/tools/supabase/index.ts"
   ],
-  "ignoreDependencies": ["groq-sdk", "react-markdown", "tailwindcss", "autoprefixer"],
+  "ignoreDependencies": [
+    "tailwindcss",
+    "autoprefixer",
+    "@xterm/addon-fit",
+    "@xterm/addon-web-links",
+    "@xterm/xterm",
+    "@types/react"
+  ],
   "ignoreBinaries": [
     "go",
-    "docker-compose",
     "journalctl",
     "make",
     "systemctl",
     "redis-cli",
-    "python3",
-    "uvicorn",
     "dist/server.js"
   ],
   "ignoreExportsUsedInFile": true,
   "includeEntryExports": false,
   "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
     "duplicates": "error",
     "unlisted": "off",
     "unresolved": "off",
-    "files": "warn",
-    "dependencies": "warn",
-    "devDependencies": "warn",
     "exports": "warn",
     "nsExports": "off",
     "nsTypes": "off",

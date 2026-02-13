@@ -19,7 +19,7 @@ export {
 // Configuration
 export { createQueryClient, getRetryDelay } from "./config"
 // DevTools (lazy loaded)
-export { default as QueryDevTools } from "./devtools"
+export { QueryDevTools } from "./devtools"
 // Fetcher with error handling
 export { ApiError, type ApiResponse, fetcher } from "./fetcher"
 // Custom hooks

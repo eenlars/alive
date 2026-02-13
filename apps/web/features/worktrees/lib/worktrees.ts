@@ -82,7 +82,7 @@ function getWorktreeRoot(baseWorkspacePath: string): string {
 }
 
 function getLockPath(baseWorkspacePath: string): string {
-  return path.join(baseWorkspacePath, ".git", "bridge-worktree.lock")
+  return path.join(baseWorkspacePath, ".git", "alive-worktree.lock")
 }
 
 function normalizeSlug(slug: string): string {

@@ -437,10 +437,6 @@ export const STREAM_ENV = {
 
 export type StreamEnv = (typeof STREAM_ENV)[keyof typeof STREAM_ENV]
 
-// Alias for standalone mode compatibility
-export const BRIDGE_ENV = STREAM_ENV
-export type BridgeEnv = StreamEnv
-
 // =============================================================================
 // Helper Functions
 // =============================================================================

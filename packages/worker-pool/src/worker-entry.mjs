@@ -486,7 +486,7 @@ async function handleQuery(ipc, requestId, payload) {
     permissionMode,
     settingSources,
     oauthMcpServers, // Only OAuth HTTP servers are serializable via IPC
-    bridgeStreamTypes,
+    streamTypes,
   } = agentConfig
 
   // Input validation - prevent type confusion attacks
@@ -516,14 +516,14 @@ async function handleQuery(ipc, requestId, payload) {
   } else if (!settingSources.every(s => typeof s === "string")) {
     validationErrors.push("settingSources must contain only strings")
   }
-  if (!bridgeStreamTypes || typeof bridgeStreamTypes !== "object") {
-    validationErrors.push("bridgeStreamTypes must be an object")
+  if (!streamTypes || typeof streamTypes !== "object") {
+    validationErrors.push("streamTypes must be an object")
   } else {
-    // Validate individual bridgeStreamTypes properties
+    // Validate individual streamTypes properties
     const streamTypeFields = ["SESSION", "MESSAGE", "COMPLETE", "ERROR"]
     for (const field of streamTypeFields) {
-      if (typeof bridgeStreamTypes[field] !== "string") {
-        validationErrors.push(`bridgeStreamTypes.${field} must be a string`)
+      if (typeof streamTypes[field] !== "string") {
+        validationErrors.push(`streamTypes.${field} must be a string`)
       }
     }
   }
@@ -809,7 +809,7 @@ async function handleQuery(ipc, requestId, payload) {
         type: "message",
         requestId,
         content: {
-          type: bridgeStreamTypes.MESSAGE,
+          type: streamTypes.MESSAGE,
           messageCount,
           messageType: message.type,
           content: outputMessage,
@@ -823,7 +823,7 @@ async function handleQuery(ipc, requestId, payload) {
       type: "complete",
       requestId,
       result: {
-        type: bridgeStreamTypes.COMPLETE,
+        type: streamTypes.COMPLETE,
         totalMessages: messageCount,
         result: queryResult,
         cancelled: wasCancelled,
@@ -846,7 +846,7 @@ async function handleQuery(ipc, requestId, payload) {
         type: "complete",
         requestId,
         result: {
-          type: bridgeStreamTypes.COMPLETE,
+          type: streamTypes.COMPLETE,
           totalMessages: messageCount,
           result: queryResult,
           cancelled: false,

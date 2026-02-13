@@ -17,8 +17,6 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",
-    "@webalive/env": "workspace:*",
-    "@webalive/shared": "workspace:*",
     "@webalive/worker-pool": "workspace:*",
     "hono": "^4.7.10",
     "zod": "^4.1.5"

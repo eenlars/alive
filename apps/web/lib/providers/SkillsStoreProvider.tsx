@@ -83,12 +83,6 @@ export const useSkillsActions = () => useSkillsStore(s => s.actions)
 // ============================================================================
 
 /**
- * @deprecated Use useAllSkills instead
- * Provides backward compatibility for existing code using useUserPrompts
- */
-export const useUserPrompts = useAllSkills
-
-/**
  * @deprecated Use useSkillsActions instead
  * Provides backward compatibility for existing code
  */

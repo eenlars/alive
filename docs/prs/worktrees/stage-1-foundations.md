@@ -35,7 +35,7 @@
 
 ## Concurrency and Safety
 - Use a per-repo lock to serialize `git worktree` mutations.
-- Lock file: `<baseWorkspacePath>/.git/bridge-worktree.lock`.
+- Lock file: `<baseWorkspacePath>/.git/alive-worktree.lock`.
 - Return `WORKTREE_LOCKED` on contention.
 - Acquire with `fs.open(lock, "wx")` and keep the fd open until done.
 - Store `pid` and timestamp in the lock for debugging.

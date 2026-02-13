@@ -113,7 +113,7 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
   }
 
   // Standalone mode - resolve workspace from local filesystem
-  if (env.BRIDGE_ENV === "standalone") {
+  if (env.STREAM_ENV === "standalone") {
     const {
       getStandaloneWorkspacePath,
       getStandaloneWorkspaceBase,

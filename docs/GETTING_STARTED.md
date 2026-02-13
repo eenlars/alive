@@ -157,7 +157,7 @@ Open `http://localhost:8997`
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `BRIDGE_ENV` | Yes | Set to standalone | `standalone` |
+| `STREAM_ENV` | Yes | Set to standalone | `standalone` |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key | `sk-ant-...` |
 | `WORKSPACE_BASE` | No | Custom workspace directory | `~/.alive/workspaces` |
 
@@ -165,10 +165,10 @@ Open `http://localhost:8997`
 
 | Variable | Required | Description | Example |
 |----------|----------|-------------|---------|
-| `BRIDGE_ENV` | Yes | Enable local dev mode | `local` |
+| `STREAM_ENV` | Yes | Enable local dev mode | `local` |
 | `LOCAL_TEMPLATE_PATH` | Yes | Absolute path to workspace | `/Users/you/alive/.alive/template` |
 | `ANTHROPIC_API_KEY` | Yes | Claude API key | `sk-ant-...` |
-| `BRIDGE_PASSCODE` | No | Bridge passcode (any works if unset) | `your-password` |
+| `ALIVE_PASSCODE` | No | Alive passcode (any works if unset) | `your-password` |
 
 ## Common Commands
 

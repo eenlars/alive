@@ -514,7 +514,7 @@ export async function POST(req: NextRequest) {
         permissionMode: effectivePermissionMode,
         settingSources: SETTINGS_SOURCES,
         oauthMcpServers: getOAuthMcpServers(oauthTokens) as Record<string, unknown>,
-        bridgeStreamTypes: STREAM_TYPES,
+        streamTypes: STREAM_TYPES,
         isAdmin: user.isAdmin, // Pass to worker for permission checks
         isSuperadmin: isSuperadminWorkspace, // Superadmin has all tools, runs as root
       }
