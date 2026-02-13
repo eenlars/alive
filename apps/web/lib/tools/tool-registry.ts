@@ -21,6 +21,7 @@ import type { ToolDisplayConfig, ToolName } from "@webalive/tools/display"
 // Import from the shared package (display-only, browser-safe)
 import {
   AI,
+  CALENDAR,
   EMAIL,
   FILE_OPS,
   getDisplayConfig,
@@ -41,6 +42,7 @@ import type { ComponentType } from "react"
 export {
   LINEAR,
   STRIPE,
+  CALENDAR,
   FILE_OPS,
   OTHER,
   EMAIL,

@@ -50,6 +50,7 @@ export const INTEGRATION_UI_REGISTRY = {
   stripe: null, // No UI component yet - just shows connection status
   linear: null, // Issues viewable via Linear MCP tools, not settings panel
   gmail: null, // Email operations via Gmail MCP tools
+  google_calendar: null, // Calendar operations via Google Calendar MCP tools
   supabase: null, // Database operations via Supabase MCP tools (run_query, etc.)
 } as const satisfies Record<OAuthMcpProviderKey, IntegrationUIConfig | null>
 
