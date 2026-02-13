@@ -5,6 +5,9 @@ import { ErrorCodes } from "@/lib/error-codes"
 const getSessionUserMock = vi.fn()
 const getAutomationExecutionGateMock = vi.fn()
 const createServiceAppClientMock = vi.fn()
+const claimJobMock = vi.fn()
+const executeJobMock = vi.fn()
+const finishJobMock = vi.fn()
 
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
@@ -30,13 +33,11 @@ vi.mock("@/lib/automation/cron-service", () => ({
   pokeCronService: vi.fn(),
 }))
 
-const claimJobMock = vi.fn()
-
 vi.mock("@/lib/automation/engine", () => ({
   claimJob: (...args: unknown[]) => claimJobMock(...args),
-  executeJob: vi.fn(),
+  executeJob: (...args: unknown[]) => executeJobMock(...args),
   extractSummary: vi.fn(),
-  finishJob: vi.fn(),
+  finishJob: (...args: unknown[]) => finishJobMock(...args),
 }))
 
 vi.mock("@webalive/shared", async importOriginal => {
@@ -66,6 +67,17 @@ describe("POST /api/automations/[id]/trigger", () => {
     vi.clearAllMocks()
     getAutomationExecutionGateMock.mockReturnValue({ allowed: true, reason: "ok" })
     createServiceAppClientMock.mockReturnValue({})
+    executeJobMock.mockResolvedValue({
+      success: true,
+      response: "done",
+      error: null,
+      durationMs: 42,
+      messages: [],
+      costUsd: 0,
+      numTurns: 1,
+      usage: undefined,
+    })
+    finishJobMock.mockResolvedValue(undefined)
   })
 
   it("returns 401 without a valid session", async () => {

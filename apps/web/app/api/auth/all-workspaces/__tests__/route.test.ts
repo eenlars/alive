@@ -51,10 +51,17 @@ vi.mock("@/lib/domains", () => ({
 const mockIamFrom = vi.fn()
 const mockAppFrom = vi.fn()
 
-vi.mock("@/lib/supabase/iam", () => ({
-  createIamClient: vi.fn(() => ({
-    from: mockIamFrom,
-  })),
+vi.mock("@/lib/supabase/server-rls", () => ({
+  createRLSIamClient: vi.fn(() =>
+    Promise.resolve({
+      from: mockIamFrom,
+    }),
+  ),
+  createRLSAppClient: vi.fn(() =>
+    Promise.resolve({
+      from: mockAppFrom,
+    }),
+  ),
 }))
 
 vi.mock("@/lib/supabase/app", () => ({

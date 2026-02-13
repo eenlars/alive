@@ -148,6 +148,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
     const token = jwt.sign(
       {
+        role: "authenticated" as const,
         sub: workerStorageState.userId,
         userId: workerStorageState.userId,
         email: workerStorageState.email,

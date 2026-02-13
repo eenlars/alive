@@ -17,7 +17,7 @@ import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import type { AppConversationInsert, AppConversationTabInsert, AppMessageInsert } from "@/lib/supabase/app"
-import { createAppClient } from "@/lib/supabase/app"
+import { createRLSAppClient } from "@/lib/supabase/server-rls"
 
 // =============================================================================
 // Types
@@ -104,7 +104,7 @@ interface SyncResult {
 // =============================================================================
 
 async function syncSingleConversation(
-  supabase: Awaited<ReturnType<typeof createAppClient>>,
+  supabase: Awaited<ReturnType<typeof createRLSAppClient>>,
   userId: string,
   conversation: ConversationData,
   tabs: TabData[],
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
     const userId = user.id
 
     const body = await request.json()
-    const supabase = await createAppClient("service")
+    const supabase = await createRLSAppClient()
 
     // Detect batch vs single sync
     const isBatch = "conversations" in body && Array.isArray(body.conversations)

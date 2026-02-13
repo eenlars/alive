@@ -24,8 +24,8 @@ const mockSelect = vi.fn()
 const mockEq = vi.fn()
 const mockSingle = vi.fn()
 
-vi.mock("@/lib/supabase/app", () => ({
-  createAppClient: vi.fn(() =>
+vi.mock("@/lib/supabase/server-rls", () => ({
+  createRLSAppClient: vi.fn(() =>
     Promise.resolve({
       from: vi.fn((table: string) => {
         if (table === "conversations") {

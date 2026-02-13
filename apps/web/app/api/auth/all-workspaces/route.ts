@@ -9,7 +9,7 @@ import { addCorsHeaders } from "@/lib/cors-utils"
 import { domainExistsOnThisServer } from "@/lib/domains"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
-import { createIamClient } from "@/lib/supabase/iam"
+import { createRLSAppClient, createRLSIamClient } from "@/lib/supabase/server-rls"
 
 /**
  * Batch endpoint to fetch all workspaces for all organizations in one request
@@ -39,10 +39,9 @@ export async function GET(req: NextRequest) {
       return createCorsErrorResponse(origin, ErrorCodes.ORG_ACCESS_DENIED, 403, { requestId })
     }
 
-    const app = await createAppClient("service")
-
     // Superadmins see ALL workspaces on this server (for support/debugging)
     if (user.isSuperadmin) {
+      const app = await createAppClient("service")
       const { data: allDomains } = await app.from("domains").select("hostname,org_id")
       const workspacesByOrg: Record<string, string[]> = {}
 
@@ -66,8 +65,10 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    const app = await createRLSAppClient()
+
     // Get user's org memberships
-    const iam = await createIamClient("service")
+    const iam = await createRLSIamClient()
     const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", user.id)
 
     if (!memberships || memberships.length === 0) {

@@ -4,7 +4,7 @@
  * Tests cover:
  * - Authentication required
  * - Tab ID parameter validation
- * - Access control (owner vs shared)
+ * - Access control via RLS visibility
  * - Pagination with cursor
  * - Limit parameter
  * - Data transformation
@@ -31,8 +31,8 @@ const mockSingle = vi.fn()
 
 const mockFrom = vi.fn()
 
-vi.mock("@/lib/supabase/app", () => ({
-  createAppClient: vi.fn(() =>
+vi.mock("@/lib/supabase/server-rls", () => ({
+  createRLSAppClient: vi.fn(() =>
     Promise.resolve({
       from: mockFrom,
     }),
@@ -58,9 +58,7 @@ const TEST_TAB_WITH_CONVERSATION = {
   tab_id: "tab-123",
   conversation_id: "conv-123",
   conversations: {
-    user_id: TEST_USER.id,
-    org_id: "org-123",
-    visibility: "private",
+    conversation_id: "conv-123",
   },
 }
 
@@ -207,53 +205,6 @@ describe("GET /api/conversations/messages", () => {
 
       expect(response.status).toBe(404)
       expect(data.error).toBe(ErrorCodes.SITE_NOT_FOUND)
-    })
-
-    it("should allow owner to access their private conversation", async () => {
-      const req = createMockRequest({ tabId: "tab-123" })
-      const response = await GET(req)
-
-      expect(response.status).toBe(200)
-    })
-
-    it("should deny access to other user's private conversation", async () => {
-      mockSingle.mockResolvedValue({
-        data: {
-          ...TEST_TAB_WITH_CONVERSATION,
-          conversations: {
-            user_id: "other-user-456",
-            org_id: "org-123",
-            visibility: "private",
-          },
-        },
-        error: null,
-      })
-
-      const req = createMockRequest({ tabId: "tab-123" })
-      const response = await GET(req)
-      const data = await response.json()
-
-      expect(response.status).toBe(403)
-      expect(data.error).toBe(ErrorCodes.UNAUTHORIZED)
-    })
-
-    it("should allow access to shared conversation from same org", async () => {
-      mockSingle.mockResolvedValue({
-        data: {
-          ...TEST_TAB_WITH_CONVERSATION,
-          conversations: {
-            user_id: "other-user-456",
-            org_id: "org-123",
-            visibility: "shared",
-          },
-        },
-        error: null,
-      })
-
-      const req = createMockRequest({ tabId: "tab-123" })
-      const response = await GET(req)
-
-      expect(response.status).toBe(200)
     })
   })
 

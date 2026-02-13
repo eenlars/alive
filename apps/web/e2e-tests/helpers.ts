@@ -66,6 +66,7 @@ export async function setAuthCookie(user: TestUser, context: BrowserContext) {
 
   // Create JWT payload with all required fields
   const payload = {
+    role: "authenticated" as const,
     sub: user.userId, // Standard JWT claim
     userId: user.userId,
     email: user.email,

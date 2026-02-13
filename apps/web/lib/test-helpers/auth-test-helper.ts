@@ -145,6 +145,7 @@ export async function createTestSessionToken(testUser: TestUser): Promise<string
   const JWT_SECRET = process.env.JWT_SECRET || "INSECURE_DEV_SECRET_CHANGE_IN_PRODUCTION"
 
   const payload = {
+    role: "authenticated" as const,
     sub: testUser.userId, // Standard JWT claim (used by RLS policies)
     userId: testUser.userId, // Legacy claim (backward compatibility)
     email: testUser.email,

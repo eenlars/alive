@@ -10,6 +10,7 @@ import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { pokeCronService } from "@/lib/automation/cron-service"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createRLSAppClient } from "@/lib/supabase/server-rls"
 import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
@@ -36,7 +37,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params
-    const supabase = createServiceAppClient()
+    const supabase = await createRLSAppClient()
 
     const { data, error } = await supabase
       .from("automation_jobs")

@@ -1,6 +1,7 @@
 import { test as base, expect } from "@playwright/test"
 import { COOKIE_NAMES, createTestStorageState, DOMAINS, TEST_CONFIG } from "@webalive/shared"
 import jwt from "jsonwebtoken"
+import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
 import type { TestUser } from "./fixtures"
 import { TEST_TIMEOUTS } from "./fixtures/test-data"
 import { gotoChat } from "./helpers/assertions"
@@ -69,11 +70,14 @@ const test = base.extend<
 
     const token = jwt.sign(
       {
+        role: "authenticated" as const,
         sub: workerStorageState.userId,
         userId: workerStorageState.userId,
         email: workerStorageState.email,
         name: workerStorageState.orgName,
-        workspaces: [workerStorageState.workspace],
+        scopes: DEFAULT_USER_SCOPES,
+        orgIds: [workerStorageState.orgId],
+        orgRoles: { [workerStorageState.orgId]: "owner" as const },
       },
       jwtSecret,
       { expiresIn: "30d" },

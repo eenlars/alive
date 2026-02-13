@@ -9,7 +9,7 @@ import { addCorsHeaders } from "@/lib/cors-utils"
 import { filterLocalDomains } from "@/lib/domains"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
-import { createIamClient } from "@/lib/supabase/iam"
+import { createRLSAppClient, createRLSIamClient } from "@/lib/supabase/server-rls"
 
 export async function GET(req: NextRequest) {
   const origin = req.headers.get("origin")
@@ -36,10 +36,9 @@ export async function GET(req: NextRequest) {
       return createCorsErrorResponse(origin, ErrorCodes.ORG_ACCESS_DENIED, 403, { requestId })
     }
 
-    const app = await createAppClient("service")
-
     // Superadmins see ALL workspaces on this server (for support/debugging)
     if (user.isSuperadmin) {
+      const app = await createAppClient("service")
       const { data: allDomains } = await app.from("domains").select("hostname, is_test_env")
       const realDomains = allDomains?.filter(d => !d.is_test_env).map(d => d.hostname) || []
       const testDomains = allDomains?.filter(d => d.is_test_env).map(d => d.hostname) || []
@@ -50,8 +49,10 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    const app = await createRLSAppClient()
+
     // Get user's org memberships
-    const iam = await createIamClient("service")
+    const iam = await createRLSIamClient()
     const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", user.id)
 
     if (!memberships || memberships.length === 0) {

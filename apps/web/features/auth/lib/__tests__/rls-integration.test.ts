@@ -36,8 +36,9 @@ async function createRlsToken(userId: string, orgId: string, role: SessionOrgRol
   })
 }
 
-// TODO: Fix RLS test to work without special database permissions
-describe.skip("RLS Integration - Cross-Org Access Prevention", () => {
+const describeRls = process.env.RUN_RLS_INTEGRATION === "1" ? describe : describe.skip
+
+describeRls("RLS Integration - Cross-Org Access Prevention", () => {
   beforeAll(async () => {
     // Setup: Create test orgs, users, and domains
     const iam = await createIamClient("service")

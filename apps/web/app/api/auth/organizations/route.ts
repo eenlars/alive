@@ -7,8 +7,8 @@ import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/re
 import { COOKIE_NAMES, getClearCookieOptions } from "@/lib/auth/cookies"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
-import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
+import { createRLSAppClient, createRLSIamClient } from "@/lib/supabase/server-rls"
 
 export async function GET(req: NextRequest) {
   const origin = req.headers.get("origin")
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get user's org memberships with roles
-    const iam = await createIamClient("service")
+    const iam = await createRLSIamClient()
     const { data: memberships, error: membershipError } = await iam
       .from("org_memberships")
       .select("org_id, role")
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get workspace counts for each org
-    const app = await createAppClient("service")
+    const app = await createRLSAppClient()
     const { data: domains, error: domainsError } = await app.from("domains").select("org_id").in("org_id", orgIds)
 
     if (domainsError) {
@@ -169,7 +169,8 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Update organization name
-    const { data: updatedOrg, error: updateError } = await iam
+    const rlsIam = await createRLSIamClient()
+    const { data: updatedOrg, error: updateError } = await rlsIam
       .from("orgs")
       .update({ name: trimmedName })
       .eq("org_id", org_id)

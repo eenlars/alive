@@ -148,6 +148,7 @@ function normalizeScopes(scopes: SessionScope[] | undefined): SessionScope[] {
 }
 
 export interface SessionPayloadV3 {
+  role: "authenticated" // PostgREST role switch for Supabase RLS
   sub: string // Standard JWT claim for user ID (required for RLS)
   userId: string // Legacy claim (backward compatibility)
   email: string // User email (eliminates iam.users query)
@@ -239,6 +240,7 @@ export async function createSessionToken(input: CreateSessionTokenInput): Promis
   }
 
   const payload: SessionPayloadV3 = {
+    role: "authenticated",
     sub: userId, // Standard JWT claim (used by RLS policies)
     userId: userId, // Legacy claim (backward compatibility)
     email: email,
@@ -323,11 +325,17 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
     }
 
     // Extract and validate required fields
+    const role = (decoded as { role?: unknown }).role
     const email = decoded.email
     const name = decoded.name ?? null
     const scopes = decoded.scopes
     const orgIds = decoded.orgIds
     const orgRoles = decoded.orgRoles
+
+    if (role !== "authenticated") {
+      console.error("[JWT] Invalid token payload: role must be 'authenticated'")
+      return null
+    }
 
     if (!isNonEmptyString(email)) {
       console.error("[JWT] Invalid token payload: email missing or invalid")
@@ -379,6 +387,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
 
     return {
       ...decoded,
+      role: "authenticated",
       sub: sub || userId,
       userId: userId || sub,
       email: email,

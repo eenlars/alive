@@ -23,20 +23,14 @@ vi.mock("@/features/auth/lib/auth", () => ({
   getSessionUser: vi.fn(),
 }))
 
-// Mock org resolver
-vi.mock("@/lib/deployment/org-resolver", () => ({
-  getOrgIdForUser: vi.fn(),
-}))
-
 // Mock Supabase client
 const mockSelect = vi.fn()
 const mockEq = vi.fn()
-const mockNeq = vi.fn()
 const mockIs = vi.fn()
 const mockOrder = vi.fn()
 
-vi.mock("@/lib/supabase/app", () => ({
-  createAppClient: vi.fn(() =>
+vi.mock("@/lib/supabase/server-rls", () => ({
+  createRLSAppClient: vi.fn(() =>
     Promise.resolve({
       from: vi.fn(() => ({
         select: mockSelect,
@@ -48,7 +42,6 @@ vi.mock("@/lib/supabase/app", () => ({
 // Import after mocking
 const { GET } = await import("../route")
 const { getSessionUser } = await import("@/features/auth/lib/auth")
-const { getOrgIdForUser } = await import("@/lib/deployment/org-resolver")
 
 // Test data
 const TEST_USER = {
@@ -126,19 +119,14 @@ describe("GET /api/conversations", () => {
     // Default: authenticated user
     vi.mocked(getSessionUser).mockResolvedValue(TEST_USER)
 
-    // Default: user has org
-    vi.mocked(getOrgIdForUser).mockResolvedValue(TEST_ORG_ID)
-
     // Set up chainable mock for Supabase queries
     mockOrder.mockReturnValue({
-      data: [TEST_CONVERSATION_DB],
+      data: [TEST_CONVERSATION_DB, TEST_SHARED_CONVERSATION_DB],
       error: null,
     })
     mockIs.mockReturnValue({ order: mockOrder })
-    mockNeq.mockReturnValue({ is: mockIs })
     mockEq.mockImplementation(() => ({
       eq: mockEq,
-      neq: mockNeq,
       is: mockIs,
     }))
     mockSelect.mockReturnValue({ eq: mockEq })
@@ -177,17 +165,6 @@ describe("GET /api/conversations", () => {
       expect(response.status).toBe(400)
       expect(data.error).toBe(ErrorCodes.INVALID_REQUEST)
     })
-
-    it("should return 404 if user has no org", async () => {
-      vi.mocked(getOrgIdForUser).mockResolvedValue(null)
-
-      const req = createMockRequest({ workspace: TEST_WORKSPACE })
-      const response = await GET(req)
-      const data = await response.json()
-
-      expect(response.status).toBe(404)
-      expect(data.error).toBe(ErrorCodes.ORG_NOT_FOUND)
-    })
   })
 
   describe("Fetching Own Conversations", () => {
@@ -203,15 +180,10 @@ describe("GET /api/conversations", () => {
 
     it("should transform database format to client format", async () => {
       // Mock to return a specific conversation
-      mockOrder
-        .mockReturnValueOnce({
-          data: [TEST_CONVERSATION_DB],
-          error: null,
-        })
-        .mockReturnValueOnce({
-          data: [],
-          error: null,
-        })
+      mockOrder.mockReturnValueOnce({
+        data: [TEST_CONVERSATION_DB],
+        error: null,
+      })
 
       const req = createMockRequest({ workspace: TEST_WORKSPACE })
       const response = await GET(req)
@@ -229,15 +201,10 @@ describe("GET /api/conversations", () => {
     })
 
     it("should convert timestamps to milliseconds", async () => {
-      mockOrder
-        .mockReturnValueOnce({
-          data: [TEST_CONVERSATION_DB],
-          error: null,
-        })
-        .mockReturnValueOnce({
-          data: [],
-          error: null,
-        })
+      mockOrder.mockReturnValueOnce({
+        data: [TEST_CONVERSATION_DB],
+        error: null,
+      })
 
       const req = createMockRequest({ workspace: TEST_WORKSPACE })
       const response = await GET(req)
@@ -250,15 +217,10 @@ describe("GET /api/conversations", () => {
     })
 
     it("should include tabs with conversations", async () => {
-      mockOrder
-        .mockReturnValueOnce({
-          data: [TEST_CONVERSATION_DB],
-          error: null,
-        })
-        .mockReturnValueOnce({
-          data: [],
-          error: null,
-        })
+      mockOrder.mockReturnValueOnce({
+        data: [TEST_CONVERSATION_DB],
+        error: null,
+      })
 
       const req = createMockRequest({ workspace: TEST_WORKSPACE })
       const response = await GET(req)
@@ -277,16 +239,10 @@ describe("GET /api/conversations", () => {
 
   describe("Fetching Shared Conversations", () => {
     it("should return shared conversations from org", async () => {
-      // First call: own conversations, second call: shared
-      mockOrder
-        .mockReturnValueOnce({
-          data: [TEST_CONVERSATION_DB],
-          error: null,
-        })
-        .mockReturnValueOnce({
-          data: [TEST_SHARED_CONVERSATION_DB],
-          error: null,
-        })
+      mockOrder.mockReturnValueOnce({
+        data: [TEST_CONVERSATION_DB, TEST_SHARED_CONVERSATION_DB],
+        error: null,
+      })
 
       const req = createMockRequest({ workspace: TEST_WORKSPACE })
       const response = await GET(req)
@@ -298,42 +254,16 @@ describe("GET /api/conversations", () => {
     })
 
     it("should include creatorId for shared conversations", async () => {
-      mockOrder
-        .mockReturnValueOnce({
-          data: [],
-          error: null,
-        })
-        .mockReturnValueOnce({
-          data: [TEST_SHARED_CONVERSATION_DB],
-          error: null,
-        })
+      mockOrder.mockReturnValueOnce({
+        data: [TEST_SHARED_CONVERSATION_DB],
+        error: null,
+      })
 
       const req = createMockRequest({ workspace: TEST_WORKSPACE })
       const response = await GET(req)
       const data = await response.json()
 
       expect(data.shared[0].creatorId).toBe("other-user-789")
-    })
-
-    it("should continue if shared query fails (graceful degradation)", async () => {
-      // Own succeeds, shared fails
-      mockOrder
-        .mockReturnValueOnce({
-          data: [TEST_CONVERSATION_DB],
-          error: null,
-        })
-        .mockReturnValueOnce({
-          data: null,
-          error: { message: "Query failed" },
-        })
-
-      const req = createMockRequest({ workspace: TEST_WORKSPACE })
-      const response = await GET(req)
-      const data = await response.json()
-
-      // Should still return 200 with own conversations
-      expect(response.status).toBe(200)
-      expect(data.own.length).toBeGreaterThanOrEqual(0)
     })
   })
 
@@ -393,15 +323,10 @@ describe("GET /api/conversations", () => {
         last_message_at: null,
       }
 
-      mockOrder
-        .mockReturnValueOnce({
-          data: [convWithNullTimestamp],
-          error: null,
-        })
-        .mockReturnValueOnce({
-          data: [],
-          error: null,
-        })
+      mockOrder.mockReturnValueOnce({
+        data: [convWithNullTimestamp],
+        error: null,
+      })
 
       const req = createMockRequest({ workspace: TEST_WORKSPACE })
       const response = await GET(req)
@@ -411,15 +336,10 @@ describe("GET /api/conversations", () => {
     })
 
     it("should handle null archived_at and deleted_at", async () => {
-      mockOrder
-        .mockReturnValueOnce({
-          data: [TEST_CONVERSATION_DB],
-          error: null,
-        })
-        .mockReturnValueOnce({
-          data: [],
-          error: null,
-        })
+      mockOrder.mockReturnValueOnce({
+        data: [TEST_CONVERSATION_DB],
+        error: null,
+      })
 
       const req = createMockRequest({ workspace: TEST_WORKSPACE })
       const response = await GET(req)

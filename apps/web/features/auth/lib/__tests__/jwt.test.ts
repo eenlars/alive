@@ -44,6 +44,7 @@ describe("JWT Session Token v3 - Security & Behavior", () => {
       const token = await createSessionToken(buildTokenInput(userId))
       const decoded = decodeToken(token)
 
+      expect(decoded.role).toBe("authenticated")
       expect(decoded.sub).toBe(userId)
       expect(decoded.userId).toBe(userId)
       expect(decoded.email).toBe(TEST_EMAIL)
@@ -112,6 +113,7 @@ describe("JWT Session Token v3 - Security & Behavior", () => {
       const token = await createSessionToken(buildTokenInput(userId))
       const payload = await verifySessionToken(token)
 
+      expect(payload?.role).toBe("authenticated")
       expect(payload?.sub).toBe(userId)
       expect(payload?.userId).toBe(userId)
       expect(payload?.email).toBe(TEST_EMAIL)
@@ -120,10 +122,37 @@ describe("JWT Session Token v3 - Security & Behavior", () => {
       expect(payload?.orgRoles).toEqual(TEST_ORG_ROLES)
     })
 
+    test("rejects tokens missing role", async () => {
+      const userId = "550e8400-e29b-41d4-a716-446655440000"
+      const invalidToken = sign(
+        {
+          sub: userId,
+          userId,
+          email: TEST_EMAIL,
+          name: TEST_NAME,
+          scopes: TEST_SCOPES,
+          orgIds: [TEST_ORG_ID],
+          orgRoles: { [TEST_ORG_ID]: "owner" },
+        },
+        JWT_SECRET,
+        { expiresIn: "30d" },
+      )
+
+      expect(await verifySessionToken(invalidToken)).toBeNull()
+    })
+
     test("rejects tokens missing scopes", async () => {
       const userId = "550e8400-e29b-41d4-a716-446655440000"
       const invalidToken = sign(
-        { sub: userId, userId, email: TEST_EMAIL, name: TEST_NAME, orgIds: [TEST_ORG_ID], orgRoles: TEST_ORG_ROLES },
+        {
+          role: "authenticated",
+          sub: userId,
+          userId,
+          email: TEST_EMAIL,
+          name: TEST_NAME,
+          orgIds: [TEST_ORG_ID],
+          orgRoles: TEST_ORG_ROLES,
+        },
         JWT_SECRET,
         { expiresIn: "30d" },
       )
@@ -134,7 +163,15 @@ describe("JWT Session Token v3 - Security & Behavior", () => {
     test("rejects tokens missing orgIds", async () => {
       const userId = "550e8400-e29b-41d4-a716-446655440000"
       const invalidToken = sign(
-        { sub: userId, userId, email: TEST_EMAIL, name: TEST_NAME, scopes: TEST_SCOPES, orgRoles: TEST_ORG_ROLES },
+        {
+          role: "authenticated",
+          sub: userId,
+          userId,
+          email: TEST_EMAIL,
+          name: TEST_NAME,
+          scopes: TEST_SCOPES,
+          orgRoles: TEST_ORG_ROLES,
+        },
         JWT_SECRET,
         { expiresIn: "30d" },
       )
@@ -145,7 +182,15 @@ describe("JWT Session Token v3 - Security & Behavior", () => {
     test("rejects tokens missing orgRoles", async () => {
       const userId = "550e8400-e29b-41d4-a716-446655440000"
       const invalidToken = sign(
-        { sub: userId, userId, email: TEST_EMAIL, name: TEST_NAME, scopes: TEST_SCOPES, orgIds: [TEST_ORG_ID] },
+        {
+          role: "authenticated",
+          sub: userId,
+          userId,
+          email: TEST_EMAIL,
+          name: TEST_NAME,
+          scopes: TEST_SCOPES,
+          orgIds: [TEST_ORG_ID],
+        },
         JWT_SECRET,
         { expiresIn: "30d" },
       )
@@ -157,6 +202,7 @@ describe("JWT Session Token v3 - Security & Behavior", () => {
       const userId = "550e8400-e29b-41d4-a716-446655440000"
       const invalidToken = sign(
         {
+          role: "authenticated",
           sub: userId,
           userId,
           email: TEST_EMAIL,
@@ -177,6 +223,7 @@ describe("JWT Session Token v3 - Security & Behavior", () => {
     test("rejects token with mismatched 'sub' and 'userId'", async () => {
       const token = sign(
         {
+          role: "authenticated",
           sub: "550e8400-e29b-41d4-a716-446655440000",
           userId: "different-user-id-here",
           email: TEST_EMAIL,
@@ -203,6 +250,7 @@ describe("JWT Session Token v3 - Security & Behavior", () => {
     test("rejects expired token", async () => {
       const token = sign(
         {
+          role: "authenticated",
           sub: "550e8400-e29b-41d4-a716-446655440000",
           userId: "550e8400-e29b-41d4-a716-446655440000",
           email: TEST_EMAIL,
