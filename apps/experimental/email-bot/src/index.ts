@@ -20,12 +20,15 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required")
 }
 
-/** Password map: email -> password */
-const passwords: Record<string, string> = {
-  "dweil@mail.alive.best": process.env.MAILBOX_DWEIL_PASSWORD ?? "",
-  "sopje@mail.alive.best": process.env.MAILBOX_SOPJE_PASSWORD ?? "",
-  "spons@mail.alive.best": process.env.MAILBOX_SPONS_PASSWORD ?? "",
-  "zeep@mail.alive.best": process.env.MAILBOX_ZEEP_PASSWORD ?? "",
+/**
+ * Look up mailbox password from env vars.
+ * Convention: MAILBOX_{LOCAL_PART}_PASSWORD (e.g. MAILBOX_DWEIL_PASSWORD for dweil@...)
+ */
+function getMailboxPassword(emailAddress: string): string | undefined {
+  const localPart = emailAddress.split("@")[0]
+  if (!localPart) return undefined
+  const envKey = `MAILBOX_${localPart.toUpperCase()}_PASSWORD`
+  return process.env[envKey] || undefined
 }
 
 /**
@@ -75,14 +78,10 @@ async function main(): Promise<void> {
   for (const job of jobs) {
     registerOwnAddress(job.emailAddress)
   }
-  // Also register all known mailboxes even if no job yet
-  for (const email of Object.keys(passwords)) {
-    registerOwnAddress(email)
-  }
 
   // Start IMAP watchers
   for (const job of jobs) {
-    const password = passwords[job.emailAddress]
+    const password = getMailboxPassword(job.emailAddress)
     if (!password) {
       console.error(`[EmailBot] No password configured for ${job.emailAddress}, skipping`)
       continue
@@ -116,18 +115,30 @@ async function main(): Promise<void> {
 }
 
 // Graceful shutdown
-process.on("SIGTERM", async () => {
+process.on("SIGTERM", () => {
   console.log("[EmailBot] SIGTERM received, shutting down...")
-  await stopAllWatchers()
-  closeDb()
-  process.exit(0)
+  stopAllWatchers()
+    .then(() => {
+      closeDb()
+      process.exit(0)
+    })
+    .catch(err => {
+      console.error("[EmailBot] Shutdown error:", err)
+      process.exit(1)
+    })
 })
 
-process.on("SIGINT", async () => {
+process.on("SIGINT", () => {
   console.log("[EmailBot] SIGINT received, shutting down...")
-  await stopAllWatchers()
-  closeDb()
-  process.exit(0)
+  stopAllWatchers()
+    .then(() => {
+      closeDb()
+      process.exit(0)
+    })
+    .catch(err => {
+      console.error("[EmailBot] Shutdown error:", err)
+      process.exit(1)
+    })
 })
 
 main().catch(err => {

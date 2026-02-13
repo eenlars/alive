@@ -2,10 +2,14 @@ import type { TriggerResponse } from "./types.js"
 
 // Read env lazily — dotenv loads after static imports resolve
 function getTriggerUrl(): string {
-  return process.env.TRIGGER_URL ?? "http://localhost:9000/api/internal/automation/trigger"
+  const url = process.env.TRIGGER_URL
+  if (!url) throw new Error("TRIGGER_URL environment variable is required")
+  return url
 }
 function getJwtSecret(): string {
-  return process.env.JWT_SECRET ?? ""
+  const secret = process.env.JWT_SECRET
+  if (!secret) throw new Error("JWT_SECRET environment variable is required")
+  return secret
 }
 
 /** Options for the trigger request beyond the basics */

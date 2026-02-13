@@ -57,7 +57,8 @@ export async function sendReply(opts: SendReplyOptions): Promise<string> {
   const transporter = getTransporter(email, opts.fromPassword)
 
   // Generate a Message-ID
-  const domain = email.split("@")[1] ?? "mail.alive.best"
+  const domain = email.split("@")[1]
+  if (!domain) throw new Error(`Invalid email address for reply: ${email}`)
   const messageId = `<${randomUUID()}@${domain}>`
 
   // Build References header: previous references + In-Reply-To

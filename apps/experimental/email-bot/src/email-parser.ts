@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { simpleParser } from "mailparser"
 import type { ParsedEmail } from "./types.js"
 
@@ -17,7 +18,7 @@ export async function parseEmail(raw: Buffer): Promise<ParsedEmail> {
   )
 
   // Extract threading headers
-  const messageId = parsed.messageId ?? ""
+  const messageId = parsed.messageId ?? `<${randomUUID()}@fallback>`
   const rawInReplyTo = parsed.inReplyTo
   const inReplyTo = typeof rawInReplyTo === "string" ? rawInReplyTo : rawInReplyTo ? String(rawInReplyTo) : null
   const references = parseReferences(parsed.references)

@@ -296,7 +296,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     const durationMs = Date.now() - startTime
     // When responseToolName is set, prefer tool response over text messages
     const response = params.responseToolName
-      ? attempt.toolResponseText || attempt.finalResponse || attempt.textMessages.join("\n\n")
+      ? (attempt.toolResponseText ?? attempt.finalResponse ?? attempt.textMessages.join("\n\n"))
       : attempt.finalResponse || attempt.textMessages.join("\n\n")
 
     console.log(

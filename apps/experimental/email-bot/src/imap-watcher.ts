@@ -18,6 +18,9 @@ function getImapPort(): number {
 /** Active IMAP connections */
 const connections = new Map<string, ImapFlow>()
 
+/** Serialize message processing per mailbox to prevent duplicate replies */
+const processingQueue = new Map<string, Promise<void>>()
+
 /** Track watcher state for health checks */
 export const watcherStatus = new Map<string, { connected: boolean; lastEvent: number; error?: string }>()
 
@@ -78,9 +81,13 @@ export async function startWatcher(job: EmailJob, password: string): Promise<voi
       client.on("exists", (data: { count: number; prevCount: number }) => {
         if (data.count > data.prevCount) {
           console.log(`[IMAP:${mailbox}] New message(s): ${data.prevCount} -> ${data.count}`)
-          void processNewMessages(client, job, password, mailbox, data.prevCount + 1, data.count).catch(err => {
-            console.error(`[IMAP:${mailbox}] Error processing messages:`, err)
-          })
+          const prev = processingQueue.get(mailbox) ?? Promise.resolve()
+          const next = prev
+            .then(() => processNewMessages(client, job, password, mailbox, data.prevCount + 1, data.count))
+            .catch(err => {
+              console.error(`[IMAP:${mailbox}] Error processing messages:`, err)
+            })
+          processingQueue.set(mailbox, next)
         }
       })
 
@@ -243,7 +250,7 @@ function buildPrompt(
   if (history.length > 0) {
     parts.push("\n--- Conversation History ---")
     for (const msg of history) {
-      const label = msg.direction === "incoming" ? `[From: ${msg.sender}]` : `[You replied]`
+      const label = msg.direction === "incoming" ? `[From: ${msg.sender}]` : "[You replied]"
       parts.push(`${label}\n${msg.body}`)
     }
     parts.push("--- End History ---\n")
