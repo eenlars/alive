@@ -1,0 +1,35 @@
+{
+  "name": "@webalive/automation-engine",
+  "version": "1.0.0",
+  "description": "Automation engine: claim/execute/finish lifecycle, run-log, shared types",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "ci": "biome ci .",
+    "test": "vitest run",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "@webalive/automation": "workspace:*",
+    "@webalive/database": "workspace:*",
+    "@webalive/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.3",
+    "typescript": "^5.7.2",
+    "vitest": "^3.1.4"
+  }
+}

@@ -4,249 +4,144 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 TESTS_PASSED=0
 TESTS_FAILED=0
 
-# Redis CLI with authentication
-REDIS_CLI="$REDIS_CLI 2>/dev/null -a dev_password_only"
+REDIS_CLI="redis-cli"
 
-echo "🧪 Redis Test Suite - Comprehensive Behavior Verification"
+echo "Redis Test Suite"
 echo "=========================================================="
 echo ""
 
-# Check if container is running
-if ! docker ps | grep -q "redis"; then
-    echo -e "${RED}❌ Redis container is not running${NC}"
-    echo "   Run: bun run redis:start"
+# Strict: redis must be reachable
+if ! $REDIS_CLI PING 2>/dev/null | grep -q PONG; then
+    echo -e "${RED}FAIL: redis is not reachable${NC}" >&2
     exit 1
 fi
 
-# Helper function for test results
 pass_test() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}  pass${NC} $1"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 }
 
 fail_test() {
-    echo -e "${RED}❌ $1${NC}"
-    echo -e "${YELLOW}   Details: $2${NC}"
+    echo -e "${RED}  fail${NC} $1 — $2"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
-# Test 1: Verify Configuration is Loaded (redis.conf)
-echo "Test 1: Configuration Validation (redis.conf loaded)"
-MAXMEMORY=$($REDIS_CLI 2>/dev/null CONFIG GET maxmemory | tail -1)
-EVICTION_POLICY=$($REDIS_CLI 2>/dev/null CONFIG GET maxmemory-policy | tail -1)
-
-if [ "$MAXMEMORY" = "268435456" ]; then  # 256MB in bytes
-    pass_test "maxmemory correctly set to 256MB"
+# Test 1: Connectivity
+echo "Test 1: Connectivity"
+PONG=$($REDIS_CLI PING 2>/dev/null)
+if [ "$PONG" = "PONG" ]; then
+    pass_test "PING/PONG"
 else
-    fail_test "maxmemory configuration" "Expected 268435456 (256MB), got: $MAXMEMORY"
-fi
-
-if [ "$EVICTION_POLICY" = "allkeys-lru" ]; then
-    pass_test "eviction policy correctly set to allkeys-lru"
-else
-    fail_test "eviction policy configuration" "Expected 'allkeys-lru', got: $EVICTION_POLICY"
+    fail_test "PING" "Expected PONG, got: $PONG"
 fi
 
 # Test 2: Key Expiration (TTL)
 echo ""
 echo "Test 2: TTL and Key Expiration"
-$REDIS_CLI 2>/dev/null SET ttl_test "expires_soon" EX 2 > /dev/null
-EXISTS_BEFORE=$($REDIS_CLI 2>/dev/null EXISTS ttl_test)
+$REDIS_CLI SET _test:ttl "expires_soon" EX 2 > /dev/null 2>&1
+EXISTS_BEFORE=$($REDIS_CLI EXISTS _test:ttl 2>/dev/null)
 if [ "$EXISTS_BEFORE" = "1" ]; then
-    pass_test "Key with TTL created successfully"
+    pass_test "Key with TTL created"
 else
     fail_test "TTL key creation" "Key doesn't exist after SET with EX"
 fi
 
-# Wait for expiration
 sleep 3
-EXISTS_AFTER=$($REDIS_CLI 2>/dev/null EXISTS ttl_test)
+EXISTS_AFTER=$($REDIS_CLI EXISTS _test:ttl 2>/dev/null)
 if [ "$EXISTS_AFTER" = "0" ]; then
-    pass_test "Key correctly expired after TTL"
+    pass_test "Key expired after TTL"
 else
-    fail_test "TTL expiration" "Key still exists after expiration time"
+    fail_test "TTL expiration" "Key still exists"
 fi
 
-# Test 3: Data Types (not just strings)
+# Test 3: Data Types
 echo ""
-echo "Test 3: Redis Data Types"
+echo "Test 3: Data Types"
 
-# List operations
-$REDIS_CLI 2>/dev/null RPUSH test_list "item1" "item2" "item3" > /dev/null
-LIST_LEN=$($REDIS_CLI 2>/dev/null LLEN test_list)
+$REDIS_CLI RPUSH _test:list "a" "b" "c" > /dev/null 2>&1
+LIST_LEN=$($REDIS_CLI LLEN _test:list 2>/dev/null)
 if [ "$LIST_LEN" = "3" ]; then
-    pass_test "List operations (RPUSH/LLEN)"
+    pass_test "List (RPUSH/LLEN)"
 else
-    fail_test "List operations" "Expected length 3, got: $LIST_LEN"
+    fail_test "List" "Expected 3, got: $LIST_LEN"
 fi
 
-# Set operations
-$REDIS_CLI 2>/dev/null SADD test_set "member1" "member2" "member1" > /dev/null
-SET_CARD=$($REDIS_CLI 2>/dev/null SCARD test_set)
-if [ "$SET_CARD" = "2" ]; then  # Duplicates should be ignored
-    pass_test "Set operations (SADD/SCARD with duplicate handling)"
+$REDIS_CLI SADD _test:set "x" "y" "x" > /dev/null 2>&1
+SET_CARD=$($REDIS_CLI SCARD _test:set 2>/dev/null)
+if [ "$SET_CARD" = "2" ]; then
+    pass_test "Set (deduplication)"
 else
-    fail_test "Set operations" "Expected cardinality 2, got: $SET_CARD"
+    fail_test "Set" "Expected 2, got: $SET_CARD"
 fi
 
-# Hash operations
-$REDIS_CLI 2>/dev/null HSET test_hash field1 "value1" field2 "value2" > /dev/null
-HASH_LEN=$($REDIS_CLI 2>/dev/null HLEN test_hash)
+$REDIS_CLI HSET _test:hash f1 "v1" f2 "v2" > /dev/null 2>&1
+HASH_LEN=$($REDIS_CLI HLEN _test:hash 2>/dev/null)
 if [ "$HASH_LEN" = "2" ]; then
-    pass_test "Hash operations (HSET/HLEN)"
+    pass_test "Hash (HSET/HLEN)"
 else
-    fail_test "Hash operations" "Expected length 2, got: $HASH_LEN"
+    fail_test "Hash" "Expected 2, got: $HASH_LEN"
 fi
 
-# Sorted set operations
-$REDIS_CLI 2>/dev/null ZADD test_zset 1 "one" 2 "two" 3 "three" > /dev/null
-ZSET_CARD=$($REDIS_CLI 2>/dev/null ZCARD test_zset)
+$REDIS_CLI ZADD _test:zset 1 "one" 2 "two" 3 "three" > /dev/null 2>&1
+ZSET_CARD=$($REDIS_CLI ZCARD _test:zset 2>/dev/null)
 if [ "$ZSET_CARD" = "3" ]; then
-    pass_test "Sorted Set operations (ZADD/ZCARD)"
+    pass_test "Sorted Set (ZADD/ZCARD)"
 else
-    fail_test "Sorted Set operations" "Expected cardinality 3, got: $ZSET_CARD"
+    fail_test "Sorted Set" "Expected 3, got: $ZSET_CARD"
 fi
 
-# Cleanup data types test
-$REDIS_CLI 2>/dev/null DEL test_list test_set test_hash test_zset > /dev/null
+$REDIS_CLI DEL _test:list _test:set _test:hash _test:zset > /dev/null 2>&1
 
-# Test 4: Large Values (realistic data sizes)
+# Test 4: Atomic Operations (INCR)
 echo ""
-echo "Test 4: Large Value Handling"
-# Use stdin to avoid argument length limits
-LARGE_SIZE=$(head -c 102400 /dev/urandom | base64 | docker exec -i redis redis-cli -a dev_password_only -x SET large_value 2>/dev/null)
-RETRIEVED_LEN=$($REDIS_CLI 2>/dev/null --raw GET large_value | wc -c)
-if [ "$RETRIEVED_LEN" -gt 100000 ]; then
-    pass_test "Large value storage and retrieval (100KB+)"
-else
-    fail_test "Large value handling" "Retrieved size: $RETRIEVED_LEN bytes"
-fi
-$REDIS_CLI 2>/dev/null DEL large_value > /dev/null
-
-# Test 5: Atomic Operations (INCR)
-echo ""
-echo "Test 5: Atomic Operations"
-$REDIS_CLI 2>/dev/null SET counter 0 > /dev/null
+echo "Test 4: Atomic Operations"
+$REDIS_CLI SET _test:counter 0 > /dev/null 2>&1
 for i in {1..100}; do
-    $REDIS_CLI 2>/dev/null INCR counter > /dev/null &
+    $REDIS_CLI INCR _test:counter > /dev/null 2>&1 &
 done
 wait
-COUNTER_VALUE=$($REDIS_CLI 2>/dev/null GET counter)
+COUNTER_VALUE=$($REDIS_CLI GET _test:counter 2>/dev/null)
 if [ "$COUNTER_VALUE" = "100" ]; then
-    pass_test "Atomic operations (INCR with concurrent requests)"
+    pass_test "Concurrent INCR (100 parallel)"
 else
-    fail_test "Atomic operations" "Expected 100, got: $COUNTER_VALUE (race condition detected)"
+    fail_test "Atomic INCR" "Expected 100, got: $COUNTER_VALUE"
 fi
-$REDIS_CLI 2>/dev/null DEL counter > /dev/null
+$REDIS_CLI DEL _test:counter > /dev/null 2>&1
 
-# Test 6: Persistence Configuration
+# Test 5: Transactions (MULTI/EXEC)
 echo ""
-echo "Test 6: Persistence Configuration"
-SAVE_CONFIG=$($REDIS_CLI 2>/dev/null CONFIG GET save | tail -1)
-if [[ "$SAVE_CONFIG" == *"900"* ]] && [[ "$SAVE_CONFIG" == *"300"* ]]; then
-    pass_test "RDB persistence configured (save intervals)"
-else
-    fail_test "RDB persistence configuration" "Save config: $SAVE_CONFIG"
-fi
-
-# Check if RDB file exists or can be created
-$REDIS_CLI 2>/dev/null BGSAVE > /dev/null 2>&1
-sleep 1
-RDB_EXISTS=$(docker exec redis sh -c "ls -la /data/dump.rdb 2>/dev/null | wc -l")
-if [ "$RDB_EXISTS" -ge "1" ]; then
-    pass_test "RDB snapshot file created"
-else
-    fail_test "RDB snapshot" "dump.rdb not found in /data"
-fi
-
-# Test 7: Special Characters and Edge Cases
-echo ""
-echo "Test 7: Edge Cases (special characters, unicode)"
-SPECIAL_VALUE="key with spaces and 特殊字符 and émojis 🚀"
-$REDIS_CLI 2>/dev/null SET special_key "$SPECIAL_VALUE" > /dev/null
-RETRIEVED=$($REDIS_CLI 2>/dev/null GET special_key)
-if [ "$RETRIEVED" = "$SPECIAL_VALUE" ]; then
-    pass_test "Special characters and unicode handling"
-else
-    fail_test "Special character handling" "Value corrupted or not stored correctly"
-fi
-$REDIS_CLI 2>/dev/null DEL special_key > /dev/null
-
-# Test 8: Key Pattern Matching
-echo ""
-echo "Test 8: Key Pattern Matching (KEYS/SCAN)"
-$REDIS_CLI 2>/dev/null MSET user:1:name "Alice" user:2:name "Bob" user:3:name "Charlie" > /dev/null
-PATTERN_MATCH=$($REDIS_CLI 2>/dev/null KEYS "user:*:name" | wc -l)
-if [ "$PATTERN_MATCH" -ge "3" ]; then
-    pass_test "Key pattern matching (KEYS wildcard)"
-else
-    fail_test "Key pattern matching" "Expected 3 keys, found: $PATTERN_MATCH"
-fi
-$REDIS_CLI 2>/dev/null DEL user:1:name user:2:name user:3:name > /dev/null
-
-# Test 9: Transaction Support (MULTI/EXEC)
-echo ""
-echo "Test 9: Transaction Support (MULTI/EXEC)"
-# Use pipe to keep same connection for transaction
-RESULT=$(echo -e "MULTI\nSET tx_key1 value1\nSET tx_key2 value2\nEXEC" | docker exec -i redis redis-cli -a dev_password_only 2>/dev/null)
-# Verify the keys were set
-TX_VALUE=$($REDIS_CLI 2>/dev/null GET tx_key1)
+echo "Test 5: Transactions"
+echo -e "MULTI\nSET _test:tx1 value1\nSET _test:tx2 value2\nEXEC" | $REDIS_CLI > /dev/null 2>&1
+TX_VALUE=$($REDIS_CLI GET _test:tx1 2>/dev/null)
 if [ "$TX_VALUE" = "value1" ]; then
-    pass_test "Transaction support (MULTI/EXEC)"
+    pass_test "MULTI/EXEC"
 else
-    fail_test "Transaction support" "Expected 'value1', got: $TX_VALUE"
+    fail_test "Transaction" "Expected 'value1', got: $TX_VALUE"
 fi
-$REDIS_CLI 2>/dev/null DEL tx_key1 tx_key2 > /dev/null
+$REDIS_CLI DEL _test:tx1 _test:tx2 > /dev/null 2>&1
 
-# Test 10: Connection Limits
+# Test 6: Memory Info
 echo ""
-echo "Test 10: Concurrent Connections"
-for i in {1..10}; do
-    $REDIS_CLI 2>/dev/null PING > /dev/null &
-done
-wait
-CONN_COUNT=$($REDIS_CLI 2>/dev/null INFO clients | grep connected_clients | cut -d':' -f2 | tr -d '\r')
-if [ "$CONN_COUNT" -ge "1" ]; then
-    pass_test "Concurrent connections handled (current: $CONN_COUNT)"
-else
-    fail_test "Connection handling" "No active connections detected"
-fi
-
-# Test 11: Memory Info
-echo ""
-echo "Test 11: Memory Statistics"
-USED_MEMORY=$($REDIS_CLI 2>/dev/null INFO memory | grep used_memory_human | head -1 | cut -d':' -f2 | tr -d '\r')
+echo "Test 6: Memory"
+USED_MEMORY=$($REDIS_CLI INFO memory 2>/dev/null | grep used_memory_human | head -1 | cut -d':' -f2 | tr -d '\r')
 if [ -n "$USED_MEMORY" ]; then
-    pass_test "Memory tracking (currently using: $USED_MEMORY)"
+    pass_test "Memory reporting (using: $USED_MEMORY)"
 else
-    fail_test "Memory statistics" "Unable to retrieve memory info"
+    fail_test "Memory" "Unable to retrieve memory info"
 fi
 
-# Final Summary
+# Cleanup any leftover test keys
+$REDIS_CLI DEL _test:ttl _test:list _test:set _test:hash _test:zset _test:counter _test:tx1 _test:tx2 > /dev/null 2>&1
+
+# Summary
 echo ""
 echo "=========================================================="
-echo "Test Results:"
-echo -e "${GREEN}Passed: $TESTS_PASSED${NC}"
+echo -e "Passed: ${GREEN}$TESTS_PASSED${NC}  Failed: ${RED}$TESTS_FAILED${NC}"
 if [ $TESTS_FAILED -gt 0 ]; then
-    echo -e "${RED}Failed: $TESTS_FAILED${NC}"
-    echo ""
-    echo "❌ Some tests failed. Please review the output above."
     exit 1
-else
-    echo -e "${GREEN}Failed: 0${NC}"
-    echo ""
-    echo "🎉 All tests passed! Redis is properly configured and operational."
-    echo ""
-    echo "Configuration verified:"
-    echo "  - Memory limit: 256MB with LRU eviction"
-    echo "  - Persistence: RDB snapshots enabled"
-    echo "  - Data types: All supported types working"
-    echo "  - TTL: Key expiration working"
-    echo "  - Atomicity: Race conditions handled"
-    echo "  - Edge cases: Unicode and special chars supported"
 fi

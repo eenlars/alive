@@ -1,11 +1,11 @@
 /**
  * Storage Layer - Supabase Lockbox Adapter
  *
- * Handles encrypted secret storage in lockbox.user_secrets table
+ * Handles encrypted secret storage via lockbox RPC functions in public schema.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
-import type { LockboxDatabase as Database } from "@webalive/database"
+import type { PublicDatabase as Database } from "@webalive/database"
 import { getConfig } from "./config"
 import { Security } from "./security"
 import type { SecretNamespace, UserSecret } from "./types"
@@ -15,31 +15,108 @@ export interface LockboxAdapterConfig {
   defaultTtlSeconds?: number // Default TTL for secrets
 }
 
-type SecretKey = {
-  user_id: string
-  instance_id: string
-  namespace: SecretNamespace
-  name: string
+type LockboxGetRow = {
+  ciphertext: string
+  iv: string
+  auth_tag: string
+}
+
+/** LockboxListRow matches UserSecret — RPC returns the same columns */
+type LockboxListRow = UserSecret
+
+type LockboxRpcFunctions = {
+  lockbox_delete: {
+    Args: {
+      p_user_id: string
+      p_instance_id: string
+      p_namespace: string
+      p_name: string
+    }
+    Returns: null
+  }
+  lockbox_exists: {
+    Args: {
+      p_user_id: string
+      p_instance_id: string
+      p_namespace: string
+      p_name: string
+    }
+    Returns: boolean
+  }
+  lockbox_get: {
+    Args: {
+      p_user_id: string
+      p_instance_id: string
+      p_namespace: string
+      p_name: string
+    }
+    Returns: LockboxGetRow[]
+  }
+  lockbox_list: {
+    Args: {
+      p_user_id: string
+      p_instance_id: string
+      p_namespace: string
+    }
+    Returns: LockboxListRow[]
+  }
+  lockbox_save: {
+    Args: {
+      p_user_id: string
+      p_instance_id: string
+      p_namespace: string
+      p_name: string
+      p_ciphertext: string
+      p_iv: string
+      p_auth_tag: string
+      p_expires_at: string | null
+    }
+    Returns: string
+  }
+}
+
+type PublicDatabaseWithLockboxRpc = Omit<Database, "public"> & {
+  public: Omit<Database["public"], "Functions"> & {
+    Functions: Database["public"]["Functions"] & LockboxRpcFunctions
+  }
 }
 
 export class LockboxAdapter {
-  private supabase: SupabaseClient<Database, "lockbox", "lockbox">
+  private supabase: SupabaseClient<PublicDatabaseWithLockboxRpc, "public", "public">
   private instanceId: string
   private defaultTtlSeconds?: number
 
   constructor(config?: LockboxAdapterConfig) {
     const appConfig = getConfig()
-    this.supabase = createClient<Database, "lockbox">(appConfig.SUPABASE_URL, appConfig.SUPABASE_SERVICE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
-      db: { schema: "lockbox" },
-    })
+    this.supabase = createClient<PublicDatabaseWithLockboxRpc, "public">(
+      appConfig.SUPABASE_URL,
+      appConfig.SUPABASE_SERVICE_KEY,
+      {
+        auth: { autoRefreshToken: false, persistSession: false },
+        db: { schema: "public" },
+      },
+    )
     this.instanceId = config?.instanceId || "default"
     this.defaultTtlSeconds = config?.defaultTtlSeconds
   }
 
-  /** Creates the common key matcher for a secret */
-  private secretKey(userId: string, namespace: SecretNamespace, name: string): SecretKey {
-    return { user_id: userId, instance_id: this.instanceId, namespace, name }
+  /** Creates common RPC args for key-based operations */
+  private lockboxKey(userId: string, namespace: SecretNamespace, name: string) {
+    return {
+      p_user_id: userId,
+      p_instance_id: this.instanceId,
+      p_namespace: namespace,
+      p_name: name,
+    }
+  }
+
+  /** Creates common RPC args for namespace list operations */
+  private lockboxNamespace(userId: string, namespace: SecretNamespace) {
+    return {
+      p_user_id: userId,
+      p_instance_id: this.instanceId,
+      p_namespace: namespace,
+    }
   }
 
   /** Formats error messages consistently */
@@ -47,97 +124,26 @@ export class LockboxAdapter {
     return `[Lockbox] '${name}' (instance: ${this.instanceId})`
   }
 
-  /** Demotes current secret before inserting a new version */
-  private async demoteCurrent(key: SecretKey, userId: string): Promise<void> {
-    const { error } = await this.supabase
-      .from("user_secrets")
-      .update({
-        is_current: false,
-        updated_at: new Date().toISOString(),
-        updated_by: userId,
-      })
-      .match({ ...key, is_current: true })
-
-    if (error) {
-      console.warn(`${this.logTag(key.name)}: Failed to demote current secret:`, error)
-    }
-  }
-
-  /** Demotes old versions after inserting a new current secret */
-  private async demoteOldVersions(key: SecretKey, userId: string, excludeId: string): Promise<void> {
-    const { error } = await this.supabase
-      .from("user_secrets")
-      .update({
-        is_current: false,
-        updated_at: new Date().toISOString(),
-        updated_by: userId,
-      })
-      .match({ ...key, is_current: true })
-      .neq("user_secret_id", excludeId)
-
-    if (error) {
-      console.error(`${this.logTag(key.name)}: Failed to demote old versions:`, error)
-    }
-  }
-
-  /** Gets the next version number for a secret */
-  private async getNextVersion(key: SecretKey): Promise<number> {
-    const { data, error } = await this.supabase
-      .from("user_secrets")
-      .select("version")
-      .match(key)
-      .order("version", { ascending: false })
-      .limit(1)
-      .single()
-
-    // PGRST116 = no rows (expected for new secrets)
-    if (error && error.code !== "PGRST116") {
-      throw new Error(`${this.logTag(key.name)}: Failed to read version: ${error.message}`)
-    }
-
-    return data ? data.version + 1 : 1
-  }
-
   /**
    * Saves an encrypted secret using atomic rotation pattern
    */
   async save(userId: string, namespace: SecretNamespace, name: string, value: string): Promise<void> {
-    const key = this.secretKey(userId, namespace, name)
     const { ciphertext, iv, authTag } = Security.encrypt(value)
-    const expiresAt = this.defaultTtlSeconds
-      ? new Date(Date.now() + this.defaultTtlSeconds * 1000).toISOString()
-      : undefined
+    const expiresAt = this.defaultTtlSeconds ? new Date(Date.now() + this.defaultTtlSeconds * 1000).toISOString() : null
 
-    const nextVersion = await this.getNextVersion(key)
+    const { error } = await this.supabase.rpc("lockbox_save", {
+      ...this.lockboxKey(userId, namespace, name),
+      p_ciphertext: ciphertext,
+      p_iv: iv,
+      p_auth_tag: authTag,
+      p_expires_at: expiresAt,
+    })
 
-    // Demote current secret first to prevent unique constraint violation
-    await this.demoteCurrent(key, userId)
-    const { data: newSecret, error: insertError } = await this.supabase
-      .from("user_secrets")
-      .insert({
-        ...key,
-        ciphertext,
-        iv,
-        auth_tag: authTag,
-        version: nextVersion,
-        is_current: true,
-        expires_at: expiresAt,
-        created_by: userId,
-        updated_by: userId,
-      })
-      .select("user_secret_id")
-      .single()
-
-    if (insertError) {
-      if (insertError.code === "23505") {
+    if (error) {
+      if (error.code === "23505") {
         throw new Error(`${this.logTag(name)}: Concurrent rotation detected. Please retry.`)
       }
-      throw new Error(`${this.logTag(name)}: Save failed: ${insertError.message}`)
-    }
-
-    // Demote old versions after successful insert
-    if (newSecret) {
-      await this.demoteOldVersions(key, userId, newSecret.user_secret_id)
+      throw new Error(`${this.logTag(name)}: Save failed: ${error.message}`)
     }
   }
 
@@ -145,22 +151,17 @@ export class LockboxAdapter {
    * Retrieves and decrypts a secret
    */
   async get(userId: string, namespace: SecretNamespace, name: string): Promise<string | null> {
-    const { data, error } = await this.supabase
-      .from("user_secrets")
-      .select("ciphertext, iv, auth_tag")
-      .match({ ...this.secretKey(userId, namespace, name), is_current: true })
-      .limit(1)
-      .single()
+    const { data, error } = await this.supabase.rpc("lockbox_get", this.lockboxKey(userId, namespace, name))
 
     if (error) {
-      if (error.code === "PGRST116") return null
       throw new Error(`${this.logTag(name)}: Get failed: ${error.message}`)
     }
 
-    if (!data) return null
+    const row = data?.[0]
+    if (!row) return null
 
     try {
-      return Security.decrypt(data.ciphertext, data.iv, data.auth_tag)
+      return Security.decrypt(row.ciphertext, row.iv, row.auth_tag)
     } catch {
       console.error(`${this.logTag(name)}: Decryption failed`)
       return null
@@ -171,10 +172,7 @@ export class LockboxAdapter {
    * Deletes all versions of a secret
    */
   async delete(userId: string, namespace: SecretNamespace, name: string): Promise<void> {
-    const { error } = await this.supabase
-      .from("user_secrets")
-      .delete()
-      .match(this.secretKey(userId, namespace, name))
+    const { error } = await this.supabase.rpc("lockbox_delete", this.lockboxKey(userId, namespace, name))
 
     if (error) {
       throw new Error(`${this.logTag(name)}: Delete failed: ${error.message}`)
@@ -185,40 +183,25 @@ export class LockboxAdapter {
    * Lists all current secrets for a user in a namespace (metadata only)
    */
   async list(userId: string, namespace: SecretNamespace): Promise<UserSecret[]> {
-    const { data, error } = await this.supabase
-      .from("user_secrets")
-      .select("*")
-      .match({
-        user_id: userId,
-        instance_id: this.instanceId,
-        namespace,
-        is_current: true,
-      })
-      .order("created_at", { ascending: false })
+    const { data, error } = await this.supabase.rpc("lockbox_list", this.lockboxNamespace(userId, namespace))
 
     if (error) {
       throw new Error(`[Lockbox] List failed (instance: ${this.instanceId}): ${error.message}`)
     }
 
-    return (data || []) as UserSecret[]
+    return data || []
   }
 
   /**
    * Checks if a secret exists without decrypting it
    */
   async exists(userId: string, namespace: SecretNamespace, name: string): Promise<boolean> {
-    const { data, error } = await this.supabase
-      .from("user_secrets")
-      .select("user_secret_id")
-      .match({ ...this.secretKey(userId, namespace, name), is_current: true })
-      .limit(1)
-      .single()
+    const { data, error } = await this.supabase.rpc("lockbox_exists", this.lockboxKey(userId, namespace, name))
 
     if (error) {
-      if (error.code === "PGRST116") return false
       throw new Error(`${this.logTag(name)}: Exists check failed: ${error.message}`)
     }
 
-    return !!data
+    return Boolean(data)
   }
 }

@@ -6,6 +6,14 @@ import { useState } from "react"
 import toast from "react-hot-toast"
 import { usePanelContext } from "@/features/chat/lib/sandbox-context"
 import { formatMessagesAsText } from "@/features/chat/utils/format-messages"
+import {
+  trackCameraUsed,
+  trackElementSelectorActivated,
+  trackMessagesCopied,
+  trackPlanModeToggled,
+  trackSkillSelected,
+  trackSkillsMenuOpened,
+} from "@/lib/analytics/events"
 import { useDexieMessageStore } from "@/lib/db/dexieMessageStore"
 import { useTabMessages } from "@/lib/db/useTabMessages"
 import { useAllSkills, useSkillsLoading } from "@/lib/providers/SkillsStoreProvider"
@@ -61,6 +69,7 @@ export function Toolbar({ fileInputRef, onAddUserPrompt, onAddSkill }: ToolbarPr
   }
 
   const handleAddSkill = (skill: Skill) => {
+    trackSkillSelected({ skill_id: skill.id, skill_name: skill.displayName, source: skill.source })
     if (onAddSkill) {
       onAddSkill(skill.id, skill.displayName, skill.description, skill.prompt, skill.source)
     } else if (onAddUserPrompt) {
@@ -80,6 +89,7 @@ export function Toolbar({ fileInputRef, onAddUserPrompt, onAddSkill }: ToolbarPr
 
     try {
       await navigator.clipboard.writeText(formatted)
+      trackMessagesCopied()
       toast.success("Messages copied")
     } catch {
       toast.error("Failed to copy")
@@ -103,7 +113,10 @@ export function Toolbar({ fileInputRef, onAddUserPrompt, onAddSkill }: ToolbarPr
       <div className="relative">
         <button
           type="button"
-          onClick={() => setShowPromptMenu(!showPromptMenu)}
+          onClick={() => {
+            if (!showPromptMenu) trackSkillsMenuOpened()
+            setShowPromptMenu(!showPromptMenu)
+          }}
           className="flex items-center justify-center size-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 transition-colors"
           aria-label="Skills"
           title="Skills"
@@ -171,7 +184,10 @@ export function Toolbar({ fileInputRef, onAddUserPrompt, onAddSkill }: ToolbarPr
       {showSelectorButton && (
         <button
           type="button"
-          onClick={activateSelector}
+          onClick={() => {
+            trackElementSelectorActivated()
+            activateSelector()
+          }}
           className={`flex items-center justify-center size-8 rounded-full transition-colors ${
             selectorActive
               ? "bg-purple-500/20 text-purple-400"
@@ -187,7 +203,10 @@ export function Toolbar({ fileInputRef, onAddUserPrompt, onAddSkill }: ToolbarPr
       {/* Plan Mode Toggle */}
       <button
         type="button"
-        onClick={togglePlanMode}
+        onClick={() => {
+          trackPlanModeToggled(!planMode)
+          togglePlanMode()
+        }}
         className={`flex items-center justify-center size-8 rounded-full transition-colors ${
           planMode
             ? "bg-blue-500/20 text-blue-500 dark:text-blue-400"
@@ -205,7 +224,10 @@ export function Toolbar({ fileInputRef, onAddUserPrompt, onAddSkill }: ToolbarPr
 
       <button
         type="button"
-        onClick={handleClick}
+        onClick={() => {
+          trackCameraUsed()
+          handleClick()
+        }}
         className="flex items-center justify-center size-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10 text-black/40 dark:text-white/40 hover:text-black/70 dark:hover:text-white/70 transition-colors"
         aria-label="Upload photo"
       >

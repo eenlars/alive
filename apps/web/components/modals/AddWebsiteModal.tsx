@@ -50,7 +50,7 @@ export function AddWebsiteModal({ onClose, onSuccess }: AddWebsiteModalProps) {
       const data = await response.json()
 
       if (!response.ok || !data.ok) {
-        setError(data.error || "Failed to create website")
+        setError(data.message || data.error || "Failed to create website")
         setDeploying(false)
         return
       }

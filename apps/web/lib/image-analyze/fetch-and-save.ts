@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import * as Sentry from "@sentry/nextjs"
 
 /**
  * Result of fetching and saving an image for analysis
@@ -71,6 +72,7 @@ export async function fetchAndSaveAnalyzeImages(
       })
     } catch (error) {
       console.error(`Error fetching/saving image ${url}:`, error)
+      Sentry.captureException(error)
       // Continue with other images
     }
   }

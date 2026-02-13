@@ -102,7 +102,8 @@ export function getAnthropicApiKey(): string {
 }
 
 /**
- * Default Redis URL for local development only
+ * Default Redis URL for local/native Redis (with dev password).
+ * Native systemd Redis uses ACL auth — password required even locally.
  */
 const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
 

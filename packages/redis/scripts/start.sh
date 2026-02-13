@@ -1,42 +1,17 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Starting Redis..."
-
-# Check if Redis is already running
-if docker ps | grep -q "redis"; then
-    echo "⚠️  Redis is already running"
-    docker-compose ps redis
+if systemctl is-active --quiet redis-server; then
+    echo "Redis is already running"
     exit 0
 fi
 
-# Start Redis
-docker-compose up -d redis
+echo "Starting Redis..."
+systemctl start redis-server
 
-# Wait for Redis to be healthy
-echo "⏳ Waiting for Redis to be ready..."
-timeout=30
-elapsed=0
-
-while [ $elapsed -lt $timeout ]; do
-    if docker exec redis redis-cli ping &> /dev/null; then
-        echo "✅ Redis is ready!"
-        echo ""
-        echo "Connection details:"
-        echo "  - Host (from host): 127.0.0.1:6379"
-        echo "  - Host (from Docker): redis:6379"
-        echo "  - URL: redis://127.0.0.1:6379"
-        echo ""
-        echo "Quick commands:"
-        echo "  - Status: bun --filter @webalive/redis status"
-        echo "  - Logs:   bun --filter @webalive/redis logs"
-        echo "  - CLI:    bun --filter @webalive/redis cli"
-        exit 0
-    fi
-    sleep 1
-    elapsed=$((elapsed + 1))
-done
-
-echo "❌ Redis failed to start within ${timeout}s"
-echo "Check logs with: bun --filter @webalive/redis logs"
-exit 1
+if redis-cli PING 2>/dev/null | grep -q PONG; then
+    echo "OK: Redis is ready on 127.0.0.1:6379"
+else
+    echo "FAIL: Redis did not respond after start"
+    exit 1
+fi

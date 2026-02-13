@@ -19,6 +19,7 @@ import * as settingsService from "@/features/manager/lib/services/settingsServic
 import { executeHandler } from "@/features/manager/lib/utils/executeHandler"
 import { ApiError, delly, getty, postty, putty } from "@/lib/api/api-client"
 import { validateRequest } from "@/lib/api/schemas"
+import { resetPostHogIdentity } from "@/lib/posthog"
 import type { DomainConfigClient, DomainStatus } from "@/types/domain"
 import type { FeedbackEntry } from "@/types/feedback"
 import type { SourceData } from "@/types/sources"
@@ -419,6 +420,7 @@ export default function ManagerPage() {
       })
 
       if (response.ok) {
+        resetPostHogIdentity()
         // Reset state to show login form again
         setAuthenticated(false)
         setShowLogin(true)

@@ -8,6 +8,7 @@
  * with key "SUPABASE_PROJECT_REF".
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -72,6 +73,7 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
     })
   } catch (error) {
     console.error("[Supabase Context] Failed to get context:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
       provider: "supabase",
     })
@@ -142,6 +144,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
     })
   } catch (error) {
     console.error("[Supabase Context] Failed to update project ref:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
       provider: "supabase",
     })
@@ -173,6 +176,7 @@ export async function DELETE(_req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error("[Supabase Context] Failed to remove project ref:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
       provider: "supabase",
     })

@@ -15,41 +15,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { createClient } from "@supabase/supabase-js"
-import { requireEnv } from "@webalive/shared"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ServerConfig {
-  serverId: string
-  paths: {
-    aliveRoot: string
-    sitesRoot: string
-    imagesStorage: string
-  }
-  domains: {
-    main: string // Base domain - all env domains derived from this
-    cookieDomain: string
-    previewBase?: string // e.g., "sonno.tech" — the wildcard domain for preview subdomains
-  }
-  shell: {
-    domains: string[]
-    listen: string
-    upstream: string
-  }
-  generated: {
-    dir: string
-    caddySites: string
-    caddyShell: string
-    nginxMap: string
-  }
-  // Go preview proxy — when set, wildcard preview routing goes to this port
-  // instead of each environment's Next.js port. Enables native WebSocket support.
-  previewProxy?: {
-    port: number // e.g., 5055
-  }
-}
+import { parseServerConfig, requireEnv, type ServerConfig } from "@webalive/shared"
 
 interface EnvironmentConfigRaw {
   key: string
@@ -91,11 +57,7 @@ function filterReservedDomains(domains: DomainRow[], environments: EnvironmentCo
 
 async function loadServerConfig(): Promise<ServerConfig> {
   const raw = await readFile(SERVER_CONFIG_PATH, "utf8")
-  const cfg = JSON.parse(raw) as ServerConfig
-  must(cfg.serverId, "server-config.json missing serverId")
-  must(cfg.domains?.main, "server-config.json missing domains.main")
-  must(cfg.generated?.dir, "server-config.json missing generated.dir")
-  return cfg
+  return parseServerConfig(raw)
 }
 
 async function loadEnvironments(aliveRoot: string, mainDomain: string): Promise<EnvironmentConfig[]> {
@@ -278,11 +240,14 @@ function renderWildcardPreviewBlock(
       `# Routes to Go preview-proxy on port ${previewProxyPort} for native WebSocket support.`,
       "# The proxy handles JWT auth, hostname→port lookup, CSP headers, and script injection.",
       "# Specific domain blocks above take precedence (Caddy routes by specificity).",
-      "# Internal TLS: Cloudflare handles public TLS, origin uses Caddy internal CA.",
+      "# On-demand TLS: Caddy gets real LE certs via the ask endpoint.",
+      "# Requires tls-check API to be running on production (port 9000).",
       "# ============================================================================",
       "",
       `*.${wildcardDomain} {`,
-      "    tls internal",
+      "    tls {",
+      "        on_demand",
+      "    }",
       "",
       `    reverse_proxy localhost:${previewProxyPort} {`,
       "        header_up X-Forwarded-Host {host}",
@@ -315,15 +280,17 @@ function renderWildcardPreviewBlock(
   return [
     "# ============================================================================",
     `# WILDCARD CATCH-ALL (*.${wildcardDomain})`,
-    "# Catches preview subdomains (preview--{label}." + wildcardDomain + ") and routes to",
+    `# Catches preview subdomains (preview--{label}.${wildcardDomain}) and routes to`,
     "# Next.js. Middleware detects preview-- prefix and rewrites to /api/preview-router.",
     "# Specific domain blocks above take precedence (Caddy routes by specificity).",
     "# Routes to correct environment based on Referer header.",
-    "# Internal TLS: Cloudflare handles public TLS, origin uses Caddy internal CA.",
+    "# On-demand TLS: Caddy gets real LE certs via the ask endpoint.",
     "# ============================================================================",
     "",
     `*.${wildcardDomain} {`,
-    "    tls internal",
+    "    tls {",
+    "        on_demand",
+    "    }",
     "",
     "    # Route to correct environment based on Referer",
     refererRoutes,

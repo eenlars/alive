@@ -171,6 +171,32 @@ else
 fi
 
 # =============================================================================
+# Sync Templates Repository
+# =============================================================================
+CONFIG_PATH="${SERVER_CONFIG_PATH:-/var/lib/alive/server-config.json}"
+TEMPLATES_ROOT=$(python3 -c "import json; print(json.load(open('$CONFIG_PATH')).get('paths',{}).get('templatesRoot',''))" 2>/dev/null || echo "")
+TEMPLATES_REPO="https://github.com/eenlars/alive-templates.git"
+
+if [ -z "$TEMPLATES_ROOT" ]; then
+    log_warn "paths.templatesRoot not set in server-config.json — skipping templates sync"
+elif [ ! -d "$TEMPLATES_ROOT/.git" ]; then
+    phase_start "Cloning templates repository"
+    if git clone --depth 1 "$TEMPLATES_REPO" "$TEMPLATES_ROOT"; then
+        phase_end ok "Templates cloned to $TEMPLATES_ROOT"
+    else
+        phase_end error "Failed to clone templates repository"
+        exit 1
+    fi
+else
+    phase_start "Syncing templates"
+    if git -C "$TEMPLATES_ROOT" pull --ff-only 2>&1 | tail -3; then
+        phase_end ok "Templates up to date"
+    else
+        phase_end warn "Templates sync failed (non-fast-forward?) — continuing with existing templates"
+    fi
+fi
+
+# =============================================================================
 # Build (or promote from another environment)
 # =============================================================================
 phase_start "Building application"

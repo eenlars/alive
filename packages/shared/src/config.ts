@@ -18,36 +18,11 @@
  * - SECURITY: Security-related constants
  */
 
+import { parseServerConfig, type ServerConfig } from "./server-config-schema.js"
+
 // =============================================================================
 // Server Config Loading (server-side only)
 // =============================================================================
-
-interface ServerConfigFile {
-  serverId?: string
-  paths?: {
-    aliveRoot?: string
-    sitesRoot?: string
-    imagesStorage?: string
-  }
-  domains?: {
-    main?: string
-    wildcard?: string
-    previewBase?: string
-    cookieDomain?: string
-    frameAncestors?: string[]
-  }
-  generated?: {
-    dir?: string
-    caddySites?: string
-    caddyShell?: string
-    nginxMap?: string
-  }
-  // NOTE: urls section removed - URLs are now derived from domains.main
-  // Pattern: app.{main} (prod), staging.{main} (staging), dev.{main} (dev)
-  serverIp?: string
-  /** Per-server template source path overrides. Maps template_id → local path. */
-  templates?: Record<string, string>
-}
 
 // Check if we're in a browser environment
 const isBrowser = typeof globalThis !== "undefined" && "window" in globalThis
@@ -79,7 +54,7 @@ export const CONFIG_PATH = !isBrowser && typeof process !== "undefined" ? (proce
  * - Dynamic require works in Bun ESM (production) and Node CJS (tests)
  * - Wrapped in try/catch for strict Node ESM (Playwright) where require is unavailable
  */
-function loadServerConfig(): ServerConfigFile {
+function loadServerConfig(): Partial<ServerConfig> {
   // Browser can't read filesystem
   if (isBrowser) {
     return {}
@@ -115,7 +90,7 @@ function loadServerConfig(): ServerConfigFile {
 
   try {
     const raw = fs.readFileSync(CONFIG_PATH, "utf8")
-    return JSON.parse(raw) as ServerConfigFile
+    return parseServerConfig(raw)
   } catch (err) {
     throw new Error(`FATAL: Failed to parse ${CONFIG_PATH}: ${err instanceof Error ? err.message : err}`)
   }
@@ -144,6 +119,7 @@ function pathValue(serverConfigValue: string | undefined): string {
 
 const ALIVE_ROOT = pathValue(serverConfig.paths?.aliveRoot)
 const SITES_ROOT = pathValue(serverConfig.paths?.sitesRoot)
+const TEMPLATES_ROOT = serverConfig.paths?.templatesRoot ?? "/srv/webalive/templates"
 const IMAGES_STORAGE = pathValue(serverConfig.paths?.imagesStorage)
 
 // Domain config from environment (REQUIRED - fails fast if missing)
@@ -156,34 +132,8 @@ const COOKIE_DOMAIN = configValue("COOKIE_DOMAIN", serverConfig.domains?.cookieD
 // Server IP: from env var or server config (REQUIRED)
 const SERVER_IP = configValue("SERVER_IP", serverConfig.serverIp)
 
-// =============================================================================
-// Startup Validation (server-only, after config load)
-// =============================================================================
-
-// If we loaded a real server config (not browser/CI empty), validate all required fields.
-// This catches missing keys at startup instead of silently returning "" and breaking later.
-if (serverConfig.serverId) {
-  const required: Record<string, string> = {
-    "paths.aliveRoot": ALIVE_ROOT,
-    "paths.sitesRoot": SITES_ROOT,
-    "domains.main (or MAIN_DOMAIN env)": MAIN_DOMAIN,
-    "domains.wildcard (or WILDCARD_DOMAIN env)": WILDCARD_DOMAIN,
-    "domains.previewBase (or PREVIEW_BASE env)": PREVIEW_BASE,
-    "domains.cookieDomain (or COOKIE_DOMAIN env)": COOKIE_DOMAIN,
-    "serverIp (or SERVER_IP env)": SERVER_IP,
-  }
-
-  const missing = Object.entries(required)
-    .filter(([, value]) => !value)
-    .map(([key]) => key)
-
-  if (missing.length > 0) {
-    throw new Error(
-      `FATAL: Missing required server config values: ${missing.join(", ")}. ` +
-        `Check ${CONFIG_PATH} and ensure all required fields are set.`,
-    )
-  }
-}
+// NOTE: Startup validation is now handled by Zod schema (parseServerConfig).
+// When config file is present, ALL required fields are validated at parse time.
 
 // =============================================================================
 // Path Constants
@@ -198,6 +148,9 @@ export const PATHS = {
 
   /** Site directory (systemd-managed) */
   SITES_ROOT,
+
+  /** Template sites root directory (e.g., /srv/webalive/templates) */
+  TEMPLATES_ROOT,
 
   /** Template directory for new sites */
   TEMPLATE_PATH: `${ALIVE_ROOT}/templates/site-template`,
@@ -395,6 +348,9 @@ export const DEFAULTS = {
 
   /** Default template ID for new site deployments */
   DEFAULT_TEMPLATE_ID: "tmpl_blank",
+
+  /** Automation worker HTTP port (standalone scheduler/executor process) */
+  AUTOMATION_WORKER_PORT: 5070,
 } as const
 
 // =============================================================================
@@ -571,74 +527,30 @@ export function assertValidServerId(serverId: string | undefined): asserts serve
 }
 
 /**
- * Get local template source path override for a given template ID.
- * Returns the local path if configured in server-config.json, otherwise undefined.
+ * Resolve a template's local filesystem path from its DB source_path.
  *
- * This allows each server to override the DB's source_path with a local path,
- * since template files live at different locations on different servers.
+ * Extracts the directory name (e.g. "blank.alive.best") from the DB path
+ * and joins it with this server's TEMPLATES_ROOT. This way both servers
+ * resolve to the correct local path without per-template config.
+ *
+ * Example: source_path "/srv/webalive/templates/blank.alive.best"
+ *        → TEMPLATES_ROOT + "/blank.alive.best"
+ *        → "/srv/webalive/templates/blank.alive.best"
  */
-export function getLocalTemplatePath(templateId: string): string | undefined {
-  return serverConfig.templates?.[templateId]
-}
-
-// =============================================================================
-// Configuration Validation
-// =============================================================================
-
-export interface ConfigValidationResult {
-  valid: boolean
-  errors: string[]
-  warnings: string[]
-}
-
-/**
- * Validate critical configuration is set.
- * Call this at app startup to catch missing config early.
- *
- * Required for deployments:
- * - WILDCARD_DOMAIN (from env var or server-config.json)
- *
- * Required for multi-server:
- * - SERVER_ID (from server-config.json)
- */
-export function validateConfig(): ConfigValidationResult {
-  const errors: string[] = []
-  const warnings: string[] = []
-
-  // WILDCARD_DOMAIN is required for site deployments
-  if (!WILDCARD_DOMAIN) {
-    errors.push(
-      "WILDCARD_DOMAIN is not configured. Set via WILDCARD_DOMAIN env var or domains.wildcard in server-config.json",
+export function resolveTemplatePath(dbSourcePath: string): string {
+  if (!TEMPLATES_ROOT) {
+    throw new Error(
+      "TEMPLATES_ROOT is not configured. " +
+        'Set "paths.templatesRoot" in server-config.json (e.g. "/srv/webalive/templates").',
     )
   }
-
-  // SERVER_ID is recommended for multi-server deployments
-  if (!serverConfig.serverId) {
-    warnings.push("SERVER_ID is not configured. Set serverId in server-config.json (via SERVER_CONFIG_PATH env var)")
-  } else if (!SERVER_ID_RE.test(serverConfig.serverId)) {
-    errors.push(
-      `serverId "${serverConfig.serverId}" looks invalid (must match srv_<6+ chars>). ` +
-        "Check server-config.json referenced by SERVER_CONFIG_PATH.",
-    )
+  const dirName = dbSourcePath.split("/").pop()
+  if (!dirName) {
+    throw new Error(`Invalid template source_path: "${dbSourcePath}" — cannot extract directory name`)
   }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-  }
+  return `${TEMPLATES_ROOT}/${dirName}`
 }
 
-/**
- * Assert that critical configuration is set.
- * Throws an error if validation fails.
- */
-export function assertConfigValid(): void {
-  const result = validateConfig()
-  if (!result.valid) {
-    throw new Error(`Configuration validation failed:\n${result.errors.join("\n")}`)
-  }
-  if (result.warnings.length > 0) {
-    console.warn(`Configuration warnings:\n${result.warnings.join("\n")}`)
-  }
-}
+// NOTE: validateConfig() and assertConfigValid() have been removed.
+// All validation is now handled at parse time by the Zod schema in
+// server-config-schema.ts via parseServerConfig().

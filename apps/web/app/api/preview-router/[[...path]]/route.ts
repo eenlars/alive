@@ -12,6 +12,7 @@
  * WILDCARD_DOMAIN is dynamically configured via server-config.json.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { DOMAINS, PREVIEW_MESSAGES } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser, isWorkspaceAuthenticated } from "@/features/auth/lib/auth"
@@ -236,6 +237,7 @@ async function handleProxy(request: NextRequest): Promise<NextResponse> {
     })
   } catch (error) {
     console.error("[preview-router] Proxy error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.QUERY_FAILED, 502, {
       hostname,
       port,

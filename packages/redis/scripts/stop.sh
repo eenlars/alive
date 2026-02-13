@@ -1,7 +1,6 @@
 #!/bin/bash
 set -e
 
-echo "🛑 Stopping Redis..."
-docker-compose down
-
-echo "✅ Redis stopped"
+echo "Stopping Redis..."
+systemctl stop redis-server
+echo "OK: Redis stopped"

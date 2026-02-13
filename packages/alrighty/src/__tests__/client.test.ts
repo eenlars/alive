@@ -434,6 +434,31 @@ describe("ApiError", () => {
         expect(err.message).toBe("Shape 3")
       }
     })
+
+    it("prefers message over error code string", async () => {
+      // Shape 4: { ok: false, error: "ERROR_CODE", message: "User-friendly message" }
+      // This is the format used by createErrorResponse() in our API
+      mockFetch.mockReturnValue(
+        mockResponse(
+          { ok: false, error: "INTEGRATION_NOT_CONNECTED", message: "You are not connected to Gmail." },
+          400,
+        ),
+      )
+
+      const { getty } = createClient(schemas)
+
+      try {
+        await getty("user")
+        expect.fail("Should have thrown")
+      } catch (e) {
+        const err = e as ApiError
+        // message should be the user-friendly text, NOT the raw error code
+        expect(err.message).toBe("You are not connected to Gmail.")
+        // code should be the error code
+        expect(err.code).toBe("INTEGRATION_NOT_CONNECTED")
+        expect(err.status).toBe(400)
+      }
+    })
   })
 
   describe("validation errors", () => {

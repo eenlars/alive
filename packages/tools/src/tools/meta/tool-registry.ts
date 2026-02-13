@@ -497,7 +497,7 @@ const INTERNAL_TOOL_REGISTRY: ToolMetadata[] = [
         name: "slug",
         type: "string",
         required: true,
-        description: `Subdomain name (3-20 chars, lowercase letters/numbers/hyphens). Example: 'my-bakery' creates my-bakery.${DEFAULTS.WILDCARD_DOMAIN}`,
+        description: `Subdomain name (3-16 chars, lowercase letters/numbers/hyphens). Example: 'my-bakery' creates my-bakery.${DEFAULTS.WILDCARD_DOMAIN}`,
       },
       {
         name: "siteIdeas",

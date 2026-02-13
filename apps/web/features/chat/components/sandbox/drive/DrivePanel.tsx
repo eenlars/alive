@@ -2,6 +2,7 @@
 
 import { PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { trackDriveFileDeleted, trackDrivePanelOpened } from "@/lib/analytics/events"
 import { DrivePreview } from "./DrivePreview"
 import { DriveTree, invalidateDriveCache } from "./DriveTree"
 import { DriveUpload } from "./DriveUpload"
@@ -24,6 +25,10 @@ export function DrivePanel({ workspace, worktree }: DrivePanelProps) {
   const [isResizing, setIsResizing] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    trackDrivePanelOpened()
+  }, [])
 
   const handleToggleFolder = useCallback((path: string) => {
     setExpandedFolders(prev => {
@@ -52,6 +57,7 @@ export function DrivePanel({ workspace, worktree }: DrivePanelProps) {
 
       try {
         await deleteDriveItem(workspace, path, { worktree, recursive: isDir })
+        trackDriveFileDeleted()
         if (selectedFile === path) setSelectedFile(null)
         invalidateDriveCache(workspace, worktree)
         setRefreshKey(k => k + 1)

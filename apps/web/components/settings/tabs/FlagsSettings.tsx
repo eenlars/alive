@@ -1,8 +1,9 @@
 "use client"
 
-import { FEATURE_FLAGS, type FeatureFlagKey } from "@webalive/shared"
+import { FEATURE_FLAGS, type FeatureFlagDefinition, type FeatureFlagKey } from "@webalive/shared"
 import { RotateCcw } from "lucide-react"
 import { Toggle } from "@/components/ui/Toggle"
+import { useSuperadmin } from "@/hooks/use-superadmin"
 import {
   getFeatureFlagKeys,
   useFeatureFlag,
@@ -64,7 +65,11 @@ export function FlagsSettings() {
   const { clearAllOverrides } = useFeatureFlagActions()
   const overrides = useFeatureFlagOverrides()
   const hasAnyOverrides = Object.keys(overrides).length > 0
-  const flagKeys = getFeatureFlagKeys()
+  const isSuperadmin = useSuperadmin()
+  const flagKeys = getFeatureFlagKeys().filter(key => {
+    const def: FeatureFlagDefinition = FEATURE_FLAGS[key]
+    return !def.superadminOnly || isSuperadmin
+  })
 
   return (
     <SettingsTabLayout

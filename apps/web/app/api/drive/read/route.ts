@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { ensureDriveDir } from "@/features/chat/lib/drivePath"
@@ -180,6 +181,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error(`[Drive Read ${requestId}] Unexpected error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
       requestId,
       error: error instanceof Error ? error.message : "Unknown error",

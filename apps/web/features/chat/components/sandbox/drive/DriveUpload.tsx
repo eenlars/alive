@@ -2,6 +2,7 @@
 
 import { Upload } from "lucide-react"
 import { useCallback, useRef, useState } from "react"
+import { trackDriveFileUploaded } from "@/lib/analytics/events"
 import { uploadDriveItem } from "./drive-api"
 
 interface DriveUploadProps {
@@ -25,6 +26,7 @@ export function DriveUpload({ workspace, worktree, onUploadComplete }: DriveUplo
       try {
         for (const file of files) {
           await uploadDriveItem(workspace, file, worktree)
+          trackDriveFileUploaded()
         }
         onUploadComplete()
       } catch (err) {

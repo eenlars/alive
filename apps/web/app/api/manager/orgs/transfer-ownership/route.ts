@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { isManagerAuthenticated } from "@/features/auth/lib/auth"
@@ -90,6 +91,7 @@ export async function POST(req: NextRequest) {
     return createCorsSuccessResponse(origin, { requestId })
   } catch (error) {
     console.error("[Manager] Transfer ownership error:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }

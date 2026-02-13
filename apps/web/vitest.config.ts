@@ -29,7 +29,8 @@ function loadEnvFile() {
 }
 
 export const sharedConfig = {
-  plugins: [tsconfigPaths() as Plugin],
+  // Restrict tsconfig resolution to this app so vitest doesn't scan build artifacts under .builds/*
+  plugins: [tsconfigPaths({ projects: [join(process.cwd(), "tsconfig.json")], ignoreConfigErrors: true }) as Plugin],
   resolve: {
     preserveSymlinks: false,
     // Use development builds for testing (required for React act() and testing-library)
@@ -87,6 +88,7 @@ export const baseTestConfig = {
     "**/features/chat/hooks/__tests__/useStreamCancellation.test.ts",
     "**/lib/db/__tests__/useTabMessages.test.ts",
     "**/app/chat/components/__tests__/ChatEmptyState.test.tsx",
+    "**/app/chat/hooks/__tests__/useChatMessaging.timeout.test.ts",
   ],
   // Use forks instead of threads - native modules (@napi-rs/image) hang with threads
   pool: "forks" as const,

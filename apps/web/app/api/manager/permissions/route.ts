@@ -1,5 +1,6 @@
 import { exec } from "node:child_process"
 import { promisify } from "node:util"
+import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import {
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
     return createSuccessResponse({ result })
   } catch (error) {
     console.error(`[${requestId}] Permission check failed for ${domain}:`, error)
+    Sentry.captureException(error)
 
     return createErrorResponse(ErrorCodes.PERMISSION_CHECK_FAILED, 500, {
       requestId,
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
     return createSuccessResponse({ message: "Permissions fixed successfully", result })
   } catch (error) {
     console.error(`[${requestId}] Permission fix failed for ${domain}:`, error)
+    Sentry.captureException(error)
 
     return createErrorResponse(ErrorCodes.PERMISSION_FIX_FAILED, 500, {
       requestId,
@@ -124,6 +127,7 @@ async function checkDomainPermissions(domain: string): Promise<PermissionCheckRe
     result.totalFiles = Number.parseInt(totalOutput.trim(), 10)
   } catch (error) {
     console.error(`Failed to count total files for ${domain}:`, error)
+    Sentry.captureException(error)
   }
 
   // Find root-owned files
@@ -137,6 +141,7 @@ async function checkDomainPermissions(domain: string): Promise<PermissionCheckRe
     result.rootOwnedFilesList = rootFilesList.slice(0, 10) // Limit to first 10 for display
   } catch (error) {
     console.error(`Failed to find root-owned files for ${domain}:`, error)
+    Sentry.captureException(error)
   }
 
   // Find files owned by anyone other than expected owner
@@ -152,6 +157,7 @@ async function checkDomainPermissions(domain: string): Promise<PermissionCheckRe
     result.wrongOwnerFilesList = wrongFilesList.slice(0, 10) // Limit to first 10 for display
   } catch (error) {
     console.error(`Failed to find wrong-owner files for ${domain}:`, error)
+    Sentry.captureException(error)
   }
 
   return result
@@ -182,6 +188,7 @@ async function fixDomainPermissions(domain: string): Promise<void> {
     await execAsync(`chown -R "${expectedOwner}:${expectedOwner}" "${siteDir}"`)
   } catch (error) {
     console.error("[Permissions] Failed to change ownership:", error)
+    Sentry.captureException(error)
     throw new Error("Failed to change ownership")
   }
 }

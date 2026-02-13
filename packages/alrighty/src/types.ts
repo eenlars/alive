@@ -53,7 +53,7 @@ export type Req<T extends SchemaRegistry, E extends Endpoint<T>> = T[E]["req"] e
   : never
 
 /**
- * Extract response type for an endpoint
+ * Extract response type for an endpoint (validated output)
  */
 export type Res<T extends SchemaRegistry, E extends Endpoint<T>> = z.infer<T[E]["res"]>
 

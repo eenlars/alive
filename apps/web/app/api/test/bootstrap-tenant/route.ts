@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from "node:crypto"
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { TEST_CONFIG } from "@webalive/shared"
 import { hash } from "bcrypt"
@@ -141,6 +142,11 @@ export async function POST(req: Request) {
           userUpdate: userUpdate.error,
           domainUpsert: domainUpsert.error,
         })
+        Sentry.captureException(
+          new Error(
+            `Bootstrap: Failed to update orphaned user tenant: ${JSON.stringify({ userUpdate: userUpdate.error, domainUpsert: domainUpsert.error })}`,
+          ),
+        )
         return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
       }
 
@@ -165,6 +171,7 @@ export async function POST(req: Request) {
         email,
         runId,
       })
+
       return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
     }
 
@@ -190,6 +197,7 @@ export async function POST(req: Request) {
         userId: existingUser.user_id,
         runId,
       })
+
       return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
     }
 
@@ -253,6 +261,7 @@ export async function POST(req: Request) {
           workspace,
         },
       })
+
       // Note: Rollback is not performed here as these are updates to existing records
       // and we don't have the previous values stored. In a production system, consider
       // implementing a transaction log or using database transactions.

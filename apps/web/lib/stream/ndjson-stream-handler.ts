@@ -18,10 +18,16 @@
  * applying credit charges, and sending typed messages to client.
  */
 
-import type { OAuthWarning } from "@webalive/shared"
+import * as Sentry from "@sentry/nextjs"
+import { type OAuthWarning, STREAMING } from "@webalive/shared"
 import { sessionStore, type TabSessionKey } from "@/features/auth/lib/sessionStore"
 import type { BridgeErrorMessage, StreamMessage } from "@/features/chat/lib/streaming/ndjson"
-import { BridgeStreamType, createWarningMessage, encodeNDJSON } from "@/features/chat/lib/streaming/ndjson"
+import {
+  BridgeStreamType,
+  createPingMessage,
+  createWarningMessage,
+  encodeNDJSON,
+} from "@/features/chat/lib/streaming/ndjson"
 import { isAssistantMessageWithUsage, isBridgeMessageEvent } from "@/features/chat/types/guards"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
 import { logStreamError } from "@/lib/error-logger"
@@ -221,6 +227,7 @@ async function processChildEvent(
       })
       .catch(error => {
         console.error(`[NDJSON Stream ${requestId}] Credit charging failed:`, error)
+        Sentry.captureException(error)
       })
   }
 
@@ -403,6 +410,16 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
         }
       }
 
+      // Heartbeat to keep Cloudflare connection alive during long tool executions.
+      // setInterval runs via the event loop while `await reader.read()` is suspended.
+      const heartbeatInterval = setInterval(() => {
+        try {
+          controller.enqueue(encodeNDJSON(createPingMessage(requestId)))
+        } catch {
+          clearInterval(heartbeatInterval)
+        }
+      }, STREAMING.HEARTBEAT_INTERVAL_MS)
+
       try {
         while (true) {
           // Check if explicitly cancelled via cancel endpoint or client abort
@@ -518,6 +535,7 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
         }
         controller.enqueue(encodeNDJSON(errorMessage))
       } finally {
+        clearInterval(heartbeatInterval)
         // Guaranteed cleanup: runs on success, error, or cancellation
         // Close the stream so client knows we're done
         // NOTE: When stream is cancelled, controller may already be closed. Wrap in try-catch
@@ -574,6 +592,7 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
       if (cancelState.reader) {
         cancelState.reader.cancel().catch(error => {
           console.error(`[NDJSON Stream ${requestId}] Failed to cancel reader:`, error)
+          Sentry.captureException(error)
         })
       }
     },

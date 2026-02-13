@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs"
 import { DEFAULTS, PATHS, PORTS } from "@webalive/shared"
-import { checkDomainInCaddy, configureCaddy, SiteOrchestrator } from "@webalive/site-controller"
+import { checkDomainInCaddy, configureCaddy, regeneratePortMap, SiteOrchestrator } from "@webalive/site-controller"
 import { normalizeAndValidateDomain } from "@/features/manager/lib/domain-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { deploySite } from "./deploy-site"
@@ -180,6 +180,10 @@ export async function runStrictDeployment(input: StrictDeploymentInput): Promise
       port,
       orgId: validated.orgId,
     })
+
+    // Regenerate port-map.json and verify the domain is routable by preview-proxy.
+    // Awaited: a deployment without a working preview is not a deployment.
+    await regeneratePortMap(validated.domain)
 
     await configureCaddy({
       domain: validated.domain,

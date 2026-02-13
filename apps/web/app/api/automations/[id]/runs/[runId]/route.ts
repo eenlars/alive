@@ -4,15 +4,21 @@
  * Get details for a specific automation run, including the full conversation log.
  */
 
-import { createClient } from "@supabase/supabase-js"
+import * as Sentry from "@sentry/nextjs"
+import { readMessagesFromUri } from "@webalive/automation-engine"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
-import { getSupabaseCredentials } from "@/lib/env/server"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
   params: Promise<{ id: string; runId: string }>
+}
+
+/** Subset returned by ownership-check queries (user_id exists in DB but not yet in generated types) */
+interface JobOwnershipRow {
+  user_id: string
 }
 
 /**
@@ -26,8 +32,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const { id: jobId, runId } = await context.params
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Verify job ownership first
     const { data: job } = await supabase.from("automation_jobs").select("user_id").eq("id", jobId).single()
@@ -39,7 +44,9 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       })
     }
 
-    if ((job as any).user_id !== user.id) {
+    const jobRow = job as unknown as JobOwnershipRow
+
+    if (jobRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 
@@ -58,6 +65,14 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       })
     }
 
+    // Load messages from file storage if available, fall back to inline DB blob
+    let messages: unknown[] = []
+    if (run.messages_uri) {
+      messages = (await readMessagesFromUri(run.messages_uri)) ?? []
+    } else if (Array.isArray(run.messages)) {
+      messages = run.messages
+    }
+
     return NextResponse.json({
       run: {
         id: run.id,
@@ -70,12 +85,12 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         result: run.result,
         triggered_by: run.triggered_by,
         changes_made: run.changes_made,
-        // Full conversation log
-        messages: run.messages ?? [],
+        messages,
       },
     })
   } catch (error) {
     console.error("[Automations API] GET run error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

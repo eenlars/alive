@@ -147,7 +147,7 @@ describe("POST /api/deploy-subdomain", () => {
       valid: true,
       template: {
         template_id: "tmpl_blank",
-        source_path: "/srv/webalive/sites/blank.alive.best",
+        source_path: "/srv/webalive/templates/blank.alive.best",
       },
     })
     runStrictDeploymentMock.mockResolvedValue({
@@ -185,7 +185,7 @@ describe("POST /api/deploy-subdomain", () => {
       domain: "testsite.alive.best",
       email: "owner@example.com",
       orgId: "org-1",
-      templatePath: "/srv/webalive/sites/blank.alive.best",
+      templatePath: "/srv/webalive/templates/blank.alive.best",
     })
     expect(runStrictDeploymentMock.mock.calls[0][0]).not.toHaveProperty("password")
   })

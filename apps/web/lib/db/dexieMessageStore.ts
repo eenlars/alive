@@ -102,6 +102,15 @@ interface DexieMessageStoreActions {
   getResumeSessionAt: (tabId: string) => string | null
   /** Clear the resumeSessionAt for a tab (after successful message send) */
   clearResumeSessionAt: (tabId: string) => void
+  /**
+   * Update one tool_result block's content by tool_use_id.
+   * Used by interactive cards (email send/save) to persist canonical UI state.
+   */
+  updateToolResultContentByToolUseId: (
+    tabId: string,
+    toolUseId: string,
+    updater: (content: unknown) => unknown,
+  ) => Promise<boolean>
 
   // Tab management
   addTab: (name?: string) => Promise<string>
@@ -150,6 +159,10 @@ function enqueueTabWrite(tabId: string, fn: () => Promise<void>): Promise<void> 
   const next = prev.then(fn, fn) // run even if prev rejected
   tabWriteQueues.set(tabId, next)
   return next
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
 }
 
 /**
@@ -558,6 +571,85 @@ export const useDexieMessageStore = create<DexieMessageStore>((set, get) => ({
     })
   },
 
+  updateToolResultContentByToolUseId: async (tabId, toolUseId, updater) => {
+    const { session } = get()
+    if (!session) return false
+
+    const db = getMessageDb(session.userId)
+    const tab = await db.tabs.get(tabId)
+    if (!tab) return false
+
+    let updated = false
+
+    await enqueueTabWrite(tabId, async () => {
+      const tabMessages = await db.messages
+        .where("[tabId+seq]")
+        .between([tabId, Dexie.minKey], [tabId, Dexie.maxKey])
+        .reverse()
+        .toArray()
+
+      for (const message of tabMessages) {
+        if (message.content.kind !== "sdk_message") continue
+
+        const sdkMessage = message.content.data
+        if (!isRecord(sdkMessage) || sdkMessage.type !== "user") continue
+
+        const sdkInnerMessage = sdkMessage.message
+        if (!isRecord(sdkInnerMessage) || !Array.isArray(sdkInnerMessage.content)) continue
+
+        let blockUpdated = false
+        const nextBlocks = sdkInnerMessage.content.map(block => {
+          if (!isRecord(block) || block.type !== "tool_result" || block.tool_use_id !== toolUseId) {
+            return block
+          }
+
+          const nextContent = updater(block.content)
+          if (nextContent === block.content) {
+            return block
+          }
+
+          blockUpdated = true
+          return {
+            ...block,
+            content: nextContent,
+          }
+        })
+
+        if (!blockUpdated) {
+          continue
+        }
+
+        const now = Date.now()
+        await safeDb(() =>
+          db.messages.update(message.id, {
+            content: {
+              kind: "sdk_message",
+              data: {
+                ...sdkMessage,
+                message: {
+                  ...sdkInnerMessage,
+                  content: nextBlocks,
+                },
+              },
+            },
+            updatedAt: now,
+            origin: "local",
+            pendingSync: true,
+          }),
+        )
+
+        updated = true
+        break
+      }
+    })
+
+    if (updated) {
+      queueSync(tab.conversationId, session.userId)
+    }
+
+    return updated
+  },
+
   addTab: async (name = "new tab") => {
     const { currentTabGroupId, session } = get()
     if (!session) throw new Error("No session")
@@ -843,6 +935,7 @@ export const useDexieMessageActions = () =>
     deleteMessagesAfter: state.deleteMessagesAfter,
     getResumeSessionAt: state.getResumeSessionAt,
     clearResumeSessionAt: state.clearResumeSessionAt,
+    updateToolResultContentByToolUseId: state.updateToolResultContentByToolUseId,
   }))
 
 // =============================================================================

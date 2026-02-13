@@ -35,6 +35,16 @@ import { useWorkspace } from "@/features/workspace/hooks/useWorkspace"
 import { validateWorktreeSlug } from "@/features/workspace/lib/worktree-utils"
 import { useRedeemReferral } from "@/hooks/useRedeemReferral"
 import {
+  trackChatPageViewed,
+  trackConversationArchived,
+  trackConversationCreated,
+  trackConversationRenamed,
+  trackConversationSwitched,
+  trackConversationUnarchived,
+  trackGithubImportCompleted,
+  trackWorkspaceSelected,
+} from "@/lib/analytics/events"
+import {
   useDexieCurrentConversationId,
   useDexieCurrentTabId,
   useDexieMessageActions,
@@ -45,6 +55,7 @@ import { validateOAuthToastParams } from "@/lib/integrations/toast-validation"
 import { useIsSessionExpired } from "@/lib/stores/authStore"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
 import { isDevelopment, useDebugActions, useDebugVisible, useSandbox, useSSETerminal } from "@/lib/stores/debug-store"
+import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { useApiKey, useModel } from "@/lib/stores/llmStore"
 import { useLastSeenStreamSeq, useStreamingActions } from "@/lib/stores/streamingStore"
@@ -146,6 +157,7 @@ function ChatPageContent() {
   // Handle ?wk= URL parameter to pre-select workspace (e.g., from widget "Edit me" button)
   const [wkParam] = useQueryState(QUERY_KEYS.workspace)
   const [wtParam, setWtParam] = useQueryState(QUERY_KEYS.worktree)
+  const worktreesEnabled = useFeatureFlag("WORKTREES")
   useEffect(() => {
     if (mounted && wkParam && wkParam !== workspace) {
       console.log("[ChatPage] Setting workspace from URL param:", wkParam)
@@ -153,10 +165,10 @@ function ChatPageContent() {
     }
   }, [mounted, wkParam, workspace, setWorkspace])
 
-  // Handle ?wt= URL parameter for worktree selection
+  // Handle ?wt= URL parameter for worktree selection (only when feature flag enabled)
   // Normalize URL param to prevent casing inconsistencies (e.g., "Feature" vs "feature")
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !worktreesEnabled) return
 
     // Normalize and validate the URL param
     let normalizedParam: string | null = null
@@ -176,16 +188,16 @@ function ChatPageContent() {
     if (normalizedParam !== worktree) {
       setWorktree(normalizedParam)
     }
-  }, [mounted, wtParam, worktree, setWorktree, setWtParam])
+  }, [mounted, worktreesEnabled, wtParam, worktree, setWorktree, setWtParam])
 
-  // Sync worktree state back to URL
+  // Sync worktree state back to URL (only when feature flag enabled)
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !worktreesEnabled) return
     const desired = worktree && worktree.length > 0 ? worktree : null
     if (wtParam !== desired) {
       void setWtParam(desired, { shallow: true })
     }
-  }, [mounted, worktree, wtParam, setWtParam])
+  }, [mounted, worktreesEnabled, worktree, wtParam, setWtParam])
 
   // Sync tab ID to URL for shareable links and browser history
   const [tabParam, setTabParam] = useQueryState(QUERY_KEYS.chatTab)
@@ -263,16 +275,22 @@ function ChatPageContent() {
   // Redeem referral code if stored (from invite link flow)
   useRedeemReferral()
 
-  // Update page title with workspace name
+  // Update page title with workspace name & track
   useEffect(() => {
     if (workspace) {
       const projectName = workspace.split(".")[0]
       const capitalized = projectName.charAt(0).toUpperCase() + projectName.slice(1)
       document.title = `${capitalized} - Alive`
+      trackWorkspaceSelected(workspace)
     } else {
       document.title = "Alive"
     }
   }, [workspace])
+
+  // Track chat page view once on mount
+  useEffect(() => {
+    trackChatPageViewed({ workspace })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch organizations and auto-select if none selected
   const { organizations, loading: organizationsLoading } = useOrganizations()
@@ -505,6 +523,7 @@ function ChatPageContent() {
 
   const handleGithubImported = useCallback(
     (newWorkspace: string) => {
+      trackGithubImportCompleted(newWorkspace)
       const targetOrgId = selectedOrgId || organizations[0]?.org_id
       setWorkspace(newWorkspace, targetOrgId)
       setWorktree(null)
@@ -516,6 +535,7 @@ function ChatPageContent() {
 
   const handleNewTabGroup = useCallback(async () => {
     if (!tabWorkspace) return
+    trackConversationCreated()
 
     const previousTabId = tabId
     // startNewTabGroup creates a new tabGroup + first tab in tabStore
@@ -551,6 +571,7 @@ function ChatPageContent() {
   const handleTabGroupSelect = useCallback(
     (selectedTabGroupId: string) => {
       if (!selectedTabGroupId) return
+      trackConversationSwitched()
       handleOpenTabGroupInTab(selectedTabGroupId)
     },
     [handleOpenTabGroupInTab],
@@ -559,6 +580,7 @@ function ChatPageContent() {
   const handleArchiveTabGroup = useCallback(
     async (tabGroupIdToArchive: string) => {
       if (!tabGroupIdToArchive) return
+      trackConversationArchived()
 
       const nextTab =
         tabGroupIdToArchive === tabGroupId
@@ -601,6 +623,7 @@ function ChatPageContent() {
   const handleRenameTabGroup = useCallback(
     async (tabGroupIdToRename: string, title: string) => {
       if (!tabGroupIdToRename || !title.trim()) return
+      trackConversationRenamed()
       await renameConversation(tabGroupIdToRename, title)
     },
     [renameConversation],
@@ -609,6 +632,7 @@ function ChatPageContent() {
   const handleUnarchiveTabGroup = useCallback(
     async (tabGroupIdToUnarchive: string) => {
       if (!tabGroupIdToUnarchive) return
+      trackConversationUnarchived()
       await unarchiveConversation(tabGroupIdToUnarchive)
     },
     [unarchiveConversation],
@@ -731,7 +755,10 @@ function ChatPageContent() {
                   return shouldRenderMessage(message, isDebugMode)
                 })
                 .map((message, index, filteredMessages) => {
-                  const content = renderMessage(message, { onSubmitAnswer: sendMessage })
+                  const content = renderMessage(message, {
+                    onSubmitAnswer: sendMessage,
+                    tabId: sessionTabId ?? undefined,
+                  })
                   // Skip rendering wrapper if component returns null
                   if (!content) return null
 
@@ -743,13 +770,11 @@ function ChatPageContent() {
                     index > 0 &&
                     (message.type === "user" || message.type === "sdk_message") &&
                     // Check if there's any previous assistant message with a UUID
-                    filteredMessages
-                      .slice(0, index)
-                      .some(m => {
-                        if (m.type !== "sdk_message") return false
-                        const sdkContent = m.content as { type?: string; uuid?: string }
-                        return sdkContent?.type === "assistant" && !!sdkContent?.uuid
-                      })
+                    filteredMessages.slice(0, index).some(m => {
+                      if (m.type !== "sdk_message") return false
+                      const sdkContent = m.content as { type?: string; uuid?: string }
+                      return sdkContent?.type === "assistant" && !!sdkContent?.uuid
+                    })
 
                   return (
                     <MessageWrapper
@@ -915,7 +940,9 @@ function ChatPageContent() {
       {modals.invite && <InviteModal onClose={modals.closeInvite} />}
       {githubImportOpen && (
         <GithubImportModal
-          onClose={() => setGithubImportOpen(false)}
+          onClose={() => {
+            setGithubImportOpen(false)
+          }}
           onImported={handleGithubImported}
           orgId={selectedOrgId || organizations[0]?.org_id}
         />

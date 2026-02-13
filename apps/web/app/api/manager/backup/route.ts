@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { backupWebsites } from "@webalive/site-controller/dist/backup"
 import { type NextRequest, NextResponse } from "next/server"
 import { isManagerAuthenticated } from "@/features/auth/lib/auth"
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error("[Manager] Website backup failed:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }

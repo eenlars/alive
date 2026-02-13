@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react"
 import type { UIMessage } from "@/features/chat/lib/message-parser"
+import { trackStreamStopped } from "@/lib/analytics/events"
 import { postty } from "@/lib/api/api-client"
 import { validateRequest } from "@/lib/api/schemas"
 import { clearAbortController, getAbortController, useStreamingActions } from "@/lib/stores/streamingStore"
@@ -90,6 +91,7 @@ export function useStreamCancellation({
     }
     isStoppingRef.current = true
     setIsStopping(true)
+    trackStreamStopped({ workspace })
 
     console.log("[useStreamCancellation] Stopping stream, requestId:", currentRequestIdRef.current)
 

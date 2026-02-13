@@ -1,6 +1,7 @@
 import type { Stats } from "node:fs"
 import { lstat, readdir, readlink, realpath, rm, unlink } from "node:fs/promises"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
@@ -300,6 +301,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error(`[Delete ${requestId}] Unexpected error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.FILE_DELETE_ERROR, 500, {
       requestId,
       error: error instanceof Error ? error.message : "Unknown error",

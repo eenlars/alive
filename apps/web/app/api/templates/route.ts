@@ -1,16 +1,14 @@
 /**
  * Templates API
- * Returns available site templates for deployment
+ * Returns all active site templates for deployment.
+ *
+ * Templates are shared across all servers — both servers host
+ * template files locally (synced via git) and serve the same set.
  */
 
-import { NextResponse } from "next/server"
-import { structuredErrorResponse } from "@/lib/api/responses"
-import { ErrorCodes } from "@/lib/error-codes"
-import { type AppTemplate, createAppClient } from "@/lib/supabase/app"
-
-export interface TemplatesResponse {
-  templates: AppTemplate[]
-}
+import * as Sentry from "@sentry/nextjs"
+import { alrighty } from "@/lib/api/server"
+import { createAppClient } from "@/lib/supabase/app"
 
 /**
  * GET - Get all active templates
@@ -22,32 +20,36 @@ export async function GET() {
 
     const { data: templates, error } = await supabase
       .from("templates")
-      .select("*")
+      .select("template_id, name, description, ai_description, preview_url, image_url, is_active, deploy_count")
       .eq("is_active", true)
       .order("deploy_count", { ascending: false, nullsFirst: false })
 
     if (error) {
-      console.error("[Templates API] Failed to fetch templates:", error)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
-        status: 500,
-        details: { message: error.message },
-      })
+      throw new Error(`[GET /api/templates] app.templates query failed: ${error.message} (code: ${error.code})`)
     }
 
-    return NextResponse.json(
-      { templates: templates || [] },
+    if (!templates || templates.length === 0) {
+      throw new Error("No active templates in database — every server must have templates")
+    }
+
+    // Every template must have a preview_url
+    const missingUrls = templates.filter(t => !t.preview_url)
+    if (missingUrls.length > 0) {
+      throw new Error(`Templates missing preview_url: ${missingUrls.map(t => t.template_id).join(", ")}`)
+    }
+
+    return alrighty(
+      "templates",
+      { templates },
       {
         headers: {
-          // Cache for 5 minutes, revalidate in background
           "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
         },
       },
     )
   } catch (error) {
-    console.error("[Templates API] Unexpected error:", error)
-    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
-      status: 500,
-      details: { message: error instanceof Error ? error.message : "Unknown error" },
-    })
+    console.error("[Templates API]", error)
+    Sentry.captureException(error)
+    return Response.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status: 500 })
   }
 }

@@ -79,7 +79,7 @@ describe("POST /api/deploy", () => {
       valid: true,
       template: {
         template_id: "tmpl_blank",
-        source_path: "/srv/webalive/sites/blank.alive.best",
+        source_path: "/srv/webalive/templates/blank.alive.best",
       },
     })
     runStrictDeploymentMock.mockResolvedValue({
@@ -105,7 +105,7 @@ describe("POST /api/deploy", () => {
       domain: "example.com",
       email: "owner@example.com",
       orgId: "org-1",
-      templatePath: "/srv/webalive/sites/blank.alive.best",
+      templatePath: "/srv/webalive/templates/blank.alive.best",
     })
 
     const payload = (await response.json()) as { ok: boolean; domain: string }
