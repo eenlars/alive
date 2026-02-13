@@ -21,8 +21,6 @@ export {
 } from "./automation-schemas.js"
 export {
   assertValidServerId,
-  BRIDGE_ENV,
-  type BridgeEnv,
   CONFIG_PATH,
   DEFAULTS,
   DOMAINS,
@@ -180,6 +178,38 @@ export {
   sleepWithAbort,
 } from "./retry.js"
 export { parseServerConfig, type ServerConfig, serverConfigSchema } from "./server-config-schema.js"
+export {
+  // Stream protocol events
+  type BaseStreamEvent,
+  ERROR_CODES,
+  type ErrorCode,
+  type InterruptSource,
+  isStreamEvent,
+  STREAM_EVENT_TYPES,
+  STREAM_PROTOCOL_VERSION,
+  type StreamChunkEvent,
+  type StreamCompleteEvent,
+  type StreamErrorEvent,
+  type StreamEvent,
+  type StreamEventType,
+  type StreamInterruptEvent,
+  type StreamMessageEvent,
+  type StreamMessageType,
+  type StreamStartEvent,
+  type StreamState,
+  type StreamStateEvent,
+} from "./stream-events.js"
+export {
+  // Stream token types
+  type CancelResponse,
+  type ReplayResponse,
+  type StreamStartRequest,
+  type StreamStartResponse,
+  type StreamTokenPayload,
+  TOKEN_CONFIG,
+  type TokenRequest,
+  type TokenResponse,
+} from "./stream-tokens.js"
 export {
   // Tool permission helpers
   allowTool,

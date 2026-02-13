@@ -74,7 +74,7 @@ Returns:
 - Targets must appear in `git worktree list --porcelain`.
 
 ## Concurrency
-- Worktree mutations use a per-repo lock at `.git/bridge-worktree.lock`.
+- Worktree mutations use a per-repo lock at `.git/alive-worktree.lock`.
 - Lock contention returns `WORKTREE_LOCKED` (409).
 
 ## Error Codes (Service)

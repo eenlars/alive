@@ -96,9 +96,3 @@ export function HydrationManager(): null {
 
   return null
 }
-
-/**
- * @deprecated Use HydrationManager instead
- * Kept for backwards compatibility during migration
- */
-export const StoreHydrator = HydrationManager

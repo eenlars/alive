@@ -17,12 +17,12 @@
  */
 
 import { useDebugStoreBase } from "./debug-store"
-import { useDeployStoreBase } from "./deployStore"
+import { useDeployStore } from "./deployStore"
 import { useFeatureFlagStoreBase } from "./featureFlagStore"
-import { useGoalStoreBase } from "./goalStore"
+import { useGoalStore } from "./goalStore"
 import { registerStore } from "./hydration-registry"
 import { useLLMStoreBase } from "./llmStore"
-import { useOnboardingStoreBase } from "./onboardingStore"
+import { useOnboardingStore } from "./onboardingStore"
 // Split tab stores for parallel browser tab isolation
 import { useTabDataStore } from "./tabDataStore"
 import { useTabViewStore } from "./tabViewStore"
@@ -95,23 +95,23 @@ function registerAllStores(): void {
 
   registerStore({
     name: "goal",
-    rehydrate: wrapRehydrate(() => useGoalStoreBase.persist.rehydrate()),
-    hasHydrated: () => useGoalStoreBase.persist.hasHydrated(),
+    rehydrate: wrapRehydrate(() => useGoalStore.persist.rehydrate()),
+    hasHydrated: () => useGoalStore.persist.hasHydrated(),
     priority: 60,
   })
 
   // Low priority stores (deploy, onboarding - not needed for chat)
   registerStore({
     name: "deploy",
-    rehydrate: wrapRehydrate(() => useDeployStoreBase.persist.rehydrate()),
-    hasHydrated: () => useDeployStoreBase.persist.hasHydrated(),
+    rehydrate: wrapRehydrate(() => useDeployStore.persist.rehydrate()),
+    hasHydrated: () => useDeployStore.persist.hasHydrated(),
     priority: 100,
   })
 
   registerStore({
     name: "onboarding",
-    rehydrate: wrapRehydrate(() => useOnboardingStoreBase.persist.rehydrate()),
-    hasHydrated: () => useOnboardingStoreBase.persist.hasHydrated(),
+    rehydrate: wrapRehydrate(() => useOnboardingStore.persist.rehydrate()),
+    hasHydrated: () => useOnboardingStore.persist.hasHydrated(),
     priority: 105,
   })
 

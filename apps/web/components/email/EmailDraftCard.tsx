@@ -255,5 +255,3 @@ export function EmailDraftCard({
     </div>
   )
 }
-
-export default EmailDraftCard

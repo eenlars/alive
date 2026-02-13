@@ -91,7 +91,6 @@ alive is a **multi-tenant development platform** that enables Claude AI to assis
 | `@webalive/worker-pool` | Unix socket IPC for warm Claude SDK workers |
 | `@webalive/images` | Native image processing via @napi-rs/image |
 | `@alive-game/alive-tagger` | Vite plugin: injects source locations so Claude knows file:line from UI clicks |
-| `@webalive/stream-types` | TypeScript types for SSE streaming protocol |
 
 ### Request Flow (Claude Chat)
 

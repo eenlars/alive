@@ -84,11 +84,11 @@ export const env = createEnv({
  * 3. OAuth token from ~/.claude/.credentials.json (auto-refreshed)
  * 4. Mock key for local development
  *
- * In local dev mode (STREAM_ENV=local), allows a mock key for testing.
+ * In local dev mode (STREAM_ENV=local or standalone), allows a mock key for testing.
  */
 export function getAnthropicApiKey(): string {
   const apiKey = env.ANTHROPIC_API_KEY || env.ANTH_API_SECRET
-  const isLocalDev = env.STREAM_ENV === "local"
+  const isLocalDev = env.STREAM_ENV === "local" || env.STREAM_ENV === "standalone"
 
   if (apiKey) {
     return apiKey
@@ -112,13 +112,13 @@ const LOCAL_DEV_REDIS_URL = "redis://:dev_password_only@127.0.0.1:6379"
  *
  * - Production/Staging: REDIS_URL is REQUIRED (throws if missing)
  * - Local dev (STREAM_ENV=local): Falls back to default dev password
- * - Standalone (BRIDGE_ENV=standalone): Returns null (Redis not required)
+ * - Standalone (STREAM_ENV=standalone): Returns null (Redis not required)
  *
  * This prevents auth mismatches in production while allowing easy local dev.
  */
 export function getRedisUrl(): string | null {
   // Standalone mode - Redis not available
-  if (env.BRIDGE_ENV === "standalone") {
+  if (env.STREAM_ENV === "standalone") {
     return null
   }
 
@@ -145,7 +145,7 @@ export function getRedisUrl(): string | null {
  */
 export function getSuperadminEmails(): readonly string[] {
   const emailsEnv = env.SUPERADMIN_EMAILS
-  const isLocalDev = env.STREAM_ENV === "local"
+  const isLocalDev = env.STREAM_ENV === "local" || env.STREAM_ENV === "standalone"
 
   if (!emailsEnv && !isLocalDev) {
     throw new Error(
@@ -304,7 +304,7 @@ export function getStreamDevUrl(): string {
  */
 export function getFlowgladSecretKey(): string | undefined {
   const secretKey = env.FLOWGLAD_SECRET_KEY
-  const isLocalDev = env.STREAM_ENV === "local"
+  const isLocalDev = env.STREAM_ENV === "local" || env.STREAM_ENV === "standalone"
 
   if (!secretKey && !isLocalDev) {
     throw new Error(

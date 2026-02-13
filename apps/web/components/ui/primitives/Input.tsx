@@ -1,13 +1,13 @@
 "use client"
 
-import type { HTMLMotionProps } from "framer-motion"
 import { motion } from "framer-motion"
+import type { ComponentPropsWithoutRef } from "react"
 import { forwardRef } from "react"
 import { fieldVariants } from "@/lib/animations"
 
 export type InputState = "error" | "success" | "loading" | "default"
 
-interface InputProps extends Omit<HTMLMotionProps<"input">, "className"> {
+interface InputProps extends Omit<ComponentPropsWithoutRef<"input">, "className"> {
   label?: string
   helperText?: string
   errorMessage?: string
@@ -45,13 +45,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {helperText && <p className="text-xs text-black/60 dark:text-white/60 mb-3">{helperText}</p>}
 
         <motion.div className="relative">
-          <motion.input
-            ref={ref}
-            whileFocus="focus"
-            variants={fieldVariants}
-            className={getInputClasses()}
-            {...props}
-          />
+          <input ref={ref} className={getInputClasses()} {...props} />
 
           {suffix && (
             <motion.div

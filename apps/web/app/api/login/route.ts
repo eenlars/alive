@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   const { email, password } = result.data
 
   // Standalone mode - auto-login with any credentials (for local development)
-  if (process.env.BRIDGE_ENV === "standalone") {
+  if (process.env.STREAM_ENV === "standalone") {
     // Import workspace utilities
     const { getStandaloneWorkspaces, ensureDefaultWorkspace } = await import(
       "@/features/workspace/lib/standalone-workspace"

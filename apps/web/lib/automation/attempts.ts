@@ -223,7 +223,7 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
     permissionMode: PERMISSION_MODE,
     settingSources: SETTINGS_SOURCES,
     oauthMcpServers: {} as Record<string, unknown>,
-    bridgeStreamTypes: STREAM_TYPES,
+    streamTypes: STREAM_TYPES,
     isAdmin: false,
     isSuperadmin: false,
   }

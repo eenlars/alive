@@ -330,7 +330,7 @@ describe("Request queue behavior", () => {
             permissionMode: "default",
             settingSources: [],
             oauthMcpServers: {},
-            bridgeStreamTypes: STREAM_TYPES,
+            streamTypes: STREAM_TYPES,
           },
         },
         onMessage: () => {},

@@ -90,9 +90,6 @@
     "@webalive/redis#health": {
       "cache": false
     },
-    "@webalive/env#build": {
-      "outputs": []
-    },
     "@webalive/image-processor#build": {
       "outputs": []
     },

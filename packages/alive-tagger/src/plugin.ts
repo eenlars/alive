@@ -445,6 +445,3 @@ export function aliveTagger(options: AliveTaggerOptions = {}): Plugin {
     },
   }
 }
-
-// Default export for convenience
-export default aliveTagger

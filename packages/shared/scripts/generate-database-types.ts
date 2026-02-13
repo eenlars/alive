@@ -25,12 +25,13 @@ if (existsSync(envPath)) {
   })
 }
 
-const projectId = process.env.SUPABASE_PROJECT_ID
-if (!projectId) {
+const projectIdRaw = process.env.SUPABASE_PROJECT_ID
+if (!projectIdRaw) {
   console.error("❌ SUPABASE_PROJECT_ID environment variable is required")
   console.error("   Set it in .env or pass it directly: SUPABASE_PROJECT_ID=xxx bun run gen:types")
   process.exit(1)
 }
+const projectId: string = projectIdRaw
 const supabaseCliPath = (() => {
   try {
     return typeof Bun !== "undefined" && typeof Bun.which === "function" ? (Bun.which("supabase") ?? null) : null

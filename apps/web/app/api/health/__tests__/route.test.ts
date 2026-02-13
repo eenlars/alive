@@ -44,8 +44,8 @@ vi.mock("@/lib/env/server", () => ({
 
 vi.mock("@webalive/env/server", () => ({
   env: {
-    get BRIDGE_ENV() {
-      return process.env.BRIDGE_ENV
+    get STREAM_ENV() {
+      return process.env.STREAM_ENV
     },
   },
   getRedisUrl: vi.fn(() => "redis://localhost:6379"),
@@ -176,7 +176,7 @@ describe("GET /api/health", () => {
 
   describe("Unhealthy - Services Disconnected", () => {
     it("should return 503 when Redis client is unavailable outside standalone mode", async () => {
-      vi.stubEnv("BRIDGE_ENV", "production")
+      vi.stubEnv("STREAM_ENV", "production")
       vi.mocked(createRedisClient).mockReturnValue(null as unknown as MockRedis)
       mockFetch.mockResolvedValue(new Response(JSON.stringify([{ user_id: "test" }]), { status: 200 }))
 
@@ -294,7 +294,7 @@ describe("GET /api/health", () => {
 
   describe("Standalone Mode", () => {
     it("should treat missing Redis as connected in standalone mode", async () => {
-      vi.stubEnv("BRIDGE_ENV", "standalone")
+      vi.stubEnv("STREAM_ENV", "standalone")
       vi.mocked(createRedisClient).mockReturnValue(null as unknown as MockRedis)
       mockFetch.mockResolvedValue(new Response(JSON.stringify([{ user_id: "test" }]), { status: 200 }))
 
