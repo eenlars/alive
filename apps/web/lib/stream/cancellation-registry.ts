@@ -160,11 +160,18 @@ export function getRegistryState(): Array<{
 
 /**
  * TTL-based cleanup for orphaned entries
- * Runs every 5 minutes, removes entries older than 10 minutes
- * This is a safety net for streams that crashed or didn't clean up properly
+ * Safety net for streams that crashed or didn't clean up properly.
+ *
+ * IMPORTANT: This MUST be longer than the longest realistic conversation.
+ * Opus conversations with multi-tool tasks regularly run 10-20 minutes.
+ * The TTL cleanup calls entry.cancel() which is the same abort path as
+ * the user clicking Stop — it kills active streams, not just orphans.
+ *
+ * Previously set to 3 minutes which killed every Opus conversation >3min.
+ * See: https://github.com/eenlars/alive/issues/126
  */
-const TTL_MS = 3 * 60 * 1000 // 3 minutes (reduced from 10 to catch orphans faster)
-const CLEANUP_INTERVAL_MS = 1 * 60 * 1000 // 1 minute (reduced from 5)
+const TTL_MS = 30 * 60 * 1000 // 30 minutes
+const CLEANUP_INTERVAL_MS = 1 * 60 * 1000 // 1 minute
 
 let cleanupInterval: NodeJS.Timeout | null = null
 
