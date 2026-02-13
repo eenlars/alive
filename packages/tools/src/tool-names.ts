@@ -88,6 +88,22 @@ export const EMAIL = {
 export type EmailTool = (typeof EMAIL)[keyof typeof EMAIL]
 
 // ============================================================
+// CALENDAR TOOLS (Google Calendar integration)
+// ============================================================
+
+export const CALENDAR = {
+  LIST_CALENDARS: "mcp__google_calendar__list_calendars",
+  LIST_EVENTS: "mcp__google_calendar__list_events",
+  GET_EVENT: "mcp__google_calendar__get_event",
+  SEARCH_EVENTS: "mcp__google_calendar__search_events",
+  CHECK_AVAILABILITY: "mcp__google_calendar__check_availability",
+  COMPOSE_EVENT: "mcp__google_calendar__compose_calendar_event",
+  PROPOSE_MEETING: "mcp__google_calendar__propose_meeting",
+} as const
+
+export type CalendarTool = (typeof CALENDAR)[keyof typeof CALENDAR]
+
+// ============================================================
 // AI TOOLS (alive-tools MCP)
 // ============================================================
 
@@ -135,7 +151,16 @@ export type OtherTool = (typeof OTHER)[keyof typeof OTHER]
 // ALL TOOLS (union type)
 // ============================================================
 
-export type ToolName = LinearTool | StripeTool | FileOpTool | EmailTool | AITool | AutomationTool | PlanTool | OtherTool
+export type ToolName =
+  | LinearTool
+  | StripeTool
+  | FileOpTool
+  | EmailTool
+  | CalendarTool
+  | AITool
+  | AutomationTool
+  | PlanTool
+  | OtherTool
 
 // For dynamic/unknown tools, use this explicitly
 export type AnyToolName = ToolName | (string & {})
