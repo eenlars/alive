@@ -186,7 +186,6 @@ async function handleIncomingEmail(
   }
 
   const result = await triggerAutomation(job.id, fullPrompt, triggerContext, {
-    systemPromptOverride: buildEmailSystemPrompt(),
     extraTools: [AUTOMATION.SEND_REPLY],
     responseToolName: AUTOMATION.SEND_REPLY_BARE,
   })
@@ -225,21 +224,6 @@ async function handleIncomingEmail(
 
   watcherStatus.set(job.emailAddress, { connected: true, lastEvent: Date.now() })
   console.log(`[IMAP:${mailbox}] Reply sent to ${email.from}`)
-}
-
-/**
- * Build the email-specific system prompt.
- * All email knowledge lives here — the automation pipeline is generic.
- */
-function buildEmailSystemPrompt(): string {
-  const now = new Date()
-  return (
-    `Current time: ${now.toISOString()}.` +
-    " You are replying to an email as the character described in the user message." +
-    " You have access to tools — use them to explore the workspace, read files, or gather information that helps you write a better reply." +
-    " When you are ready, call the send_reply tool ONCE with your composed reply text." +
-    " Do NOT write the reply as plain text — you MUST use the send_reply tool to deliver it."
-  )
 }
 
 /**
