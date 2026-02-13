@@ -53,7 +53,13 @@ export async function triggerAutomation(
     signal: AbortSignal.timeout(5 * 60 * 1000), // 5 minute timeout
   })
 
-  const data = (await response.json()) as TriggerResponse
+  let data: TriggerResponse
+  try {
+    data = (await response.json()) as TriggerResponse
+  } catch {
+    console.error(`[Trigger] Failed: ${response.status} (non-JSON response)`)
+    return { ok: false, error: `HTTP ${response.status}: non-JSON response` }
+  }
 
   if (!response.ok) {
     console.error(`[Trigger] Failed: ${response.status}`, data)
