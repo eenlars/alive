@@ -9,8 +9,8 @@
  * - Local test mode handling
  */
 
-import { NextRequest } from "next/server"
 import { SECURITY } from "@webalive/shared"
+import { NextRequest } from "next/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Mock Supabase clients
