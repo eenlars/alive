@@ -247,6 +247,29 @@ export const OAUTH_MCP_PROVIDERS = {
       "mcp__gmail__trash_email",
     ],
   },
+  google_calendar: {
+    url: "http://localhost:8087/mcp",
+    oauthKey: "google", // Reuses Google OAuth (same as Gmail)
+    friendlyName: "Google Calendar",
+    defaultScopes: ["https://www.googleapis.com/auth/calendar"].join(" "),
+    envPrefix: "GOOGLE",
+    knownTools: [
+      // Calendar operations
+      "mcp__google_calendar__list_calendars",
+      // Event read operations
+      "mcp__google_calendar__list_events",
+      "mcp__google_calendar__get_event",
+      "mcp__google_calendar__search_events",
+      // Availability
+      "mcp__google_calendar__check_availability",
+      // Compose (returns data for UI - user must click Create Event)
+      "mcp__google_calendar__compose_calendar_event",
+      // Meeting proposals
+      "mcp__google_calendar__propose_meeting",
+      // NOTE: create_event, update_event, delete_event are NOT MCP tools
+      // They are REST-only (/api/google/calendar/*) - user must click
+    ],
+  },
   supabase: {
     url: "internal", // Tools are built into @webalive/tools, not a separate MCP server
     oauthKey: "supabase",
@@ -474,6 +497,7 @@ export const OAUTH_ONLY_PROVIDERS = {
     defaultScopes: [
       "https://mail.google.com/",
       "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/calendar",
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/userinfo.email",
     ].join(" "),
