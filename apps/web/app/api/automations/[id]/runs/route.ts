@@ -60,8 +60,17 @@ export async function GET(req: NextRequest, context: RouteContext) {
       .order("started_at", { ascending: false })
       .range(offset, offset + limit - 1)
 
+    const VALID_STATUSES = ["pending", "running", "success", "failure", "skipped"] as const
+    type RunStatus = (typeof VALID_STATUSES)[number]
+
     if (status) {
-      query = query.eq("status", status as "pending" | "running" | "success" | "failure" | "skipped")
+      if (!VALID_STATUSES.includes(status as RunStatus)) {
+        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+          status: 400,
+          details: { message: `Invalid status filter: "${status}". Allowed: ${VALID_STATUSES.join(", ")}` },
+        })
+      }
+      query = query.eq("status", status as RunStatus)
     }
 
     const { data: runs, error, count } = await query

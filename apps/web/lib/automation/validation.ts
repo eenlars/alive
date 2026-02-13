@@ -266,9 +266,11 @@ export async function validateWorkspace(hostname: string | undefined): Promise<{
         error: `Invalid workspace path for "${hostname}". Contact support to resolve this security issue.`,
       }
     }
+    // Log full error for debugging, return generic message to user
+    console.error(`Workspace validation failed for "${hostname}":`, error)
     return {
       valid: false,
-      error: `Failed to validate workspace "${hostname}": ${errorMsg}`,
+      error: `Failed to validate workspace "${hostname}". Please try again or contact support.`,
     }
   }
 }

@@ -10,8 +10,6 @@
  */
 
 import { statSync } from "node:fs"
-import { createClient } from "@supabase/supabase-js"
-import { computeNextRunAtMs } from "@webalive/automation"
 import { DEFAULTS, WORKER_POOL } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
@@ -25,8 +23,8 @@ import {
   STREAM_TYPES,
 } from "@/lib/claude/agent-constants.mjs"
 import { getOrgCredits } from "@/lib/credits/supabase-credits"
-import { getSupabaseCredentials } from "@/lib/env/server"
 import { DEFAULT_MODEL } from "@/lib/models/claude-models"
+import { createServiceAppClient } from "@/lib/supabase/service"
 import { generateRequestId } from "@/lib/utils"
 import { runAgentChild } from "@/lib/workspace-execution/agent-child-runner"
 
@@ -121,15 +119,10 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
 
   console.log(`[Automation ${requestId}] Starting job ${jobId} for ${workspace} (timeout: ${timeoutSeconds}s)`)
 
-  const { url, key } = getSupabaseCredentials("service")
-  const supabase = createClient(url, key, { db: { schema: "app" } })
+  const supabase = createServiceAppClient()
 
-  // Fetch job details for schedule info (needed to compute next_run_at)
-  const { data: jobData } = await supabase
-    .from("automation_jobs")
-    .select("trigger_type, cron_schedule, cron_timezone, run_at, skills")
-    .eq("id", jobId)
-    .single()
+  // Fetch job details for skill references
+  const { data: jobData } = await supabase.from("automation_jobs").select("skills").eq("id", jobId).single()
 
   // Load skill prompts if specified
   const skillIds = skills ?? (jobData?.skills as string[] | null) ?? []
@@ -147,9 +140,6 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
   const allMessages: unknown[] = []
 
   try {
-    // Mark job as running
-    await supabase.from("automation_jobs").update({ running_at: new Date().toISOString() }).eq("id", jobId)
-
     // === PHASE 2: Workspace Validation ===
     // resolveWorkspacePath() throws if /user/src directory doesn't exist
     let cwd: string
@@ -332,8 +322,9 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       const decoder = new TextDecoder()
       let buffer = ""
 
+      let timeoutId: ReturnType<typeof setTimeout>
       const timeoutPromise = new Promise<void>((_, reject) => {
-        setTimeout(() => reject(new Error("Automation timeout")), timeoutSeconds * 1000)
+        timeoutId = setTimeout(() => reject(new Error("Automation timeout")), timeoutSeconds * 1000)
       })
 
       const readPromise = (async () => {
@@ -371,7 +362,12 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
         }
       })()
 
-      await Promise.race([readPromise, timeoutPromise])
+      try {
+        await Promise.race([readPromise, timeoutPromise])
+      } finally {
+        clearTimeout(timeoutId!)
+        reader.cancel().catch(() => {})
+      }
     }
 
     const durationMs = Date.now() - startTime
@@ -381,42 +377,8 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
 
     console.log(`[Automation ${requestId}] Completed in ${durationMs}ms, ${allMessages.length} messages captured`)
 
-    // Compute next run time for cron jobs
-    let nextRunAt: string | null = null
-    if (jobData?.trigger_type === "cron" && jobData.cron_schedule) {
-      const nextMs = computeNextRunAtMs(
-        { kind: "cron", expr: jobData.cron_schedule, tz: jobData.cron_timezone || undefined },
-        Date.now(),
-      )
-      if (nextMs) {
-        nextRunAt = new Date(nextMs).toISOString()
-      }
-    }
-
-    // Update job with success
-    await supabase
-      .from("automation_jobs")
-      .update({
-        running_at: null,
-        last_run_at: new Date(startTime).toISOString(),
-        last_run_status: "success",
-        last_run_error: null,
-        last_run_duration_ms: durationMs,
-        next_run_at: nextRunAt,
-      })
-      .eq("id", jobId)
-
-    // Create run record with full message log
-    await supabase.from("automation_runs").insert({
-      job_id: jobId,
-      started_at: new Date(startTime).toISOString(),
-      completed_at: new Date().toISOString(),
-      duration_ms: durationMs,
-      status: "success",
-      result: { response: response.substring(0, 10000) }, // Limit stored response size
-      messages: allMessages, // Full conversation log
-      triggered_by: "manual",
-    })
+    // Pure execution: DB state management is the caller's responsibility
+    // (trigger route, cron service, etc.)
 
     return {
       success: true,
@@ -430,50 +392,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
 
     console.error(`[Automation ${requestId}] Failed after ${durationMs}ms:`, errorMessage)
 
-    // Compute next run time for cron jobs (even on failure, schedule next attempt)
-    let nextRunAt: string | null = null
-    if (jobData?.trigger_type === "cron" && jobData.cron_schedule) {
-      const nextMs = computeNextRunAtMs(
-        { kind: "cron", expr: jobData.cron_schedule, tz: jobData.cron_timezone || undefined },
-        Date.now(),
-      )
-      if (nextMs) {
-        nextRunAt = new Date(nextMs).toISOString()
-      }
-    }
-
-    // Update job with failure
-    try {
-      await supabase
-        .from("automation_jobs")
-        .update({
-          running_at: null,
-          last_run_at: new Date(startTime).toISOString(),
-          last_run_status: "failure",
-          last_run_error: errorMessage,
-          last_run_duration_ms: durationMs,
-          next_run_at: nextRunAt,
-        })
-        .eq("id", jobId)
-    } catch (dbError) {
-      console.error(`[Automation ${requestId}] Failed to update job status:`, dbError)
-    }
-
-    // Create run record with whatever messages we captured before failure
-    try {
-      await supabase.from("automation_runs").insert({
-        job_id: jobId,
-        started_at: new Date(startTime).toISOString(),
-        completed_at: new Date().toISOString(),
-        duration_ms: durationMs,
-        status: "failure",
-        error: errorMessage,
-        messages: allMessages.length > 0 ? allMessages : null, // Include partial log if any
-        triggered_by: "manual",
-      })
-    } catch (dbError) {
-      console.error(`[Automation ${requestId}] Failed to create run record:`, dbError)
-    }
+    // Pure execution: DB state management is the caller's responsibility
 
     return {
       success: false,
