@@ -44,7 +44,7 @@ describe("OAuth Providers", () => {
 
     describe("static scopes", () => {
       it("has full Gmail scopes defined", () => {
-        expect(GoogleProvider.GMAIL_FULL_SCOPES).toContain("https://mail.google.com/")
+        expect(GoogleProvider.GMAIL_FULL_SCOPES).toContain("https://www.googleapis.com/auth/gmail.modify")
       })
 
       it("has readonly Gmail scopes defined", () => {

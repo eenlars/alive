@@ -235,6 +235,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
   let consecutiveFailures = ctx.job.consecutive_failures ?? 0
   let isActive = ctx.job.is_active
   let jobStatus: "idle" | "disabled" = "idle"
+  let disabledDueToFailures = false
 
   if (result.status === "success") {
     consecutiveFailures = 0
@@ -255,11 +256,36 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     consecutiveFailures += 1
 
     if (consecutiveFailures >= maxRetries) {
-      console.warn(
-        `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) DISABLED after ${consecutiveFailures}/${maxRetries} failures`,
-      )
-      isActive = false
-      jobStatus = "disabled"
+      if (ctx.job.trigger_type === "cron" && ctx.job.cron_schedule) {
+        // Cron jobs: skip to next scheduled run instead of permanently disabling.
+        // Transient failures (deployments, outages) shouldn't kill recurring jobs.
+        const nextMs = computeNextRunAtMs(
+          { kind: "cron", expr: ctx.job.cron_schedule, tz: ctx.job.cron_timezone ?? undefined },
+          now,
+        )
+        if (nextMs) {
+          nextRunAt = new Date(nextMs).toISOString()
+          consecutiveFailures = 0
+          console.warn(
+            `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) hit ${maxRetries} failures — resetting to next cron run (${nextRunAt})`,
+          )
+        } else {
+          console.error(
+            `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) hit ${maxRetries} failures and no next cron run could be computed — disabling`,
+          )
+          isActive = false
+          jobStatus = "disabled"
+          disabledDueToFailures = true
+        }
+      } else {
+        // Non-cron jobs (one-time, webhook): disable after max retries
+        console.warn(
+          `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) DISABLED after ${consecutiveFailures}/${maxRetries} failures`,
+        )
+        isActive = false
+        jobStatus = "disabled"
+        disabledDueToFailures = true
+      }
     } else {
       // Exponential backoff with jitter for retry
       const baseMs = retryBaseDelayMs * 2 ** (consecutiveFailures - 1)
@@ -335,6 +361,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     messages: messagesFallback,
     messages_uri: messagesUri,
     triggered_by: ctx.triggeredBy,
+    trigger_context: ctx.triggerContext ?? null,
   })
 
   if (runInsertError) {
@@ -353,6 +380,24 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     retryAttempt: consecutiveFailures > 0 ? consecutiveFailures : undefined,
     messages: result.messages,
   }).catch(() => {}) // Don't fail if logging fails
+
+  // Call lifecycle hooks (best-effort, never fail the finish)
+  if (result.hooks) {
+    if (disabledDueToFailures && result.hooks.onJobDisabled) {
+      try {
+        await result.hooks.onJobDisabled(ctx, result.error)
+      } catch (hookErr) {
+        console.error(`[Engine] onJobDisabled hook failed for "${ctx.job.name}":`, hookErr)
+      }
+    }
+    if (result.hooks.onJobFinished) {
+      try {
+        await result.hooks.onJobFinished(ctx, result.status, result.summary)
+      } catch (hookErr) {
+        console.error(`[Engine] onJobFinished hook failed for "${ctx.job.name}":`, hookErr)
+      }
+    }
+  }
 }
 
 // =============================================================================
