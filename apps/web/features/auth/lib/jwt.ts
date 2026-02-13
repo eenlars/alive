@@ -1,12 +1,9 @@
 import { env } from "@webalive/env/server"
 import { importJWK, jwtVerify, SignJWT } from "jose"
-import {
-  JsonWebTokenError,
-  type Secret,
-  sign as signHS256,
-  TokenExpiredError,
-  verify as verifyHS256,
-} from "jsonwebtoken"
+import type { Secret } from "jsonwebtoken"
+import jwt from "jsonwebtoken"
+
+const { JsonWebTokenError, TokenExpiredError, sign: signHS256, verify: verifyHS256 } = jwt
 
 /**
  * JWT Configuration - Lazy Initialization
