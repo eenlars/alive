@@ -188,6 +188,23 @@ describe("finishJob", () => {
     expect(updateData[0].next_run_at).toBeTruthy()
   })
 
+  it("disables cron job when computeNextRunAtMs returns null at max retries", async () => {
+    computeNextRunAtMsMock.mockReturnValueOnce(null)
+    const { finishJob } = await import("../engine")
+    const { ctx, updateData } = makeRunContext({
+      triggerType: "cron",
+      consecutiveFailures: 2,
+    })
+
+    await finishJob(ctx as never, { status: "failure", durationMs: 50, error: "bad cron" })
+
+    expect(updateData[0]).toMatchObject({
+      is_active: false,
+      status: "disabled",
+    })
+    expect(updateData[0].next_run_at).toBeNull()
+  })
+
   it("increments consecutive_failures and uses backoff before max retries", async () => {
     const { finishJob } = await import("../engine")
     const { ctx, updateData } = makeRunContext({ consecutiveFailures: 0 })

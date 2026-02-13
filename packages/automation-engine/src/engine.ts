@@ -264,11 +264,17 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
         )
         if (nextMs) {
           nextRunAt = new Date(nextMs).toISOString()
+          consecutiveFailures = 0
+          console.warn(
+            `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) hit ${maxRetries} failures — resetting to next cron run (${nextRunAt})`,
+          )
+        } else {
+          console.error(
+            `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) hit ${maxRetries} failures and no next cron run could be computed — disabling`,
+          )
+          isActive = false
+          jobStatus = "disabled"
         }
-        consecutiveFailures = 0
-        console.warn(
-          `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) hit ${maxRetries} failures — resetting to next cron run (${nextRunAt ?? "none"})`,
-        )
       } else {
         // Non-cron jobs (one-time, webhook): disable after max retries
         console.warn(
