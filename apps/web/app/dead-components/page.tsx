@@ -119,7 +119,7 @@ export default function DeadComponentsPage() {
       </Section>
 
       <Section title="ScrollableCode">
-        <ScrollableCode content={`const x = 42;\nconsole.log(x);`} />
+        <ScrollableCode content={"const x = 42;\nconsole.log(x);"} />
       </Section>
 
       <Section title="ToolButton">
