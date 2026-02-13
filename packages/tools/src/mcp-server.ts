@@ -4,6 +4,7 @@ import { askClarificationTool } from "./tools/ai/ask-clarification.js"
 import { askWebsiteConfigTool } from "./tools/ai/ask-website-config.js"
 import { debugWorkspaceTool } from "./tools/composite/debug-workspace.js"
 import { readServerLogsTool } from "./tools/debug/read-server-logs.js"
+import { sendReplyTool } from "./tools/email/send-reply.js"
 import { getWorkflowTool } from "./tools/meta/get-workflow.js"
 import { listWorkflowsTool } from "./tools/meta/list-workflows.js"
 import { searchToolsTool } from "./tools/meta/search-tools.js"
@@ -110,4 +111,18 @@ export const supabaseInternalMcp = createSdkMcpServer({
   name: "supabase",
   version: "1.0.0",
   tools: [runQueryTool, listProjectsTool, listTablesTool, describeTableTool],
+})
+
+/**
+ * Email MCP Server
+ *
+ * Tool for email-triggered automations. Only registered when running
+ * in conversation mode (email trigger with promptOverride).
+ *
+ * Tool names follow MCP pattern: mcp__alive-email__send_reply
+ */
+export const emailInternalMcp = createSdkMcpServer({
+  name: "alive-email",
+  version: "1.0.0",
+  tools: [sendReplyTool],
 })

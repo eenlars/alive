@@ -61,13 +61,38 @@ export interface AttemptResult {
   textMessages: string[]
   allMessages: unknown[]
   finalResponse: string
+  /** Text extracted from a named tool call's input.text (set via responseToolName) */
+  toolResponseText?: string
   costUsd?: number
   numTurns?: number
   usage?: { input_tokens: number; output_tokens: number }
 }
 
-/** Create a fresh, isolated message collector for a single attempt */
-function createMessageCollector(): {
+/**
+ * Extract input.text from a tool_use block matching the given tool name.
+ * Matches both exact name and MCP-prefixed name (e.g. "send_reply" matches "mcp__alive-email__send_reply").
+ */
+function extractToolResponseText(blocks: unknown[], toolName: string): string | undefined {
+  for (const block of blocks) {
+    if (
+      isRecord(block) &&
+      block.type === "tool_use" &&
+      typeof block.name === "string" &&
+      (block.name === toolName || block.name.endsWith(`__${toolName}`)) &&
+      isRecord(block.input) &&
+      typeof block.input.text === "string"
+    ) {
+      return block.input.text
+    }
+  }
+  return undefined
+}
+
+/**
+ * Create a fresh, isolated message collector for a single attempt.
+ * @param responseToolName — when set, extracts input.text from matching tool_use blocks
+ */
+function createMessageCollector(responseToolName?: string): {
   state: AttemptResult
   collect: (msg: Record<string, unknown>) => void
 } {
@@ -90,6 +115,10 @@ function createMessageCollector(): {
             state.textMessages.push(block.text)
           }
         }
+        if (responseToolName) {
+          const toolText = extractToolResponseText(content.content as unknown[], responseToolName)
+          if (toolText) state.toolResponseText = toolText
+        }
       }
       if (content.messageType === "assistant" && isRecord(content.content)) {
         const inner = content.content
@@ -101,6 +130,10 @@ function createMessageCollector(): {
               if (isRecord(block) && block.type === "text" && typeof block.text === "string") {
                 state.textMessages.push(block.text)
               }
+            }
+            if (responseToolName) {
+              const toolText = extractToolResponseText(message.content as unknown[], responseToolName)
+              if (toolText) state.toolResponseText = toolText
             }
           }
         }
@@ -144,6 +177,10 @@ export interface ExecutionParams {
   selectedModel: string
   systemPrompt: string
   timeoutSeconds: number
+  /** Additional MCP tool names to register */
+  extraTools?: string[]
+  /** Extract response from this tool's input.text */
+  responseToolName?: string
 }
 
 interface WorkerPoolParams extends ExecutionParams {
@@ -152,7 +189,18 @@ interface WorkerPoolParams extends ExecutionParams {
 }
 
 export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptResult> {
-  const { requestId, cwd, workspace, userId, fullPrompt, selectedModel, systemPrompt, timeoutSeconds } = params
+  const {
+    requestId,
+    cwd,
+    workspace,
+    userId,
+    fullPrompt,
+    selectedModel,
+    systemPrompt,
+    timeoutSeconds,
+    extraTools,
+    responseToolName,
+  } = params
 
   const { getWorkerPool } = await import("@webalive/worker-pool")
 
@@ -164,8 +212,13 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
     workspaceKey: workspace,
   }
 
+  const allowedTools = getAllowedTools(cwd, false, false)
+  if (extraTools?.length) {
+    allowedTools.push(...extraTools)
+  }
+
   const agentConfig = {
-    allowedTools: getAllowedTools(cwd, false, false),
+    allowedTools,
     disallowedTools: getDisallowedTools(false, false),
     permissionMode: PERMISSION_MODE,
     settingSources: SETTINGS_SOURCES,
@@ -179,7 +232,7 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
   const abort = new AbortController()
   const timeoutId = setTimeout(() => abort.abort(), timeoutSeconds * 1000)
 
-  const { state, collect } = createMessageCollector()
+  const { state, collect } = createMessageCollector(responseToolName)
 
   try {
     await pool.query(credentials, {
@@ -216,7 +269,17 @@ interface ChildProcessParams extends ExecutionParams {
 }
 
 export async function runChildProcess(params: ChildProcessParams): Promise<AttemptResult> {
-  const { requestId, cwd, fullPrompt, selectedModel, systemPrompt, timeoutSeconds, apiKey } = params
+  const {
+    requestId,
+    cwd,
+    fullPrompt,
+    selectedModel,
+    systemPrompt,
+    timeoutSeconds,
+    apiKey,
+    extraTools,
+    responseToolName,
+  } = params
 
   console.log(`[Automation ${requestId}] Using child process runner`)
 
@@ -228,13 +291,14 @@ export async function runChildProcess(params: ChildProcessParams): Promise<Attem
     apiKey,
     isAdmin: false,
     isSuperadmin: false,
+    extraTools,
   })
 
   const reader = childStream.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
 
-  const { state, collect } = createMessageCollector()
+  const { state, collect } = createMessageCollector(responseToolName)
 
   const readLoop = (async () => {
     while (true) {
@@ -256,6 +320,10 @@ export async function runChildProcess(params: ChildProcessParams): Promise<Attem
               if (isRecord(block) && block.type === "text" && typeof block.text === "string") {
                 state.textMessages.push(block.text)
               }
+            }
+            if (responseToolName) {
+              const toolText = extractToolResponseText(msg.content as unknown[], responseToolName)
+              if (toolText) state.toolResponseText = toolText
             }
           } else if (msg.type === "result" && isRecord(msg.data) && typeof msg.data.resultText === "string") {
             state.allMessages.push(msg)
