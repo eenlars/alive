@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { ensureDriveDir } from "@/features/chat/lib/drivePath"
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
       writeAsWorkspaceOwner(resolvedSavePath, buffer, { uid, gid })
     } catch (err) {
       console.error(`[Drive Upload ${requestId}] Failed to write file:`, err)
+      Sentry.captureException(err)
       return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
         requestId,
         reason: "Failed to write uploaded file",
@@ -156,9 +158,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error(`[Drive Upload ${requestId}] Unexpected error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
       requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
     })
   }
 }

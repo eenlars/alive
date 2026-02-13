@@ -2,7 +2,8 @@
 
 import posthog from "posthog-js"
 import { PostHogProvider as PHProvider, usePostHog } from "posthog-js/react"
-import { type ReactNode, useEffect } from "react"
+import { type ReactNode, useCallback, useEffect } from "react"
+import { useAuthStatus } from "@/lib/stores/authStore"
 
 /**
  * PostHog Analytics & Error Tracking Provider
@@ -23,7 +24,7 @@ const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.postho
 let isInitialized = false
 
 function initPostHog() {
-  if (isInitialized || typeof window === "undefined" || !posthogKey) {
+  if (isInitialized || typeof window === "undefined" || !posthogKey || process.env.NODE_ENV !== "production") {
     return
   }
 
@@ -107,6 +108,47 @@ export function captureException(error: Error | unknown, properties?: Record<str
   posthog.captureException(errorObj, properties)
 }
 
+/**
+ * Identifies the current user in PostHog after login.
+ * Re-identifies when auth status changes (e.g. login via AuthModal without page reload).
+ *
+ * Uses the global authStore (not context-based) so it works above UserStoreProvider.
+ */
+function PostHogIdentifier() {
+  const ph = usePostHog()
+  const authStatus = useAuthStatus()
+
+  const identifyUser = useCallback(() => {
+    if (!ph) return
+
+    fetch("/api/user", { credentials: "include" })
+      .then(r => r.json())
+      .then((data: { user?: { id: string; email: string; name: string | null } | null }) => {
+        if (data.user?.id && ph.get_distinct_id() !== data.user.id) {
+          ph.identify(data.user.id, {
+            email: data.user.email,
+            name: data.user.name,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [ph])
+
+  // Identify on mount (page load with existing session)
+  useEffect(() => {
+    identifyUser()
+  }, [identifyUser])
+
+  // Re-identify when auth status changes to "authenticated" (login via AuthModal)
+  useEffect(() => {
+    if (authStatus === "authenticated") {
+      identifyUser()
+    }
+  }, [authStatus, identifyUser])
+
+  return null
+}
+
 export function PostHogProvider({ children }: { children: ReactNode }) {
   // Initialize PostHog on first render
   useEffect(() => {
@@ -120,5 +162,10 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
 
   // Note: No custom error handlers needed - capture_exceptions: true
   // automatically sets up window.onerror and unhandledrejection handlers
-  return <PHProvider client={posthog}>{children}</PHProvider>
+  return (
+    <PHProvider client={posthog}>
+      <PostHogIdentifier />
+      {children}
+    </PHProvider>
+  )
 }

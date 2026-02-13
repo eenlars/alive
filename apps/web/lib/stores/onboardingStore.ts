@@ -26,7 +26,7 @@ const initialState: Pick<OnboardingState, "siteIdea" | "templateId"> = {
  * Hydration is coordinated by HydrationManager to ensure all stores
  * hydrate together, eliminating race conditions in E2E tests.
  */
-export const useOnboardingStoreBase = create<OnboardingState>()(
+export const useOnboardingStore = create<OnboardingState>()(
   persist(
     set => ({
       ...initialState,
@@ -41,9 +41,6 @@ export const useOnboardingStoreBase = create<OnboardingState>()(
     },
   ),
 )
-
-// Re-export with original name for backwards compatibility
-export const useOnboardingStore = useOnboardingStoreBase
 
 // Atomic selector hooks
 export const useSiteIdea = () => useOnboardingStore(state => state.siteIdea)

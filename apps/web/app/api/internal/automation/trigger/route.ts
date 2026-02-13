@@ -4,17 +4,24 @@
  * Server-to-server endpoint for triggering automation jobs without browser auth.
  * Secured by X-Internal-Secret header matching JWT_SECRET.
  *
- * Used by:
- * - CLI testing
- * - Cron/scheduler for timed executions
+ * Uses the engine module for claim/execute/finish lifecycle.
  */
 
-import { computeNextRunAtMs } from "@webalive/automation"
+import type { AppDatabase } from "@webalive/database"
+import { AutomationTriggerRequestSchema, type AutomationTriggerResponse, getServerId } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
-import { runAutomationJob } from "@/lib/automation/executor"
+import { pokeCronService } from "@/lib/automation/cron-service"
+import { claimJob, executeJob, extractSummary, finishJob } from "@/lib/automation/engine"
+import { getAutomationExecutionGate } from "@/lib/automation/execution-guard"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createServiceAppClient } from "@/lib/supabase/service"
+
+type AutomationJob = AppDatabase["app"]["Tables"]["automation_jobs"]["Row"]
+
+function triggerResponse(data: AutomationTriggerResponse, status = 200): NextResponse {
+  return NextResponse.json(data, { status })
+}
 
 export async function POST(req: NextRequest) {
   // Validate internal secret
@@ -30,18 +37,18 @@ export async function POST(req: NextRequest) {
     return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
   }
 
-  // Parse request body
-  let body: { jobId?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
+  const executionGate = getAutomationExecutionGate()
+  if (!executionGate.allowed) {
+    return createErrorResponse(ErrorCodes.FORBIDDEN, 403, { message: executionGate.reason })
   }
 
-  const { jobId } = body
-  if (!jobId) {
+  // Parse and validate request body
+  const parseResult = AutomationTriggerRequestSchema.safeParse(await req.json().catch(() => null))
+  if (!parseResult.success) {
     return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { field: "jobId" })
   }
+
+  const { jobId, promptOverride, triggerContext, systemPromptOverride, extraTools, responseToolName } = parseResult.data
 
   // Get job from database
   const supabase = createServiceAppClient()
@@ -56,90 +63,68 @@ export async function POST(req: NextRequest) {
     return createErrorResponse(ErrorCodes.AUTOMATION_JOB_DISABLED, 400, { jobId })
   }
 
-  // Get site hostname for workspace resolution
-  const { data: site, error: siteError } = await supabase
-    .from("domains")
-    .select("hostname")
-    .eq("domain_id", job.site_id)
-    .single()
+  // Claim via engine
+  const ctx = await claimJob(job as AutomationJob, {
+    supabase,
+    triggeredBy: "internal",
+    serverId: getServerId(),
+  })
 
-  if (siteError || !site) {
-    return createErrorResponse(ErrorCodes.SITE_NOT_FOUND, 404, { jobId })
-  }
-
-  console.log(`[internal/automation/trigger] Running job ${jobId} for ${site.hostname}`)
-
-  const startedAt = new Date()
-  const startedAtIso = startedAt.toISOString()
-
-  // Atomically claim the job
-  const { data: claimed } = await supabase
-    .from("automation_jobs")
-    .update({ running_at: startedAtIso })
-    .eq("id", job.id)
-    .is("running_at", null)
-    .select("id")
-    .limit(1)
-
-  if (!claimed || claimed.length === 0) {
+  if (!ctx) {
     return createErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, 409)
   }
 
-  // Run the automation (pure execution, no DB side effects)
-  const result = await runAutomationJob({
-    jobId: job.id,
-    userId: job.user_id,
-    orgId: job.org_id,
-    workspace: site.hostname,
-    prompt: job.action_prompt!,
-    timeoutSeconds: job.action_timeout_seconds || 300,
-  })
+  // Attach optional overrides from the trigger request
+  if (promptOverride) ctx.promptOverride = promptOverride
+  if (triggerContext) ctx.triggerContext = triggerContext
+  if (systemPromptOverride) ctx.systemPromptOverride = systemPromptOverride
+  if (extraTools?.length) ctx.extraTools = extraTools
+  if (responseToolName) ctx.responseToolName = responseToolName
 
-  const now = new Date()
-  const status = result.success ? "success" : "failure"
+  console.log(`[internal/automation/trigger] Running job ${jobId} for ${ctx.hostname}`)
 
-  // Compute next_run_at for cron jobs
-  let nextRunAt: string | null = null
-  if (job.trigger_type === "cron" && job.cron_schedule) {
-    const nextMs = computeNextRunAtMs(
-      { kind: "cron", expr: job.cron_schedule, tz: job.cron_timezone || undefined },
-      now.getTime(),
-    )
-    if (nextMs) {
-      nextRunAt = new Date(nextMs).toISOString()
-    }
-  }
+  // Synchronous execution — wait for completion
+  try {
+    const result = await executeJob(ctx)
 
-  // Update job state
-  await supabase
-    .from("automation_jobs")
-    .update({
-      running_at: null,
-      last_run_at: startedAtIso,
-      last_run_status: status,
-      last_run_error: result.error ?? null,
-      last_run_duration_ms: result.durationMs,
-      next_run_at: nextRunAt,
+    await finishJob(ctx, {
+      status: result.success ? "success" : "failure",
+      durationMs: result.durationMs,
+      error: result.error,
+      summary: result.success ? extractSummary(result.response) : undefined,
+      messages: result.messages,
+      costUsd: result.costUsd,
+      numTurns: result.numTurns,
+      usage: result.usage,
     })
-    .eq("id", job.id)
 
-  // Insert run record
-  await supabase.from("automation_runs").insert({
-    job_id: job.id,
-    started_at: startedAtIso,
-    completed_at: now.toISOString(),
-    duration_ms: result.durationMs,
-    status,
-    error: result.error ?? null,
-    result: result.response ? { response: result.response.substring(0, 10000) } : null,
-    messages: (result.messages ?? null) as import("@webalive/database").Json,
-    triggered_by: "manual",
-  })
+    // Poke CronService so it re-arms with the new next_run_at
+    pokeCronService()
 
-  return NextResponse.json({
-    ok: result.success,
-    durationMs: result.durationMs,
-    error: result.error,
-    response: result.response?.substring(0, 2000),
-  })
+    return triggerResponse({
+      ok: result.success,
+      durationMs: result.durationMs,
+      error: result.error,
+      response: result.response?.substring(0, 2000),
+    })
+  } catch (error) {
+    const durationMs = Date.now() - new Date(ctx.claimedAt).getTime()
+
+    await finishJob(ctx, {
+      status: "failure",
+      durationMs,
+      error: error instanceof Error ? error.message : String(error),
+    })
+
+    pokeCronService()
+
+    return triggerResponse(
+      {
+        ok: false,
+        durationMs,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500,
+    )
+  }
 }

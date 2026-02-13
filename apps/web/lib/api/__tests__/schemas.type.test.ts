@@ -19,6 +19,7 @@ describe("API Schema Type System", () => {
         | "user"
         | "feedback"
         | "claude/stream/cancel"
+        | "templates"
         | "manager/templates"
         | "manager/templates/create"
         | "manager/templates/update"

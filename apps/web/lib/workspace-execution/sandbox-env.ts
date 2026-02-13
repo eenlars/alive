@@ -1,11 +1,11 @@
 /**
  * Sandboxed Environment for Workspace Child Processes
  *
- * SECURITY CRITICAL: The Bridge process has secrets that must NEVER leak to
+ * SECURITY CRITICAL: The Alive process has secrets that must NEVER leak to
  * workspace users. This module builds an explicit allowlist of env vars that
  * child processes need. Everything else is excluded.
  *
- * Leaked secrets if this breaks:
+ * Leaked platform secrets if this breaks:
  *   SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET, LOCKBOX_MASTER_KEY,
  *   DATABASE_URL, DATABASE_PASSWORD, REDIS_URL, STRIPE_OAUTH_TOKEN,
  *   LINEAR_CLIENT_SECRET, GOOGLE_CLIENT_SECRET, and ~15 more.
@@ -36,7 +36,7 @@ const ALLOWED_ENV_KEYS = [
   // Bun runtime — needed for bun to find its install and modules
   "BUN_INSTALL",
 
-  // MCP tool API callbacks — tools call back to Bridge via localhost
+  // MCP tool API callbacks — tools call back to Alive via localhost
   "PORT",
   "BRIDGE_API_PORT",
   "INTERNAL_TOOLS_SECRET",

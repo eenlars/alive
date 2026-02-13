@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, useEffect } from "react"
+import { trackSettingsOpened } from "@/lib/analytics/events"
 import { SettingsPageClient } from "./SettingsPageClient"
 
 type SettingsTab =
@@ -26,6 +27,11 @@ interface SettingsOverlayProps {
  * Uses Suspense to handle nuqs URL param hydration.
  */
 export function SettingsOverlay({ onClose, initialTab }: SettingsOverlayProps) {
+  // Track settings open
+  useEffect(() => {
+    trackSettingsOpened(initialTab)
+  }, [initialTab])
+
   // ESC key closes overlay
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => e.key === "Escape" && onClose()

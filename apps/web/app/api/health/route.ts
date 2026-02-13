@@ -113,7 +113,7 @@ async function checkRedis(): Promise<ServiceHealth> {
 
     // Redis absent: expected in standalone mode, misconfiguration otherwise
     if (!redis) {
-      const isStandalone = env.BRIDGE_ENV === "standalone"
+      const isStandalone = env.STREAM_ENV === "standalone"
       return {
         status: isStandalone ? "connected" : "disconnected",
         responseTimeMs: Math.round(performance.now() - start),
@@ -161,7 +161,7 @@ async function checkRedis(): Promise<ServiceHealth> {
  */
 async function checkDatabase(): Promise<ServiceHealth> {
   // Standalone mode - no database available
-  if (env.BRIDGE_ENV === "standalone") {
+  if (env.STREAM_ENV === "standalone") {
     return {
       status: "connected", // Report as "connected" since it's expected in standalone
       responseTimeMs: 0,

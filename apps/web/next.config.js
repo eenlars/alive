@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
+import { withSentryConfig } from "@sentry/nextjs"
 
 /**
  * NOTE: Environment validation happens in the app itself via:
@@ -85,4 +86,20 @@ const nextConfig = {
     "@webalive/database",
   ],
 }
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  // Suppress noisy source map upload logs
+  silent: true,
+
+  // Don't upload source maps to Sentry (self-hosted, not needed)
+  sourcemaps: { disable: true },
+
+  // Don't widen the tracing for build-time (keeps builds fast)
+  webpack: { treeshake: { removeDebugLogging: true } },
+
+  // Use the org/project from our self-hosted Sentry
+  org: "sentry",
+  project: "alive",
+
+  // Self-hosted Sentry URL
+  sentryUrl: "https://sentry.sonno.tech",
+})

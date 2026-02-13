@@ -1,0 +1,23 @@
+[Unit]
+Description=Google Calendar MCP Server (HTTP with Bearer token auth)
+Documentation=https://github.com/eenlars/alive
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/webalive/alive/apps/mcp-servers/google-calendar
+ExecStart=/usr/bin/node dist/index.js --transport http --port 8087
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcp-google-calendar
+
+# Environment
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

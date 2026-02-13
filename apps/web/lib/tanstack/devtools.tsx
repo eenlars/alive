@@ -33,5 +33,3 @@ export function QueryDevTools() {
     </Suspense>
   )
 }
-
-export default QueryDevTools

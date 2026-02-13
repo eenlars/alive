@@ -24,7 +24,7 @@ import { getSupabaseCredentials, type KeyType } from "@/lib/env/server"
  */
 export async function createIamClient(keyType: KeyType = "service") {
   // Standalone mode - no Supabase available
-  if (process.env.BRIDGE_ENV === "standalone") {
+  if (process.env.STREAM_ENV === "standalone") {
     throw new Error(
       "[Standalone] Supabase is not available in standalone mode. " +
         "Use in-memory alternatives or ensure code paths avoid database calls.",

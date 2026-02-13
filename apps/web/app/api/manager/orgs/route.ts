@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { createClient } from "@supabase/supabase-js"
 import type { AppDatabase } from "@webalive/database"
 import { type NextRequest, NextResponse } from "next/server"
@@ -170,6 +171,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error("[Manager Orgs] Unexpected error:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }
@@ -209,6 +211,7 @@ export async function POST(req: NextRequest) {
     return createCorsSuccessResponse(origin, { requestId })
   } catch (error) {
     console.error("[Manager Orgs] Unexpected error:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }
@@ -281,6 +284,7 @@ export async function DELETE(req: NextRequest) {
     return createCorsSuccessResponse(origin, { requestId })
   } catch (error) {
     console.error("[Manager Orgs] Unexpected error:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }

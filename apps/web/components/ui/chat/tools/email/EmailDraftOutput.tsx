@@ -9,36 +9,14 @@
 
 "use client"
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { EmailDraftCard } from "@/components/email/EmailDraftCard"
 import type { EmailDraft } from "@/components/email/types"
 import { FAKE_EMAIL_DRAFTS } from "@/components/email/types"
+import { useDexieMessageActions } from "@/lib/db/dexieMessageStore"
 import type { ToolResultRendererProps } from "@/lib/tools/tool-registry"
 import type { GmailDraftResponse, GmailErrorResponse, GmailSendResponse } from "@/lib/types/gmail-api"
-
-/**
- * Generate a unique key for storing sent status in localStorage
- */
-function getEmailStorageKey(draft: { to: string[]; subject: string }): string {
-  const key = `${draft.to.join(",")}-${draft.subject}`.slice(0, 100)
-  return `email-sent:${key}`
-}
-
-/**
- * Check if email was already sent (persisted in localStorage)
- */
-function wasEmailSent(draft: { to: string[]; subject: string }): boolean {
-  if (typeof window === "undefined") return false
-  return localStorage.getItem(getEmailStorageKey(draft)) === "sent"
-}
-
-/**
- * Mark email as sent in localStorage
- */
-function markEmailAsSent(draft: { to: string[]; subject: string }): void {
-  if (typeof window === "undefined") return
-  localStorage.setItem(getEmailStorageKey(draft), "sent")
-}
+import { patchEmailDraftToolResultContent, toPersistedEmailDraftStatus } from "./emailDraftState"
 
 /**
  * Parse email draft from tool output
@@ -57,9 +35,6 @@ function parseEmailDraft(data: unknown): EmailDraft | null {
   const toArray = Array.isArray(toField) ? toField : typeof toField === "string" ? [toField] : []
   const subject = String(obj.subject || "")
 
-  // Check if this email was already sent (survives page refresh)
-  const alreadySent = wasEmailSent({ to: toArray.map(String), subject })
-
   return {
     id: (obj.id as string) || undefined,
     to: toArray.map(String),
@@ -68,7 +43,7 @@ function parseEmailDraft(data: unknown): EmailDraft | null {
     subject,
     body: String(obj.body || obj.content || obj.message || ""),
     threadId: (obj.threadId as string) || (obj.thread_id as string) || undefined,
-    status: alreadySent ? "sent" : "draft",
+    status: toPersistedEmailDraftStatus(obj.status),
     createdAt: new Date().toISOString(),
   }
 }
@@ -80,9 +55,25 @@ function parseEmailDraft(data: unknown): EmailDraft | null {
  * - mcp__gmail__compose_email
  * - mcp__gmail__create_draft
  */
-export function EmailDraftOutput({ data }: ToolResultRendererProps<unknown>) {
+export function EmailDraftOutput({ data, tabId, toolUseId }: ToolResultRendererProps<unknown>) {
   const [draft, setDraft] = useState<EmailDraft | null>(() => parseEmailDraft(data))
   const [error, setError] = useState<string | null>(null)
+  const { updateToolResultContentByToolUseId } = useDexieMessageActions()
+
+  const persistDraftState = useCallback(
+    async (nextDraft: EmailDraft) => {
+      if (!tabId || !toolUseId) return
+
+      await updateToolResultContentByToolUseId(tabId, toolUseId, content =>
+        patchEmailDraftToolResultContent(content, {
+          status: toPersistedEmailDraftStatus(nextDraft.status),
+          id: nextDraft.id,
+          threadId: nextDraft.threadId,
+        }),
+      )
+    },
+    [tabId, toolUseId, updateToolResultContentByToolUseId],
+  )
 
   // Handle send action - calls /api/gmail/send
   const handleSend = async (emailDraft: EmailDraft) => {
@@ -111,9 +102,15 @@ export function EmailDraftOutput({ data }: ToolResultRendererProps<unknown>) {
         )
       }
 
-      // Persist sent status so it survives page refresh
-      markEmailAsSent(emailDraft)
-      setDraft({ ...emailDraft, status: "sent", id: (result as GmailSendResponse).messageId })
+      const nextDraft = {
+        ...emailDraft,
+        status: "sent",
+        id: (result as GmailSendResponse).messageId,
+        threadId: (result as GmailSendResponse).threadId || emailDraft.threadId,
+      } satisfies EmailDraft
+
+      setDraft(nextDraft)
+      await persistDraftState(nextDraft)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send email"
       setError(message)
@@ -147,7 +144,14 @@ export function EmailDraftOutput({ data }: ToolResultRendererProps<unknown>) {
         )
       }
 
-      setDraft({ ...emailDraft, status: "saved", id: (result as GmailDraftResponse).draftId })
+      const nextDraft = {
+        ...emailDraft,
+        status: "saved",
+        id: (result as GmailDraftResponse).draftId,
+      } satisfies EmailDraft
+
+      setDraft(nextDraft)
+      await persistDraftState(nextDraft)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save draft"
       setError(message)

@@ -219,8 +219,3 @@ export function usePanelContext() {
   }
   return context
 }
-
-/** @deprecated Use PanelProvider instead */
-export const SandboxProvider = PanelProvider
-/** @deprecated Use usePanelContext instead */
-export const useSandboxContext = usePanelContext

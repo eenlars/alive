@@ -14,7 +14,8 @@
 
 "use client"
 
-import { Calendar, Check, ChevronRight, Clock, Globe, Zap } from "lucide-react"
+import { CLAUDE_MODELS, type ClaudeModel, getModelDisplayName } from "@webalive/shared"
+import { Calendar, Check, ChevronRight, Clock, Cpu, Globe, Zap } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 // =============================================================================
@@ -37,6 +38,7 @@ export interface AutomationConfigResult {
   siteName: string
   name: string
   prompt: string
+  model: ClaudeModel
   scheduleType: "once" | "daily" | "weekly" | "monthly" | "custom"
   scheduleTime: string // HH:MM format
   scheduleDate?: string // YYYY-MM-DD for one-time
@@ -62,6 +64,12 @@ const REPEAT_OPTIONS = [
   { label: "Custom", value: "custom", description: "Use a cron expression" },
 ] as const
 
+const MODEL_OPTIONS = [
+  { label: getModelDisplayName(CLAUDE_MODELS.OPUS_4_6), value: CLAUDE_MODELS.OPUS_4_6 },
+  { label: getModelDisplayName(CLAUDE_MODELS.SONNET_4_5), value: CLAUDE_MODELS.SONNET_4_5 },
+  { label: getModelDisplayName(CLAUDE_MODELS.HAIKU_4_5), value: CLAUDE_MODELS.HAIKU_4_5 },
+]
+
 const TIMEZONES = [
   { label: "Amsterdam (CET)", value: "Europe/Amsterdam" },
   { label: "London (GMT)", value: "Europe/London" },
@@ -85,6 +93,7 @@ export function AutomationConfig({ data, onComplete, onSkip }: AutomationConfigP
   const [siteId, setSiteId] = useState(data.defaultSiteId || "")
   const [siteSearch, setSiteSearch] = useState("")
   const [siteDropdownOpen, setSiteDropdownOpen] = useState(false)
+  const [model, setModel] = useState<ClaudeModel>(CLAUDE_MODELS.OPUS_4_6)
 
   // Schedule fields
   const [scheduleType, setScheduleType] = useState<RepeatValue>("daily")
@@ -194,13 +203,26 @@ export function AutomationConfig({ data, onComplete, onSkip }: AutomationConfigP
       siteName: site.hostname,
       name,
       prompt,
+      model,
       scheduleType,
       scheduleTime,
       scheduleDate: scheduleType === "once" ? scheduleDate : undefined,
       cronExpression: scheduleType === "custom" ? cronExpression : undefined,
       timezone,
     })
-  }, [siteId, name, prompt, scheduleType, scheduleTime, scheduleDate, cronExpression, timezone, data.sites, onComplete])
+  }, [
+    siteId,
+    name,
+    prompt,
+    model,
+    scheduleType,
+    scheduleTime,
+    scheduleDate,
+    cronExpression,
+    timezone,
+    data.sites,
+    onComplete,
+  ])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -382,6 +404,31 @@ export function AutomationConfig({ data, onComplete, onSkip }: AutomationConfigP
                     <span className="text-sm text-zinc-600 dark:text-zinc-300">{data.sites[0].hostname}</span>
                   </div>
                 )}
+
+                {/* Model selector */}
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="automation-model" className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    Model
+                  </label>
+                  <div className="relative">
+                    <Cpu
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 pointer-events-none"
+                    />
+                    <select
+                      id="automation-model"
+                      value={model}
+                      onChange={e => setModel(e.target.value as ClaudeModel)}
+                      className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-transparent pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus-visible:outline-none hover:border-zinc-300 dark:hover:border-zinc-600 cursor-pointer"
+                    >
+                      {MODEL_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -631,6 +678,13 @@ export function AutomationConfig({ data, onComplete, onSkip }: AutomationConfigP
                       {scheduleType === "custom" && `Cron: ${cronExpression}`}
                       {scheduleType !== "once" && ` (${timezone.split("/")[1] || timezone})`}
                     </p>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5 px-2 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                    <p className="text-xs font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">
+                      Model
+                    </p>
+                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{getModelDisplayName(model)}</p>
                   </div>
 
                   <div className="flex flex-col gap-0.5 px-2 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">

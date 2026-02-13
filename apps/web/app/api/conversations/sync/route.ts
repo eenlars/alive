@@ -10,6 +10,7 @@
  * - Atomic operations: all-or-nothing per conversation
  */
 
+import * as Sentry from "@sentry/nextjs"
 import type { Json } from "@webalive/database"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -305,6 +306,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("[sync] Unexpected error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

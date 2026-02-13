@@ -1,17 +1,22 @@
 import { Hono } from "hono"
-import { serve } from "@hono/node-server"
 import { cors } from "hono/cors"
-import { init, id } from "@instantdb/admin"
+import { Database } from "bun:sqlite"
 
-// Initialize InstantDB Admin
-// Note: Create src/lib/instant.schema.ts and import it here for type safety
-// import schema from './src/lib/instant.schema'
+// Initialize SQLite database (bun:sqlite is built-in, no npm package needed)
+// Database file is stored in the project root
+const db = new Database("data.db")
 
-const db = init({
-  appId: process.env.VITE_INSTANT_APP_ID!,
-  adminToken: process.env.INSTANT_ADMIN_TOKEN!,
-  // schema, // Uncomment when you have a schema
-})
+// Create tables if they don't exist
+db.exec(`
+  CREATE TABLE IF NOT EXISTS items (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    status TEXT DEFAULT 'active',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )
+`)
 
 const app = new Hono()
 
@@ -33,41 +38,46 @@ app.get("/api/health", c => {
 // ADD YOUR API ROUTES HERE
 // ============================================
 
-// Example: Get all items from a collection
-// app.get('/api/items', async (c) => {
-//   try {
-//     const { items } = await db.query({ items: {} })
-//     return c.json(items)
-//   } catch (error) {
-//     console.error('Error fetching items:', error)
-//     return c.json({ error: 'Failed to fetch items' }, 500)
-//   }
+// Example: Get all items
+// app.get('/api/items', (c) => {
+//   const items = db.query('SELECT * FROM items ORDER BY created_at DESC').all()
+//   return c.json(items)
 // })
 
 // Example: Create an item
 // app.post('/api/items', async (c) => {
-//   try {
-//     const body = await c.req.json()
-//     const itemId = id()
+//   const body = await c.req.json()
+//   const id = crypto.randomUUID()
 //
-//     await db.transact([
-//       db.tx.items[itemId].update({
-//         ...body,
-//         createdAt: new Date().toISOString(),
-//       })
-//     ])
+//   db.query(`
+//     INSERT INTO items (id, name, description, status)
+//     VALUES (?, ?, ?, ?)
+//   `).run(id, body.name, body.description || null, body.status || 'active')
 //
-//     return c.json({ id: itemId, ...body }, 201)
-//   } catch (error) {
-//     console.error('Error creating item:', error)
-//     return c.json({ error: 'Failed to create item' }, 500)
-//   }
+//   return c.json({ id, ...body }, 201)
 // })
 
 // ============================================
 
-const port = parseInt(process.env.API_PORT || "4000")
+// ============================================
+// Static file serving (production only)
+// ============================================
 
-serve({ fetch: app.fetch, port }, () => {
-  console.log(`🚀 API server running on http://localhost:${port}`)
-})
+const isProduction = process.env.NODE_ENV === "production"
+
+if (isProduction) {
+  const { serveStatic } = await import("hono/bun")
+  app.use("/*", serveStatic({ root: "./dist" }))
+  app.get("*", serveStatic({ path: "./dist/index.html" }))
+}
+
+// ============================================
+
+const PORT = process.env.API_PORT || process.env.PORT || 4000
+
+console.log(`${isProduction ? "Production" : "API"} server running on http://localhost:${PORT}`)
+
+export default {
+  port: PORT,
+  fetch: app.fetch,
+}

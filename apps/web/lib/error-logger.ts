@@ -10,6 +10,7 @@
  * - Query: GET /api/logs/error?category=oauth&limit=50
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 
 export interface ErrorLogEntry {
@@ -52,6 +53,24 @@ export function captureError(entry: Omit<ErrorLogEntry, "id" | "timestamp">): Er
     details: entry.details,
     userId: entry.userId,
     requestId: entry.requestId,
+  })
+
+  // Send to Sentry
+  Sentry.withScope(scope => {
+    scope.setTag("category", entry.category)
+    scope.setTag("source", entry.source)
+    if (entry.requestId) scope.setTag("requestId", entry.requestId)
+    if (entry.userId) scope.setUser({ id: entry.userId })
+    if (entry.details) scope.setContext("details", entry.details)
+
+    if (entry.stack) {
+      // Reconstruct error with original stack
+      const err = new Error(entry.message)
+      err.stack = entry.stack
+      Sentry.captureException(err)
+    } else {
+      Sentry.captureMessage(entry.message, "error")
+    }
   })
 
   return fullEntry
@@ -193,6 +212,38 @@ interface ErrorWithWorkerDebug extends Error {
   diagnostics?: unknown
 }
 
+interface PidsDiagnosticsPayload {
+  current: number
+  max: number
+  headroom?: number
+  usagePercent?: number
+  cgroupPath?: string
+}
+
+function extractPidsDiagnostics(diagnostics: unknown): PidsDiagnosticsPayload | null {
+  if (!diagnostics || typeof diagnostics !== "object") return null
+  const asRecord = diagnostics as Record<string, unknown>
+
+  const fromRoot =
+    typeof asRecord.current === "number" && typeof asRecord.max === "number"
+      ? asRecord
+      : asRecord.pids && typeof asRecord.pids === "object"
+        ? (asRecord.pids as Record<string, unknown>)
+        : null
+
+  if (!fromRoot || typeof fromRoot.current !== "number" || typeof fromRoot.max !== "number") {
+    return null
+  }
+
+  return {
+    current: fromRoot.current,
+    max: fromRoot.max,
+    headroom: typeof fromRoot.headroom === "number" ? fromRoot.headroom : undefined,
+    usagePercent: typeof fromRoot.usagePercent === "number" ? fromRoot.usagePercent : undefined,
+    cgroupPath: typeof fromRoot.cgroupPath === "string" ? fromRoot.cgroupPath : undefined,
+  }
+}
+
 function safeJsonForLog(value: unknown): string {
   try {
     return JSON.stringify(value)
@@ -234,12 +285,38 @@ export function logStreamError(context: StreamErrorContext): void {
 
   if (diagnostics) {
     console.error(`[STREAM_ERROR:${requestId}] Worker diagnostics: ${safeJsonForLog(diagnostics)}`)
+    const pids = extractPidsDiagnostics(diagnostics)
+    if (pids) {
+      console.error(
+        `[STREAM_ERROR:${requestId}] PID pressure detected: current=${pids.current} max=${pids.max}${typeof pids.headroom === "number" ? ` headroom=${pids.headroom}` : ""}${typeof pids.usagePercent === "number" ? ` usage=${pids.usagePercent.toFixed(1)}%` : ""}${pids.cgroupPath ? ` cgroup=${pids.cgroupPath}` : ""}`,
+      )
+    }
   }
 
   // Stack trace on separate line if available
   if (errorStack) {
     console.error(`[STREAM_ERROR:${requestId}] Stack:`, errorStack)
   }
+
+  // Send to Sentry with rich stream context
+  Sentry.withScope(scope => {
+    scope.setTag("category", "stream")
+    scope.setTag("requestId", requestId)
+    scope.setTag("workspace", workspace)
+    scope.setTag("model", model)
+    scope.setTag("build", `${info.branch}@${info.buildTime}`)
+    scope.setContext("stream", {
+      workspace,
+      model,
+      build: `${info.branch}@${info.buildTime}`,
+      env: info.env,
+      stderr,
+      diagnostics,
+    })
+
+    const err = error instanceof Error ? error : new Error(errorMessage)
+    Sentry.captureException(err)
+  })
 
   // Also capture in queryable error buffer
   captureError({

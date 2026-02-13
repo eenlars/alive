@@ -1,0 +1,34 @@
+[Unit]
+Description=Automation Worker (Scheduler + Executor)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/webalive/alive/apps/worker
+EnvironmentFile=/root/webalive/alive/apps/web/.env.production
+
+ExecStart=/usr/local/bin/bun src/index.ts
+
+# Automatic restart on failure
+Restart=always
+RestartSec=5s
+StartLimitInterval=60s
+StartLimitBurst=5
+
+# Graceful shutdown (worker listens for SIGTERM)
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=automation-worker
+
+# Resource limits
+MemoryMax=2G
+TasksMax=200
+
+[Install]
+WantedBy=multi-user.target

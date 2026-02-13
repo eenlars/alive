@@ -4,6 +4,7 @@
  * List all runs for a specific automation job.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
@@ -12,6 +13,12 @@ import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
   params: Promise<{ id: string }>
+}
+
+/** Subset returned by ownership-check queries (user_id exists in DB but not yet in generated types) */
+interface JobOwnershipRow {
+  user_id: string
+  name?: string
 }
 
 /**
@@ -42,7 +49,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
       })
     }
 
-    if ((job as any).user_id !== user.id) {
+    const jobRow = job as unknown as JobOwnershipRow
+
+    if (jobRow.user_id !== user.id) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
     }
 
@@ -50,33 +59,27 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const searchParams = req.nextUrl.searchParams
     const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "20", 10), 1), 100)
     const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0)
-    const status = searchParams.get("status")
+    const statusFilter = searchParams.get("status")
+    const validStatuses = ["pending", "running", "success", "failure", "skipped"] as const
+    type RunStatus = (typeof validStatuses)[number]
 
     // Build query
     let query = supabase
       .from("automation_runs")
-      .select("id, job_id, started_at, completed_at, duration_ms, status, error, triggered_by, changes_made")
+      .select("id, job_id, started_at, completed_at, duration_ms, status, error, triggered_by, changes_made, result")
       .eq("job_id", jobId)
       .order("started_at", { ascending: false })
       .range(offset, offset + limit - 1)
 
-    const VALID_STATUSES = ["pending", "running", "success", "failure", "skipped"] as const
-    type RunStatus = (typeof VALID_STATUSES)[number]
-
-    if (status) {
-      if (!VALID_STATUSES.includes(status as RunStatus)) {
-        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-          status: 400,
-          details: { message: `Invalid status filter: "${status}". Allowed: ${VALID_STATUSES.join(", ")}` },
-        })
-      }
-      query = query.eq("status", status as RunStatus)
+    if (statusFilter && validStatuses.includes(statusFilter as RunStatus)) {
+      query = query.eq("status", statusFilter as RunStatus)
     }
 
     const { data: runs, error, count } = await query
 
     if (error) {
       console.error("[Automations API] List runs error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
@@ -84,7 +87,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
       runs: runs ?? [],
       job: {
         id: jobId,
-        name: (job as any).name,
+        name: jobRow.name,
       },
       pagination: {
         limit,
@@ -94,6 +97,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     })
   } catch (error) {
     console.error("[Automations API] GET runs error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

@@ -50,13 +50,14 @@ function shouldRetryFetch(error: unknown): boolean {
  * Custom error class to carry HTTP status through retry logic
  */
 export class FetchRetryError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly response: Response,
-  ) {
+  readonly status: number
+  readonly response: Response
+
+  constructor(message: string, status: number, response: Response) {
     super(message)
     this.name = "FetchRetryError"
+    this.status = status
+    this.response = response
   }
 }
 

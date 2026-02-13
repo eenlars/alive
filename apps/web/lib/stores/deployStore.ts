@@ -98,7 +98,7 @@ const createHistorySlice: StateCreator<DeployStore, [], [], HistorySlice> = (set
  * Hydration is coordinated by HydrationManager to ensure all stores
  * hydrate together, eliminating race conditions in E2E tests.
  */
-export const useDeployStoreBase = create<DeployStore>()(
+export const useDeployStore = create<DeployStore>()(
   persist(
     (...a) => {
       const form = createFormSlice(...a) as any
@@ -126,9 +126,6 @@ export const useDeployStoreBase = create<DeployStore>()(
     },
   ),
 )
-
-// Re-export with original name for backwards compatibility
-export const useDeployStore = useDeployStoreBase
 
 // Atomic selectors (Guide §14.1) - state values
 export const useDeployDomain = () => useDeployStore(state => state.domain)

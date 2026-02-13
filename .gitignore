@@ -18,6 +18,10 @@ bun.lockb
 
 # Environment templates (safe to commit - no secrets)
 !.env.example
+
+# Local server config (contains local paths)
+server-config.local.json
+KNIP_REVIEW.md
 !.env.*.example
 
 # Backup files (may contain secrets)
@@ -189,6 +193,7 @@ ops/caddy/Caddyfile
 ops/caddy/generated/
 ops/caddy/Caddyfile.main
 ops/caddy/Caddyfile.restore_backup
+.playwright-mcp/
 ops/caddy/Caddyfile.shell
 !ops/caddy/Caddyfile.example
 !ops/caddy/Caddyfile.snippets

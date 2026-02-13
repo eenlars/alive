@@ -3,6 +3,7 @@
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
+import { trackThemeChanged } from "@/lib/analytics/events"
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
@@ -26,7 +27,9 @@ export function ThemeToggle() {
   }
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
+    const newTheme = theme === "dark" ? "light" : "dark"
+    trackThemeChanged(newTheme)
+    setTheme(newTheme)
   }
 
   return (

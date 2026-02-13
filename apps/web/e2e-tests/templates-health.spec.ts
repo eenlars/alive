@@ -11,7 +11,6 @@ interface Template {
   template_id: string
   name: string
   description: string | null
-  source_path: string
   preview_url: string
   image_url: string | null
   deploy_count: number

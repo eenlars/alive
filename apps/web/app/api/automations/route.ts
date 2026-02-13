@@ -4,15 +4,16 @@
  * List and manage automation jobs for an organization.
  */
 
-import { createClient } from "@supabase/supabase-js"
+import * as Sentry from "@sentry/nextjs"
 import { computeNextRunAtMs } from "@webalive/automation"
 import type { NextRequest } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import type { Res } from "@/lib/api/schemas"
 import { alrighty } from "@/lib/api/server"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { pokeCronService } from "@/lib/automation/cron-service"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 type AutomationJob = Res<"automations">["automations"][number]
 
@@ -36,8 +37,7 @@ export async function GET(req: NextRequest) {
     const siteId = searchParams.get("site_id")
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100)
 
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Build query - join with domains to get hostname
     let query = supabase
@@ -57,7 +57,9 @@ export async function GET(req: NextRequest) {
         action_source,
         action_target_page,
         skills,
+        email_address,
         is_active,
+        status,
         last_run_at,
         last_run_status,
         next_run_at,
@@ -81,6 +83,7 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error("[Automations API] Query error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
@@ -99,7 +102,9 @@ export async function GET(req: NextRequest) {
       action_source: row.action_source,
       action_target_page: row.action_target_page,
       skills: row.skills,
+      email_address: row.email_address ?? null,
       is_active: row.is_active,
+      status: row.status,
       last_run_at: row.last_run_at,
       last_run_status: row.last_run_status,
       next_run_at: row.next_run_at,
@@ -110,6 +115,7 @@ export async function GET(req: NextRequest) {
     return alrighty("automations", { ok: true, automations, total: automations.length })
   } catch (error) {
     console.error("[Automations API] GET error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -136,7 +142,6 @@ export async function POST(req: NextRequest) {
       validateCronSchedule,
       validateTimezone,
       validateSiteId,
-      formatNextRuns,
     } = await import("@/lib/automation/validation")
 
     // Step 1: Validate required fields
@@ -202,8 +207,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const { url, key } = getSupabaseCredentials("service")
-    const supabase = createClient(url, key, { db: { schema: "app" } })
+    const supabase = createServiceAppClient()
 
     // Get org_id from the site
     const { data: domain } = await supabase.from("domains").select("org_id").eq("domain_id", body.site_id).single()
@@ -214,7 +218,6 @@ export async function POST(req: NextRequest) {
 
     // Step 8: Validate and compute cron schedule if present
     let nextRunAt: string | null = null
-    let nextRunsDisplay: string | undefined
     if (body.trigger_type === "cron" && body.cron_schedule) {
       const cronCheck = validateCronSchedule(body.cron_schedule, body.cron_timezone)
       if (!cronCheck.valid) {
@@ -229,7 +232,6 @@ export async function POST(req: NextRequest) {
       if (nextMs) {
         nextRunAt = new Date(nextMs).toISOString()
       }
-      nextRunsDisplay = formatNextRuns(cronCheck.nextRuns)
     } else if (body.trigger_type === "one-time" && body.run_at) {
       nextRunAt = body.run_at
     }
@@ -254,6 +256,8 @@ export async function POST(req: NextRequest) {
         action_source: body.action_source,
         action_target_page: body.action_target_page,
         skills: skills.length > 0 ? skills : [],
+        action_model: body.action_model || null,
+        email_address: body.trigger_type === "email" ? body.email_address : null,
         is_active: body.is_active ?? true,
         next_run_at: nextRunAt,
       })
@@ -262,16 +266,17 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("[Automations API] Insert error:", error)
+      Sentry.captureException(error)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
-    const response: any = { ok: true, automation: data }
-    if (nextRunsDisplay) {
-      response.nextRunsPreview = nextRunsDisplay
-    }
-    return alrighty("automations/create", response, { status: 201 })
+    // Poke CronService so it picks up the new job immediately
+    pokeCronService()
+
+    return alrighty("automations/create", { ok: true, automation: data }, { status: 201 })
   } catch (error) {
     console.error("[Automations API] POST error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

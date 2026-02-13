@@ -195,7 +195,7 @@ describe("worktrees service", () => {
   it("rejects create when worktree lock is held", async () => {
     if (!repo) throw new Error("missing repo")
 
-    const lockPath = path.join(repo.baseWorkspacePath, ".git", "bridge-worktree.lock")
+    const lockPath = path.join(repo.baseWorkspacePath, ".git", "alive-worktree.lock")
     fs.writeFileSync(lockPath, JSON.stringify({ pid: 123, at: new Date().toISOString() }))
 
     await expect(

@@ -8,34 +8,32 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --dts --format esm,cjs",
-    "dev": "tsup src/index.ts --dts --format esm,cjs --watch",
-    "type-check": "tsc --noEmit",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsgo --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "ci": "biome ci .",
     "setup": "bash scripts/install.sh",
     "start": "bash scripts/start.sh",
     "stop": "bash scripts/stop.sh",
-    "status": "docker-compose ps redis",
-    "logs": "docker-compose logs -f redis",
-    "cli": "docker exec -it redis redis-cli -a dev_password_only",
-    "monitor": "docker exec -it redis redis-cli -a dev_password_only MONITOR",
+    "status": "systemctl status redis-server",
+    "logs": "journalctl -u redis-server -f",
+    "cli": "redis-cli",
+    "monitor": "redis-cli MONITOR",
     "health": "bash scripts/health-check.sh",
-    "test": "bash -c 'if docker ps >/dev/null 2>&1 && docker ps | grep -q \"redis\"; then bash scripts/test.sh; else echo \"(packages/redis) skipped: redis container not running (run: bun run redis:start)\"; fi'",
-    "test:integration": "bash scripts/test.sh",
-    "clean": "docker-compose down -v"
+    "test": "bash scripts/test.sh",
+    "test:integration": "bash scripts/test.sh"
   },
   "dependencies": {
     "ioredis": "^5.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   }
 }

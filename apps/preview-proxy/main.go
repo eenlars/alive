@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -88,6 +89,7 @@ type config struct {
 	JWTSecret      []byte
 	PortMapPath    string
 	ListenAddr     string
+	ImagesStorage  string // e.g. "/srv/webalive/storage" — serves /_images/* directly
 }
 
 func loadConfig() config {
@@ -107,12 +109,15 @@ func loadConfig() config {
 		}
 	}
 
+	imagesStorage := envOrDefault("IMAGES_STORAGE", "")
+
 	return config{
 		PreviewBase:    previewBase,
 		FrameAncestors: ancestors,
 		JWTSecret:      []byte(jwtSecret),
 		PortMapPath:    portMapPath,
 		ListenAddr:     listenAddr,
+		ImagesStorage:  imagesStorage,
 	}
 }
 
@@ -199,6 +204,13 @@ func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.setSessionCookie(w, hostname)
 	}
 
+	// Serve images directly from storage (Caddy handles this for direct access,
+	// but the wildcard block routes everything through this proxy)
+	if h.cfg.ImagesStorage != "" && strings.HasPrefix(r.URL.Path, "/_images/") {
+		h.serveImage(w, r)
+		return
+	}
+
 	// Look up port
 	port, ok := h.ports.lookup(hostname)
 	if !ok {
@@ -268,6 +280,39 @@ func (h *previewHandler) extractHostname(host string) (string, error) {
 
 	// Convert label back to domain: "notion-alive-best" → "notion.alive.best"
 	return strings.ReplaceAll(label, "-", "."), nil
+}
+
+// serveImage serves /_images/* directly from the storage directory.
+// Matches Caddy's (image_serving) snippet behavior so preview iframes get images.
+func (h *previewHandler) serveImage(w http.ResponseWriter, r *http.Request) {
+	// Strip /_images/ prefix to get the storage-relative path
+	relPath := strings.TrimPrefix(r.URL.Path, "/_images/")
+	if relPath == "" {
+		http.Error(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	// Prevent path traversal
+	cleanPath := filepath.Clean(relPath)
+	if strings.HasPrefix(cleanPath, "..") || filepath.IsAbs(cleanPath) {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+
+	fullPath := filepath.Join(h.cfg.ImagesStorage, cleanPath)
+
+	// Verify the resolved path is still within storage root
+	absPath, err := filepath.Abs(fullPath)
+	if err != nil || !strings.HasPrefix(absPath, h.cfg.ImagesStorage) {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+
+	// Match Caddy's cache headers from (image_serving) snippet
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+
+	// http.ServeFile handles MIME detection, range requests, conditional GETs
+	http.ServeFile(w, r, fullPath)
 }
 
 // verifyToken validates a preview_token JWT (HS256, type=preview, not expired)

@@ -6,6 +6,7 @@
  * POST: Create a new local workspace
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { STANDALONE } from "@webalive/shared"
 import { cookies } from "next/headers"
@@ -31,12 +32,12 @@ export async function GET() {
   const requestId = generateRequestId()
 
   // Only available in standalone mode
-  if (env.BRIDGE_ENV !== "standalone") {
+  if (env.STREAM_ENV !== "standalone") {
     return NextResponse.json(
       {
         ok: false,
         error: ErrorCodes.INVALID_REQUEST,
-        message: "This endpoint is only available in standalone mode (BRIDGE_ENV=standalone)",
+        message: "This endpoint is only available in standalone mode (STREAM_ENV=standalone)",
         requestId,
       },
       { status: 400 },
@@ -83,12 +84,12 @@ export async function POST(req: Request) {
   const requestId = generateRequestId()
 
   // Only available in standalone mode
-  if (env.BRIDGE_ENV !== "standalone") {
+  if (env.STREAM_ENV !== "standalone") {
     return NextResponse.json(
       {
         ok: false,
         error: ErrorCodes.INVALID_REQUEST,
-        message: "This endpoint is only available in standalone mode (BRIDGE_ENV=standalone)",
+        message: "This endpoint is only available in standalone mode (STREAM_ENV=standalone)",
         requestId,
       },
       { status: 400 },
@@ -176,6 +177,7 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error("[Workspaces] Failed to create workspace:", error)
+    Sentry.captureException(error)
     return NextResponse.json(
       {
         ok: false,

@@ -263,7 +263,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   }
 
   // Standalone mode - auto-login without database
-  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
     return {
       id: STANDALONE.TEST_USER.ID,
       email: STANDALONE.TEST_USER.EMAIL,
@@ -308,7 +308,7 @@ export async function hasSessionScope(scope: SessionScope): Promise<boolean> {
   }
 
   // Standalone and local test modes keep legacy non-JWT session values.
-  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
     return true
   }
 
@@ -331,7 +331,7 @@ export async function isWorkspaceAuthenticated(workspace: string): Promise<boole
   }
 
   // Standalone mode - verify workspace exists locally
-  if (env.BRIDGE_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
+  if (env.STREAM_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
     const { isValidStandaloneWorkspaceName, standaloneWorkspaceExists } = await import(
       "@/features/workspace/lib/standalone-workspace"
     )
@@ -378,7 +378,7 @@ export async function getAuthenticatedWorkspaces(): Promise<string[]> {
   }
 
   // Standalone mode - return all local workspaces
-  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
     const { getStandaloneWorkspaces } = await import("@/features/workspace/lib/standalone-workspace")
     return getStandaloneWorkspaces()
   }
@@ -460,7 +460,7 @@ export async function getSafeSessionCookie(logPrefix = "[Auth]"): Promise<string
   }
 
   // Standalone mode special value
-  if (env.BRIDGE_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
     return sessionCookie.value
   }
 
@@ -531,7 +531,7 @@ export async function verifyWorkspaceAccess(
   }
 
   // Standalone mode - verify workspace exists locally
-  if (env.BRIDGE_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
+  if (env.STREAM_ENV === "standalone" && user.id === STANDALONE.TEST_USER.ID) {
     const { isValidStandaloneWorkspaceName, standaloneWorkspaceExists } = await import(
       "@/features/workspace/lib/standalone-workspace"
     )

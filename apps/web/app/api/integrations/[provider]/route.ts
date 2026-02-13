@@ -8,7 +8,8 @@
  * not API responses. These are converted to proper ErrorCodes at the API boundary.
  */
 
-import { providerSupportsPat } from "@webalive/shared"
+import * as Sentry from "@sentry/nextjs"
+import { getOAuthKeyForProvider, providerSupportsPat } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
 import { getClientIdentifier } from "@/lib/auth/client-identifier"
@@ -99,11 +100,12 @@ export async function GET(
   const { provider, user } = validation
 
   try {
-    // Check connection status
-    const oauthManager = getOAuthInstance(provider)
-    const isConnected = await oauthManager.isConnected(user.id, provider)
+    // Map MCP provider key to OAuth key (e.g., "gmail" -> "google")
+    const oauthKey = getOAuthKeyForProvider(provider)
+    const oauthManager = getOAuthInstance(oauthKey)
+    const isConnected = await oauthManager.isConnected(user.id, oauthKey)
 
-    console.log(`[${provider} Integration] Status check - connected: ${isConnected}`)
+    console.log(`[${provider} Integration] Status check - connected: ${isConnected} (oauthKey: ${oauthKey})`)
 
     return NextResponse.json({
       connected: isConnected,
@@ -111,6 +113,7 @@ export async function GET(
     })
   } catch (error) {
     console.error(`[${provider} Integration] Status check failed:`, error)
+    Sentry.captureException(error)
 
     // Security: Don't expose internal error details
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
@@ -146,10 +149,12 @@ export async function DELETE(
   const clientId = getClientIdentifier(req, `integration:${provider}`)
 
   try {
-    const oauthManager = getOAuthInstance(provider)
+    // Map MCP provider key to OAuth key (e.g., "gmail" -> "google")
+    const oauthKey = getOAuthKeyForProvider(provider)
+    const oauthManager = getOAuthInstance(oauthKey)
 
     // Verify user is connected
-    const isConnected = await oauthManager.isConnected(user.id, provider)
+    const isConnected = await oauthManager.isConnected(user.id, oauthKey)
     if (!isConnected) {
       // Record invalid attempt
       oauthOperationRateLimiter.recordFailedAttempt(clientId)
@@ -160,7 +165,7 @@ export async function DELETE(
     }
 
     // Attempt graceful revocation
-    await revokeTokenGracefully(oauthManager, user.id, provider)
+    await revokeTokenGracefully(oauthManager, user.id, oauthKey)
 
     // Success - reset rate limit
     oauthOperationRateLimiter.reset(clientId)
@@ -173,6 +178,7 @@ export async function DELETE(
     })
   } catch (error) {
     console.error(`[${provider} Integration] Disconnect failed:`, error)
+    Sentry.captureException(error)
 
     // Security: Don't expose internal error details
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
@@ -335,8 +341,9 @@ export async function POST(
 
     // Store the token using OAuth manager
     // PATs don't expire, so we don't set expires_in
-    const oauthManager = getOAuthInstance(provider)
-    await oauthManager.saveTokens(user.id, provider, {
+    const oauthKey = getOAuthKeyForProvider(provider)
+    const oauthManager = getOAuthInstance(oauthKey)
+    await oauthManager.saveTokens(user.id, oauthKey, {
       access_token: token,
       token_type: "Bearer",
       scope: tokenValidation.scopes,
@@ -359,6 +366,7 @@ export async function POST(
     })
   } catch (error) {
     console.error(`[${provider} Integration] PAT connection failed:`, error)
+    Sentry.captureException(error)
 
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
       provider,

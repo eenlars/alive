@@ -5,6 +5,7 @@
  * Requires the user to have connected their Linear account via OAuth.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -84,6 +85,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     })
   } catch (error) {
     console.error("[Linear Issues] Failed to fetch:", error)
+    Sentry.captureException(error)
 
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
       provider: "linear",

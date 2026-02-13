@@ -31,10 +31,11 @@ Legacy JSON file (domain-passwords.json — now removed)
 3. JWT contains: `{ workspaces: ["example.com"] }`
 
 #### After (User-first)
-```
+```text
 Supabase Database
 ├─ users (id, email, name, passwordHash)
-├─ workspaces (id, domain, port, tenantId)
+├─ workspaces (id, domain, tenantId)
+├─ app.domains (hostname, port, server_id)   ← port assignments
 ├─ user_workspaces (userId, workspaceId)
 └─ sessions (userId, workspaceId, conversationId, sessionId)
 ```
@@ -83,7 +84,8 @@ Supabase Database
 
 **Schema:** `apps/web/lib/db/schema.ts`
 - `users` table (id, email, passwordHash, name, createdAt, lastLogin)
-- `workspaces` table (id, domain, port, tenantId, createdAt)
+- `workspaces` table (id, domain, tenantId, createdAt)
+- `app.domains` table (hostname, port, server_id) — source of truth for port assignments
 - `user_workspaces` junction table
 - `sessions` table for Claude conversation persistence
 
@@ -211,11 +213,10 @@ CREATE TABLE users (
   CHECK (length(password_hash) > 0)
 );
 
--- Workspaces table
+-- Workspaces table (port is stored in app.domains, not here)
 CREATE TABLE workspaces (
   id TEXT PRIMARY KEY,              -- UUID
   domain TEXT UNIQUE NOT NULL,
-  port INTEGER,
   tenant_id TEXT,
   created_at INTEGER NOT NULL,
   CHECK (length(domain) > 0)

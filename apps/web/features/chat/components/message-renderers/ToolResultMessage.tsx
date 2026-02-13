@@ -56,11 +56,12 @@ function isImageContent(content: unknown): content is ImageContentBlock {
 
 interface ToolResultMessageProps {
   content: SDKUserMessage
+  tabId?: string
   /** Callback to send a message to the chat (for interactive tools like clarification questions) */
   onSubmitAnswer?: (message: string) => void
 }
 
-export function ToolResultMessage({ content, onSubmitAnswer }: ToolResultMessageProps) {
+export function ToolResultMessage({ content, tabId, onSubmitAnswer }: ToolResultMessageProps) {
   const messageContent = content.message.content
 
   return (
@@ -68,7 +69,7 @@ export function ToolResultMessage({ content, onSubmitAnswer }: ToolResultMessage
       {Array.isArray(messageContent) &&
         messageContent.map((result: unknown, index: number) => {
           if (isToolResult(result)) {
-            return <ToolResult key={index} result={result} onSubmitAnswer={onSubmitAnswer} />
+            return <ToolResult key={index} result={result} tabId={tabId} onSubmitAnswer={onSubmitAnswer} />
           }
           // Handle SDK image content blocks (base64 multimodal images)
           if (isImageContent(result)) {
@@ -92,9 +93,11 @@ function ImagePreview({ image }: { image: ImageContentBlock }) {
 
 function ToolResult({
   result,
+  tabId,
   onSubmitAnswer,
 }: {
   result: ToolResultContent
+  tabId?: string
   onSubmitAnswer?: (message: string) => void
 }) {
   const toolName = result.tool_name || "Tool Result"
@@ -135,6 +138,8 @@ function ToolResult({
             toolName={toolName}
             content={displayContent}
             toolInput={result.tool_input}
+            toolUseId={result.tool_use_id}
+            tabId={tabId}
             onSubmitAnswer={onSubmitAnswer}
           />
         </div>

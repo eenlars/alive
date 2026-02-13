@@ -553,10 +553,4 @@ function generateExternalMcpEntries(): ToolMetadata[] {
  * Complete tool registry including auto-generated external MCP entries.
  * Use this for search_tools and other discovery functions.
  */
-export const FULL_TOOL_REGISTRY: ToolMetadata[] = [...INTERNAL_TOOL_REGISTRY, ...generateExternalMcpEntries()]
-
-/**
- * @deprecated Use FULL_TOOL_REGISTRY for complete list including external MCPs
- * Kept for backwards compatibility - points to full registry
- */
-export const TOOL_REGISTRY = FULL_TOOL_REGISTRY
+export const TOOL_REGISTRY: ToolMetadata[] = [...INTERNAL_TOOL_REGISTRY, ...generateExternalMcpEntries()]

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import type { NextRequest } from "next/server"
 import { hasSessionCookie } from "@/features/auth/types/guards"
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("List images error:", error)
+    Sentry.captureException(error)
     const requestId = Math.random().toString(36).substring(7)
     return Response.json(
       {

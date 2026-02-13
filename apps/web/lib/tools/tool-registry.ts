@@ -21,6 +21,7 @@ import type { ToolDisplayConfig, ToolName } from "@webalive/tools/display"
 // Import from the shared package (display-only, browser-safe)
 import {
   AI,
+  CALENDAR,
   EMAIL,
   FILE_OPS,
   getDisplayConfig,
@@ -41,6 +42,7 @@ import type { ComponentType } from "react"
 export {
   LINEAR,
   STRIPE,
+  CALENDAR,
   FILE_OPS,
   OTHER,
   EMAIL,
@@ -65,6 +67,8 @@ export interface ToolResultRendererProps<T = unknown> {
   toolName: string
   isError?: boolean
   toolInput?: unknown
+  toolUseId?: string
+  tabId?: string
   /** Callback to send a message to the chat (for interactive tools like clarification questions) */
   onSubmitAnswer?: (message: string) => void
 }

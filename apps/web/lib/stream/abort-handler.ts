@@ -27,6 +27,7 @@
  * 3. Log the cancellation event
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { type TabSessionKey, unlockConversation } from "@/features/auth/lib/sessionStore"
 
 /**
@@ -73,6 +74,7 @@ export function setupAbortHandler(config: AbortHandlerConfig): void {
         // 4. Child process graceful shutdown (or SIGKILL after 5s)
         stream.cancel().catch(error => {
           console.error(`[Abort Handler ${requestId}] Failed to cancel stream on abort:`, error)
+          Sentry.captureException(error)
         })
 
         // Release lock (will be called again in finally block, but idempotent)
@@ -80,6 +82,7 @@ export function setupAbortHandler(config: AbortHandlerConfig): void {
         console.log(`[Abort Handler ${requestId}] Conversation lock released for: ${conversationKey}`)
       } catch (error) {
         console.error(`[Abort Handler ${requestId}] Failed to handle abort:`, error)
+        Sentry.captureException(error)
       }
     },
     { once: true },

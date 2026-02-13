@@ -25,12 +25,15 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsgo --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "ci": "biome ci .",
     "generate-json": "node dist/generate-environments-json.js",
     "gen:types": "bun scripts/generate-database-types.ts"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.5.2",

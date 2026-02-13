@@ -10,12 +10,12 @@
  * Called automatically by: bun run --cwd apps/preview-proxy generate
  */
 
+import { execSync } from "node:child_process"
+import { readFileSync, writeFileSync } from "node:fs"
+import { join } from "node:path"
 // Import directly from constants source to avoid triggering server config loading
 // via the @webalive/shared barrel export.
 import { PREVIEW_MESSAGES } from "../../packages/shared/src/constants"
-import { readFileSync, writeFileSync } from "fs"
-import { join } from "path"
-import { execSync } from "child_process"
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -60,26 +60,6 @@ if (!NAV_START.startsWith(NAV)) {
     `[generate-nav-script] FATAL: NAVIGATION_START ("${NAV_START}") must start with NAVIGATION ("${NAV}"). ` +
       "This suggests the constants have diverged.",
   )
-}
-
-// 5. Cross-check with the legacy Next.js preview-router to ensure consistency
-const legacyRouterPath = join(import.meta.dir, "../../apps/web/app/api/preview-router/[[...path]]/route.ts")
-try {
-  const legacySource = readFileSync(legacyRouterPath, "utf-8")
-  if (!legacySource.includes("PREVIEW_MESSAGES.NAVIGATION")) {
-    console.warn(
-      "[generate-nav-script] WARNING: Legacy preview-router no longer references PREVIEW_MESSAGES.NAVIGATION. " +
-        "It may have been removed or refactored.",
-    )
-  }
-  if (!legacySource.includes("PREVIEW_MESSAGES.NAVIGATION_START")) {
-    console.warn(
-      "[generate-nav-script] WARNING: Legacy preview-router no longer references PREVIEW_MESSAGES.NAVIGATION_START.",
-    )
-  }
-} catch {
-  // Legacy router may have been deleted — that's fine
-  console.log("[generate-nav-script] Legacy preview-router not found (may have been removed)")
 }
 
 // ─── Generation ───────────────────────────────────────────────────────────────

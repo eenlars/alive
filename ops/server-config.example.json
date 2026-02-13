@@ -1,10 +1,10 @@
 {
-  "_comment": "Copy to your server config path and set SERVER_CONFIG_PATH env var to point here",
-  "serverId": "srv-CHANGEME",
+  "serverId": "srv_CHANGEME",
   "serverIp": "0.0.0.0",
   "paths": {
     "aliveRoot": "/path/to/alive",
     "sitesRoot": "/srv/webalive/sites",
+    "templatesRoot": "/srv/webalive/templates",
     "imagesStorage": "/srv/webalive/storage"
   },
   "domains": {

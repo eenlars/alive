@@ -175,8 +175,8 @@ export interface AgentConfig {
    * via IPC. The worker imports and creates those locally from @webalive/tools.
    */
   oauthMcpServers: Record<string, unknown>
-  /** Bridge stream type constants (from @webalive/shared) */
-  bridgeStreamTypes: typeof STREAM_TYPES
+  /** Stream type constants (from @webalive/shared) */
+  streamTypes: typeof STREAM_TYPES
   /** Whether the user is an admin (enables Bash tools) */
   isAdmin?: boolean
   /** Whether the user is a superadmin (bypasses heavy bash guardrails) */
@@ -295,6 +295,12 @@ export interface WorkerPoolConfig {
   workersPerCore: number
   /** Load-shed threshold (loadavg1 / cpuCount) before spawning is paused */
   loadShedThreshold: number
+  /** Load-shed threshold for cgroup pids usage ratio (0-1) */
+  pidPressureThresholdRatio: number
+  /** Minimum available pids headroom required before new spawn */
+  pidPressureMinHeadroom: number
+  /** Minimum interval between cgroup pids checks (ms) */
+  pidPressureCheckIntervalMs: number
   /** Grace period between TERM and KILL when retiring workers */
   killGraceMs: number
   /** Interval for orphan subprocess sweeping */
@@ -340,7 +346,13 @@ export interface WorkerPoolEvents {
   "worker:busy": { workspaceKey: string; requestId: string }
   "worker:idle": { workspaceKey: string }
   "worker:shutdown": { workspaceKey: string; reason: string }
-  "worker:crashed": { workspaceKey: string; exitCode: number | null; signal: string | null }
+  "worker:crashed": {
+    workspaceKey: string
+    exitCode: number | null
+    signal: string | null
+    stderr?: string
+    diagnostics?: unknown
+  }
   "worker:evicted": { workspaceKey: string; reason: string }
   "pool:at_capacity": { currentWorkers: number; maxWorkers: number }
   "pool:error": { error: Error; context?: string }

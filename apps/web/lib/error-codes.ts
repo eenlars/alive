@@ -384,7 +384,9 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
       return "I couldn't start responding to your message. Please try sending it again."
 
     case ErrorCodes.WORKSPACE_RESTART_FAILED:
-      return "I couldn't restart your workspace. Please try again or contact support if the problem continues."
+      return details?.diagnostics
+        ? `I couldn't restart your workspace. The service may have crashed.\n\nDiagnostics:\n${details.diagnostics}`
+        : "I couldn't restart your workspace. Please try again or contact support if the problem continues."
 
     case ErrorCodes.VALIDATION_ERROR:
       return details?.message || "Something in your input isn't valid. Please check what you entered and try again."

@@ -11,28 +11,7 @@
 import { execSync } from "node:child_process"
 import { constants } from "node:fs"
 import { access, mkdir, readFile, writeFile } from "node:fs/promises"
-import { requireEnv } from "@webalive/shared"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ServerConfig {
-  serverId?: string
-  paths?: {
-    aliveRoot?: string
-  }
-  domains?: {
-    previewBase?: string
-    frameAncestors?: string[]
-  }
-  previewProxy?: {
-    port?: number
-  }
-  generated?: {
-    dir?: string
-  }
-}
+import { parseServerConfig, requireEnv, type ServerConfig } from "@webalive/shared"
 
 interface ServiceConfig {
   name: string
@@ -44,6 +23,7 @@ interface ServiceConfig {
   envFiles: string[]
   memory: { max: string; high: string }
   cpu: string
+  tasksMax: number
   syslogId: string
 }
 
@@ -170,7 +150,7 @@ ${cfg.env === "production" ? `Environment="ALIVE_API_PORT=${cfg.port}"` : ""}
 MemoryMax=${cfg.memory.max}
 MemoryHigh=${cfg.memory.high}
 CPUQuota=${cfg.cpu}
-TasksMax=${cfg.env === "development" ? 1024 : 512}
+TasksMax=${cfg.tasksMax}
 LimitNOFILE=${cfg.env === "development" ? 8192 : 4096}
 
 Restart=on-failure
@@ -240,21 +220,12 @@ async function main() {
   // Check dependencies first
   const bunPath = await checkDependencies()
 
-  // Load config
+  // Load and validate config (Zod schema validates all required fields)
   const raw = await readFile(CONFIG_PATH, "utf8")
-  const config: ServerConfig = JSON.parse(raw)
+  const config: ServerConfig = parseServerConfig(raw)
 
-  const aliveRoot = config.paths?.aliveRoot
-  if (!aliveRoot) {
-    console.error(`${COLORS.red}✗ paths.aliveRoot not set in ${CONFIG_PATH}${COLORS.reset}`)
-    process.exit(1)
-  }
-
-  const generatedDir = config.generated?.dir
-  if (!generatedDir) {
-    console.error(`${COLORS.red}✗ generated.dir not set in ${CONFIG_PATH}${COLORS.reset}`)
-    process.exit(1)
-  }
+  const { aliveRoot } = config.paths
+  const { dir: generatedDir } = config.generated
   await mkdir(generatedDir, { recursive: true })
 
   console.log(`  aliveRoot: ${aliveRoot}`)
@@ -273,6 +244,7 @@ async function main() {
       envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.local`],
       memory: { max: "4G", high: "3G" },
       cpu: "400%",
+      tasksMax: 2048,
       syslogId: "alive-dev",
     },
     {
@@ -285,6 +257,7 @@ async function main() {
       envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.staging`],
       memory: { max: "2G", high: "1.5G" },
       cpu: "200%",
+      tasksMax: 4096,
       syslogId: "alive-staging",
     },
     {
@@ -297,6 +270,7 @@ async function main() {
       envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/web/.env.production`],
       memory: { max: "2G", high: "1.5G" },
       cpu: "200%",
+      tasksMax: 4096,
       syslogId: "alive-production",
     },
     {
@@ -309,6 +283,7 @@ async function main() {
       envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/broker/.env.local`],
       memory: { max: "512M", high: "384M" },
       cpu: "100%",
+      tasksMax: 1000,
       syslogId: "alive-broker",
     },
   ]
@@ -324,15 +299,8 @@ async function main() {
   // Generate preview-proxy service (opt-in: only when previewProxy.port is set)
   const previewPort = config.previewProxy?.port
   if (previewPort) {
-    const previewBase = config.domains?.previewBase
-    if (!previewBase) {
-      console.error(
-        `${COLORS.red}✗ domains.previewBase not set in ${CONFIG_PATH} (required for preview-proxy)${COLORS.reset}`,
-      )
-      process.exit(1)
-    }
-
-    const frameAncestors = config.domains?.frameAncestors ?? []
+    const previewBase = config.domains.previewBase
+    const frameAncestors = config.domains.frameAncestors ?? []
     const portMapPath = `${generatedDir}/port-map.json`
 
     const previewProxyCfg: GoServiceConfig = {
@@ -346,6 +314,7 @@ async function main() {
         LISTEN_ADDR: `:${previewPort}`,
         PORT_MAP_PATH: portMapPath,
         FRAME_ANCESTORS: frameAncestors.join(","),
+        IMAGES_STORAGE: config.paths.imagesStorage,
       },
       memory: { max: "128M", high: "96M" },
       cpu: "50%",

@@ -4,11 +4,9 @@
  * Tests the site creation limit enforcement logic
  */
 
-import { createClient } from "@supabase/supabase-js"
-import type { AppDatabase, IamDatabase } from "@webalive/database"
 import { LIMITS } from "@webalive/shared"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { getSupabaseCredentials } from "@/lib/env/server"
+import { createServiceAppClient, createServiceIamClient } from "@/lib/supabase/service"
 import { assertSupabaseServiceEnv } from "@/lib/test-helpers/integration-env"
 import { countUserSites, getUserMaxSites, getUserQuota, getUserQuotaByEmail } from "../user-quotas"
 
@@ -20,18 +18,13 @@ assertSupabaseServiceEnv()
 describe("User Quotas", () => {
   let testUserId: string
   let testOrgId: string
-  let iam: ReturnType<typeof createClient<IamDatabase>>
-  let app: ReturnType<typeof createClient<AppDatabase>>
+  let iam: ReturnType<typeof createServiceIamClient>
+  let app: ReturnType<typeof createServiceAppClient>
 
   beforeEach(async () => {
     // Create clients directly for tests (bypasses Next.js cookies)
-    const { url, key } = getSupabaseCredentials("service")
-    iam = createClient<IamDatabase>(url, key, {
-      db: { schema: "iam" },
-    })
-    app = createClient<AppDatabase>(url, key, {
-      db: { schema: "app" },
-    })
+    iam = createServiceIamClient()
+    app = createServiceAppClient()
 
     // Clean up any existing test data
     await cleanupTestUser(TEST_EMAIL, iam, app)
@@ -290,8 +283,8 @@ describe("User Quotas", () => {
  */
 async function cleanupTestUser(
   email: string,
-  iam: ReturnType<typeof createClient<IamDatabase>>,
-  app: ReturnType<typeof createClient<AppDatabase>>,
+  iam: ReturnType<typeof createServiceIamClient>,
+  app: ReturnType<typeof createServiceAppClient>,
 ) {
   const { data: existingUsers } = await iam.from("users").select("user_id").eq("email", email)
 

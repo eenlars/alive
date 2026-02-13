@@ -1,12 +1,14 @@
 import { execSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, dirname, join } from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
 import { handleWorkspaceApi } from "@/lib/workspace-api-handler"
 import { detectServeMode, runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
+import { restartSystemdService } from "@/lib/workspace-execution/systemd-restart"
 
 /**
  * Detect if site has a backend server (server.ts exists).
@@ -191,6 +193,7 @@ export async function POST(req: Request) {
             }
           } catch (e) {
             console.error(`[switch-serve-mode ${requestId}] Failed to update package.json:`, e)
+            Sentry.captureException(e)
           }
         }
 
@@ -215,9 +218,48 @@ ExecStart=${execStart}
         writeFileSync(overrideConf, overrideContent, { encoding: "utf-8" })
         console.log(`[switch-serve-mode ${requestId}] Updated ${overrideConf}`)
 
-        // Reload systemd and restart service
+        // Reload systemd and restart service with recovery
         execSync("systemctl daemon-reload", { encoding: "utf-8", timeout: 10000 })
-        execSync(`systemctl restart ${serviceName}`, { encoding: "utf-8", timeout: 10000 })
+        const restartResult = restartSystemdService(serviceName)
+
+        if (!restartResult.success && mode === "build") {
+          // Build/preview mode crashed the service — revert to dev mode automatically
+          console.warn(`[switch-serve-mode ${requestId}] Service crashed in build mode, reverting to dev mode`)
+
+          const devExecStart = `/bin/sh -c 'exec /usr/local/bin/bun run dev --port \${PORT:-3333} --host 0.0.0.0'`
+          const devOverride = `[Service]\nExecStart=\nExecStart=${devExecStart}\n`
+          writeFileSync(overrideConf, devOverride, { encoding: "utf-8" })
+          execSync("systemctl daemon-reload", { encoding: "utf-8", timeout: 10000 })
+
+          const fallbackResult = restartSystemdService(serviceName)
+          const fallbackStatus = fallbackResult.success ? "running in dev mode" : "still failing"
+
+          return NextResponse.json(
+            {
+              ok: false,
+              message:
+                `Production mode crashed the service. Automatically reverted to development mode (${fallbackStatus}).` +
+                `\n\nDiagnostics:\n${restartResult.diagnostics || "(no logs available)"}`,
+              previousMode,
+              currentMode: "dev",
+              requestId,
+            },
+            { status: 500 },
+          )
+        }
+
+        if (!restartResult.success) {
+          console.error(`[switch-serve-mode ${requestId}] Restart failed:`, restartResult.error)
+          Sentry.captureException(new Error(`switch-serve-mode restart failed: ${restartResult.error}`))
+          return NextResponse.json(
+            {
+              ok: false,
+              message: `Failed to restart service: ${restartResult.error}\n\nDiagnostics:\n${restartResult.diagnostics || "(no logs available)"}`,
+              requestId,
+            },
+            { status: 500 },
+          )
+        }
 
         console.log(`[switch-serve-mode ${requestId}] Service restarted in ${mode} mode`)
 
@@ -226,6 +268,8 @@ ExecStart=${execStart}
         // If previous mode is unknown, don't mention it - just say we switched to the new mode
         const previousLabel = previousMode === "dev" ? "development" : previousMode === "build" ? "production" : null
 
+        const recoveryNote = restartResult.action === "reset-then-restarted" ? " (recovered from crashed state)" : ""
+
         let message: string
         if (alreadyInMode) {
           // Already in this mode - still restart, but inform user
@@ -233,7 +277,7 @@ ExecStart=${execStart}
             mode === "dev"
               ? "Server restarted. Changes will appear instantly (hot reload)."
               : "Server restarted with existing production build."
-          message = `✓ Already in ${modeLabel.toLowerCase()} mode. ${explanation}`
+          message = `✓ Already in ${modeLabel.toLowerCase()} mode${recoveryNote}. ${explanation}`
         } else {
           // Switched modes
           const explanation =
@@ -242,8 +286,8 @@ ExecStart=${execStart}
               : "Your site is now running the fast, optimized version."
           // If we couldn't detect previous mode, just say we enabled the new mode
           message = previousLabel
-            ? `✓ Switched from ${previousLabel} to ${modeLabel.toLowerCase()} mode. ${explanation}`
-            : `✓ ${modeLabel} mode enabled. ${explanation}`
+            ? `✓ Switched from ${previousLabel} to ${modeLabel.toLowerCase()} mode${recoveryNote}. ${explanation}`
+            : `✓ ${modeLabel} mode enabled${recoveryNote}. ${explanation}`
         }
 
         // Warn if site has backend server but might not be configured for production
@@ -263,6 +307,7 @@ ExecStart=${execStart}
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         console.error(`[switch-serve-mode ${requestId}] Error:`, error)
+        Sentry.captureException(error)
 
         return NextResponse.json({
           ok: false,

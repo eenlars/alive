@@ -15,6 +15,7 @@
  * 4. Client can then resume normal operation or wait for completion
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { z } from "zod"
@@ -144,6 +145,7 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error("[Reconnect] Error:", error)
+    Sentry.captureException(error)
     return NextResponse.json(
       {
         ok: false,

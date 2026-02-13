@@ -15,41 +15,7 @@ import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { createClient } from "@supabase/supabase-js"
-import { requireEnv } from "@webalive/shared"
-
-// =============================================================================
-// Types
-// =============================================================================
-
-interface ServerConfig {
-  serverId: string
-  paths: {
-    aliveRoot: string
-    sitesRoot: string
-    imagesStorage: string
-  }
-  domains: {
-    main: string // Base domain - all env domains derived from this
-    cookieDomain: string
-    previewBase?: string // e.g., "sonno.tech" — the wildcard domain for preview subdomains
-  }
-  shell: {
-    domains: string[]
-    listen: string
-    upstream: string
-  }
-  generated: {
-    dir: string
-    caddySites: string
-    caddyShell: string
-    nginxMap: string
-  }
-  // Go preview proxy — when set, wildcard preview routing goes to this port
-  // instead of each environment's Next.js port. Enables native WebSocket support.
-  previewProxy?: {
-    port: number // e.g., 5055
-  }
-}
+import { parseServerConfig, requireEnv, type ServerConfig } from "@webalive/shared"
 
 interface EnvironmentConfigRaw {
   key: string
@@ -91,11 +57,7 @@ function filterReservedDomains(domains: DomainRow[], environments: EnvironmentCo
 
 async function loadServerConfig(): Promise<ServerConfig> {
   const raw = await readFile(SERVER_CONFIG_PATH, "utf8")
-  const cfg = JSON.parse(raw) as ServerConfig
-  must(cfg.serverId, "server-config.json missing serverId")
-  must(cfg.domains?.main, "server-config.json missing domains.main")
-  must(cfg.generated?.dir, "server-config.json missing generated.dir")
-  return cfg
+  return parseServerConfig(raw)
 }
 
 async function loadEnvironments(aliveRoot: string, mainDomain: string): Promise<EnvironmentConfig[]> {
@@ -197,10 +159,6 @@ function renderCaddySites(
     "",
   ].join("\n")
 
-  // Build frame-ancestors from all environment domains (+ production URL)
-  const prodOrigin = `https://app.${cfg.domains.main}`
-  const frameAncestors = `${environments.map(e => `https://${e.domain}`).join(" ")} ${prodOrigin}`
-
   // Generate site blocks (main domain only — preview is handled by wildcard below)
   const siteBlocks = filteredDomains
     .map(({ hostname, port }) => {
@@ -239,12 +197,9 @@ function renderCaddySites(
 
   // Generate wildcard catch-all for preview subdomains (preview--{label}.{WILDCARD})
   // Single-level pattern: covered by Cloudflare Universal SSL *.{WILDCARD}
-  // When previewProxy is configured, routes to Go preview-proxy for native WebSocket support.
-  // Otherwise routes through Next.js middleware → preview-router.
+  // Routes to Go preview-proxy for native WebSocket support.
   const wildcardDomain = cfg.domains.previewBase ?? cfg.domains.main
-  const wildcardBlock = wildcardDomain
-    ? renderWildcardPreviewBlock(wildcardDomain, environments, frameAncestors, cfg.previewProxy?.port)
-    : ""
+  const wildcardBlock = wildcardDomain ? renderWildcardPreviewBlock(wildcardDomain, cfg.previewProxy?.port) : ""
 
   return `${header}${siteBlocks}\n\n${wildcardBlock}`
 }
@@ -252,77 +207,28 @@ function renderCaddySites(
 /**
  * Generate a wildcard catch-all block for the domain.
  *
- * When previewProxyPort is set, routes ALL preview traffic to the Go preview-proxy
- * which handles JWT auth, port lookup, and native WebSocket support.
- * When not set, routes to each environment's Next.js port (legacy behavior).
+ * Routes ALL preview traffic to the Go preview-proxy which handles
+ * JWT auth, port lookup, and native WebSocket support.
  *
  * Specific domain blocks take precedence over this wildcard (Caddy routes by specificity).
  * Uses single-level subdomain pattern (preview--{label}.{WILDCARD}) so that
  * Cloudflare Universal SSL covers them (it only supports one-level wildcards).
  */
-function renderWildcardPreviewBlock(
-  wildcardDomain: string,
-  environments: EnvironmentConfig[],
-  frameAncestors: string,
-  previewProxyPort?: number,
-): string {
-  const prodEnv = environments.find(e => e.key === "production")
-  if (!prodEnv) return ""
-
-  // When Go preview-proxy is configured, route everything there.
-  // The proxy handles JWT auth, port lookup, CSP headers, and WebSocket natively.
-  if (previewProxyPort) {
-    return [
-      "# ============================================================================",
-      `# WILDCARD CATCH-ALL (*.${wildcardDomain})`,
-      `# Routes to Go preview-proxy on port ${previewProxyPort} for native WebSocket support.`,
-      "# The proxy handles JWT auth, hostname→port lookup, CSP headers, and script injection.",
-      "# Specific domain blocks above take precedence (Caddy routes by specificity).",
-      "# On-demand TLS: Caddy gets real LE certs via the ask endpoint.",
-      "# Requires tls-check API to be running on production (port 9000).",
-      "# ============================================================================",
-      "",
-      `*.${wildcardDomain} {`,
-      "    tls {",
-      "        on_demand",
-      "    }",
-      "",
-      `    reverse_proxy localhost:${previewProxyPort} {`,
-      "        header_up X-Forwarded-Host {host}",
-      "        header_up X-Forwarded-Proto {scheme}",
-      "        header_up X-Real-IP {remote_host}",
-      "        header_up X-Forwarded-For {remote_host}",
-      "    }",
-      "}",
-      "",
-    ].join("\n")
+function renderWildcardPreviewBlock(wildcardDomain: string, previewProxyPort?: number): string {
+  if (!previewProxyPort) {
+    throw new Error(
+      "previewProxy.port is required in server-config.json. The legacy Next.js preview-router has been removed.",
+    )
   }
-
-  // Legacy: Referer-based routing to each environment's Next.js port
-  const nonProdEnvs = environments.filter(e => e.key !== "production")
-  const refererRoutes = nonProdEnvs
-    .map(env => {
-      const matcherName = `@${env.key}`
-      return [
-        `    ${matcherName} expression \`{http.request.header.Referer}.contains("${env.domain}")\``,
-        `    reverse_proxy ${matcherName} localhost:${env.port} {`,
-        "        header_up Host {host}",
-        "        header_up X-Real-IP {remote_host}",
-        "        header_up X-Forwarded-For {remote_host}",
-        "        header_up X-Forwarded-Proto {scheme}",
-        "    }",
-      ].join("\n")
-    })
-    .join("\n\n")
 
   return [
     "# ============================================================================",
     `# WILDCARD CATCH-ALL (*.${wildcardDomain})`,
-    `# Catches preview subdomains (preview--{label}.${wildcardDomain}) and routes to`,
-    "# Next.js. Middleware detects preview-- prefix and rewrites to /api/preview-router.",
+    `# Routes to Go preview-proxy on port ${previewProxyPort} for native WebSocket support.`,
+    "# The proxy handles JWT auth, hostname→port lookup, CSP headers, and script injection.",
     "# Specific domain blocks above take precedence (Caddy routes by specificity).",
-    "# Routes to correct environment based on Referer header.",
     "# On-demand TLS: Caddy gets real LE certs via the ask endpoint.",
+    "# Requires tls-check API to be running on production (port 9000).",
     "# ============================================================================",
     "",
     `*.${wildcardDomain} {`,
@@ -330,24 +236,11 @@ function renderWildcardPreviewBlock(
     "        on_demand",
     "    }",
     "",
-    "    # Route to correct environment based on Referer",
-    refererRoutes,
-    "",
-    "    # Default: production",
-    `    reverse_proxy localhost:${prodEnv.port} {`,
-    "        header_up Host {host}",
+    `    reverse_proxy localhost:${previewProxyPort} {`,
+    "        header_up X-Forwarded-Host {host}",
+    "        header_up X-Forwarded-Proto {scheme}",
     "        header_up X-Real-IP {remote_host}",
     "        header_up X-Forwarded-For {remote_host}",
-    "        header_up X-Forwarded-Proto {scheme}",
-    "    }",
-    "",
-    "    header {",
-    "        -X-Frame-Options",
-    `        Content-Security-Policy "frame-ancestors ${frameAncestors}"`,
-    "        X-Content-Type-Options nosniff",
-    "        Referrer-Policy strict-origin-when-cross-origin",
-    "        -Server",
-    "        -X-Powered-By",
     "    }",
     "}",
     "",

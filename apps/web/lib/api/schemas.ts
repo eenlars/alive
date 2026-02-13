@@ -148,6 +148,28 @@ export const apiSchemas = {
     }),
   },
   /**
+   * GET /api/templates
+   * Get active templates for this server (public, no auth)
+   */
+  templates: {
+    req: z.undefined().brand<"TemplatesRequest">(),
+    res: z.object({
+      templates: z.array(
+        z.object({
+          template_id: z.string(),
+          name: z.string(),
+          description: z.string().nullable(),
+          ai_description: z.string().nullable(),
+          preview_url: z.string().nullable(),
+          image_url: z.string().nullable(),
+          is_active: z.boolean().nullable(),
+          deploy_count: z.number().nullable(),
+        }),
+      ),
+    }),
+  },
+
+  /**
    * GET /api/manager/templates
    * Get all templates (manager auth required)
    */
@@ -459,7 +481,7 @@ export const apiSchemas = {
           site_id: z.string(),
           name: z.string(),
           description: z.string().nullable(),
-          trigger_type: z.enum(["cron", "webhook", "one-time"]),
+          trigger_type: z.enum(["cron", "webhook", "one-time", "email"]),
           cron_schedule: z.string().nullable(),
           cron_timezone: z.string().nullable(),
           run_at: z.string().nullable(),
@@ -468,7 +490,9 @@ export const apiSchemas = {
           action_source: z.string().nullable(),
           action_target_page: z.string().nullable(),
           skills: z.array(z.string()).nullable(),
+          email_address: z.string().nullable().optional(),
           is_active: z.boolean(),
+          status: z.enum(["idle", "running", "paused", "disabled"]).optional(),
           last_run_at: z.string().nullable(),
           last_run_status: z.string().nullable(),
           next_run_at: z.string().nullable(),
@@ -503,6 +527,7 @@ export const apiSchemas = {
         action_target_page: z.string().nullable(),
         skills: z.array(z.string()).nullable(),
         is_active: z.boolean(),
+        status: z.enum(["idle", "running", "paused", "disabled"]).optional(),
         next_run_at: z.string().nullable(),
         created_at: z.string(),
       }),
@@ -596,6 +621,7 @@ export const apiSchemas = {
           error: z.string().nullable(),
           triggered_by: z.string().nullable(),
           changes_made: z.array(z.string()).nullable(),
+          result: z.record(z.string(), z.unknown()).nullable(),
         }),
       ),
       job: z.object({
@@ -679,7 +705,7 @@ export const apiSchemas = {
       .object({
         workspace: z.string().min(1),
         path: z.string().default(""),
-        worktree: z.string().optional(),
+        worktree: OptionalWorktreeSlugSchema, // Validated to prevent session key corruption
       })
       .brand<"DriveListRequest">(),
     res: z.object({
@@ -706,7 +732,7 @@ export const apiSchemas = {
       .object({
         workspace: z.string().min(1),
         path: z.string().min(1),
-        worktree: z.string().optional(),
+        worktree: OptionalWorktreeSlugSchema, // Validated to prevent session key corruption
       })
       .brand<"DriveReadRequest">(),
     res: z.object({
@@ -728,7 +754,7 @@ export const apiSchemas = {
       .object({
         workspace: z.string().min(1),
         path: z.string().min(1),
-        worktree: z.string().optional(),
+        worktree: OptionalWorktreeSlugSchema, // Validated to prevent session key corruption
         recursive: z.boolean().optional(),
       })
       .brand<"DriveDeleteRequest">(),

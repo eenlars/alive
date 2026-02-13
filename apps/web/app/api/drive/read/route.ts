@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises"
+import { readFile, stat } from "node:fs/promises"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { ensureDriveDir } from "@/features/chat/lib/drivePath"
@@ -135,16 +136,18 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const content = await readFile(resolvedPath, "utf-8")
-
-      if (content.length > MAX_FILE_SIZE) {
+      // Check file size with stat before reading to avoid loading huge files into memory
+      const fileStat = await stat(resolvedPath)
+      if (fileStat.size > MAX_FILE_SIZE) {
         return createErrorResponse(ErrorCodes.FILE_TOO_LARGE_TO_READ, 400, {
           requestId,
           filePath: parsed.path,
-          size: content.length,
+          size: fileStat.size,
           maxSize: MAX_FILE_SIZE,
         })
       }
+
+      const content = await readFile(resolvedPath, "utf-8")
 
       const filename = path.basename(parsed.path)
       const language = getLanguageFromFilename(filename)
@@ -180,6 +183,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error(`[Drive Read ${requestId}] Unexpected error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
       requestId,
       error: error instanceof Error ? error.message : "Unknown error",

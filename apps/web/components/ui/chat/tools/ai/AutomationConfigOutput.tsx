@@ -77,6 +77,7 @@ function formatResultForSubmission(result: AutomationConfigResult): string {
       break
   }
   lines.push(`**Schedule:** ${scheduleDesc}`)
+  lines.push(`**Model:** ${result.model}`)
   lines.push(`**Prompt:** ${result.prompt}`)
   lines.push("")
   lines.push("Please create this automation now.")

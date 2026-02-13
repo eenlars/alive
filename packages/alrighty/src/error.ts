@@ -2,14 +2,16 @@
  * Unified API error class with status helpers
  */
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status?: number,
-    public readonly code?: string,
-    public readonly details?: unknown,
-  ) {
+  readonly status?: number
+  readonly code?: string
+  readonly details?: unknown
+
+  constructor(message: string, status?: number, code?: string, details?: unknown) {
     super(message)
     this.name = "ApiError"
+    this.status = status
+    this.code = code
+    this.details = details
     // Fix prototype chain for ES5 targets
     Object.setPrototypeOf(this, ApiError.prototype)
   }

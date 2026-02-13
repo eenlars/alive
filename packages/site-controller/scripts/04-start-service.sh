@@ -9,14 +9,6 @@ require_var SITE_SLUG SITE_PORT SITE_DOMAIN SERVICE_NAME
 
 log_info "Starting systemd service: $SERVICE_NAME"
 
-# Stop old PM2 process if exists
-PM2_NAME=$(echo "$SITE_DOMAIN" | sed 's/\./-/g')
-if command_exists pm2 && pm2 list | grep -q "$PM2_NAME"; then
-    log_info "Stopping old PM2 process: $PM2_NAME"
-    pm2 stop "$PM2_NAME" || true
-    pm2 delete "$PM2_NAME" || true
-fi
-
 # Reload systemd daemon
 log_info "Reloading systemd daemon..."
 systemctl daemon-reload

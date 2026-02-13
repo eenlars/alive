@@ -3,20 +3,27 @@
  *
  * Manually trigger an automation job to run immediately.
  * This bypasses the schedule and runs the job now.
+ *
+ * Uses the engine module for claim/execute/finish lifecycle.
  */
 
-import { computeNextRunAtMs } from "@webalive/automation"
-import type { Json } from "@webalive/database"
+import * as Sentry from "@sentry/nextjs"
+import type { AppDatabase } from "@webalive/database"
+import { getServerId } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
-import { runAutomationJob } from "@/lib/automation/executor"
+import { pokeCronService } from "@/lib/automation/cron-service"
+import { claimJob, executeJob, extractSummary, finishJob } from "@/lib/automation/engine"
+import { getAutomationExecutionGate } from "@/lib/automation/execution-guard"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createServiceAppClient } from "@/lib/supabase/service"
 
 interface RouteContext {
   params: Promise<{ id: string }>
 }
+
+type AutomationJob = AppDatabase["app"]["Tables"]["automation_jobs"]["Row"]
 
 /**
  * POST /api/automations/[id]/trigger - Manually trigger an automation
@@ -28,13 +35,21 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
+    const executionGate = getAutomationExecutionGate()
+    if (!executionGate.allowed) {
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
+        status: 403,
+        details: { message: executionGate.reason },
+      })
+    }
+
     const { id } = await context.params
     const supabase = createServiceAppClient()
 
     // Get the job with site info
     const { data: job, error: jobError } = await supabase
       .from("automation_jobs")
-      .select("*, domains:site_id (hostname, port)")
+      .select("*, domains:site_id (hostname, server_id)")
       .eq("id", id)
       .single()
 
@@ -55,15 +70,26 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       })
     }
 
-    const hostname = (job.domains as any)?.hostname
+    // Server scoping: verify the job's site belongs to this server
+    const siteData = job.domains as { hostname?: string; server_id?: string } | null
+    const hostname = siteData?.hostname
+    const siteServerId = siteData?.server_id
+    const myServerId = getServerId()
+
     if (!hostname) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "site" } })
+    }
+
+    if (myServerId && siteServerId && siteServerId !== myServerId) {
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { message: `Site belongs to server ${siteServerId}, but this is ${myServerId}` },
+      })
     }
 
     // Pre-execution validation
     const { validateActionPrompt, validateWorkspace } = await import("@/lib/automation/validation")
 
-    // Validate that job has a prompt
     const promptCheck = validateActionPrompt(job.action_type, job.action_prompt)
     if (!promptCheck.valid) {
       return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
@@ -72,7 +98,6 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       })
     }
 
-    // Validate workspace exists
     const wsCheck = await validateWorkspace(hostname)
     if (!wsCheck.valid) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, {
@@ -81,106 +106,52 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       })
     }
 
-    const startedAt = new Date()
-    const startedAtIso = startedAt.toISOString()
-    const timeoutSeconds = job.action_timeout_seconds ?? 300
+    // Claim via engine
+    const ctx = await claimJob(job as AutomationJob, {
+      supabase,
+      triggeredBy: "manual",
+      serverId: myServerId,
+    })
 
-    // Atomically claim this job to prevent concurrent trigger races.
-    const { data: claimedRows, error: claimError } = await supabase
-      .from("automation_jobs")
-      .update({ running_at: startedAtIso })
-      .eq("id", job.id)
-      .is("running_at", null)
-      .select("id")
-      .limit(1)
-
-    if (claimError) {
-      console.error("[Automation Trigger] Failed to claim job:", claimError)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
-    }
-
-    if (!claimedRows || claimedRows.length === 0) {
+    if (!ctx) {
       return structuredErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, { status: 409 })
     }
 
-    console.log(`[Automation Trigger] Queued job "${job.name}" for site ${hostname} at ${startedAt.toISOString()}`)
+    const timeoutSeconds = job.action_timeout_seconds ?? 300
 
-    // Fire-and-forget: keep trigger endpoint fast and let runs endpoint report completion.
+    console.log(`[Automation Trigger] Queued job "${job.name}" for site ${hostname}`)
+
+    // Fire-and-forget: run the job and update DB state after completion.
     void (async () => {
-      let result: Awaited<ReturnType<typeof runAutomationJob>>
       try {
-        result = await runAutomationJob({
-          jobId: job.id,
-          userId: job.user_id,
-          orgId: job.org_id,
-          workspace: hostname,
-          prompt: job.action_prompt!,
-          timeoutSeconds,
-        })
-      } catch (error) {
-        const { error: rollbackError } = await supabase
-          .from("automation_jobs")
-          .update({ running_at: null })
-          .eq("id", job.id)
-          .eq("running_at", startedAtIso)
+        const result = await executeJob(ctx)
+        const durationMs = result.durationMs
 
-        if (rollbackError) {
-          console.error(`[Automation Trigger] Failed to roll back running_at for "${job.name}":`, rollbackError)
-        }
-
-        console.error(`[Automation Trigger] Background job "${job.name}" failed to execute:`, error)
-        return
-      }
-
-      // Persist results — executor is pure execution, callers own DB state
-      const now = new Date()
-      const status = result.success ? "success" : "failure"
-
-      // Compute next_run_at for cron jobs
-      let nextRunAt: string | null = null
-      if (job.trigger_type === "cron" && job.cron_schedule) {
-        const nextMs = computeNextRunAtMs(
-          { kind: "cron", expr: job.cron_schedule, tz: job.cron_timezone || undefined },
-          now.getTime(),
-        )
-        if (nextMs) {
-          nextRunAt = new Date(nextMs).toISOString()
-        }
-      }
-
-      try {
-        // Update job state
-        await supabase
-          .from("automation_jobs")
-          .update({
-            running_at: null,
-            last_run_at: startedAtIso,
-            last_run_status: status,
-            last_run_error: result.error ?? null,
-            last_run_duration_ms: result.durationMs,
-            next_run_at: nextRunAt,
-          })
-          .eq("id", job.id)
-
-        // Insert run record
-        await supabase.from("automation_runs").insert({
-          job_id: job.id,
-          started_at: startedAtIso,
-          completed_at: now.toISOString(),
-          duration_ms: result.durationMs,
-          status,
-          error: result.error ?? null,
-          result: result.response ? { response: result.response.substring(0, 10000) } : null,
-          messages: (result.messages ?? null) as Json,
-          triggered_by: "manual",
+        await finishJob(ctx, {
+          status: result.success ? "success" : "failure",
+          durationMs,
+          error: result.error,
+          summary: result.success ? extractSummary(result.response) : undefined,
+          messages: result.messages,
+          costUsd: result.costUsd,
+          numTurns: result.numTurns,
+          usage: result.usage,
         })
 
         console.log(
-          `[Automation Trigger] Job "${job.name}" finished with ${status} in ${result.durationMs}ms`,
-          result.error ? { error: result.error } : undefined,
+          `[Automation Trigger] Job "${job.name}" finished with ${result.success ? "success" : "failure"} in ${durationMs}ms`,
         )
-      } catch (dbError) {
-        console.error(`[Automation Trigger] Failed to persist results for "${job.name}":`, dbError)
+      } catch (error) {
+        // Executor threw unexpectedly — finishJob handles cleanup via run_id
+        await finishJob(ctx, {
+          status: "failure",
+          durationMs: Date.now() - new Date(ctx.claimedAt).getTime(),
+          error: error instanceof Error ? error.message : String(error),
+        })
+        console.error(`[Automation Trigger] Background job "${job.name}" crashed:`, error)
+      } finally {
+        // Poke CronService so it re-arms with the new next_run_at
+        pokeCronService()
       }
     })()
 
@@ -188,7 +159,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       {
         ok: true,
         status: "queued",
-        startedAt: startedAtIso,
+        startedAt: ctx.claimedAt,
         timeoutSeconds,
         monitor: {
           runsPath: `/api/automations/${job.id}/runs`,
@@ -198,6 +169,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     )
   } catch (error) {
     console.error("[Automation Trigger] Error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

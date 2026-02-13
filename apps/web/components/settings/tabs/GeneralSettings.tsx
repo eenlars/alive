@@ -2,17 +2,15 @@
 
 import type { FlowgladContextValues } from "@flowglad/nextjs"
 import { useBilling } from "@flowglad/nextjs"
-import { Eye, EyeOff, LogOut, Moon, Sun } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { Eye, EyeOff, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
 import { getModelDisplayName } from "@/lib/models/claude-models"
 import { useCredits, useCreditsError, useCreditsLoading, useUserActions } from "@/lib/providers/UserStoreProvider"
 import { CLAUDE_MODELS, type ClaudeModel, DEFAULT_MODEL, useLLMStore } from "@/lib/stores/llmStore"
-import { useCurrentWorkspace, useWorkspaceActions } from "@/lib/stores/workspaceStore"
+import { useCurrentWorkspace } from "@/lib/stores/workspaceStore"
 import {
-  dangerButton,
   infoCard,
   input,
   primaryButton,
@@ -65,28 +63,10 @@ function SafeBilling({ children }: { children: (billing: FlowgladContextValues) 
 export function GeneralSettings() {
   // --- Profile state ---
   const { user } = useAuth()
-  const router = useRouter()
-  const { setCurrentWorkspace } = useWorkspaceActions()
   const { theme, setTheme } = useTheme()
 
   const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
     setTheme(newTheme)
-  }
-
-  const handleLogout = async () => {
-    try {
-      const res = await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include",
-      })
-      if (!res.ok) {
-        console.error("Logout returned", res.status)
-      }
-      setCurrentWorkspace(null)
-      router.push("/")
-    } catch (error) {
-      console.error("Logout failed:", error)
-    }
   }
 
   // --- AI state ---
@@ -396,15 +376,6 @@ export function GeneralSettings() {
             Your API key is stored only in your browser (hidden from view). When you send messages, we use your key to
             call Anthropic&apos;s API&mdash;but we never save it on our servers.
           </p>
-        </div>
-
-        {/* Logout */}
-        <div className={`${sectionDivider} animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-200`}>
-          <p className={`${text.muted} mb-3`}>Signs you out of this session. Your data and websites are kept safe.</p>
-          <button type="button" onClick={handleLogout} className={`${dangerButton} gap-2`} data-testid="logout-button">
-            <LogOut size={16} strokeWidth={1.75} />
-            Log out
-          </button>
         </div>
       </div>
     </SettingsTabLayout>

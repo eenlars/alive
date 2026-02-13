@@ -92,7 +92,7 @@ export function InputArea() {
           }
         }}
         placeholder={config.placeholder}
-        className="w-full resize-none border-0 bg-transparent text-base leading-relaxed font-normal focus:outline-none py-3 px-4 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 no-scrollbar"
+        className="w-full resize-none break-all border-0 bg-transparent text-base leading-relaxed font-normal focus:outline-none py-3 px-4 text-black dark:text-white placeholder:text-black/30 dark:placeholder:text-white/30 no-scrollbar"
         rows={1}
         data-testid="message-input"
         aria-label="Message input"

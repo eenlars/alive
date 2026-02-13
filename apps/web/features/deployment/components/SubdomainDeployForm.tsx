@@ -5,7 +5,7 @@ import type { AppDatabase } from "@webalive/database"
 import { motion } from "framer-motion"
 import { LogIn } from "lucide-react"
 import { useSearchParams } from "next/navigation"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useAuth } from "@/features/deployment/hooks/useAuth"
@@ -100,9 +100,11 @@ export function SubdomainDeployForm() {
     }
   }, [siteIdeasFromUrl, siteIdea, setSiteIdea])
 
-  // Skip template selection if store rehydrates with a selected template
+  // Skip template selection if store rehydrates with a selected template (one-time only)
+  const hasAutoSkipped = useRef(false)
   useEffect(() => {
-    if (templateId && showIdeaConfirmation) {
+    if (templateId && showIdeaConfirmation && !hasAutoSkipped.current) {
+      hasAutoSkipped.current = true
       setShowIdeaConfirmation(false)
     }
   }, [templateId, showIdeaConfirmation])

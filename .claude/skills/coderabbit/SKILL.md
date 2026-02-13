@@ -7,15 +7,18 @@ description: Fetch and fix unresolved CodeRabbit review comments on the current 
 
 Fetch **only unresolved** CodeRabbit comments on the current PR, fix them, resolve the threads, and ensure CI passes.
 
-## Step 1: Identify the PR
+## Step 1: Get PR number
 
 ```bash
-gh pr view --json number,title,url,headRefName
+gh pr view --json number,headRefName --jq '{number, headRefName}'
 ```
 
-## Step 2: Fetch unresolved review threads
+## Step 2: Fetch unresolved threads + CI status (in parallel)
 
-Use the GraphQL API to get only unresolved threads:
+**CRITICAL: Always use the `filter-threads.jq` file to filter the GraphQL response.** The raw response contains ALL threads (resolved + unresolved) with verbose comment bodies. The jq filter:
+- Keeps only unresolved coderabbitai threads
+- Extracts only needed fields (threadId, file, line, commentId, body)
+- Strips HTML comments, "Prompt for AI Agents" blocks, "Learnings used" blocks, and "Analysis chain" blocks
 
 ```bash
 gh api graphql -f query='
@@ -31,6 +34,7 @@ query {
               body
               path
               line
+              databaseId
               author { login }
             }
           }
@@ -38,10 +42,12 @@ query {
       }
     }
   }
-}'
+}' | jq -f .claude/skills/coderabbit/filter-threads.jq
 ```
 
-Filter to only `isResolved: false` threads from `coderabbitai[bot]`.
+Run `gh pr checks <PR_NUMBER>` in parallel with the above.
+
+**If the jq output is `[]`**: Report "0 unresolved comments" and CI status, then stop.
 
 ## Step 3: For each unresolved comment
 
@@ -68,7 +74,23 @@ mutation {
 }'
 ```
 
-## Step 4: Verify type-check passes
+## Step 4: Check for merge conflicts
+
+Before verifying fixes, check if the PR has merge conflicts:
+
+```bash
+gh pr view <PR_NUMBER> --json mergeable,mergeStateStatus
+```
+
+If `mergeable` is `CONFLICTING`:
+
+1. Merge the base branch into the current branch: `git merge main`
+2. Resolve any conflicts
+3. Commit the merge resolution
+
+Do this before type-checking so you're validating the final state.
+
+## Step 5: Verify type-check passes
 
 After all fixes:
 
@@ -78,7 +100,15 @@ bun run type-check
 
 If type-check fails, fix the errors before proceeding.
 
-## Step 5: Check CI status
+## Step 6: Commit and push
+
+After type-check passes, commit all fixes and push:
+
+1. Stage the changed files
+2. Commit with a descriptive message (e.g., `fix: address CodeRabbit review comments`)
+3. Push: `bun run push`
+
+## Step 7: Check CI status
 
 ```bash
 gh pr checks <PR_NUMBER>
@@ -86,15 +116,12 @@ gh pr checks <PR_NUMBER>
 
 If any checks are failing:
 
-1. **Read the CI logs** to understand what failed:
-   ```bash
-   gh run view <RUN_ID> --log-failed
-   ```
+1. **Read the CI logs**: `gh run view <RUN_ID> --log-failed`
 2. **Fix the failures** (lint, type errors, test failures, etc.)
 3. **Push fixes** and wait for CI to re-run
 4. **Verify all checks pass** before declaring done
 
-## Step 6: Summary
+## Step 8: Summary
 
 Report what was done:
 - How many comments were found (unresolved)
@@ -103,8 +130,9 @@ Report what was done:
 
 ## Rules
 
-- **Only fetch unresolved comments** — resolved ones are already handled
+- **ALWAYS use filter-threads.jq** — never dump raw GraphQL thread responses into context
 - **Always resolve threads** — even if you disagree, explain and resolve (no stale threads)
 - **Run type-check after fixes** — don't leave broken code
 - **Check CI** — the PR isn't done until CI is green
-- **Don't commit** — just make the fixes. The user will commit when ready.
+- **Check merge conflicts** — resolve before pushing
+- **Always commit and push** — don't leave fixes uncommitted

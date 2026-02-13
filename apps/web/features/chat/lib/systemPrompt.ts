@@ -17,7 +17,7 @@ export function getSystemPrompt(params: SystemPromptParams = {}): string {
   const now = new Date()
   const currentDate = `${now.getDate()} ${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][now.getMonth()]} ${now.getFullYear()}`
 
-  let prompt = `Date: ${currentDate}. Read CLAUDE.md first. Read the current project structure before making changes. The user is usually looking at a specific page — find which one.`
+  let prompt = `Date: ${currentDate}. Current time: ${now.toISOString()}. Read CLAUDE.md first. Read the current project structure before making changes. The user is usually looking at a specific page — find which one.`
 
   if (hasStripeMcpAccess) {
     prompt +=

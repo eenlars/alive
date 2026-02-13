@@ -22,11 +22,25 @@ EOF
 chmod 640 "$ENV_FILE_PATH"
 chown root:"$SITE_USER" "$ENV_FILE_PATH"
 
-# Generate config if script exists
-if [[ -f "${TARGET_DIR}/scripts/generate-config.js" ]]; then
-    log_info "Generating site config..."
-    cd "$TARGET_DIR"
-    bun run scripts/generate-config.js "$SITE_DOMAIN" "$SITE_PORT" || log_warn "Config generation failed, continuing..."
+# Generate vite.config.ts with domain-specific allowedHosts and correct PORT/proxy
+# The generate-config.js script produces a proper config with:
+#   - allowedHosts derived from the domain (via tldts)
+#   - Dynamic PORT from process.env.PORT
+#   - /api proxy to PORT+1000 for dev mode
+GENERATE_SCRIPT="${TARGET_DIR}/scripts/generate-config.js"
+if [[ -f "$GENERATE_SCRIPT" ]]; then
+    log_info "Generating vite.config.ts for $SITE_DOMAIN:$SITE_PORT..."
+    bun "$GENERATE_SCRIPT" "$SITE_DOMAIN" "$SITE_PORT" "$TARGET_DIR"
+    log_success "vite.config.ts generated"
+else
+    log_info "No generate-config.js found, checking existing vite.config.ts..."
+    VITE_CONFIG="${TARGET_DIR}/user/vite.config.ts"
+    if [[ -f "$VITE_CONFIG" ]] && ! grep -q "process.env.PORT" "$VITE_CONFIG"; then
+        log_info "Patching vite.config.ts to use PORT=$SITE_PORT from environment..."
+        sed -i '/export default defineConfig/i\const PORT = Number(process.env.PORT) || '"$SITE_PORT"';\n' "$VITE_CONFIG"
+        sed -i 's/port: [0-9]\+/port: PORT/g' "$VITE_CONFIG"
+        log_success "vite.config.ts patched"
+    fi
 fi
 
 # Fix ownership before build

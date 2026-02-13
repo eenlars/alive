@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs"
+import * as Sentry from "@sentry/nextjs"
 import { COOKIE_NAMES, getOAuthKeyForProvider, PATHS } from "@webalive/shared"
 import { DeploymentError } from "@webalive/site-controller"
 import { cookies } from "next/headers"
@@ -217,6 +218,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.error("[Import-Repo] Unexpected error:", error)
+
+    Sentry.captureException(error)
 
     let status = 500
     if (error && typeof error === "object") {

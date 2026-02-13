@@ -2,6 +2,7 @@
 
 import { Code, FolderOpen, Globe, Terminal } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { trackSandboxModeChanged } from "@/lib/analytics/events"
 import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import type { PanelView } from "../../lib/sandbox-context"
 
@@ -80,6 +81,7 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
   }, [isOpen])
 
   const handleSelect = (view: PanelView) => {
+    trackSandboxModeChanged(view)
     onViewChange(view)
     setIsOpen(false)
   }

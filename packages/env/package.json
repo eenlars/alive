@@ -22,11 +22,10 @@
     }
   },
   "scripts": {
-    "build": "tsc --noEmit",
-    "dev": "tsc --watch --noEmit",
+    "dev": "tsgo --watch --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsgo --noEmit",
     "ci": "biome ci ."
   },
   "dependencies": {

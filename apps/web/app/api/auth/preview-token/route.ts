@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -15,7 +16,7 @@ import { ErrorCodes } from "@/lib/error-codes"
  * Flow:
  * 1. Sandbox component fetches token from this endpoint (with session cookie)
  * 2. Token is appended to iframe src as query param
- * 3. preview-router validates the token from query param
+ * 3. Go preview-proxy validates the token from query param
  *
  * Security:
  * - Tokens are short-lived (5 minutes) to limit exposure
@@ -48,6 +49,7 @@ export async function POST() {
     return NextResponse.json({ ok: true, token: previewToken })
   } catch (error) {
     console.error("[preview-token] Error:", error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 }

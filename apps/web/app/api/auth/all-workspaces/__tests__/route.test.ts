@@ -332,7 +332,7 @@ describe("GET /api/auth/all-workspaces", () => {
 
   describe("Test mode", () => {
     it("should return mock data in local test mode", async () => {
-      vi.stubEnv("BRIDGE_ENV", "local")
+      vi.stubEnv("STREAM_ENV", "local")
       vi.mocked(getSessionUser).mockResolvedValue(LOCAL_TEST_USER)
 
       const req = createMockRequest()
@@ -346,7 +346,7 @@ describe("GET /api/auth/all-workspaces", () => {
     })
 
     it("should NOT use test mode for regular users even in local env", async () => {
-      vi.stubEnv("BRIDGE_ENV", "local")
+      vi.stubEnv("STREAM_ENV", "local")
       mockMemberships([{ org_id: "real-org" }])
       mockDomains([{ hostname: "real-site.com", org_id: "real-org" }])
 

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import * as Sentry from "@sentry/nextjs"
 import { hash } from "bcrypt"
 import { type NextRequest, NextResponse } from "next/server"
 import { isManagerAuthenticated } from "@/features/auth/lib/auth"
@@ -143,6 +144,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error) {
     console.error("[Manager Users] Unexpected error:", error)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }
