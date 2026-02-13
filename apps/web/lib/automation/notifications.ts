@@ -16,13 +16,17 @@ let transporter: nodemailer.Transporter | null = null
 
 function getTransporter(): nodemailer.Transporter {
   if (!transporter) {
+    const smtpPassword = process.env.SMTP_NOREPLY_PASSWORD
+    if (!smtpPassword) {
+      throw new Error("SMTP_NOREPLY_PASSWORD is required for automation notifications")
+    }
     transporter = nodemailer.createTransport({
       host: "localhost",
       port: 587,
       secure: false,
       auth: {
         user: FROM_ADDRESS,
-        pass: process.env.SMTP_NOREPLY_PASSWORD ?? "",
+        pass: smtpPassword,
       },
       tls: { rejectUnauthorized: false },
       connectionTimeout: 5000,
@@ -70,7 +74,7 @@ export async function notifyJobDisabled(ctx: RunContext, error?: string): Promis
         .join("\n"),
     })
 
-    console.log(`[Notifications] Sent disabled-job email to ${user.email} for "${jobName}"`)
+    console.log(`[Notifications] Sent disabled-job email to user ${ctx.job.user_id} for "${jobName}"`)
   } catch (err) {
     console.error(`[Notifications] Failed to send disabled-job email for "${ctx.job.name}":`, err)
   }
