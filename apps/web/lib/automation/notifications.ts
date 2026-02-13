@@ -79,8 +79,7 @@ export async function notifyJobDisabled(ctx: RunContext, error?: string): Promis
       subject: `Automation "${jobName}" has been disabled`,
       text: [
         `Your automation "${jobName}" has been disabled after ${failures} consecutive failures.`,
-        "",
-        error ? `Last error: ${error}` : "",
+        ...(error ? ["", `Last error: ${error}`] : []),
         "",
         `Site: ${ctx.hostname}`,
         `Job ID: ${ctx.job.id}`,
@@ -89,9 +88,7 @@ export async function notifyJobDisabled(ctx: RunContext, error?: string): Promis
         `${getAppBaseUrl()}/chat?site=${ctx.hostname}&tab=automations`,
         "",
         "— Alive",
-      ]
-        .filter(Boolean)
-        .join("\n"),
+      ].join("\n"),
     })
 
     console.log(`[Notifications] Sent disabled-job email to user ${ctx.job.user_id} for "${jobName}"`)
