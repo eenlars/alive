@@ -90,9 +90,10 @@ No service-role fallback.
 
 ## Phase 1: Database Migration (Policies)
 
-Create migration file:
+Create migration files:
 
 `packages/database/migrations/0002_rls_user_routes.sql`
+`packages/database/migrations/0003_rls_tighten_user_routes.sql`
 
 Migration requirements:
 
@@ -100,6 +101,8 @@ Migration requirements:
 2. Explicit comments for each policy intent.
 3. No assumptions that cloud policy state matches historical notes.
 4. No embedded credentials.
+5. Remove legacy duplicate policies on migrated tables (keep only `rls_*` policy set).
+6. Revoke broad historical grants and re-grant least-privilege for `authenticated`.
 
 Candidate targets:
 - `app.domains`
