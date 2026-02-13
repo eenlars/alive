@@ -255,11 +255,28 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     consecutiveFailures += 1
 
     if (consecutiveFailures >= maxRetries) {
-      console.warn(
-        `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) DISABLED after ${consecutiveFailures}/${maxRetries} failures`,
-      )
-      isActive = false
-      jobStatus = "disabled"
+      if (ctx.job.trigger_type === "cron" && ctx.job.cron_schedule) {
+        // Cron jobs: skip to next scheduled run instead of permanently disabling.
+        // Transient failures (deployments, outages) shouldn't kill recurring jobs.
+        const nextMs = computeNextRunAtMs(
+          { kind: "cron", expr: ctx.job.cron_schedule, tz: ctx.job.cron_timezone ?? undefined },
+          now,
+        )
+        if (nextMs) {
+          nextRunAt = new Date(nextMs).toISOString()
+        }
+        consecutiveFailures = 0
+        console.warn(
+          `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) hit ${maxRetries} failures — resetting to next cron run (${nextRunAt ?? "none"})`,
+        )
+      } else {
+        // Non-cron jobs (one-time, webhook): disable after max retries
+        console.warn(
+          `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) DISABLED after ${consecutiveFailures}/${maxRetries} failures`,
+        )
+        isActive = false
+        jobStatus = "disabled"
+      }
     } else {
       // Exponential backoff with jitter for retry
       const baseMs = retryBaseDelayMs * 2 ** (consecutiveFailures - 1)
