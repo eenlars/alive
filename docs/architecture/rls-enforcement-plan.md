@@ -103,7 +103,12 @@ Migration requirements:
 
 Candidate targets:
 - `app.domains`
+- `iam.orgs`
+- `iam.org_memberships`
 - `iam.user_preferences`
+- `app.conversations`
+- `app.conversation_tabs`
+- `app.messages`
 - `app.automation_jobs` (user read)
 - `app.automation_runs` (user read through job ownership)
 - `lockbox.secret_keys` and `lockbox.user_secrets` policy predicates should use `lockbox.sub()` instead of `auth.uid()`

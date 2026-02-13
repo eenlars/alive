@@ -12,6 +12,7 @@ import { STANDALONE } from "@webalive/shared"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { z } from "zod"
+import { verifySessionToken } from "@/features/auth/lib/jwt"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
@@ -23,6 +24,18 @@ const CreateWorkspaceSchema = z.object({
     .max(64)
     .regex(/^[a-zA-Z0-9_-]+$/, "Workspace name can only contain letters, numbers, hyphens, and underscores"),
 })
+
+async function hasValidStandaloneSession(): Promise<boolean> {
+  const jar = await cookies()
+  const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
+
+  if (!sessionCookie?.value) {
+    return false
+  }
+
+  const payload = await verifySessionToken(sessionCookie.value)
+  return payload?.userId === STANDALONE.TEST_USER.ID
+}
 
 /**
  * GET /api/workspaces/local
@@ -44,11 +57,7 @@ export async function GET() {
     )
   }
 
-  // Check session
-  const jar = await cookies()
-  const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
-
-  if (!sessionCookie?.value || sessionCookie.value !== STANDALONE.SESSION_VALUE) {
+  if (!(await hasValidStandaloneSession())) {
     return NextResponse.json(
       {
         ok: false,
@@ -96,11 +105,7 @@ export async function POST(req: Request) {
     )
   }
 
-  // Check session
-  const jar = await cookies()
-  const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
-
-  if (!sessionCookie?.value || sessionCookie.value !== STANDALONE.SESSION_VALUE) {
+  if (!(await hasValidStandaloneSession())) {
     return NextResponse.json(
       {
         ok: false,

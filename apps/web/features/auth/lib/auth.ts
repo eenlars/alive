@@ -262,30 +262,27 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     return null
   }
 
-  // Standalone mode - auto-login without database
-  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+  // Verify JWT and extract user data.
+  const payload = await verifySessionToken(sessionCookie.value)
+
+  if (!payload?.userId) {
+    return null
+  }
+
+  if (env.STREAM_ENV === "standalone" && payload.userId === STANDALONE.TEST_USER.ID) {
     return {
       id: STANDALONE.TEST_USER.ID,
       email: STANDALONE.TEST_USER.EMAIL,
       name: STANDALONE.TEST_USER.NAME,
       canSelectAnyModel: true,
       isAdmin: true,
-      isSuperadmin: false, // No superadmin access in standalone mode
+      isSuperadmin: false,
       enabledModels: [],
     }
   }
 
-  // Test mode
-  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
-    const testEmail = SECURITY.LOCAL_TEST.EMAIL
-    return buildSessionUser(SECURITY.LOCAL_TEST.SESSION_VALUE, testEmail, "Test User", [])
-  }
-
-  // Verify JWT and extract user data.
-  const payload = await verifySessionToken(sessionCookie.value)
-
-  if (!payload?.userId) {
-    return null
+  if (env.STREAM_ENV === "local" && payload.userId === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+    return buildSessionUser(SECURITY.LOCAL_TEST.SESSION_VALUE, SECURITY.LOCAL_TEST.EMAIL, "Test User", [])
   }
 
   // Skip DB query for admins — they already get canSelectAnyModel: true
@@ -307,16 +304,19 @@ export async function hasSessionScope(scope: SessionScope): Promise<boolean> {
     return false
   }
 
-  // Standalone and local test modes keep legacy non-JWT session values.
-  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
-    return true
-  }
-
-  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
-    return true
-  }
-
   const payload = await verifySessionToken(sessionCookie.value)
+  if (!payload) {
+    return false
+  }
+
+  if (env.STREAM_ENV === "standalone" && payload.userId === STANDALONE.TEST_USER.ID) {
+    return true
+  }
+
+  if (env.STREAM_ENV === "local" && payload.userId === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+    return true
+  }
+
   return hasScope(payload, scope)
 }
 
@@ -377,19 +377,23 @@ export async function getAuthenticatedWorkspaces(): Promise<string[]> {
     return []
   }
 
+  const payload = await verifySessionToken(sessionCookie.value)
+  if (!payload) {
+    return []
+  }
+
   // Standalone mode - return all local workspaces
-  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+  if (env.STREAM_ENV === "standalone" && payload.userId === STANDALONE.TEST_USER.ID) {
     const { getStandaloneWorkspaces } = await import("@/features/workspace/lib/standalone-workspace")
     return getStandaloneWorkspaces()
   }
 
   // Test mode
-  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && payload.userId === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return []
   }
 
-  const payload = await verifySessionToken(sessionCookie.value)
-  if (!payload || !hasScope(payload, SESSION_SCOPES.WORKSPACE_LIST)) {
+  if (!hasScope(payload, SESSION_SCOPES.WORKSPACE_LIST)) {
     return []
   }
 
@@ -457,16 +461,6 @@ export async function getSafeSessionCookie(logPrefix = "[Auth]"): Promise<string
 
   if (!sessionCookie?.value) {
     return undefined
-  }
-
-  // Standalone mode special value
-  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
-    return sessionCookie.value
-  }
-
-  // Test mode special value
-  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
-    return sessionCookie.value
   }
 
   // Verify JWT format and validity

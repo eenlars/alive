@@ -52,19 +52,35 @@ export async function POST(req: NextRequest) {
     ensureDefaultWorkspace()
 
     const workspaces = getStandaloneWorkspaces()
+    const sessionToken = await createSessionToken({
+      userId: STANDALONE.TEST_USER.ID,
+      email: STANDALONE.TEST_USER.EMAIL,
+      name: STANDALONE.TEST_USER.NAME,
+      orgIds: [],
+      orgRoles: {},
+    })
+
     const res = createCorsSuccessResponse(origin, {
       userId: STANDALONE.TEST_USER.ID,
       workspaces,
     })
-    res.cookies.set(COOKIE_NAMES.SESSION, STANDALONE.SESSION_VALUE, getSessionCookieOptions(host))
+    res.cookies.set(COOKIE_NAMES.SESSION, sessionToken, getSessionCookieOptions(host))
     console.log(`[Login] Standalone mode: auto-login for ${email} with ${workspaces.length} local workspaces`)
     return res
   }
 
   // Test mode
   if (env.STREAM_ENV === "local" && email === SECURITY.LOCAL_TEST.EMAIL && password === SECURITY.LOCAL_TEST.PASSWORD) {
+    const sessionToken = await createSessionToken({
+      userId: SECURITY.LOCAL_TEST.SESSION_VALUE,
+      email: SECURITY.LOCAL_TEST.EMAIL,
+      name: "Test User",
+      orgIds: [],
+      orgRoles: {},
+    })
+
     const res = createCorsSuccessResponse(origin, {})
-    res.cookies.set(COOKIE_NAMES.SESSION, SECURITY.LOCAL_TEST.SESSION_VALUE, getSessionCookieOptions(host))
+    res.cookies.set(COOKIE_NAMES.SESSION, sessionToken, getSessionCookieOptions(host))
     return res
   }
 

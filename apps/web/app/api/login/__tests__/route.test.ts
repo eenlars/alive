@@ -10,6 +10,7 @@
  */
 
 import { NextRequest } from "next/server"
+import { SECURITY } from "@webalive/shared"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Mock Supabase clients
@@ -325,6 +326,31 @@ describe("POST /api/login", () => {
 
       expect(response.status).toBe(200)
       expect(data.workspaces).toEqual([])
+    })
+
+    it("issues JWT in local test mode instead of legacy raw session value", async () => {
+      const previousStreamEnv = process.env.STREAM_ENV
+      process.env.STREAM_ENV = "local"
+
+      try {
+        const req = createMockRequest({
+          email: SECURITY.LOCAL_TEST.EMAIL,
+          password: SECURITY.LOCAL_TEST.PASSWORD,
+        })
+        const response = await POST(req)
+
+        expect(response.status).toBe(200)
+        expect(createSessionToken).toHaveBeenCalledWith({
+          userId: SECURITY.LOCAL_TEST.SESSION_VALUE,
+          email: SECURITY.LOCAL_TEST.EMAIL,
+          name: "Test User",
+          orgIds: [],
+          orgRoles: {},
+        })
+        expect(createIamClient).not.toHaveBeenCalled()
+      } finally {
+        process.env.STREAM_ENV = previousStreamEnv
+      }
     })
   })
 
