@@ -163,6 +163,9 @@ async function handleIncomingEmail(
     return
   }
 
+  // Get conversation history BEFORE storing incoming (avoids duplicate in history)
+  const history = getThreadHistory(mailbox, threadId)
+
   // Store incoming message
   storeMessage(
     mailbox,
@@ -175,13 +178,11 @@ async function handleIncomingEmail(
     "incoming",
   )
 
-  // Get conversation history
-  const history = getThreadHistory(mailbox, threadId)
+  // Build prompts — system prompt has character + instructions, user message has email
+  const systemPrompt = buildSystemPrompt(job.actionPrompt)
+  const userMessage = buildUserMessage(history, email)
 
-  // Build the full prompt
-  const fullPrompt = buildPrompt(job.actionPrompt, history, email)
-
-  // Trigger automation
+  // Trigger automation with send_reply tool
   const triggerContext = {
     type: "email",
     from: email.from,
@@ -192,7 +193,8 @@ async function handleIncomingEmail(
     conversationDepth: history.length,
   }
 
-  const result = await triggerAutomation(job.id, fullPrompt, triggerContext, {
+  const result = await triggerAutomation(job.id, userMessage, triggerContext, {
+    systemPromptOverride: systemPrompt,
     extraTools: [AUTOMATION.SEND_REPLY],
     responseToolName: AUTOMATION.SEND_REPLY_BARE,
   })
@@ -234,21 +236,28 @@ async function handleIncomingEmail(
 }
 
 /**
- * Build the full prompt for Claude, including character personality + conversation history + new email.
+ * Build the system prompt: character personality + instructions on how email works.
  */
-function buildPrompt(
-  characterPrompt: string,
-  history: ConversationMessage[],
-  newEmail: Awaited<ReturnType<typeof parseEmail>>,
-): string {
+function buildSystemPrompt(characterPrompt: string): string {
+  return `${characterPrompt}
+
+## How email works
+
+You are receiving and replying to emails. You have workspace tools (Read, Glob, Grep) to explore the codebase you live in — use them first. Find something real and weave it into your reply.
+
+When ready, call the send_reply tool with your email text. That is the ONLY thing the person will see. Everything else (tool calls, file reads, thinking) is invisible to them.
+
+Do your work first. Then compose your reply.`
+}
+
+/**
+ * Build the user message: conversation history + the new incoming email.
+ */
+function buildUserMessage(history: ConversationMessage[], newEmail: Awaited<ReturnType<typeof parseEmail>>): string {
   const parts: string[] = []
 
-  // Character personality / system context
-  parts.push(characterPrompt)
-
-  // Conversation history (if any previous messages)
   if (history.length > 0) {
-    parts.push("\n--- Conversation History ---")
+    parts.push("--- Conversation History ---")
     for (const msg of history) {
       const label = msg.direction === "incoming" ? `[From: ${msg.sender}]` : "[You replied]"
       parts.push(`${label}\n${msg.body}`)
@@ -256,13 +265,9 @@ function buildPrompt(
     parts.push("--- End History ---\n")
   }
 
-  // New incoming email
   parts.push(`New email from ${newEmail.from}:`)
   parts.push(`Subject: ${newEmail.subject}`)
   parts.push(`\n${newEmail.textBody}`)
-  parts.push(
-    "\nCompose your reply and send it using the send_reply tool. Be concise and in-character. Do NOT include a subject line or email headers — just the body text.",
-  )
 
   return parts.join("\n")
 }

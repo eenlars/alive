@@ -226,6 +226,7 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
     streamTypes: STREAM_TYPES,
     isAdmin: false,
     isSuperadmin: false,
+    extraTools,
   }
 
   const pool = getWorkerPool()

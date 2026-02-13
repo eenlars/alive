@@ -181,6 +181,8 @@ export interface AgentConfig {
   isAdmin?: boolean
   /** Whether the user is a superadmin (bypasses heavy bash guardrails) */
   isSuperadmin?: boolean
+  /** Optional extra MCP tool names to load (e.g. ["mcp__alive-email__send_reply"]) */
+  extraTools?: string[]
 }
 
 /** Request payload for Claude Agent SDK query */
