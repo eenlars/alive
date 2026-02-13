@@ -90,7 +90,7 @@
     "@webalive/redis#health": {
       "cache": false
     },
-"@webalive/image-processor#build": {
+    "@webalive/image-processor#build": {
       "outputs": []
     },
     "@webalive/mcp-ocr#build": {
