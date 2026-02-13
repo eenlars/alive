@@ -3,7 +3,7 @@
 ## One-Line Setup
 
 ```bash
-bash apps/mcp/stealth-request/scripts/setup.sh
+bash apps/mcp-servers/stealth-request/scripts/setup.sh
 ```
 
 This will:
@@ -29,7 +29,7 @@ echo 'export PUPPETEER_CACHE_DIR=/root/.cache/puppeteer' >> ~/.bashrc
 ### Step 2: Install Chrome
 
 ```bash
-cd /root/webalive/alive/apps/mcp/stealth-request
+cd /root/webalive/alive/apps/mcp-servers/stealth-request
 npx puppeteer browsers install chrome
 ```
 
@@ -48,7 +48,7 @@ bun install
 ### Step 4: Start Service
 
 ```bash
-bun apps/mcp/stealth-request/server.ts
+bun apps/mcp-servers/stealth-request/server.ts
 ```
 
 Output should show:
@@ -81,7 +81,7 @@ curl -X POST http://localhost:1234/fetch \
 
 ```bash
 # Copy service file to systemd
-sudo cp apps/mcp/stealth-request/stealth-request.service /etc/systemd/system/
+sudo cp apps/mcp-servers/stealth-request/stealth-request.service /etc/systemd/system/
 
 # Reload systemd
 sudo systemctl daemon-reload
@@ -133,10 +133,10 @@ lsof -ti:1234 | xargs kill -9
 
 ```bash
 # Make setup script executable
-chmod +x apps/mcp/stealth-request/scripts/setup.sh
+chmod +x apps/mcp-servers/stealth-request/scripts/setup.sh
 
 # Run with proper permissions
-bash apps/mcp/stealth-request/scripts/setup.sh
+bash apps/mcp-servers/stealth-request/scripts/setup.sh
 ```
 
 ## Next Steps

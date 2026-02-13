@@ -1,13 +1,13 @@
 [Unit]
 Description=Stealth Request Web Scraping Service
 After=network.target
-Documentation=file:///root/webalive/alive/apps/mcp/stealth-request/README.md
+Documentation=file:///root/webalive/alive/apps/mcp-servers/stealth-request/README.md
 
 [Service]
 Type=simple
 User=root
 WorkingDirectory=/root/webalive/alive
-ExecStart=/root/.bun/bin/bun apps/mcp/stealth-request/server.ts
+ExecStart=/root/.bun/bin/bun apps/mcp-servers/stealth-request/server.ts
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=mixed
 Restart=always

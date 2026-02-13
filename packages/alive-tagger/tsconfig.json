@@ -10,7 +10,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "isolatedModules": true,
-    "noEmit": true
+    "sourceMap": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

@@ -1,9 +1,9 @@
-import express from "express"
 import cors from "cors"
-import { stealthFetch } from "./src/index"
-import type { StealthFetchOptions } from "./src/index"
-import TurndownService from "turndown"
 import type { Request, Response } from "express"
+import express from "express"
+import TurndownService from "turndown"
+import type { StealthFetchOptions } from "./src/index"
+import { stealthFetch } from "./src/index"
 
 // Require puppeteer cache directory
 if (!process.env.PUPPETEER_CACHE_DIR) {

@@ -17,7 +17,7 @@ export class StealthResponse {
       headers: Record<string, string>
       url: string
       networkRequests?: NetworkRequest[]
-    }
+    },
   ) {
     this._body = body
     this._status = init.status
@@ -31,7 +31,10 @@ export class StealthResponse {
     this._headers = new Headers()
     Object.entries(init.headers).forEach(([key, value]) => {
       // Replace newlines and consecutive spaces with a single space
-      const sanitizedValue = value.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim()
+      const sanitizedValue = value
+        .replace(/[\r\n]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
       try {
         this._headers.set(key, sanitizedValue)
       } catch (error) {
@@ -84,17 +87,21 @@ export class StealthResponse {
 
   async blob(): Promise<Blob> {
     return new Blob([this._body], {
-      type: this._headers.get("content-type") || "text/plain"
+      type: this._headers.get("content-type") || "text/plain",
     })
   }
 
   clone(): StealthResponse {
+    const headersObj: Record<string, string> = {}
+    this._headers.forEach((value, key) => {
+      headersObj[key] = value
+    })
     return new StealthResponse(this._body, {
       status: this._status,
       statusText: this._statusText,
-      headers: Object.fromEntries(this._headers.entries()),
+      headers: headersObj,
       url: this._url,
-      networkRequests: this._networkRequests
+      networkRequests: this._networkRequests,
     })
   }
 }

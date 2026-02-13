@@ -8,7 +8,7 @@ export const ProxySchema = z.object({
   port: z.string(),
   username: z.string(),
   password: z.string(),
-  protocol: z.enum(["http", "https", "socks5"])
+  protocol: z.enum(["http", "https", "socks5"]),
 })
 
 /**
@@ -17,12 +17,12 @@ export const ProxySchema = z.object({
 export const RequestSchema = z.object({
   url: z.string().url(),
   method: z.enum(["POST", "GET", "PUT", "PATCH", "DELETE"]).default("POST"),
-  body: z.record(z.unknown()).nullish(),
-  headers: z.record(z.string()).nullish(),
+  body: z.record(z.string(), z.unknown()).nullish(),
+  headers: z.record(z.string(), z.string()).nullish(),
   timeout: z.number().nullish().default(30000),
   recordNetworkRequests: z.boolean().nullish().default(false),
   // optional origin URL to navigate to for cookie collection (useful when API is on different subdomain)
-  originUrl: z.string().url().nullish()
+  originUrl: z.string().url().nullish(),
 })
 
 export type ProxyConfig = z.infer<typeof ProxySchema>

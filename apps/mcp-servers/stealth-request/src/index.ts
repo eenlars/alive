@@ -1,16 +1,20 @@
-import type { Browser, Page, LaunchOptions, HTTPRequest, HTTPResponse } from "puppeteer"
+import type { Browser, HTTPRequest, HTTPResponse, LaunchOptions, Page } from "puppeteer"
 import puppeteerExtra from "puppeteer-extra"
 import stealthPlugin from "puppeteer-extra-plugin-stealth"
-import { USER_AGENTS, DEFAULT_TIMEOUT } from "./constants"
-import { RequestSchema, type ProxyConfig, type RequestConfig, type RequestResponse, type NetworkRequest } from "./types"
+import { DEFAULT_TIMEOUT, USER_AGENTS } from "./constants"
+import { type NetworkRequest, type ProxyConfig, type RequestConfig, type RequestResponse, RequestSchema } from "./types"
 
 puppeteerExtra.use(stealthPlugin())
 
-async function setupBrowser(proxy?: ProxyConfig): Promise<Browser> {
+async function setupBrowser(proxy?: ProxyConfig, userAgent?: string): Promise<Browser> {
   const args = ["--no-sandbox", "--disable-setuid-sandbox"]
 
   if (proxy) {
     args.push(`--proxy-server=${proxy.ip}:${proxy.port}`)
+  }
+
+  if (userAgent) {
+    args.push(`--user-agent=${userAgent}`)
   }
 
   const launchOptions: LaunchOptions = {
@@ -154,7 +158,10 @@ export async function stealthRequest(input: RequestConfig, proxy?: ProxyConfig):
   try {
     const validated = RequestSchema.parse(input)
 
-    browser = await setupBrowser(proxy)
+    const randomIndex = Math.floor(Math.random() * USER_AGENTS.length)
+    const randomUserAgent = USER_AGENTS[randomIndex] ?? USER_AGENTS[0] ?? ""
+
+    browser = await setupBrowser(proxy, randomUserAgent)
     const page = await browser.newPage()
 
     if (validated.recordNetworkRequests) {
@@ -167,10 +174,6 @@ export async function stealthRequest(input: RequestConfig, proxy?: ProxyConfig):
         password: proxy.password,
       })
     }
-
-    const randomIndex = Math.floor(Math.random() * USER_AGENTS.length)
-    const randomUserAgent = USER_AGENTS[randomIndex] ?? USER_AGENTS[0] ?? ""
-    await page.setUserAgent(randomUserAgent)
 
     // Set extra headers if provided
     if (validated.headers) {
@@ -315,11 +318,10 @@ export async function stealthRequest(input: RequestConfig, proxy?: ProxyConfig):
   }
 }
 
-// Main exports
-export { stealthFetch } from "./stealthFetch"
+export * from "./constants"
 export { StealthResponse } from "./StealthResponse"
 export type { StealthFetchOptions } from "./stealthFetch"
-
+// Main exports
+export { stealthFetch } from "./stealthFetch"
 // Advanced/internal exports
 export * from "./types"
-export * from "./constants"

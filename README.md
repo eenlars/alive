@@ -112,8 +112,7 @@ packages/
 ├── shared/               # Types, constants, env definitions
 ├── database/             # Supabase schema types
 ├── oauth-core/           # Multi-tenant OAuth (AES-256-GCM)
-├── redis/                # Sessions + caching
-└── stream-types/         # SSE protocol types
+└── redis/                # Sessions + caching
 ```
 
 ---

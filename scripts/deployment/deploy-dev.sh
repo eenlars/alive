@@ -32,15 +32,12 @@ if [ "$HOSTED_ENV" = "computer" ]; then
     echo "💻 Computer environment detected (HOSTED_ENV=computer)"
     echo "🔄 Building packages and starting dev server..."
 
-    make static-check
-    echo "✅ Static checks complete"
+    # Build shared packages (required for dev server to start)
+    cd "$PROJECT_ROOT"
+    bun run build:libs
+    echo "✅ Packages built"
 
-    # Clean Next.js build cache
-    echo "🧹 Cleaning Next.js build cache..."
-    rm -rf "$PROJECT_ROOT/apps/web/.next"
-    echo "✅ Build cache cleaned"
-
-    # Start dev server
+    # Start dev server (static checks run via pre-commit/pre-push hooks)
     echo "🚀 Starting Next.js dev server..."
     cd "$PROJECT_ROOT/apps/web"
     exec bun run dev

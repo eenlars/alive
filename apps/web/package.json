@@ -61,7 +61,6 @@
     "@webalive/redis": "workspace:*",
     "@webalive/shared": "workspace:*",
     "@webalive/site-controller": "workspace:*",
-    "@webalive/stream-types": "workspace:*",
     "@webalive/tools": "workspace:*",
     "@webalive/worker-pool": "workspace:*",
     "@xterm/addon-fit": "^0.10.0",

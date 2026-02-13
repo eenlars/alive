@@ -16,7 +16,7 @@ Web scraping service using Puppeteer with stealth plugin to bypass anti-bot dete
 
 ```bash
 # From project root
-bash apps/mcp/stealth-request/scripts/setup.sh
+bash apps/mcp-servers/stealth-request/scripts/setup.sh
 ```
 
 Or manually:
@@ -24,7 +24,7 @@ Or manually:
 ```bash
 export PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
 npx puppeteer browsers install chrome
-bun install --cwd apps/mcp/stealth-request
+bun install --cwd apps/mcp-servers/stealth-request
 ```
 
 ### 2. Set Environment Variables
@@ -36,7 +36,7 @@ export PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
 ### 3. Start the Service
 
 ```bash
-bun apps/mcp/stealth-request/server.ts
+bun apps/mcp-servers/stealth-request/server.ts
 ```
 
 Service will listen on `http://127.0.0.1:1234` (local-only)
@@ -271,7 +271,7 @@ export PUPPETEER_CACHE_DIR=/root/.cache/puppeteer
 npx puppeteer browsers install chrome
 
 # Restart service
-bun apps/mcp/stealth-request/server.ts
+bun apps/mcp-servers/stealth-request/server.ts
 ```
 
 ### Port already in use

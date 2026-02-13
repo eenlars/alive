@@ -37,7 +37,13 @@ const ratingInfo = await page.evaluate(() => {
 
   // Walk up to find clickable parent
   let el: Element | null = ratingSpan
-  const parents = []
+  const parents: {
+    tag: string
+    classes: string
+    ariaLabel: string | null
+    jsaction: string | null
+    role: string | null
+  }[] = []
   for (let i = 0; i < 6 && el; i++) {
     parents.push({
       tag: el.tagName,
@@ -117,27 +123,3 @@ const panelText = await page.evaluate(() => {
 console.log("Panel text:", panelText?.slice(0, 300))
 
 await cleanupBrowser(browser)
-process.exit(0)
-
-if (!result.success) {
-  console.error("Error:", result.error)
-  process.exit(1)
-}
-
-for (const biz of result.data.businesses) {
-  console.log(`\n${"=".repeat(60)}`)
-  console.log(biz.storeName)
-  console.log(`Rating: ${biz.stars || "N/A"} (${biz.numberOfReviews || 0} reviews)`)
-  console.log("Has reviews field:", "reviews" in biz, "| Length:", biz.reviews?.length)
-
-  if (biz.reviews && biz.reviews.length > 0) {
-    console.log("\nReviews:")
-    for (const r of biz.reviews) {
-      console.log(`  * ${r.author} (${r.rating || "?"} stars) - ${r.time}`)
-      if (r.text) {
-        const preview = r.text.length > 150 ? `${r.text.slice(0, 150)}...` : r.text
-        console.log(`    "${preview}"`)
-      }
-    }
-  }
-}

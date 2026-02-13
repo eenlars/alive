@@ -22,8 +22,7 @@
     }
   },
   "scripts": {
-    "build": "tsgo --noEmit",
-    "dev": "tsc --watch --noEmit",
+    "dev": "tsgo --watch --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "type-check": "tsgo --noEmit",
