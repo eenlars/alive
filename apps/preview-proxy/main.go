@@ -183,7 +183,7 @@ func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Parse preview hostname: preview--{label}.{previewBase}
 	hostname, err := h.extractHostname(host)
 	if err != nil {
-		http.Error(w, "Invalid preview host", http.StatusBadRequest)
+		h.serveNotFound(w, host)
 		return
 	}
 
@@ -412,6 +412,71 @@ func (h *previewHandler) verifySessionCookie(r *http.Request, hostname string) b
 	// Verify HMAC
 	expected := h.makeSessionValue(hostname, expiry)
 	return hmac.Equal([]byte(cookie.Value), []byte(expected))
+}
+
+// notFoundHTML is the HTML template for domains that don't exist.
+// %s is replaced with the requested hostname.
+const notFoundHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site Not Found</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafafa;
+    color: #111;
+  }
+  .container {
+    text-align: center;
+    max-width: 460px;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+  p {
+    font-size: 1rem;
+    color: #666;
+    line-height: 1.6;
+  }
+  .domain {
+    font-family: "SF Mono", "Fira Code", monospace;
+    background: #f0f0f0;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  a {
+    color: #111;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Site not found</h1>
+  <p><span class="domain">%s</span> is not registered on this server.</p>
+  <p style="margin-top: 1rem;"><a href="https://alive.best">alive.best</a></p>
+</div>
+</body>
+</html>`
+
+func (h *previewHandler) serveNotFound(w http.ResponseWriter, host string) {
+	// Sanitize host for safe HTML embedding (prevent XSS)
+	safe := strings.ReplaceAll(strings.ReplaceAll(host, "<", "&lt;"), ">", "&gt;")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
+	fmt.Fprintf(w, notFoundHTML, safe)
 }
 
 func requireEnv(key string) string {

@@ -19,7 +19,7 @@ import { computeNextRunAtMs } from "@webalive/automation"
 import type { Json } from "@webalive/database"
 import { getServerId } from "@webalive/shared"
 import { appendRunLog } from "./run-log"
-import type { AppClient, AutomationJob, ClaimOptions, FinishHooks, FinishOptions, RunContext } from "./types"
+import type { AppClient, AutomationJob, ClaimOptions, FinishOptions, RunContext } from "./types"
 
 // =============================================================================
 // Constants
@@ -235,6 +235,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
   let consecutiveFailures = ctx.job.consecutive_failures ?? 0
   let isActive = ctx.job.is_active
   let jobStatus: "idle" | "disabled" = "idle"
+  let disabledDueToFailures = false
 
   if (result.status === "success") {
     consecutiveFailures = 0
@@ -274,6 +275,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
           )
           isActive = false
           jobStatus = "disabled"
+          disabledDueToFailures = true
         }
       } else {
         // Non-cron jobs (one-time, webhook): disable after max retries
@@ -282,6 +284,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
         )
         isActive = false
         jobStatus = "disabled"
+        disabledDueToFailures = true
       }
     } else {
       // Exponential backoff with jitter for retry
@@ -380,7 +383,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
 
   // Call lifecycle hooks (best-effort, never fail the finish)
   if (result.hooks) {
-    if (jobStatus === "disabled" && result.hooks.onJobDisabled) {
+    if (disabledDueToFailures && result.hooks.onJobDisabled) {
       try {
         await result.hooks.onJobDisabled(ctx, result.error)
       } catch (hookErr) {

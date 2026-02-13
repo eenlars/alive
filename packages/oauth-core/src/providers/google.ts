@@ -39,11 +39,10 @@ export class GoogleProvider implements OAuthProviderCore, OAuthRefreshable, OAut
   name = "google"
 
   /**
-   * Default scopes for Gmail full access
+   * Default scopes for Gmail access (read/write/send, no delete)
    * Use getAuthUrl with custom scope for different access levels
    */
   static readonly GMAIL_FULL_SCOPES = [
-    "https://mail.google.com/", // Full Gmail access
     "https://www.googleapis.com/auth/gmail.modify", // Read/write/send (no delete)
     "https://www.googleapis.com/auth/userinfo.profile", // Basic profile
     "https://www.googleapis.com/auth/userinfo.email", // Email address

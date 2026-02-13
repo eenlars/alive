@@ -297,6 +297,34 @@ describe("finishJob", () => {
     expect(onJobFinished).toHaveBeenCalledWith(expect.objectContaining({ job: ctx.job }), "success", "Done")
   })
 
+  it("does not call onJobDisabled when one-time job disables after successful completion", async () => {
+    const { finishJob } = await import("../engine")
+    const { ctx, updateData } = makeRunContext({
+      triggerType: "one-time",
+      cronSchedule: null,
+      consecutiveFailures: 0,
+    })
+
+    const onJobDisabled = vi.fn()
+    const onJobFinished = vi.fn()
+
+    await finishJob(ctx as never, {
+      status: "success",
+      durationMs: 100,
+      summary: "Completed once",
+      hooks: { onJobDisabled, onJobFinished },
+    })
+
+    expect(updateData[0]).toMatchObject({
+      is_active: false,
+      status: "disabled",
+      consecutive_failures: 0,
+    })
+    expect(onJobDisabled).not.toHaveBeenCalled()
+    expect(onJobFinished).toHaveBeenCalledOnce()
+    expect(onJobFinished).toHaveBeenCalledWith(expect.objectContaining({ job: ctx.job }), "success", "Completed once")
+  })
+
   it("does not call onJobDisabled when cron job skips to next run", async () => {
     const { finishJob } = await import("../engine")
     const { ctx } = makeRunContext({
