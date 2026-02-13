@@ -96,6 +96,7 @@
   "ignoreDependencies": [
     "tailwindcss",
     "autoprefixer",
+    "@anthropic-ai/sdk",
     "@xterm/addon-fit",
     "@xterm/addon-web-links",
     "@xterm/xterm",
