@@ -253,4 +253,112 @@ describe("finishJob", () => {
       consecutive_failures: 3,
     })
   })
+
+  it("calls onJobDisabled hook when job is disabled", async () => {
+    const { finishJob } = await import("../engine")
+    const { ctx } = makeRunContext({
+      triggerType: "one-time",
+      cronSchedule: null,
+      consecutiveFailures: 2,
+    })
+
+    const onJobDisabled = vi.fn()
+    const onJobFinished = vi.fn()
+
+    await finishJob(ctx as never, {
+      status: "failure",
+      durationMs: 50,
+      error: "fatal",
+      hooks: { onJobDisabled, onJobFinished },
+    })
+
+    expect(onJobDisabled).toHaveBeenCalledOnce()
+    expect(onJobDisabled).toHaveBeenCalledWith(expect.objectContaining({ job: ctx.job }), "fatal")
+    expect(onJobFinished).toHaveBeenCalledOnce()
+    expect(onJobFinished).toHaveBeenCalledWith(expect.objectContaining({ job: ctx.job }), "failure", undefined)
+  })
+
+  it("calls onJobFinished but NOT onJobDisabled on success", async () => {
+    const { finishJob } = await import("../engine")
+    const { ctx } = makeRunContext({ consecutiveFailures: 0 })
+
+    const onJobDisabled = vi.fn()
+    const onJobFinished = vi.fn()
+
+    await finishJob(ctx as never, {
+      status: "success",
+      durationMs: 100,
+      summary: "Done",
+      hooks: { onJobDisabled, onJobFinished },
+    })
+
+    expect(onJobDisabled).not.toHaveBeenCalled()
+    expect(onJobFinished).toHaveBeenCalledOnce()
+    expect(onJobFinished).toHaveBeenCalledWith(expect.objectContaining({ job: ctx.job }), "success", "Done")
+  })
+
+  it("does not call onJobDisabled when cron job skips to next run", async () => {
+    const { finishJob } = await import("../engine")
+    const { ctx } = makeRunContext({
+      triggerType: "cron",
+      consecutiveFailures: 2,
+    })
+
+    const onJobDisabled = vi.fn()
+    const onJobFinished = vi.fn()
+
+    await finishJob(ctx as never, {
+      status: "failure",
+      durationMs: 50,
+      error: "transient",
+      hooks: { onJobDisabled, onJobFinished },
+    })
+
+    // Cron jobs skip to next run instead of disabling
+    expect(onJobDisabled).not.toHaveBeenCalled()
+    expect(onJobFinished).toHaveBeenCalledOnce()
+  })
+
+  it("calls onJobDisabled when cron job has no next run", async () => {
+    computeNextRunAtMsMock.mockReturnValueOnce(null)
+    const { finishJob } = await import("../engine")
+    const { ctx } = makeRunContext({
+      triggerType: "cron",
+      consecutiveFailures: 2,
+    })
+
+    const onJobDisabled = vi.fn()
+
+    await finishJob(ctx as never, {
+      status: "failure",
+      durationMs: 50,
+      error: "no next run",
+      hooks: { onJobDisabled },
+    })
+
+    expect(onJobDisabled).toHaveBeenCalledOnce()
+  })
+
+  it("swallows errors from hooks without failing", async () => {
+    const { finishJob } = await import("../engine")
+    const { ctx } = makeRunContext({
+      triggerType: "one-time",
+      cronSchedule: null,
+      consecutiveFailures: 2,
+    })
+
+    const onJobDisabled = vi.fn().mockRejectedValue(new Error("hook crashed"))
+    const onJobFinished = vi.fn().mockRejectedValue(new Error("hook crashed"))
+
+    // Should not throw
+    await finishJob(ctx as never, {
+      status: "failure",
+      durationMs: 50,
+      error: "boom",
+      hooks: { onJobDisabled, onJobFinished },
+    })
+
+    expect(onJobDisabled).toHaveBeenCalled()
+    expect(onJobFinished).toHaveBeenCalled()
+  })
 })

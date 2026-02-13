@@ -8,14 +8,17 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
+import { claimJob, extractSummary, type FinishHooks, finishJob } from "@webalive/automation-engine"
 import type { AppDatabase } from "@webalive/database"
 import { getServerId } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
+import { broadcastAutomationEvent } from "@/app/api/automations/events/route"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { pokeCronService } from "@/lib/automation/cron-service"
-import { claimJob, executeJob, extractSummary, finishJob } from "@/lib/automation/engine"
+import { executeJob } from "@/lib/automation/execute"
 import { getAutomationExecutionGate } from "@/lib/automation/execution-guard"
+import { notifyJobDisabled } from "@/lib/automation/notifications"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createServiceAppClient } from "@/lib/supabase/service"
 
@@ -121,6 +124,19 @@ export async function POST(_req: NextRequest, context: RouteContext) {
 
     console.log(`[Automation Trigger] Queued job "${job.name}" for site ${hostname}`)
 
+    const hooks: FinishHooks = {
+      onJobDisabled: (hookCtx, hookError) => notifyJobDisabled(hookCtx, hookError),
+      onJobFinished: (hookCtx, status, summary) => {
+        broadcastAutomationEvent(hookCtx.job.user_id, {
+          type: "finished",
+          jobId: hookCtx.job.id,
+          jobName: hookCtx.job.name,
+          status,
+          summary,
+        })
+      },
+    }
+
     // Fire-and-forget: run the job and update DB state after completion.
     void (async () => {
       try {
@@ -136,6 +152,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           costUsd: result.costUsd,
           numTurns: result.numTurns,
           usage: result.usage,
+          hooks,
         })
 
         console.log(
@@ -147,6 +164,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           status: "failure",
           durationMs: Date.now() - new Date(ctx.claimedAt).getTime(),
           error: error instanceof Error ? error.message : String(error),
+          hooks,
         })
         console.error(`[Automation Trigger] Background job "${job.name}" crashed:`, error)
       } finally {

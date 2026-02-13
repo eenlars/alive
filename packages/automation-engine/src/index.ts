@@ -18,6 +18,7 @@ export type {
   ClaimOptions,
   CronEvent,
   CronServiceConfig,
+  FinishHooks,
   FinishOptions,
   RunContext,
 } from "./types"

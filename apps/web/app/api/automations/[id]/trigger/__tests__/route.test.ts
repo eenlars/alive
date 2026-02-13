@@ -30,13 +30,24 @@ vi.mock("@/lib/automation/cron-service", () => ({
   pokeCronService: vi.fn(),
 }))
 
+vi.mock("@/app/api/automations/events/route", () => ({
+  broadcastAutomationEvent: vi.fn(),
+}))
+
+vi.mock("@/lib/automation/notifications", () => ({
+  notifyJobDisabled: vi.fn(),
+}))
+
 const claimJobMock = vi.fn()
 
-vi.mock("@/lib/automation/engine", () => ({
+vi.mock("@webalive/automation-engine", () => ({
   claimJob: (...args: unknown[]) => claimJobMock(...args),
-  executeJob: vi.fn(),
   extractSummary: vi.fn(),
   finishJob: vi.fn(),
+}))
+
+vi.mock("@/lib/automation/execute", () => ({
+  executeJob: vi.fn(),
 }))
 
 vi.mock("@webalive/shared", async importOriginal => {

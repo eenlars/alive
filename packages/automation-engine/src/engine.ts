@@ -19,7 +19,7 @@ import { computeNextRunAtMs } from "@webalive/automation"
 import type { Json } from "@webalive/database"
 import { getServerId } from "@webalive/shared"
 import { appendRunLog } from "./run-log"
-import type { AppClient, AutomationJob, ClaimOptions, FinishOptions, RunContext } from "./types"
+import type { AppClient, AutomationJob, ClaimOptions, FinishHooks, FinishOptions, RunContext } from "./types"
 
 // =============================================================================
 // Constants
@@ -358,6 +358,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     messages: messagesFallback,
     messages_uri: messagesUri,
     triggered_by: ctx.triggeredBy,
+    trigger_context: ctx.triggerContext ?? null,
   })
 
   if (runInsertError) {
@@ -376,6 +377,24 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     retryAttempt: consecutiveFailures > 0 ? consecutiveFailures : undefined,
     messages: result.messages,
   }).catch(() => {}) // Don't fail if logging fails
+
+  // Call lifecycle hooks (best-effort, never fail the finish)
+  if (result.hooks) {
+    if (jobStatus === "disabled" && result.hooks.onJobDisabled) {
+      try {
+        await result.hooks.onJobDisabled(ctx, result.error)
+      } catch (hookErr) {
+        console.error(`[Engine] onJobDisabled hook failed for "${ctx.job.name}":`, hookErr)
+      }
+    }
+    if (result.hooks.onJobFinished) {
+      try {
+        await result.hooks.onJobFinished(ctx, result.status, result.summary)
+      } catch (hookErr) {
+        console.error(`[Engine] onJobFinished hook failed for "${ctx.job.name}":`, hookErr)
+      }
+    }
+  }
 }
 
 // =============================================================================

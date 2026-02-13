@@ -7,13 +7,16 @@
  * Uses the engine module for claim/execute/finish lifecycle.
  */
 
+import { claimJob, extractSummary, type FinishHooks, finishJob } from "@webalive/automation-engine"
 import type { AppDatabase } from "@webalive/database"
 import { AutomationTriggerRequestSchema, type AutomationTriggerResponse, getServerId } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
+import { broadcastAutomationEvent } from "@/app/api/automations/events/route"
 import { createErrorResponse } from "@/features/auth/lib/auth"
 import { pokeCronService } from "@/lib/automation/cron-service"
-import { claimJob, executeJob, extractSummary, finishJob } from "@/lib/automation/engine"
+import { executeJob } from "@/lib/automation/execute"
 import { getAutomationExecutionGate } from "@/lib/automation/execution-guard"
+import { notifyJobDisabled } from "@/lib/automation/notifications"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createServiceAppClient } from "@/lib/supabase/service"
 
@@ -83,6 +86,19 @@ export async function POST(req: NextRequest) {
 
   console.log(`[internal/automation/trigger] Running job ${jobId} for ${ctx.hostname}`)
 
+  const hooks: FinishHooks = {
+    onJobDisabled: (hookCtx, hookError) => notifyJobDisabled(hookCtx, hookError),
+    onJobFinished: (hookCtx, status, summary) => {
+      broadcastAutomationEvent(hookCtx.job.user_id, {
+        type: "finished",
+        jobId: hookCtx.job.id,
+        jobName: hookCtx.job.name,
+        status,
+        summary,
+      })
+    },
+  }
+
   // Synchronous execution — wait for completion
   try {
     const result = await executeJob(ctx)
@@ -96,6 +112,7 @@ export async function POST(req: NextRequest) {
       costUsd: result.costUsd,
       numTurns: result.numTurns,
       usage: result.usage,
+      hooks,
     })
 
     // Poke CronService so it re-arms with the new next_run_at
@@ -114,6 +131,7 @@ export async function POST(req: NextRequest) {
       status: "failure",
       durationMs,
       error: error instanceof Error ? error.message : String(error),
+      hooks,
     })
 
     pokeCronService()
