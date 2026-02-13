@@ -41,6 +41,7 @@
     "@anthropic-ai/claude-agent-sdk": "^0.2.34",
     "@anthropic-ai/sdk": "^0.74.0",
     "@flowglad/nextjs": "^0.18.0",
+    "@googleapis/calendar": "^14.2.0",
     "@googleapis/gmail": "^16.1.1",
     "@hookform/resolvers": "^5.2.2",
     "@sentry/nextjs": "^10.38.0",
