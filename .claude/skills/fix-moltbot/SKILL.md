@@ -16,7 +16,7 @@ journalctl -u openclaw-gateway -n 50 --no-pager | grep -i 'oauth\|error'
 ```
 
 The telltale error is:
-```
+```text
 OAuth token refresh failed for anthropic: Failed to refresh OAuth token for anthropic.
 ```
 
@@ -26,7 +26,7 @@ OAuth token refresh failed for anthropic: Failed to refresh OAuth token for anth
 
 Claude Code keeps a valid OAuth token (with refresh token) at:
 
-```
+```text
 /root/.claude/.credentials.json
 ```
 
@@ -39,7 +39,7 @@ Read this file. The relevant fields are inside `claudeAiOauth`:
 
 The auth profile lives at:
 
-```
+```text
 /root/.openclaw/agents/main/agent/auth-profiles.json
 ```
 
@@ -86,7 +86,7 @@ sleep 5 && journalctl -u openclaw-gateway --since "10 seconds ago" --no-pager | 
 ```
 
 The only acceptable error is the WhatsApp session logout (unrelated):
-```
+```text
 WhatsApp session logged out. Run: openclaw channels login
 ```
 
