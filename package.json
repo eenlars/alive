@@ -41,7 +41,7 @@
     "setup:standalone": "./scripts/setup-standalone.sh",
     "cleanup-test-db": "bun scripts/database/cleanup-test-database.ts",
     "superclean": "bun scripts/database/superclean.ts",
-    "gen:db": "./scripts/database/generate-types.sh",
+    "gen:db": "bun run --cwd packages/database gen:types",
     "gen:systemd": "bun packages/site-controller/src/infra/generate-systemd.ts",
     "gen:routing": "bun packages/site-controller/src/infra/generate-routing.ts",
     "gen:all": "bun run gen:systemd && bun run gen:routing",

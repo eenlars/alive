@@ -765,6 +765,73 @@ export type Database = {
       current_clerk_id: { Args: never; Returns: string }
       gen_prefixed_id: { Args: { p_prefix: string }; Returns: string }
       gen_short_id: { Args: never; Returns: string }
+      lockbox_delete: {
+        Args: {
+          p_instance_id: string
+          p_name: string
+          p_namespace: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      lockbox_exists: {
+        Args: {
+          p_instance_id: string
+          p_name: string
+          p_namespace: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
+      lockbox_get: {
+        Args: {
+          p_instance_id: string
+          p_name: string
+          p_namespace: string
+          p_user_id: string
+        }
+        Returns: {
+          auth_tag: string
+          ciphertext: string
+          iv: string
+        }[]
+      }
+      lockbox_list: {
+        Args: { p_instance_id: string; p_namespace: string; p_user_id: string }
+        Returns: {
+          auth_tag: string
+          ciphertext: string
+          created_at: string
+          created_by: string
+          deleted_at: string
+          expires_at: string
+          instance_id: string
+          is_current: boolean
+          iv: string
+          last_used_at: string
+          name: string
+          namespace: string
+          scope: Json
+          updated_at: string
+          updated_by: string
+          user_id: string
+          user_secret_id: string
+          version: number
+        }[]
+      }
+      lockbox_save: {
+        Args: {
+          p_auth_tag: string
+          p_ciphertext: string
+          p_expires_at?: string
+          p_instance_id: string
+          p_iv: string
+          p_name: string
+          p_namespace: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       owns_workflow: { Args: { p_workflow_id: string }; Returns: boolean }
       owns_workflow_invocation: {
         Args: { p_wf_invocation_id: string }

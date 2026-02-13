@@ -15,87 +15,17 @@ export interface LockboxAdapterConfig {
   defaultTtlSeconds?: number // Default TTL for secrets
 }
 
-type LockboxGetRow = {
-  ciphertext: string
-  iv: string
-  auth_tag: string
-}
-
-/** LockboxListRow matches UserSecret — RPC returns the same columns */
-type LockboxListRow = UserSecret
-
-type LockboxRpcFunctions = {
-  lockbox_delete: {
-    Args: {
-      p_user_id: string
-      p_instance_id: string
-      p_namespace: string
-      p_name: string
-    }
-    Returns: null
-  }
-  lockbox_exists: {
-    Args: {
-      p_user_id: string
-      p_instance_id: string
-      p_namespace: string
-      p_name: string
-    }
-    Returns: boolean
-  }
-  lockbox_get: {
-    Args: {
-      p_user_id: string
-      p_instance_id: string
-      p_namespace: string
-      p_name: string
-    }
-    Returns: LockboxGetRow[]
-  }
-  lockbox_list: {
-    Args: {
-      p_user_id: string
-      p_instance_id: string
-      p_namespace: string
-    }
-    Returns: LockboxListRow[]
-  }
-  lockbox_save: {
-    Args: {
-      p_user_id: string
-      p_instance_id: string
-      p_namespace: string
-      p_name: string
-      p_ciphertext: string
-      p_iv: string
-      p_auth_tag: string
-      p_expires_at: string | null
-    }
-    Returns: string
-  }
-}
-
-type PublicDatabaseWithLockboxRpc = Omit<Database, "public"> & {
-  public: Omit<Database["public"], "Functions"> & {
-    Functions: Database["public"]["Functions"] & LockboxRpcFunctions
-  }
-}
-
 export class LockboxAdapter {
-  private supabase: SupabaseClient<PublicDatabaseWithLockboxRpc, "public", "public">
+  private supabase: SupabaseClient<Database, "public", "public">
   private instanceId: string
   private defaultTtlSeconds?: number
 
   constructor(config?: LockboxAdapterConfig) {
     const appConfig = getConfig()
-    this.supabase = createClient<PublicDatabaseWithLockboxRpc, "public">(
-      appConfig.SUPABASE_URL,
-      appConfig.SUPABASE_SERVICE_KEY,
-      {
-        auth: { autoRefreshToken: false, persistSession: false },
-        db: { schema: "public" },
-      },
-    )
+    this.supabase = createClient<Database, "public">(appConfig.SUPABASE_URL, appConfig.SUPABASE_SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      db: { schema: "public" },
+    })
     this.instanceId = config?.instanceId || "default"
     this.defaultTtlSeconds = config?.defaultTtlSeconds
   }
@@ -129,14 +59,16 @@ export class LockboxAdapter {
    */
   async save(userId: string, namespace: SecretNamespace, name: string, value: string): Promise<void> {
     const { ciphertext, iv, authTag } = Security.encrypt(value)
-    const expiresAt = this.defaultTtlSeconds ? new Date(Date.now() + this.defaultTtlSeconds * 1000).toISOString() : null
+    const expiresAt = this.defaultTtlSeconds
+      ? new Date(Date.now() + this.defaultTtlSeconds * 1000).toISOString()
+      : undefined
 
     const { error } = await this.supabase.rpc("lockbox_save", {
       ...this.lockboxKey(userId, namespace, name),
       p_ciphertext: ciphertext,
       p_iv: iv,
       p_auth_tag: authTag,
-      p_expires_at: expiresAt,
+      ...(expiresAt ? { p_expires_at: expiresAt } : {}),
     })
 
     if (error) {
@@ -189,7 +121,16 @@ export class LockboxAdapter {
       throw new Error(`[Lockbox] List failed (instance: ${this.instanceId}): ${error.message}`)
     }
 
-    return data || []
+    return (data || []).map(secret => ({
+      ...secret,
+      scope:
+        typeof secret.scope === "string" ? secret.scope : secret.scope == null ? null : JSON.stringify(secret.scope),
+      expires_at: secret.expires_at ?? null,
+      last_used_at: secret.last_used_at ?? null,
+      deleted_at: secret.deleted_at ?? null,
+      created_by: secret.created_by ?? null,
+      updated_by: secret.updated_by ?? null,
+    }))
   }
 
   /**
