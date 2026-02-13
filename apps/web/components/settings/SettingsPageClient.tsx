@@ -84,11 +84,11 @@ const allTabs: TabDefinition[] = [
   { id: "general", label: "General", icon: Settings },
   { id: "goal", label: "Project", icon: Target },
   { id: "skills", label: "Skills", icon: ClipboardList },
-  { id: "organization", label: "Workspace", icon: Building2 },
   { id: "websites", label: "Websites", icon: Globe },
   { id: "automations", label: "Automations", icon: Zap },
   { id: "integrations", label: "Integrations", icon: Link },
   { id: "keys", label: "API Keys", icon: Key },
+  { id: "organization", label: "Organization", icon: Building2 },
   { id: "flags", label: "Flags", icon: Flag, adminOnly: true },
   { id: "admin", label: "Admin", icon: Shield, adminOnly: true },
 ]

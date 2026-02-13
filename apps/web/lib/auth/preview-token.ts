@@ -4,7 +4,7 @@
  * Used by:
  * - /api/auth/preview-token (creates tokens)
  * - /api/auth/preview-guard (validates tokens for Caddy forward_auth)
- * - /api/preview-router (validates tokens for Next.js middleware proxy)
+ * - Go preview-proxy (validates tokens via shared JWT_SECRET)
  */
 
 import { env } from "@webalive/env/server"

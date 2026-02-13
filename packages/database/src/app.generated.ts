@@ -52,6 +52,7 @@ export type Database = {
           updated_at: string
           user_id: string
           webhook_secret: string | null
+          email_address: string | null
         }
         Insert: {
           action_format_prompt?: string | null
@@ -89,6 +90,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           webhook_secret?: string | null
+          email_address?: string | null
         }
         Update: {
           action_format_prompt?: string | null
@@ -126,6 +128,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           webhook_secret?: string | null
+          email_address?: string | null
         }
         Relationships: [
           {
@@ -719,6 +722,7 @@ export type Database = {
           updated_at: string
           user_id: string
           webhook_secret: string | null
+          email_address: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -733,7 +737,7 @@ export type Database = {
       automation_action_type: "prompt" | "sync" | "publish"
       automation_job_status: "idle" | "running" | "paused" | "disabled"
       automation_run_status: "pending" | "running" | "success" | "failure" | "skipped"
-      automation_trigger_type: "cron" | "webhook" | "one-time"
+      automation_trigger_type: "cron" | "webhook" | "one-time" | "email"
       severity_level: "info" | "warn" | "error" | "debug" | "fatal"
     }
     CompositeTypes: {
@@ -857,7 +861,7 @@ export const Constants = {
       automation_action_type: ["prompt", "sync", "publish"],
       automation_job_status: ["idle", "running", "paused", "disabled"],
       automation_run_status: ["pending", "running", "success", "failure", "skipped"],
-      automation_trigger_type: ["cron", "webhook", "one-time"],
+      automation_trigger_type: ["cron", "webhook", "one-time", "email"],
       severity_level: ["info", "warn", "error", "debug", "fatal"],
     },
   },

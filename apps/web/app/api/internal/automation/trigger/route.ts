@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { field: "jobId" })
   }
 
-  const { jobId } = parseResult.data
+  const { jobId, promptOverride, triggerContext } = parseResult.data
 
   // Get job from database
   const supabase = createServiceAppClient()
@@ -73,6 +73,10 @@ export async function POST(req: NextRequest) {
   if (!ctx) {
     return createErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, 409)
   }
+
+  // Attach optional overrides from the trigger request
+  if (promptOverride) ctx.promptOverride = promptOverride
+  if (triggerContext) ctx.triggerContext = triggerContext
 
   console.log(`[internal/automation/trigger] Running job ${jobId} for ${ctx.hostname}`)
 

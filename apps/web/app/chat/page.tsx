@@ -497,6 +497,7 @@ function ChatPageContent() {
   const urlSearchParams = typeof window !== "undefined" ? window.location.search : ""
   useEffect(() => {
     const params = new URLSearchParams(urlSearchParams)
+    if (!params.has("integration") && !params.has("status")) return
     const validated = validateOAuthToastParams(params)
 
     if (validated) {

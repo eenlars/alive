@@ -255,6 +255,7 @@ export async function POST(req: NextRequest) {
         action_target_page: body.action_target_page,
         skills: skills.length > 0 ? skills : [],
         action_model: body.action_model || null,
+        email_address: body.trigger_type === "email" ? body.email_address : null,
         is_active: body.is_active ?? true,
         next_run_at: nextRunAt,
       })

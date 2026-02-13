@@ -314,6 +314,7 @@ async function main() {
         LISTEN_ADDR: `:${previewPort}`,
         PORT_MAP_PATH: portMapPath,
         FRAME_ANCESTORS: frameAncestors.join(","),
+        IMAGES_STORAGE: config.paths.imagesStorage,
       },
       memory: { max: "128M", high: "96M" },
       cpu: "50%",

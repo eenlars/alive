@@ -62,26 +62,6 @@ if (!NAV_START.startsWith(NAV)) {
   )
 }
 
-// 5. Cross-check with the legacy Next.js preview-router to ensure consistency
-const legacyRouterPath = join(import.meta.dir, "../../apps/web/app/api/preview-router/[[...path]]/route.ts")
-try {
-  const legacySource = readFileSync(legacyRouterPath, "utf-8")
-  if (!legacySource.includes("PREVIEW_MESSAGES.NAVIGATION")) {
-    console.warn(
-      "[generate-nav-script] WARNING: Legacy preview-router no longer references PREVIEW_MESSAGES.NAVIGATION. " +
-        "It may have been removed or refactored.",
-    )
-  }
-  if (!legacySource.includes("PREVIEW_MESSAGES.NAVIGATION_START")) {
-    console.warn(
-      "[generate-nav-script] WARNING: Legacy preview-router no longer references PREVIEW_MESSAGES.NAVIGATION_START.",
-    )
-  }
-} catch {
-  // Legacy router may have been deleted — that's fine
-  console.log("[generate-nav-script] Legacy preview-router not found (may have been removed)")
-}
-
 // ─── Generation ───────────────────────────────────────────────────────────────
 
 // The script is injected after <head> in HTML responses.

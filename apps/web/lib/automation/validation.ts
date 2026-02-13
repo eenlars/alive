@@ -169,8 +169,11 @@ export function validateTriggerType(
     return { valid: false, error: "trigger_type is required" }
   }
 
-  if (!["cron", "webhook", "one-time"].includes(triggerType)) {
-    return { valid: false, error: `Invalid trigger_type: "${triggerType}". Must be one of: cron, webhook, one-time` }
+  if (!["cron", "webhook", "one-time", "email"].includes(triggerType)) {
+    return {
+      valid: false,
+      error: `Invalid trigger_type: "${triggerType}". Must be one of: cron, webhook, one-time, email`,
+    }
   }
 
   if (triggerType === "cron" && !body.cron_schedule) {
@@ -179,6 +182,10 @@ export function validateTriggerType(
 
   if (triggerType === "one-time" && !body.run_at) {
     return { valid: false, error: "run_at is required for one-time automations" }
+  }
+
+  if (triggerType === "email" && !body.email_address) {
+    return { valid: false, error: "email_address is required for email-type automations" }
   }
 
   return { valid: true }

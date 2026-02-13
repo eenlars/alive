@@ -304,7 +304,7 @@ export function createWorkspaceStorageValue(workspace: string, orgId: string | n
  *
  * PostMessage types used for communication between preview iframes
  * and the Sandbox component. Used by:
- * - Preview router script injection (apps/web/app/api/preview-router)
+ * - Go preview-proxy script injection (apps/preview-proxy)
  * - Vite plugin in site template (templates/site-template)
  * - Sandbox components (apps/web/features/chat/components)
  */

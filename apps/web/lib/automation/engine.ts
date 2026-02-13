@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto"
 import fs from "node:fs/promises"
 import path from "node:path"
 import { computeNextRunAtMs } from "@webalive/automation"
-import type { AppDatabase } from "@webalive/database"
+import type { AppDatabase, Json } from "@webalive/database"
 import { getServerId } from "@webalive/shared"
 import { createServiceAppClient } from "@/lib/supabase/service"
 import { appendRunLog } from "./run-log"
@@ -41,6 +41,10 @@ export interface RunContext {
   triggeredBy: "scheduler" | "manual" | "internal"
   /** Heartbeat interval handle (cleared on finish) */
   heartbeatInterval: ReturnType<typeof setInterval> | null
+  /** Full prompt override (e.g. email content with conversation history) */
+  promptOverride?: string
+  /** Metadata about what triggered the run (e.g. email from/subject/messageId) */
+  triggerContext?: { [key: string]: Json | undefined }
 }
 
 export interface ClaimOptions {
@@ -278,7 +282,7 @@ export async function executeJob(ctx: RunContext): Promise<{
       userId: ctx.job.user_id,
       orgId: ctx.job.org_id,
       workspace: ctx.hostname,
-      prompt: ctx.job.action_prompt ?? "",
+      prompt: ctx.promptOverride ?? ctx.job.action_prompt ?? "",
       timeoutSeconds: ctx.timeoutSeconds,
       model: ctx.job.action_model ?? undefined,
       thinkingPrompt: ctx.job.action_thinking ?? undefined,
@@ -421,6 +425,7 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
     messages: null,
     messages_uri: messagesUri,
     triggered_by: ctx.triggeredBy,
+    trigger_context: ctx.triggerContext ?? null,
   })
 
   if (runInsertError) {

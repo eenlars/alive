@@ -442,7 +442,7 @@ export function WorkspaceSettings() {
   }
 
   return (
-    <SettingsTabLayout title="Workspace" description="Invite teammates and manage your organization">
+    <SettingsTabLayout title="Organization" description="Invite teammates and manage your organization">
       {/* Errors */}
       {error && (
         <div className="px-4 py-3 bg-red-500/5 dark:bg-red-500/5 border border-red-500/10 dark:border-red-500/10 rounded-xl space-y-2">

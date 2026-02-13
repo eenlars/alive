@@ -108,6 +108,7 @@ function makeJob(overrides: Record<string, unknown> = {}) {
     delete_after_run: false,
     skills: null,
     webhook_secret: null,
+    email_address: null,
     description: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",

@@ -16,7 +16,7 @@ import { ErrorCodes } from "@/lib/error-codes"
  * Flow:
  * 1. Sandbox component fetches token from this endpoint (with session cookie)
  * 2. Token is appended to iframe src as query param
- * 3. preview-router validates the token from query param
+ * 3. Go preview-proxy validates the token from query param
  *
  * Security:
  * - Tokens are short-lived (5 minutes) to limit exposure

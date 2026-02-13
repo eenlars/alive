@@ -43,7 +43,12 @@ export const automationRunStatusEnum = appSchema.enum("automation_run_status", [
   "skipped",
 ])
 
-export const automationTriggerTypeEnum = appSchema.enum("automation_trigger_type", ["cron", "webhook", "one-time"])
+export const automationTriggerTypeEnum = appSchema.enum("automation_trigger_type", [
+  "cron",
+  "webhook",
+  "one-time",
+  "email",
+])
 
 export const severityLevelEnum = appSchema.enum("severity_level", ["info", "warn", "error", "debug", "fatal"])
 
@@ -253,6 +258,9 @@ export const automationJobs = appSchema.table(
     // Webhook settings
     webhookSecret: text("webhook_secret"),
 
+    // Email trigger settings
+    emailAddress: text("email_address"),
+
     // State
     isActive: boolean("is_active").default(true).notNull(),
     deleteAfterRun: boolean("delete_after_run").default(false),
@@ -302,6 +310,10 @@ export const automationJobs = appSchema.table(
     check(
       "chk_prompt_action",
       sql`(action_type <> 'prompt'::app.automation_action_type) OR (action_prompt IS NOT NULL)`,
+    ),
+    check(
+      "chk_email_address",
+      sql`(trigger_type <> 'email'::app.automation_trigger_type) OR (email_address IS NOT NULL)`,
     ),
   ],
 )

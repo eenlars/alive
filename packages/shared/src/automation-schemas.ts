@@ -8,9 +8,24 @@
 
 import { z } from "zod"
 
+/**
+ * JSON-serializable value — structurally compatible with Supabase's `Json` type.
+ * Defined here so the shared package doesn't depend on @webalive/database.
+ */
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
+const jsonLiteral = z.union([z.string(), z.number(), z.boolean(), z.null()])
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([jsonLiteral, z.array(jsonValueSchema), z.record(z.string(), jsonValueSchema)]),
+)
+
 /** POST /api/internal/automation/trigger — request body */
 export const AutomationTriggerRequestSchema = z.object({
   jobId: z.string().min(1),
+  /** Full prompt override (e.g. email content with conversation history) */
+  promptOverride: z.string().optional(),
+  /** Metadata about what triggered the run (e.g. email from/subject/messageId) */
+  triggerContext: z.record(z.string(), jsonValueSchema).optional(),
 })
 
 /** POST /api/internal/automation/trigger — response body */
