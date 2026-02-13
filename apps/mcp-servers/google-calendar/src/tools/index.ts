@@ -19,7 +19,7 @@
 
 import type { calendar_v3 } from "@googleapis/calendar"
 import { checkAvailability, getEvent, listCalendars, listEvents, searchEvents } from "../calendar-client.js"
-import type { EventDraft, MeetingSuggestion } from "../types.js"
+import type { EventDraft } from "../types.js"
 import {
   EventDraftSchema,
   FreeBusyQuerySchema,

@@ -38,7 +38,6 @@ async function addGmailProvider() {
         is_active: true,
         logo_path: null, // Can add later
         default_scopes: [
-          "https://mail.google.com/",
           "https://www.googleapis.com/auth/gmail.modify",
           "https://www.googleapis.com/auth/userinfo.profile",
           "https://www.googleapis.com/auth/userinfo.email",

@@ -220,8 +220,7 @@ export const OAUTH_MCP_PROVIDERS = {
     oauthKey: "google", // Uses Google OAuth (gmail is a Google service)
     friendlyName: "Gmail",
     defaultScopes: [
-      "https://mail.google.com/",
-      "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/gmail.modify", // Read/write/send (no delete)
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/userinfo.email",
     ].join(" "),
@@ -251,7 +250,11 @@ export const OAUTH_MCP_PROVIDERS = {
     url: "http://localhost:8087/mcp",
     oauthKey: "google", // Reuses Google OAuth (same as Gmail)
     friendlyName: "Google Calendar",
-    defaultScopes: ["https://www.googleapis.com/auth/calendar"].join(" "),
+    defaultScopes: [
+      "https://www.googleapis.com/auth/calendar.events", // View/edit events
+      "https://www.googleapis.com/auth/calendar.calendarlist.readonly", // List user's calendars
+      "https://www.googleapis.com/auth/userinfo.email", // Profile identification
+    ].join(" "),
     envPrefix: "GOOGLE",
     knownTools: [
       // Calendar operations
@@ -495,9 +498,8 @@ export const OAUTH_ONLY_PROVIDERS = {
   google: {
     friendlyName: "Google",
     defaultScopes: [
-      "https://mail.google.com/",
       "https://www.googleapis.com/auth/gmail.modify",
-      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/calendar.events",
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/userinfo.email",
     ].join(" "),
