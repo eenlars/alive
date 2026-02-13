@@ -118,6 +118,11 @@ async function readStdinJson() {
     // is the only superadmin workspace, and site-specific tools (switch_serve_mode, etc.)
     // should not be available there since it's not a Vite site.
     const baseAllowedTools = getAllowedTools(targetCwd || process.cwd(), isAdmin, isSuperadmin, isSuperadmin)
+    // Extra tools from trigger request (e.g. email's send_reply)
+    if (request.extraTools?.length) {
+      baseAllowedTools.push(...request.extraTools)
+      console.error(`[runner] Extra tools added: ${request.extraTools.join(", ")}`)
+    }
     const disallowedTools = getDisallowedTools(isAdmin, isSuperadmin)
 
     // Plan mode: Filter out blocked tools from allowedTools
@@ -178,6 +183,32 @@ async function readStdinJson() {
     // Get MCP servers with user-specific OAuth tokens
     // Uses registry from @webalive/shared - add new providers there
     const workspaceMcpServers = getMcpServers(targetCwd || process.cwd(), { oauthTokens })
+
+    // Load optional MCP servers required by extraTools.
+    // Tool names follow mcp__<server-name>__<tool> — we extract server names
+    // and load them from the registry on demand.
+    const OPTIONAL_MCP_REGISTRY = {
+      "alive-email": async () => {
+        const { emailInternalMcp } = await import("@webalive/tools")
+        return emailInternalMcp
+      },
+    }
+
+    if (request.extraTools?.length) {
+      const requiredServers = new Set()
+      for (const tool of request.extraTools) {
+        const match = tool.match(/^mcp__([^_]+(?:-[^_]+)*)__/)
+        if (match) requiredServers.add(match[1])
+      }
+      for (const serverName of requiredServers) {
+        const loader = OPTIONAL_MCP_REGISTRY[serverName]
+        if (loader) {
+          workspaceMcpServers[serverName] = await loader()
+          console.error(`[runner] Loaded optional MCP server: ${serverName}`)
+        }
+      }
+    }
+
     console.error("[runner] MCP servers enabled:", Object.keys(workspaceMcpServers).join(", "))
 
     // Log available secrets for debugging (without revealing values)

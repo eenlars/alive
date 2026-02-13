@@ -7,6 +7,8 @@
  * Import this file once at app initialization.
  */
 
+// === Calendar Components ===
+import { CalendarEventDraftOutput, validateCalendarEventDraft } from "@/components/calendar/CalendarEventDraftOutput"
 import {
   LinearCommentResult,
   LinearCommentsResult,
@@ -27,7 +29,7 @@ import { validateWebsiteConfig, WebsiteConfigOutput } from "@/components/ui/chat
 import { EmailDraftOutput, validateEmailDraft } from "@/components/ui/chat/tools/email/EmailDraftOutput"
 // === Plan Mode Components ===
 import { PlanApprovalOutput, validatePlanApproval } from "@/components/ui/chat/tools/plan/PlanApprovalOutput"
-import { AI, EMAIL, LINEAR, PLAN, registerComponent } from "./tool-registry"
+import { AI, CALENDAR, EMAIL, LINEAR, PLAN, registerComponent } from "./tool-registry"
 
 // ============================================================
 // LINEAR COMPONENTS
@@ -49,6 +51,15 @@ registerComponent(LINEAR.LIST_COMMENTS, LinearCommentsResult, validateLinearComm
 registerComponent(EMAIL.COMPOSE, EmailDraftOutput, validateEmailDraft)
 registerComponent(EMAIL.CREATE_DRAFT, EmailDraftOutput, validateEmailDraft)
 registerComponent(EMAIL.REPLY, EmailDraftOutput, validateEmailDraft)
+
+// ============================================================
+// CALENDAR COMPONENTS (Google Calendar integration)
+// ============================================================
+
+registerComponent(CALENDAR.COMPOSE_EVENT, CalendarEventDraftOutput, validateCalendarEventDraft)
+registerComponent(CALENDAR.PROPOSE_MEETING, CalendarEventDraftOutput, validateCalendarEventDraft)
+
+// Note: LIST_CALENDARS, LIST_EVENTS, GET_EVENT, SEARCH_EVENTS, CHECK_AVAILABILITY use default JSON rendering
 
 // ============================================================
 // AI COMPONENTS (clarification questions, website config)

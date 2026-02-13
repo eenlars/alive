@@ -17,7 +17,7 @@
  * ```
  */
 
-import { AI, EMAIL, FILE_OPS, LINEAR, OTHER, PLAN, STRIPE, STRIPE_PATTERNS } from "./tool-names.js"
+import { AI, CALENDAR, EMAIL, FILE_OPS, LINEAR, OTHER, PLAN, STRIPE, STRIPE_PATTERNS } from "./tool-names.js"
 
 // ============================================================
 // TYPES
@@ -348,6 +348,71 @@ register(AI.ASK_AUTOMATION_CONFIG, {
   autoExpand: true, // Always show the config form
   transform: unwrapMcp,
   getPreview: () => "configure automation",
+})
+
+// --- Calendar tools ---
+register(CALENDAR.COMPOSE_EVENT, {
+  autoExpand: true, // Always show the event draft card
+  transform: unwrapMcp,
+  getPreview: data => {
+    const d = data as Record<string, unknown> | null
+    const summary = d?.summary as string | undefined
+    return summary ? `Event: ${summary.slice(0, 30)}${summary.length > 30 ? "..." : ""}` : "event draft"
+  },
+})
+
+register(CALENDAR.PROPOSE_MEETING, {
+  autoExpand: true, // Always show the meeting proposal
+  transform: unwrapMcp,
+  getPreview: data => {
+    const d = data as Record<string, unknown> | null
+    const title = d?.title as string | undefined
+    const times = d?.suggestedTimes as unknown[] | undefined
+    const count = times?.length ?? 0
+    return title ? `${title} (${count} ${plural(count, "option")})` : "meeting proposal"
+  },
+})
+
+register(CALENDAR.LIST_EVENTS, {
+  autoExpand: false,
+  transform: unwrapMcp,
+  getPreview: data => {
+    const count = arrayLength(data)
+    return `${count} ${plural(count, "event")}`
+  },
+})
+
+register(CALENDAR.LIST_CALENDARS, {
+  autoExpand: false,
+  transform: unwrapMcp,
+  getPreview: data => {
+    const count = arrayLength(data)
+    return `${count} ${plural(count, "calendar")}`
+  },
+})
+
+register(CALENDAR.GET_EVENT, {
+  autoExpand: true,
+  transform: unwrapMcp,
+  getPreview: data => {
+    const d = data as Record<string, unknown> | null
+    return (d?.summary as string) || "event"
+  },
+})
+
+register(CALENDAR.SEARCH_EVENTS, {
+  autoExpand: false,
+  transform: unwrapMcp,
+  getPreview: data => {
+    const count = arrayLength(data)
+    return `${count} ${plural(count, "event")}`
+  },
+})
+
+register(CALENDAR.CHECK_AVAILABILITY, {
+  autoExpand: true,
+  transform: unwrapMcp,
+  getPreview: () => "availability",
 })
 
 // --- Email tools ---

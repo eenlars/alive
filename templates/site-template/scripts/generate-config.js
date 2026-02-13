@@ -5,7 +5,6 @@
 
 const fs = require("node:fs")
 const path = require("node:path")
-const { parse } = require("tldts")
 
 const [domain, port, targetDir] = process.argv.slice(2)
 
@@ -33,24 +32,9 @@ if (Number.isNaN(portNum) || portNum < 1024 || portNum > 65535) {
 const safeName = domain.replace(/\./g, "-")
 const packageName = domain.replace(/\./g, "_")
 
-// Compute registrable domain (eTLD+1) for allowedHosts
-// Use allowPrivateDomains to correctly handle domains like github.io, blogspot.com
-const registrableDomain = parse(domain, { allowPrivateDomains: true }).domain ?? domain
-
-// Platform wildcard domains (alive.best, sonno.tech, goalive.nl) must NEVER appear
-// as allowedHosts wildcards — that would let any tenant's subdomain access another
-// tenant's Vite server. Only custom domains get the wildcard (e.g. .example.com for www).
-const serverConfigPath = path.join(workDir, "..", "..", "..", "server-config.json")
-let platformDomains = ["alive.best", "sonno.tech", "goalive.nl"]
-try {
-  const serverConfig = JSON.parse(fs.readFileSync("/var/lib/alive/server-config.json", "utf8"))
-  if (serverConfig.domains?.wildcard) {
-    platformDomains = [...new Set([...platformDomains, serverConfig.domains.wildcard])]
-  }
-} catch {}
-
-const isPlatformSubdomain = platformDomains.includes(registrableDomain)
-const allowedHosts = isPlatformSubdomain ? [domain] : [domain, `.${registrableDomain}`]
+// allowedHosts: exact domain only. Caddy handles routing — Vite just needs to accept
+// the one domain it's serving. No wildcards, no registrable domain logic.
+const allowedHosts = [domain]
 
 // Generate vite.config.ts — with dynamic PORT and /api proxy
 const viteConfig = `import path from "node:path";
