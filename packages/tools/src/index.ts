@@ -63,10 +63,19 @@ export {
   validateFrontmatter,
 } from "./lib/template-frontmatter.js"
 // MCP servers
-export { supabaseInternalMcp, toolsInternalMcp, workspaceInternalMcp } from "./mcp-server.js"
-export type { AITool, EmailTool, FileOpTool, LinearTool, OtherTool, StripeTool, ToolName } from "./tool-names.js"
+export { emailInternalMcp, supabaseInternalMcp, toolsInternalMcp, workspaceInternalMcp } from "./mcp-server.js"
+export type {
+  AITool,
+  AutomationTool,
+  EmailTool,
+  FileOpTool,
+  LinearTool,
+  OtherTool,
+  StripeTool,
+  ToolName,
+} from "./tool-names.js"
 // Tool name constants
-export { AI, EMAIL, FILE_OPS, LINEAR, OTHER, STRIPE } from "./tool-names.js"
+export { AI, AUTOMATION, EMAIL, FILE_OPS, LINEAR, OTHER, STRIPE } from "./tool-names.js"
 export { getEnabledMcpToolNames } from "./tools/meta/search-tools.js"
 export { SDK_TOOLS, type SDKTool } from "./tools/meta/tool-registry.js"
 // Scheduled Tasks (Cron) Tools

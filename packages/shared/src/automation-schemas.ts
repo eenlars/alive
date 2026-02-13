@@ -26,6 +26,12 @@ export const AutomationTriggerRequestSchema = z.object({
   promptOverride: z.string().optional(),
   /** Metadata about what triggered the run (e.g. email from/subject/messageId) */
   triggerContext: z.record(z.string(), jsonValueSchema).optional(),
+  /** Custom system prompt — replaces default automation system prompt entirely */
+  systemPromptOverride: z.string().optional(),
+  /** Additional MCP tool names to register (e.g. ["mcp__alive-email__send_reply"]) */
+  extraTools: z.array(z.string()).optional(),
+  /** When set, extract the response from this tool's input.text instead of text messages */
+  responseToolName: z.string().optional(),
 })
 
 /** POST /api/internal/automation/trigger — response body */

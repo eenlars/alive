@@ -45,6 +45,12 @@ export interface RunContext {
   promptOverride?: string
   /** Metadata about what triggered the run (e.g. email from/subject/messageId) */
   triggerContext?: { [key: string]: Json | undefined }
+  /** Custom system prompt — replaces default automation system prompt */
+  systemPromptOverride?: string
+  /** Additional MCP tool names to register (e.g. ["mcp__alive-email__send_reply"]) */
+  extraTools?: string[]
+  /** Extract response from this tool's input.text instead of text messages */
+  responseToolName?: string
 }
 
 export interface ClaimOptions {
@@ -287,6 +293,9 @@ export async function executeJob(ctx: RunContext): Promise<{
       model: ctx.job.action_model ?? undefined,
       thinkingPrompt: ctx.job.action_thinking ?? undefined,
       skills: ctx.job.skills ?? undefined,
+      systemPromptOverride: ctx.systemPromptOverride,
+      extraTools: ctx.extraTools,
+      responseToolName: ctx.responseToolName,
     })
 
     return {

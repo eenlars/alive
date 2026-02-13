@@ -51,6 +51,12 @@ export interface AutomationJobParams {
   thinkingPrompt?: string
   /** Skill IDs to load and prepend to prompt */
   skills?: string[]
+  /** Custom system prompt — replaces default automation system prompt entirely */
+  systemPromptOverride?: string
+  /** Additional MCP tool names to register (e.g. ["mcp__alive-email__send_reply"]) */
+  extraTools?: string[]
+  /** Extract response from this tool's input.text instead of text messages */
+  responseToolName?: string
 }
 
 export interface AutomationJobResult {
@@ -95,11 +101,14 @@ async function loadSkillPrompts(skillIds: string[]): Promise<string | null> {
 // =============================================================================
 
 /**
- * Build a lean system prompt for automation execution.
+ * Build the default system prompt for automation execution.
  * Unlike the chat system prompt, this skips "Read CLAUDE.md" and workflow instructions
  * since automations run unattended and need to act directly.
+ *
+ * Callers can bypass this entirely via systemPromptOverride (e.g. email triggers
+ * provide their own character-specific system prompt).
  */
-function buildAutomationSystemPrompt(cwd: string, thinkingPrompt?: string): string {
+function buildDefaultSystemPrompt(cwd: string, thinkingPrompt?: string): string {
   const now = new Date()
   let prompt = `Current time: ${now.toISOString()}. Workspace: ${cwd}.`
   prompt += " This is an automated task — no human is watching. Complete it efficiently and report what was done."
@@ -127,6 +136,10 @@ interface ExecutionContext {
   systemPrompt: string
   timeoutSeconds: number
   apiKey: string
+  /** Additional MCP tool names to register */
+  extraTools?: string[]
+  /** Extract response from this tool's input.text */
+  responseToolName?: string
 }
 
 async function executeWithFallback(
@@ -263,7 +276,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     console.log(`[Automation ${requestId}] OAuth ready (refreshed: ${oauthResult.refreshed})`)
 
     // === Build Prompts ===
-    const systemPrompt = buildAutomationSystemPrompt(cwd, thinkingPrompt)
+    const systemPrompt = params.systemPromptOverride ?? buildDefaultSystemPrompt(cwd, thinkingPrompt)
 
     // === Execute ===
     const { attempt, mode } = await executeWithFallback({
@@ -276,10 +289,15 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       systemPrompt,
       timeoutSeconds,
       apiKey: oauthResult.accessToken,
+      extraTools: params.extraTools,
+      responseToolName: params.responseToolName,
     })
 
     const durationMs = Date.now() - startTime
-    const response = attempt.finalResponse || attempt.textMessages.join("\n\n")
+    // When responseToolName is set, prefer tool response over text messages
+    const response = params.responseToolName
+      ? (attempt.toolResponseText ?? attempt.finalResponse ?? attempt.textMessages.join("\n\n"))
+      : attempt.finalResponse || attempt.textMessages.join("\n\n")
 
     console.log(
       `[Automation ${requestId}] Completed in ${durationMs}ms via ${mode}, ${attempt.allMessages.length} messages captured`,
