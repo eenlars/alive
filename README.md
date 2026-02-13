@@ -171,4 +171,4 @@ bun run static-check     # Type check + lint + format + tests
 
 ## License
 
-MIT
+Sustainable Use License. See [LICENSE](./LICENSE) for details. Enterprise features require a separate license — see [LICENSE_EE](./LICENSE_EE.md).

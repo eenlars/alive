@@ -3,11 +3,19 @@
   "workspaces": {
     ".": {
       "entry": ["scripts/**/*.{ts,mjs}"],
-      "project": ["*.{ts,js,mjs}", "scripts/**/*.{ts,mjs}"]
+      "project": ["scripts/**/*.{ts,mjs}"]
     },
     "apps/web": {
       "entry": ["app/**/*.{ts,tsx}", "lib/test-helpers/**/*.ts"],
-      "project": ["**/*.{ts,tsx,mjs}"]
+      "project": ["**/*.{ts,tsx,mjs}"],
+      "playwright": false
+    },
+    "apps/worker": {
+      "project": ["src/**/*.ts"]
+    },
+    "apps/broker": {
+      "entry": ["src/server.ts"],
+      "project": ["src/**/*.ts"]
     },
     "packages/tools": {
       "project": ["src/**/*.{ts,tsx}"]
@@ -15,8 +23,34 @@
     "packages/images": {
       "project": ["src/**/*.{ts,tsx}"]
     },
-    "apps/shell-server": {
-      "entry": ["src/index.ts"],
+    "packages/shared": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/env": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/database": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/alrighty": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/automation": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/automation-engine": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/oauth-core": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/redis": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/site-controller": {
+      "project": ["src/**/*.ts"]
+    },
+    "packages/worker-pool": {
       "project": ["src/**/*.ts"]
     }
   },
@@ -24,6 +58,7 @@
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",
+    "**/*.test-d.ts",
     "**/node_modules/**",
     "**/.next/**",
     "**/dist/**",
@@ -31,27 +66,46 @@
     "**/.builds/**",
     "**/lib/db/**",
     "**/lib/supabase/*.types.ts",
-    "packages/template/**",
+    "templates/site-template/**",
     "**/scripts/**",
-    "*.config.{js,ts}",
-    "apps/web/lib/agent-workspace-helpers.mjs"
+    "*.config.{js,ts,mjs}",
+    "apps/web/playwright.config.ts",
+    "apps/web/playwright.multi-port.config.ts",
+    "apps/web/lib/agent-workspace-helpers.mjs",
+    "packages/database/src/*.generated.ts",
+    "apps/shell-server-go/**",
+    "apps/mcp-servers/**",
+    "apps/image-processor/**",
+    "apps/preview-proxy/**",
+    "apps/widget-server/**",
+    "apps/web/e2e-tests/**"
   ],
-  "ignoreDependencies": ["groq-sdk", "react-markdown"],
-  "ignoreBinaries": ["go", "docker-compose", "journalctl"],
+  "ignoreDependencies": ["groq-sdk", "react-markdown", "tailwindcss", "autoprefixer"],
+  "ignoreBinaries": [
+    "go",
+    "docker-compose",
+    "journalctl",
+    "make",
+    "systemctl",
+    "redis-cli",
+    "python3",
+    "uvicorn",
+    "dist/server.js"
+  ],
   "ignoreExportsUsedInFile": true,
   "includeEntryExports": false,
   "rules": {
     "duplicates": "error",
     "unlisted": "off",
     "unresolved": "off",
-    "files": "off",
-    "dependencies": "off",
-    "devDependencies": "off",
-    "exports": "off",
+    "files": "warn",
+    "dependencies": "warn",
+    "devDependencies": "warn",
+    "exports": "warn",
     "nsExports": "off",
     "nsTypes": "off",
     "enumMembers": "off",
     "classMembers": "off",
-    "types": "off"
+    "types": "warn"
   }
 }

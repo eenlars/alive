@@ -8,9 +8,8 @@ if ! ./scripts/validation/check-no-env-files.sh; then
     exit 1
 fi
 
-# Pre-commit hooks should be instant
 # Only format files that are staged for commit (not the entire repo)
 bun x lint-staged
 
-# Type-check runs on pre-push (full monorepo, turbo-cached)
-# Removed from pre-commit: turbo type-check across 20 packages is too slow on cold cache
+# Type-check (turbo-cached, fast on warm cache)
+bun run type-check
