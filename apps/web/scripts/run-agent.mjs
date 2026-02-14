@@ -16,7 +16,7 @@ import { join } from "node:path"
 import process from "node:process"
 import { query } from "@anthropic-ai/claude-agent-sdk"
 import { allowTool, DEFAULTS, denyTool, isOAuthMcpTool, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
-import { setSearchToolsConnectedProviders } from "@webalive/tools"
+import { withSearchToolsConnectedProviders } from "@webalive/tools"
 import {
   getAllowedTools,
   getDisallowedTools,
@@ -95,7 +95,6 @@ async function readStdinJson() {
     // Get OAuth tokens for connected MCP providers
     const oauthTokens = request.oauthTokens || {}
     const connectedProviders = Object.keys(oauthTokens).filter(key => !!oauthTokens[key])
-    setSearchToolsConnectedProviders(connectedProviders)
     if (connectedProviders.length > 0) {
       console.error(`[runner] Connected OAuth providers: ${connectedProviders.join(", ")}`)
     }
@@ -221,82 +220,84 @@ async function readStdinJson() {
       console.error(`[runner] Resuming at message: ${request.resumeSessionAt}`)
     }
 
-    const agentQuery = query({
-      prompt: request.message,
-      options: {
-        cwd: process.cwd(),
-        model: request.model,
-        maxTurns: request.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
-        permissionMode: effectivePermissionMode,
-        ...(effectivePermissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
-        allowedTools: effectiveAllowedTools, // Plan mode filters out modification tools
-        disallowedTools, // Dynamic based on admin status
-        canUseTool,
-        settingSources: SETTINGS_SOURCES,
-        mcpServers: workspaceMcpServers,
-        systemPrompt: request.systemPrompt,
-        // Session resumption: We use explicit session IDs for multi-conversation tracking
-        resume: request.resume,
-        // Resume at specific message (for message deletion/editing)
-        resumeSessionAt: request.resumeSessionAt,
-        // Alternative: continue: true - SDK auto-continues most recent conversation (no session ID needed)
-        // continue: true,
-      },
-    })
-
     let messageCount = 0
     let queryResult = null
 
-    for await (const message of agentQuery) {
-      messageCount++
+    await withSearchToolsConnectedProviders(connectedProviders, async () => {
+      const agentQuery = query({
+        prompt: request.message,
+        options: {
+          cwd: process.cwd(),
+          model: request.model,
+          maxTurns: request.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
+          permissionMode: effectivePermissionMode,
+          ...(effectivePermissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
+          allowedTools: effectiveAllowedTools, // Plan mode filters out modification tools
+          disallowedTools, // Dynamic based on admin status
+          canUseTool,
+          settingSources: SETTINGS_SOURCES,
+          mcpServers: workspaceMcpServers,
+          systemPrompt: request.systemPrompt,
+          // Session resumption: We use explicit session IDs for multi-conversation tracking
+          resume: request.resume,
+          // Resume at specific message (for message deletion/editing)
+          resumeSessionAt: request.resumeSessionAt,
+          // Alternative: continue: true - SDK auto-continues most recent conversation (no session ID needed)
+          // continue: true,
+        },
+      })
 
-      if (message.type === "result") {
-        queryResult = message
-      }
+      for await (const message of agentQuery) {
+        messageCount++
 
-      // Capture session ID from system init message
-      if (message.type === "system" && message.subtype === "init" && message.session_id) {
-        console.error(`[runner] Session ID captured: ${message.session_id}`)
-
-        // Log MCP server status
-        if (message.mcpServers) {
-          console.error("[runner] MCP server status:", JSON.stringify(message.mcpServers, null, 2))
+        if (message.type === "result") {
+          queryResult = message
         }
 
-        // Log available tools (including MCP tools)
-        if (message.tools) {
-          const mcpTools = message.tools.filter(t => t.startsWith("mcp__"))
-          console.error(`[runner] Available MCP tools (${mcpTools.length}):`, mcpTools.join(", "))
+        // Capture session ID from system init message
+        if (message.type === "system" && message.subtype === "init" && message.session_id) {
+          console.error(`[runner] Session ID captured: ${message.session_id}`)
+
+          // Log MCP server status
+          if (message.mcpServers) {
+            console.error("[runner] MCP server status:", JSON.stringify(message.mcpServers, null, 2))
+          }
+
+          // Log available tools (including MCP tools)
+          if (message.tools) {
+            const mcpTools = message.tools.filter(t => t.startsWith("mcp__"))
+            console.error(`[runner] Available MCP tools (${mcpTools.length}):`, mcpTools.join(", "))
+          }
+
+          process.stdout.write(
+            `${JSON.stringify({
+              type: STREAM_TYPES.SESSION,
+              sessionId: message.session_id,
+            })}\n`,
+          )
+        }
+
+        // Filter system init message to only show allowed tools (base + connected OAuth MCP)
+        let outputMessage = message
+        if (message.type === "system" && message.subtype === "init" && message.tools) {
+          outputMessage = {
+            ...message,
+            tools: message.tools.filter(
+              tool => baseAllowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders),
+            ),
+          }
         }
 
         process.stdout.write(
           `${JSON.stringify({
-            type: STREAM_TYPES.SESSION,
-            sessionId: message.session_id,
+            type: STREAM_TYPES.MESSAGE,
+            messageCount,
+            messageType: message.type,
+            content: outputMessage,
           })}\n`,
         )
       }
-
-      // Filter system init message to only show allowed tools (base + connected OAuth MCP)
-      let outputMessage = message
-      if (message.type === "system" && message.subtype === "init" && message.tools) {
-        outputMessage = {
-          ...message,
-          tools: message.tools.filter(
-            tool => baseAllowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders),
-          ),
-        }
-      }
-
-      process.stdout.write(
-        `${JSON.stringify({
-          type: STREAM_TYPES.MESSAGE,
-          messageCount,
-          messageType: message.type,
-          content: outputMessage,
-        })}\n`,
-      )
-    }
+    })
 
     process.stdout.write(
       `${JSON.stringify({

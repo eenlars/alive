@@ -33,8 +33,8 @@ import { query } from "@anthropic-ai/claude-agent-sdk"
 import { allowTool, DEFAULTS, denyTool, formatUncaughtError, GLOBAL_MCP_PROVIDERS, isAbortError, isFatalError, isHeavyBashCommand, isOAuthMcpTool, isTransientNetworkError, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
 import {
   emailInternalMcp,
-  setSearchToolsConnectedProviders,
   toolsInternalMcp,
+  withSearchToolsConnectedProviders,
   workspaceInternalMcp,
 } from "@webalive/tools"
 
@@ -103,7 +103,6 @@ const SOCKET_CONNECT_TIMEOUT_MS = 5_000
 function clearQueryState() {
   currentRequestId = null
   currentAbortController = null
-  setSearchToolsConnectedProviders([])
 }
 
 /**
@@ -639,7 +638,6 @@ async function handleQuery(ipc, requestId, payload) {
     // Get OAuth tokens for connected MCP providers
     const oauthTokens = payload.oauthTokens || {}
     connectedProviders = Object.keys(oauthTokens).filter(key => !!oauthTokens[key])
-    setSearchToolsConnectedProviders(connectedProviders)
     if (connectedProviders.length > 0) {
       console.error(`[worker] Connected OAuth providers: ${connectedProviders.join(", ")}`)
     }
@@ -758,97 +756,101 @@ async function handleQuery(ipc, requestId, payload) {
       console.error(`[worker:claude-stderr] ${message}`)
     }
 
-    const agentQuery = query({
-      prompt: payload.message,
-      options: {
-        cwd: process.cwd(),
-        model: payload.model,
-        maxTurns: payload.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
-        permissionMode,
-        ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
-        allowedTools,
-        disallowedTools,
-        canUseTool,
-        settingSources,
-        mcpServers,
-        systemPrompt: payload.systemPrompt,
-        resume: payload.resume,
-        resumeSessionAt: payload.resumeSessionAt,
-        abortSignal: signal,
-        stderr: stderrHandler,
-        strictMcpConfig: true,
-      },
-    })
-
-    let firstMessageLogged = false
-
-    for await (const message of agentQuery) {
-      // Log first message timing
-      if (!firstMessageLogged) {
-        firstMessageLogged = true
-        timing("first_sdk_message")
-      }
-
-      // Check for cancellation
-      if (signal.aborted) {
-        console.error("[worker] Query aborted")
-        break
-      }
-
-      messageCount++
-
-      const messageTag = message.subtype ? `${message.type}:${message.subtype}` : message.type
-      recentMessageTypes.push(messageTag)
-      if (recentMessageTypes.length > 12) {
-        recentMessageTypes.shift()
-      }
-
-      if (message.type === "result") {
-        queryResult = message
-      }
-
-      // Capture session ID from system init message
-      if (message.type === "system" && message.subtype === "init" && message.session_id) {
-        initSessionId = message.session_id
-        console.error(`[worker] Session ID: ${message.session_id}`)
-
-        if (Array.isArray(message.mcp_servers)) {
-          initMcpStatusSummary = summarizeMcpStatuses(message.mcp_servers)
-          initMcpStatusByServer = message.mcp_servers.map(server => ({
-            name: typeof server?.name === "string" ? server.name : "unknown",
-            status: typeof server?.status === "string" ? server.status : "unknown",
-          }))
-          console.error("[worker] MCP status summary:", JSON.stringify(initMcpStatusSummary))
-        }
-
-        ipc.send({
-          type: "session",
-          requestId,
-          sessionId: message.session_id,
-        })
-      }
-
-      // Filter system init message to only show allowed tools
-      let outputMessage = message
-      if (message.type === "system" && message.subtype === "init" && message.tools) {
-        outputMessage = {
-          ...message,
-          tools: message.tools.filter(tool => allowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders)),
-        }
-      }
-
-      // Stream message to parent
-      ipc.send({
-        type: "message",
-        requestId,
-        content: {
-          type: streamTypes.MESSAGE,
-          messageCount,
-          messageType: message.type,
-          content: outputMessage,
+    await withSearchToolsConnectedProviders(connectedProviders, async () => {
+      const agentQuery = query({
+        prompt: payload.message,
+        options: {
+          cwd: process.cwd(),
+          model: payload.model,
+          maxTurns: payload.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
+          permissionMode,
+          ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
+          allowedTools,
+          disallowedTools,
+          canUseTool,
+          settingSources,
+          mcpServers,
+          systemPrompt: payload.systemPrompt,
+          resume: payload.resume,
+          resumeSessionAt: payload.resumeSessionAt,
+          abortSignal: signal,
+          stderr: stderrHandler,
+          strictMcpConfig: true,
         },
       })
-    }
+
+      let firstMessageLogged = false
+
+      for await (const message of agentQuery) {
+        // Log first message timing
+        if (!firstMessageLogged) {
+          firstMessageLogged = true
+          timing("first_sdk_message")
+        }
+
+        // Check for cancellation
+        if (signal.aborted) {
+          console.error("[worker] Query aborted")
+          break
+        }
+
+        messageCount++
+
+        const messageTag = message.subtype ? `${message.type}:${message.subtype}` : message.type
+        recentMessageTypes.push(messageTag)
+        if (recentMessageTypes.length > 12) {
+          recentMessageTypes.shift()
+        }
+
+        if (message.type === "result") {
+          queryResult = message
+        }
+
+        // Capture session ID from system init message
+        if (message.type === "system" && message.subtype === "init" && message.session_id) {
+          initSessionId = message.session_id
+          console.error(`[worker] Session ID: ${message.session_id}`)
+
+          if (Array.isArray(message.mcp_servers)) {
+            initMcpStatusSummary = summarizeMcpStatuses(message.mcp_servers)
+            initMcpStatusByServer = message.mcp_servers.map(server => ({
+              name: typeof server?.name === "string" ? server.name : "unknown",
+              status: typeof server?.status === "string" ? server.status : "unknown",
+            }))
+            console.error("[worker] MCP status summary:", JSON.stringify(initMcpStatusSummary))
+          }
+
+          ipc.send({
+            type: "session",
+            requestId,
+            sessionId: message.session_id,
+          })
+        }
+
+        // Filter system init message to only show allowed tools
+        let outputMessage = message
+        if (message.type === "system" && message.subtype === "init" && message.tools) {
+          outputMessage = {
+            ...message,
+            tools: message.tools.filter(
+              tool => allowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders),
+            ),
+          }
+        }
+
+        // Stream message to parent
+        ipc.send({
+          type: "message",
+          requestId,
+          content: {
+            type: streamTypes.MESSAGE,
+            messageCount,
+            messageType: message.type,
+            content: outputMessage,
+          },
+        })
+      }
+    })
 
     // Send completion (include cancelled flag if aborted)
     const wasCancelled = signal.aborted

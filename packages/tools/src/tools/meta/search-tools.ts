@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks"
 import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { z } from "zod"
 import {
@@ -34,13 +35,37 @@ export type SearchToolsResult = {
 }
 
 let connectedOAuthProviders: string[] = []
+const connectedOAuthProvidersContext = new AsyncLocalStorage<ReadonlySet<string>>()
+
+function normalizeProviders(providers: string[]): string[] {
+  return [
+    ...new Set(providers.filter((provider): provider is string => typeof provider === "string" && provider.length > 0)),
+  ]
+}
+
+function getEffectiveConnectedProviders(): string[] {
+  const scopedProviders = connectedOAuthProvidersContext.getStore()
+  if (scopedProviders) {
+    return [...scopedProviders]
+  }
+  return connectedOAuthProviders
+}
 
 /**
  * Sets connected OAuth providers for runtime tool discovery filtering.
  * Called by stream runners before each query.
  */
 export function setSearchToolsConnectedProviders(providers: string[]): void {
-  connectedOAuthProviders = providers
+  connectedOAuthProviders = normalizeProviders(providers)
+}
+
+/**
+ * Runs a callback with request-scoped connected OAuth providers.
+ * Prevents provider leakage across concurrent queries in shared processes.
+ */
+export async function withSearchToolsConnectedProviders<T>(providers: string[], run: () => Promise<T> | T): Promise<T> {
+  const normalizedProviders = new Set(normalizeProviders(providers))
+  return await connectedOAuthProvidersContext.run(normalizedProviders, async () => run())
 }
 
 export async function searchTools(params: SearchToolsParams): Promise<SearchToolsResult> {
@@ -48,7 +73,7 @@ export async function searchTools(params: SearchToolsParams): Promise<SearchTool
 
   try {
     // Filter by category (required parameter)
-    const tools = getSearchToolRegistry(connectedOAuthProviders).filter(t => t.category === category)
+    const tools = getSearchToolRegistry(getEffectiveConnectedProviders()).filter(t => t.category === category)
 
     if (tools.length === 0) {
       return {
