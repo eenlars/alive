@@ -208,3 +208,7 @@ caddy/
 ops/scripts/site-modes.json
 /var/lib/webalive/
 /var/log/webalive-*.log
+
+# SQLite runtime sidecar files (email-bot conversation DB)
+apps/experimental/email-bot/data/*.db-wal
+apps/experimental/email-bot/data/*.db-shm
