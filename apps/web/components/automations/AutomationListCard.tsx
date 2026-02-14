@@ -22,7 +22,9 @@ function formatTrigger(job: AutomationJob): { icon: typeof Calendar; label: stri
           }
           if (min === "0" && hour !== "*" && weekday !== "*" && day === "*") {
             const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-            return { icon: Calendar, label: `${days[parseInt(weekday, 10)] || "Weekly"} at ${hour}:00` }
+            const dayIndex = Number(weekday)
+            const dayLabel = Number.isInteger(dayIndex) && days[dayIndex] ? days[dayIndex] : weekday
+            return { icon: Calendar, label: `${dayLabel} at ${hour}:00` }
           }
         }
         return { icon: Calendar, label: job.cron_schedule }
