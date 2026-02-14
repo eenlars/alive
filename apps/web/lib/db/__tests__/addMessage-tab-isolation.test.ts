@@ -18,6 +18,7 @@ import "fake-indexeddb/auto"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { useDexieMessageStore } from "../dexieMessageStore"
 import { getMessageDb } from "../messageDb"
+import { useTabDataStore } from "@/lib/stores/tabDataStore"
 
 const TEST_USER_ID = "test-user-123"
 const TEST_ORG_ID = "test-org-456"
@@ -61,6 +62,7 @@ describe("addMessage tab isolation (Dexie integration)", () => {
       activeStreamByTab: {},
       streamingBuffers: {},
     })
+    useTabDataStore.setState({ tabsByWorkspace: {} })
   })
 
   afterEach(async () => {
@@ -68,6 +70,7 @@ describe("addMessage tab isolation (Dexie integration)", () => {
     const db = getMessageDb(TEST_USER_ID)
     await db.delete()
     await db.open()
+    useTabDataStore.setState({ tabsByWorkspace: {} })
   })
 
   it("should store message in the target tab, not the current tab", async () => {
@@ -210,5 +213,48 @@ describe("addMessage tab isolation (Dexie integration)", () => {
     // Tab B's metadata should be untouched
     const tabBRecord = await db.tabs.get("tab-B")
     expect(tabBRecord?.messageCount ?? 0).toBe(0)
+  })
+
+  it("should recover target tab mapping from tab store when Dexie mapping is missing", async () => {
+    const store = useDexieMessageStore.getState()
+    store.setSession({ userId: TEST_USER_ID, orgId: TEST_ORG_ID })
+
+    const tabId = "tab-race"
+    const tabGroupId = "tabgroup-race"
+    const now = Date.now()
+
+    useTabDataStore.setState({
+      tabsByWorkspace: {
+        [TEST_WORKSPACE]: [
+          {
+            id: tabId,
+            tabGroupId,
+            name: "Tab 1",
+            tabNumber: 1,
+            createdAt: now,
+          },
+        ],
+      },
+    })
+
+    await store.addMessage(
+      {
+        id: "msg-race-1",
+        type: "user",
+        content: "First message should not be dropped",
+        timestamp: new Date(),
+      },
+      tabId,
+    )
+
+    const db = getMessageDb(TEST_USER_ID)
+    const storedTab = await db.tabs.get(tabId)
+    const storedConversation = await db.conversations.get(tabGroupId)
+    const messages = await db.messages.where("tabId").equals(tabId).toArray()
+
+    expect(storedTab?.conversationId).toBe(tabGroupId)
+    expect(storedConversation?.workspace).toBe(TEST_WORKSPACE)
+    expect(messages).toHaveLength(1)
+    expect(messages[0].id).toBe("msg-race-1")
   })
 })

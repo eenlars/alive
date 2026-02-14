@@ -2,6 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // In-memory storage for mocked database
 const mockSessions = new Map<string, { sdk_session_id: string }>()
+const mockFailures = {
+  domainLookupError: null as { code?: string; message: string } | null,
+  sessionSelectError: null as { code?: string; message: string } | null,
+  sessionUpsertError: null as { code?: string; message: string } | null,
+  sessionDeleteError: null as { code?: string; message: string } | null,
+}
 
 // Helper to create session key for storage
 function makeDbKey(userId: string, domainId: string, tabId: string) {
@@ -14,7 +20,12 @@ vi.mock("@/lib/supabase/app", () => ({
     from: vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          single: vi.fn(async () => ({ data: { domain_id: "test-domain-id" }, error: null })),
+          single: vi.fn(async () => {
+            if (mockFailures.domainLookupError) {
+              return { data: null, error: mockFailures.domainLookupError }
+            }
+            return { data: { domain_id: "test-domain-id" }, error: null }
+          }),
         })),
       })),
     })),
@@ -31,6 +42,9 @@ vi.mock("@/lib/supabase/iam", () => ({
               eq: vi.fn((_col: string, domainId: string) => ({
                 eq: vi.fn((_col: string, tabId: string) => ({
                   single: vi.fn(async () => {
+                    if (mockFailures.sessionSelectError) {
+                      return { data: null, error: mockFailures.sessionSelectError }
+                    }
                     const key = makeDbKey(userId, domainId, tabId)
                     const data = mockSessions.get(key)
                     return { data: data || null, error: null }
@@ -41,6 +55,9 @@ vi.mock("@/lib/supabase/iam", () => ({
           })),
           upsert: vi.fn(
             async (data: { user_id: string; domain_id: string; tab_id: string; sdk_session_id: string }) => {
+              if (mockFailures.sessionUpsertError) {
+                return { data: null, error: mockFailures.sessionUpsertError }
+              }
               const key = makeDbKey(data.user_id, data.domain_id, data.tab_id)
               mockSessions.set(key, { sdk_session_id: data.sdk_session_id })
               return { data: null, error: null }
@@ -50,6 +67,9 @@ vi.mock("@/lib/supabase/iam", () => ({
             eq: vi.fn((_col: string, userId: string) => ({
               eq: vi.fn((_col: string, domainId: string) => ({
                 eq: vi.fn(async (_col: string, tabId: string) => {
+                  if (mockFailures.sessionDeleteError) {
+                    return { data: null, error: mockFailures.sessionDeleteError }
+                  }
                   const key = makeDbKey(userId, domainId, tabId)
                   mockSessions.delete(key)
                   return { data: null, error: null }
@@ -74,6 +94,10 @@ describe("Session Store - Tab Locking", () => {
   beforeEach(async () => {
     // Clear mock database
     mockSessions.clear()
+    mockFailures.domainLookupError = null
+    mockFailures.sessionSelectError = null
+    mockFailures.sessionUpsertError = null
+    mockFailures.sessionDeleteError = null
 
     await sessionStore.delete(
       tabKey({ userId: TEST_USER_ID, workspace: TEST_WORKSPACE, tabGroupId: "test-tabgroup", tabId: "test-tab-1" }),
@@ -405,6 +429,54 @@ describe("Session Store - Tab Locking", () => {
 
       expect(retrieved1).toBe("session-1")
       expect(retrieved2).toBe("session-2")
+    })
+
+    it("should throw when domain lookup fails", async () => {
+      mockFailures.domainLookupError = { code: "XX000", message: "domain query failed" }
+      const key = tabKey({
+        userId: TEST_USER_ID,
+        workspace: `domain-error-${Date.now()}.test.local`,
+        tabGroupId: "test-tabgroup",
+        tabId: "test-tab-domain-error",
+      })
+
+      await expect(sessionStore.get(key)).rejects.toThrow("Failed domain lookup")
+    })
+
+    it("should throw when session read fails", async () => {
+      mockFailures.sessionSelectError = { code: "42501", message: "permission denied" }
+      const key = tabKey({
+        userId: TEST_USER_ID,
+        workspace: `get-error-${Date.now()}.test.local`,
+        tabGroupId: "test-tabgroup",
+        tabId: "test-tab-get-error",
+      })
+
+      await expect(sessionStore.get(key)).rejects.toThrow("Failed to get session")
+    })
+
+    it("should throw when session upsert fails", async () => {
+      mockFailures.sessionUpsertError = { code: "23505", message: "upsert failed" }
+      const key = tabKey({
+        userId: TEST_USER_ID,
+        workspace: `set-error-${Date.now()}.test.local`,
+        tabGroupId: "test-tabgroup",
+        tabId: "test-tab-set-error",
+      })
+
+      await expect(sessionStore.set(key, "session-fail")).rejects.toThrow("Failed to set session")
+    })
+
+    it("should throw when session delete fails", async () => {
+      mockFailures.sessionDeleteError = { code: "23503", message: "delete failed" }
+      const key = tabKey({
+        userId: TEST_USER_ID,
+        workspace: `delete-error-${Date.now()}.test.local`,
+        tabGroupId: "test-tabgroup",
+        tabId: "test-tab-delete-error",
+      })
+
+      await expect(sessionStore.delete(key)).rejects.toThrow("Failed to delete session")
     })
   })
 })

@@ -22,6 +22,7 @@
 import Dexie from "dexie"
 import { create } from "zustand"
 import type { UIMessage } from "@/features/chat/lib/message-parser"
+import { useTabDataStore } from "@/lib/stores/tabDataStore"
 import {
   fetchConversations,
   fetchTabMessages,
@@ -431,7 +432,30 @@ export const useDexieMessageStore = create<DexieMessageStore>((set, get) => ({
       // If target tab differs from current, look up its tabGroupId from Dexie
       let effectiveTabGroupId = currentTabGroupId
       if (targetTabId !== currentTabId) {
-        const targetTab = await db.tabs.get(targetTabId)
+        let targetTab = await db.tabs.get(targetTabId)
+        if (!targetTab) {
+          // Recovery path for first-message race:
+          // tabStore can have the tab before Dexie is initialized for it.
+          // Backfill Dexie from tabStore so the first message isn't dropped.
+          const tabDataState = useTabDataStore.getState()
+          let inferredWorkspace: string | null = null
+          let inferredTabGroupId: string | null = null
+
+          for (const [workspace, tabs] of Object.entries(tabDataState.tabsByWorkspace)) {
+            const tab = tabs.find(t => t.id === targetTabId && !t.closedAt)
+            if (tab) {
+              inferredWorkspace = workspace
+              inferredTabGroupId = tab.tabGroupId
+              break
+            }
+          }
+
+          if (inferredWorkspace && inferredTabGroupId) {
+            await get().ensureTabGroupWithTab(inferredWorkspace, inferredTabGroupId, targetTabId)
+            targetTab = await db.tabs.get(targetTabId)
+          }
+        }
+
         if (targetTab) {
           effectiveTabGroupId = targetTab.conversationId
         } else {
