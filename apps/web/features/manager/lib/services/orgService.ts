@@ -3,35 +3,20 @@
  */
 
 import type { OrgRole } from "@webalive/shared"
+import type { Res } from "@/lib/api/schemas"
 
 // ============================================================================
-// Manager Organization Types
+// Manager Organization Types (derived from API schema)
 // ============================================================================
-
-export interface ManagerOrgDomain {
-  domain_id: string
-  hostname: string
-  port: number
-}
-
-export interface ManagerOrgMember {
-  user_id: string
-  email: string
-  display_name: string | null
-  role: OrgRole
-}
 
 /** Full organization data as returned by the manager API */
-export interface ManagerOrganization {
-  org_id: string
-  name: string
-  credits: number
-  member_count: number
-  domain_count: number
-  created_at: string
-  domains: ManagerOrgDomain[]
-  members: ManagerOrgMember[]
-}
+export type ManagerOrganization = Res<"manager/orgs">["orgs"][number]
+
+/** Organization member */
+export type ManagerOrgMember = ManagerOrganization["members"][number]
+
+/** Organization domain */
+export type ManagerOrgDomain = ManagerOrganization["domains"][number]
 
 // ============================================================================
 // Request Types

@@ -300,6 +300,49 @@ export const apiSchemas = {
     }),
   },
   // ============================================================================
+  // MANAGER ENDPOINTS
+  // ============================================================================
+
+  /**
+   * GET /api/manager/orgs
+   * Get all organizations with members and domains (manager auth required)
+   */
+  "manager/orgs": {
+    req: z.undefined().brand<"ManagerOrgsRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      orgs: z.array(
+        z.object({
+          org_id: z.string(),
+          name: z.string(),
+          credits: z.number(),
+          created_at: z.string(),
+          updated_at: z.string().nullable().optional(),
+          member_count: z.number(),
+          domain_count: z.number(),
+          members: z.array(
+            z.object({
+              user_id: z.string(),
+              email: z.string(),
+              display_name: z.string().nullable(),
+              role: z.enum(ORG_ROLES),
+              created_at: z.string().nullable(),
+            }),
+          ),
+          domains: z.array(
+            z.object({
+              domain_id: z.string(),
+              hostname: z.string(),
+              port: z.number(),
+            }),
+          ),
+        }),
+      ),
+      feedback: z.array(z.record(z.string(), z.unknown())).optional(),
+    }),
+  },
+
+  // ============================================================================
   // AUTH ENDPOINTS (used by TanStack Query)
   // ============================================================================
 

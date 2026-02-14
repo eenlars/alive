@@ -160,27 +160,11 @@ export default function ManagerPage() {
     setOrgsLoading(true)
     setFeedbackLoading(true)
     try {
-      const response = await fetch("/api/manager/orgs")
-      if (!response.ok) {
-        console.error("Failed to fetch organizations:", response.status, response.statusText)
-        toast.error("Failed to fetch organizations")
-        return
-      }
-      const data = await response.json()
-
-      // Log debug timings
-      if (data.debug?.timings) {
-        console.log("[Orgs + Feedback] Performance:", data.debug.timings)
-      }
-
-      if (data.ok) {
-        setOrgs(data.orgs)
-        // Set feedback from the same response
-        if (data.feedback) {
-          setFeedback(data.feedback)
-        }
-      } else {
-        toast.error("Failed to fetch organizations")
+      const data = await getty("manager/orgs")
+      setOrgs(data.orgs)
+      // Set feedback from the same response (loosely typed in schema)
+      if (data.feedback) {
+        setFeedback(data.feedback as unknown as FeedbackEntry[])
       }
     } catch (error) {
       console.error("Failed to fetch organizations:", error)

@@ -26,7 +26,7 @@
     "knip": "knip --no-progress",
     "depcruise": "depcruise apps/web --config config/.dependency-cruiser.json",
     "test": "turbo run test",
-    "test:core": "cd packages/tools && bun run test && cd ../.. && cd apps/web && bun run test",
+    "test:core": "cd packages/shared && bun run test && cd ../tools && bun run test && cd ../../apps/web && bun run test",
     "unit": "bun run test:core",
     "e2e": "cd apps/web && bun run test:e2e",
     "gates": "cd apps/web && bun run test:gates",

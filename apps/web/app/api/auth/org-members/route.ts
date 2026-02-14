@@ -33,6 +33,18 @@ export async function GET(req: NextRequest) {
 
     const iam = await createIamClient("service")
 
+    // Verify requesting user is a member of this org before revealing members
+    const { data: callerMembership, error: callerError } = await iam
+      .from("org_memberships")
+      .select("role")
+      .eq("org_id", orgId)
+      .eq("user_id", user.id)
+      .single()
+
+    if (callerError || !callerMembership) {
+      return createCorsErrorResponse(origin, ErrorCodes.ORG_ACCESS_DENIED, 403, { requestId })
+    }
+
     // Get all members of the organization with user details
     const { data: members, error: membersError } = await iam
       .from("org_memberships")

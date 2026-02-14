@@ -342,6 +342,37 @@ describe("POST /api/login", () => {
       })
     })
 
+    it("skips domain query and creates empty JWT claims when all membership roles are invalid", async () => {
+      setupMockSupabase({
+        memberships: [
+          { org_id: "org-1", role: "viewer" },
+          { org_id: "org-2", role: "superadmin" },
+        ],
+      })
+
+      const req = createMockRequest({
+        email: "test@example.com",
+        password: "correct-password",
+      })
+      const response = await POST(req)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.workspaces).toEqual([])
+
+      // Domain query should NOT be called since orgIds is empty
+      expect(createAppClient).not.toHaveBeenCalled()
+
+      // JWT should have empty org claims
+      expect(createSessionToken).toHaveBeenCalledWith({
+        userId: MOCK_USER.user_id,
+        email: MOCK_USER.email,
+        name: MOCK_USER.display_name,
+        orgIds: [],
+        orgRoles: {},
+      })
+    })
+
     it("should handle user with no workspaces", async () => {
       setupMockSupabase({ memberships: [], domains: [] })
 
