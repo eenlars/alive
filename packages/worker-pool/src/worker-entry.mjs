@@ -31,7 +31,12 @@ const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 import { query } from "@anthropic-ai/claude-agent-sdk"
 // biome-ignore format: import checker expects a single-line import statement for this package.
 import { allowTool, DEFAULTS, denyTool, formatUncaughtError, GLOBAL_MCP_PROVIDERS, isAbortError, isFatalError, isHeavyBashCommand, isOAuthMcpTool, isTransientNetworkError, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
-import { emailInternalMcp, setSearchToolsConnectedProviders, toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
+import {
+  emailInternalMcp,
+  setSearchToolsConnectedProviders,
+  toolsInternalMcp,
+  workspaceInternalMcp,
+} from "@webalive/tools"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts
