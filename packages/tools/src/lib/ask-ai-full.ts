@@ -46,7 +46,7 @@ import {
   STREAM_SETTINGS_SOURCES,
 } from "@webalive/shared"
 import { toolsInternalMcp, workspaceInternalMcp } from "../mcp-server.js"
-import { getEnabledMcpToolNames } from "../tools/meta/search-tools.js"
+import { getEnabledMcpToolNames, setSearchToolsConnectedProviders } from "../tools/meta/search-tools.js"
 // Import CLAUDE_MODELS from ask-ai.ts - SINGLE SOURCE OF TRUTH
 import { CLAUDE_MODELS, type ClaudeModel } from "./ask-ai.js"
 
@@ -184,8 +184,10 @@ export async function askAIFull(options: AskAIFullOptions): Promise<AskAIFullRes
     )
 
     const connectedProviders = Object.keys(oauthTokens).filter(k => !!oauthTokens[k])
+    setSearchToolsConnectedProviders(connectedProviders)
     canUseTool = createStreamCanUseTool(baseAllowedTools, connectedProviders, false) as CanUseTool
   } else {
+    setSearchToolsConnectedProviders([])
     permissionMode = permissionMode ?? "bypassPermissions"
   }
 
@@ -214,30 +216,34 @@ export async function askAIFull(options: AskAIFullOptions): Promise<AskAIFullRes
   let resultMessage: SDKResultMessage | null = null
   let messageCount = 0
 
-  for await (const message of agentQuery) {
-    messageCount++
-    messages.push(message)
+  try {
+    for await (const message of agentQuery) {
+      messageCount++
+      messages.push(message)
 
-    if (message.type === "system" && message.subtype === "init" && message.session_id) {
-      sessionId = message.session_id
-    }
+      if (message.type === "system" && message.subtype === "init" && message.session_id) {
+        sessionId = message.session_id
+      }
 
-    if (message.type === "result") {
-      resultMessage = message
-    }
+      if (message.type === "result") {
+        resultMessage = message
+      }
 
-    if (message.type === "assistant" && "message" in message) {
-      const content = message.message.content
-      if (Array.isArray(content)) {
-        for (const block of content) {
-          if (block.type === "text") {
-            responseText += block.text
+      if (message.type === "assistant" && "message" in message) {
+        const content = message.message.content
+        if (Array.isArray(content)) {
+          for (const block of content) {
+            if (block.type === "text") {
+              responseText += block.text
+            }
           }
         }
       }
-    }
 
-    onMessage?.(message)
+      onMessage?.(message)
+    }
+  } finally {
+    setSearchToolsConnectedProviders([])
   }
 
   return {

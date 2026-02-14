@@ -68,13 +68,13 @@ describe("SDK Tools Sync", () => {
     })
 
     it("should have correct tool counts in categories", () => {
-      // 14 SDK allowed + 2 Bridge-only compat tools (Skill + BashOutput) = 16 in ALLOWED_SDK_TOOLS
-      // 4 disallowed (Task, WebSearch, ExitPlanMode, TaskStop)
-      // 14 + 4 = 18 SDK total
+      // 12 SDK allowed + 2 Bridge-only compat tools (Skill + BashOutput) = 14 in ALLOWED_SDK_TOOLS
+      // 6 disallowed (Task, WebSearch, ExitPlanMode, TaskStop, ListMcpResources, ReadMcpResource)
+      // 12 + 6 = 18 SDK total
       const allowedSDKOnly = ALLOWED_SDK_TOOLS.filter(t => !STREAM_ONLY_TOOLS.includes(t))
-      expect(ALLOWED_SDK_TOOLS.length).toBe(16) // 14 SDK + 2 Bridge-only
-      expect(allowedSDKOnly.length).toBe(14) // Pure SDK tools
-      expect(DISALLOWED_SDK_TOOLS.length).toBe(4)
+      expect(ALLOWED_SDK_TOOLS.length).toBe(14) // 12 SDK + 2 Bridge-only
+      expect(allowedSDKOnly.length).toBe(12) // Pure SDK tools
+      expect(DISALLOWED_SDK_TOOLS.length).toBe(6)
       expect(allowedSDKOnly.length + DISALLOWED_SDK_TOOLS.length).toBe(SDK_TOOL_NAMES.length)
     })
   })
@@ -112,10 +112,13 @@ describe("SDK Tools Sync", () => {
       expect(isDisallowed("WebSearch")).toBe(true)
     })
 
-    it("should allow MCP tools", () => {
+    it("should allow MCP execution tool", () => {
       expect(isAllowed("Mcp")).toBe(true)
-      expect(isAllowed("ListMcpResources")).toBe(true)
-      expect(isAllowed("ReadMcpResource")).toBe(true)
+    })
+
+    it("should disallow MCP resource tools (no resources exposed)", () => {
+      expect(isDisallowed("ListMcpResources")).toBe(true)
+      expect(isDisallowed("ReadMcpResource")).toBe(true)
     })
 
     it("should allow planning/workflow tools (except ExitPlanMode which requires user approval)", () => {

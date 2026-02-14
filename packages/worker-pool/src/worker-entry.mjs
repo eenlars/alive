@@ -31,7 +31,7 @@ const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 import { query } from "@anthropic-ai/claude-agent-sdk"
 // biome-ignore format: import checker expects a single-line import statement for this package.
 import { allowTool, DEFAULTS, denyTool, formatUncaughtError, GLOBAL_MCP_PROVIDERS, isAbortError, isFatalError, isHeavyBashCommand, isOAuthMcpTool, isTransientNetworkError, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
-import { emailInternalMcp, toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
+import { emailInternalMcp, setSearchToolsConnectedProviders, toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts
@@ -98,6 +98,7 @@ const SOCKET_CONNECT_TIMEOUT_MS = 5_000
 function clearQueryState() {
   currentRequestId = null
   currentAbortController = null
+  setSearchToolsConnectedProviders([])
 }
 
 /**
@@ -633,6 +634,7 @@ async function handleQuery(ipc, requestId, payload) {
     // Get OAuth tokens for connected MCP providers
     const oauthTokens = payload.oauthTokens || {}
     connectedProviders = Object.keys(oauthTokens).filter(key => !!oauthTokens[key])
+    setSearchToolsConnectedProviders(connectedProviders)
     if (connectedProviders.length > 0) {
       console.error(`[worker] Connected OAuth providers: ${connectedProviders.join(", ")}`)
     }

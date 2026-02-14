@@ -589,12 +589,44 @@ export async function POST(req: NextRequest) {
             await runQuery(existingSessionId || undefined, resumeSessionAt || undefined)
             controller.close()
           } catch (err) {
+            const buildCombinedErrorMessage = (error: unknown): string => {
+              const baseMessage = error instanceof Error ? error.message : String(error)
+              const stderr = (error as { stderr?: string })?.stderr || ""
+              const diagnostics = (error as { diagnostics?: unknown })?.diagnostics
+
+              const diagnosticHints: string[] = []
+              if (diagnostics && typeof diagnostics === "object") {
+                const d = diagnostics as Record<string, unknown>
+                if (typeof d.surfacedErrorMessage === "string") {
+                  diagnosticHints.push(d.surfacedErrorMessage)
+                }
+                if (typeof d.originalErrorMessage === "string") {
+                  diagnosticHints.push(d.originalErrorMessage)
+                }
+                if (Array.isArray(d.queryResultErrors)) {
+                  for (const item of d.queryResultErrors) {
+                    if (typeof item === "string") {
+                      diagnosticHints.push(item)
+                    }
+                  }
+                }
+              }
+
+              return [baseMessage, stderr, ...diagnosticHints].filter(Boolean).join(" ")
+            }
+
+            const logStaleSessionRetry = (attempted: boolean, outcome: "success" | "failed" | "not_attempted") => {
+              logger.log(
+                `[SESSION RETRY] retry_attempted=${attempted} retry_reason=stale_session retry_outcome=${outcome}`,
+              )
+            }
+
             // Error recovery for stale session/message references
             // The error may come as "Claude Code process exited with code 1" with the actual
             // error message in stderr, so we check both
             const errorMessage = err instanceof Error ? err.message : String(err)
             const stderrMessage = (err as { stderr?: string })?.stderr || ""
-            const combinedMessage = `${errorMessage} ${stderrMessage}`
+            const combinedMessage = buildCombinedErrorMessage(err)
 
             // NEW: Check for "message not found" error (stale resumeSessionAt)
             // This happens when the frontend sends a message ID that no longer exists in the session
@@ -611,9 +643,7 @@ export async function POST(req: NextRequest) {
                 return
               } catch (retryErr) {
                 // If that also fails, check if it's a session not found error
-                const retryErrorMessage = retryErr instanceof Error ? retryErr.message : String(retryErr)
-                const retryStderrMessage = (retryErr as { stderr?: string })?.stderr || ""
-                const retryCombined = `${retryErrorMessage} ${retryStderrMessage}`
+                const retryCombined = buildCombinedErrorMessage(retryErr)
                 const isSessionNotFoundOnRetry =
                   retryCombined.includes("No conversation found") ||
                   (retryCombined.includes("session") && retryCombined.includes("not found"))
@@ -631,9 +661,11 @@ export async function POST(req: NextRequest) {
                       return
                     }
                     await runQuery(undefined, undefined)
+                    logStaleSessionRetry(true, "success")
                     controller.close()
                     return
                   } catch (finalErr) {
+                    logStaleSessionRetry(true, "failed")
                     logger.error("[SESSION RECOVERY] Final retry failed:", finalErr)
                     controller.error(finalErr)
                     return
@@ -692,15 +724,18 @@ export async function POST(req: NextRequest) {
 
                 // Retry without resume - start fresh conversation
                 await runQuery(undefined, undefined)
+                logStaleSessionRetry(true, "success")
                 controller.close()
                 return
               } catch (retryErr) {
+                logStaleSessionRetry(true, "failed")
                 logger.error("[SESSION RECOVERY] Retry failed:", retryErr)
                 controller.error(retryErr)
                 return
               }
             }
 
+            logStaleSessionRetry(false, "not_attempted")
             logger.error("Worker pool query failed:", err)
             controller.error(err)
           }

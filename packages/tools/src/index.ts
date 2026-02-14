@@ -76,7 +76,7 @@ export type {
 } from "./tool-names.js"
 // Tool name constants
 export { AI, AUTOMATION, CALENDAR, EMAIL, FILE_OPS, LINEAR, OTHER, STRIPE } from "./tool-names.js"
-export { getEnabledMcpToolNames } from "./tools/meta/search-tools.js"
+export { getEnabledMcpToolNames, setSearchToolsConnectedProviders } from "./tools/meta/search-tools.js"
 export { SDK_TOOLS, type SDKTool } from "./tools/meta/tool-registry.js"
 // Scheduled Tasks (Cron) Tools
 export {

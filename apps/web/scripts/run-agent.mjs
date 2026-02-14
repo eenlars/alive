@@ -16,6 +16,7 @@ import { join } from "node:path"
 import process from "node:process"
 import { query } from "@anthropic-ai/claude-agent-sdk"
 import { allowTool, DEFAULTS, denyTool, isOAuthMcpTool, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
+import { setSearchToolsConnectedProviders } from "@webalive/tools"
 import {
   getAllowedTools,
   getDisallowedTools,
@@ -94,6 +95,7 @@ async function readStdinJson() {
     // Get OAuth tokens for connected MCP providers
     const oauthTokens = request.oauthTokens || {}
     const connectedProviders = Object.keys(oauthTokens).filter(key => !!oauthTokens[key])
+    setSearchToolsConnectedProviders(connectedProviders)
     if (connectedProviders.length > 0) {
       console.error(`[runner] Connected OAuth providers: ${connectedProviders.join(", ")}`)
     }

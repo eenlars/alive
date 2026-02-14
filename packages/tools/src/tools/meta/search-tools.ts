@@ -1,6 +1,12 @@
 import { tool } from "@anthropic-ai/claude-agent-sdk"
 import { z } from "zod"
-import { DETAIL_LEVELS, type DetailLevel, TOOL_CATEGORIES, TOOL_REGISTRY, type ToolCategory } from "./tool-registry.js"
+import {
+  DETAIL_LEVELS,
+  type DetailLevel,
+  getSearchToolRegistry,
+  TOOL_CATEGORIES,
+  type ToolCategory,
+} from "./tool-registry.js"
 
 export const searchToolsParamsSchema = {
   category: z
@@ -27,12 +33,22 @@ export type SearchToolsResult = {
   isError: boolean
 }
 
+let connectedOAuthProviders: string[] = []
+
+/**
+ * Sets connected OAuth providers for runtime tool discovery filtering.
+ * Called by stream runners before each query.
+ */
+export function setSearchToolsConnectedProviders(providers: string[]): void {
+  connectedOAuthProviders = providers
+}
+
 export async function searchTools(params: SearchToolsParams): Promise<SearchToolsResult> {
   const { category, detail_level = "standard" } = params
 
   try {
     // Filter by category (required parameter)
-    const tools = TOOL_REGISTRY.filter(t => t.category === category)
+    const tools = getSearchToolRegistry(connectedOAuthProviders).filter(t => t.category === category)
 
     if (tools.length === 0) {
       return {
@@ -134,14 +150,16 @@ Examples:
  * Used by Alive to configure allowedTools
  */
 export function getEnabledMcpToolNames(): string[] {
-  return TOOL_REGISTRY.filter(tool => tool.enabled).map(tool => {
-    // Map tool names to their actual MCP tool names
-    if (tool.category === "workspace") {
-      return `mcp__alive-workspace__${tool.name}`
-    }
-    if (tool.category === "external-mcp") {
-      return tool.name // External MCP servers don't get prefixes
-    }
-    return `mcp__alive-tools__${tool.name}`
-  })
+  return getSearchToolRegistry()
+    .filter(tool => tool.enabled)
+    .map(tool => {
+      // Map tool names to their actual MCP tool names
+      if (tool.category === "workspace") {
+        return `mcp__alive-workspace__${tool.name}`
+      }
+      if (tool.category === "external-mcp") {
+        return tool.name // External MCP servers don't get prefixes
+      }
+      return `mcp__alive-tools__${tool.name}`
+    })
 }

@@ -1,4 +1,5 @@
-import { describe, expect, test } from "vitest"
+import { isConversationLocked, tabKey, tryLockConversation, unlockConversation } from "@/features/auth/lib/sessionStore"
+import { describe, expect, test, vi } from "vitest"
 import {
   cancelStream,
   cancelStreamByConversationKey,
@@ -207,5 +208,77 @@ describe("Cancellation Registry", () => {
     const result = await cancelStream(requestId, userId)
     expect(result).toBe(true)
     expect(cleanupCompleted).toBe(true) // Should be true because we awaited
+  })
+
+  test("should force-unlock conversation when cancel callback hangs", async () => {
+    vi.useFakeTimers()
+    try {
+      const requestId = "test-request-timeout-1"
+      const userId = "user-timeout-1"
+      const convKey = tabKey({
+        userId,
+        workspace: "timeout-workspace",
+        tabGroupId: "11111111-1111-1111-1111-111111111111",
+        tabId: "timeout-tab-1",
+      })
+
+      expect(tryLockConversation(convKey)).toBe(true)
+      expect(isConversationLocked(convKey)).toBe(true)
+
+      registerCancellation(requestId, userId, convKey, () => new Promise<void>(() => {}))
+
+      const cancelPromise = cancelStream(requestId, userId)
+      await vi.advanceTimersByTimeAsync(2_100)
+
+      await expect(cancelPromise).resolves.toBe(true)
+      expect(isConversationLocked(convKey)).toBe(false)
+    } finally {
+      vi.useRealTimers()
+      unregisterCancellation("test-request-timeout-1")
+      unlockConversation(
+        tabKey({
+          userId: "user-timeout-1",
+          workspace: "timeout-workspace",
+          tabGroupId: "11111111-1111-1111-1111-111111111111",
+          tabId: "timeout-tab-1",
+        }),
+      )
+    }
+  })
+
+  test("should force-unlock conversation when tabKey cancellation callback hangs", async () => {
+    vi.useFakeTimers()
+    try {
+      const requestId = "test-request-timeout-2"
+      const userId = "user-timeout-2"
+      const convKey = tabKey({
+        userId,
+        workspace: "timeout-workspace",
+        tabGroupId: "22222222-2222-2222-2222-222222222222",
+        tabId: "timeout-tab-2",
+      })
+
+      expect(tryLockConversation(convKey)).toBe(true)
+      expect(isConversationLocked(convKey)).toBe(true)
+
+      registerCancellation(requestId, userId, convKey, () => new Promise<void>(() => {}))
+
+      const cancelPromise = cancelStreamByConversationKey(convKey, userId)
+      await vi.advanceTimersByTimeAsync(2_100)
+
+      await expect(cancelPromise).resolves.toBe(true)
+      expect(isConversationLocked(convKey)).toBe(false)
+    } finally {
+      vi.useRealTimers()
+      unregisterCancellation("test-request-timeout-2")
+      unlockConversation(
+        tabKey({
+          userId: "user-timeout-2",
+          workspace: "timeout-workspace",
+          tabGroupId: "22222222-2222-2222-2222-222222222222",
+          tabId: "timeout-tab-2",
+        }),
+      )
+    }
   })
 })
