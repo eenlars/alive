@@ -192,10 +192,18 @@ async function processChildEvent(
       `[NDJSON Stream ${requestId}] [SESSION DEBUG] Received stream_session event, sessionId: ${childEvent.sessionId}`,
     )
     console.log(`[NDJSON Stream ${requestId}] [SESSION DEBUG] Storing to key: ${conversationKey}`)
-    await sessionStore.set(conversationKey, childEvent.sessionId)
-    console.log(`[NDJSON Stream ${requestId}] [SESSION DEBUG] Session stored successfully`)
-    if (onSessionIdReceived) {
-      await onSessionIdReceived(childEvent.sessionId)
+    try {
+      await sessionStore.set(conversationKey, childEvent.sessionId)
+      console.log(`[NDJSON Stream ${requestId}] [SESSION DEBUG] Session stored successfully`)
+      if (onSessionIdReceived) {
+        await onSessionIdReceived(childEvent.sessionId)
+      }
+    } catch (error) {
+      console.error(
+        `[NDJSON Stream ${requestId}] Failed to store session ID:`,
+        error instanceof Error ? error.message : String(error),
+      )
+      Sentry.captureException(error)
     }
     return { isComplete: false }
   }
