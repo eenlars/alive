@@ -2,6 +2,41 @@
  * Organization management service - pure, testable functions
  */
 
+import type { OrgRole } from "@webalive/shared"
+
+// ============================================================================
+// Manager Organization Types
+// ============================================================================
+
+export interface ManagerOrgDomain {
+  domain_id: string
+  hostname: string
+  port: number
+}
+
+export interface ManagerOrgMember {
+  user_id: string
+  email: string
+  display_name: string | null
+  role: OrgRole
+}
+
+/** Full organization data as returned by the manager API */
+export interface ManagerOrganization {
+  org_id: string
+  name: string
+  credits: number
+  member_count: number
+  domain_count: number
+  created_at: string
+  domains: ManagerOrgDomain[]
+  members: ManagerOrgMember[]
+}
+
+// ============================================================================
+// Request Types
+// ============================================================================
+
 export interface OrgDeleteRequest {
   orgId: string
 }
@@ -24,7 +59,7 @@ export interface UpdateCreditsRequest {
 export interface AddMemberRequest {
   orgId: string
   userId: string
-  role: "owner" | "admin" | "member"
+  role: OrgRole
 }
 
 export async function deleteOrg(orgId: string): Promise<void> {
@@ -75,7 +110,7 @@ export async function updateOrgCredits(orgId: string, credits: number): Promise<
   }
 }
 
-export async function addOrgMember(orgId: string, userId: string, role: "owner" | "admin" | "member"): Promise<void> {
+export async function addOrgMember(orgId: string, userId: string, role: OrgRole): Promise<void> {
   const response = await fetch("/api/manager/orgs/members", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -93,7 +128,13 @@ export interface CreateOrgRequest {
   ownerUserId?: string
 }
 
-export async function createOrg(data: CreateOrgRequest): Promise<any> {
+export interface CreateOrgResponse {
+  ok: boolean
+  message?: string
+  orgId?: string
+}
+
+export async function createOrg(data: CreateOrgRequest): Promise<CreateOrgResponse> {
   const response = await fetch("/api/manager/orgs/create", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

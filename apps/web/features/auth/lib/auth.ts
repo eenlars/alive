@@ -1,5 +1,5 @@
 import { env } from "@webalive/env/server"
-import { SECURITY, STANDALONE, SUPERADMIN } from "@webalive/shared"
+import { buildSessionOrgClaims, SECURITY, STANDALONE, SUPERADMIN } from "@webalive/shared"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
@@ -173,16 +173,7 @@ async function getUserOrgMemberships(userId: string): Promise<{
     return { orgIds: [], orgRoles: {} }
   }
 
-  const orgRoles: Record<string, SessionOrgRole> = {}
-  const orgIds: string[] = []
-  for (const membership of memberships) {
-    if (!membership.org_id) continue
-    if (membership.role !== "owner" && membership.role !== "admin" && membership.role !== "member") continue
-    orgIds.push(membership.org_id)
-    orgRoles[membership.org_id] = membership.role
-  }
-
-  const dedupedOrgIds = [...new Set(orgIds)]
+  const { orgIds: dedupedOrgIds, orgRoles } = buildSessionOrgClaims(memberships)
   userOrgMembershipCache.set(userId, {
     orgIds: dedupedOrgIds,
     orgRoles,

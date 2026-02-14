@@ -9,10 +9,12 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
-import { CLAUDE_MODELS, getWorkspacePath } from "@webalive/shared"
+import { buildSessionOrgClaims, CLAUDE_MODELS, getWorkspacePath } from "@webalive/shared"
 import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
+import { createSessionToken } from "@/features/auth/lib/jwt"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { getOrgCredits } from "@/lib/credits/supabase-credits"
+import { createServiceIamClient } from "@/lib/supabase/service"
 import { generateRequestId } from "@/lib/utils"
 import { type AttemptResult, tryWorkerPool, WORKER_POOL } from "./attempts"
 
@@ -121,16 +123,18 @@ interface ExecutionContext {
   extraTools?: string[]
   /** Extract response from this tool's input.text */
   responseToolName?: string
+  /** Session cookie for authenticating API callbacks (e.g. restart_dev_server) */
+  sessionCookie?: string
 }
 
 async function executeWithWorkerPoolOnly(ctx: ExecutionContext): Promise<AttemptResult> {
-  const { requestId, workspace, userId, ...sharedParams } = ctx
+  const { requestId, workspace, userId, sessionCookie, ...sharedParams } = ctx
 
   if (!WORKER_POOL.ENABLED) {
     throw new Error("Automation execution requires WORKER_POOL.ENABLED=true; no fallback execution path is allowed.")
   }
 
-  return tryWorkerPool({ ...sharedParams, requestId, workspace, userId })
+  return tryWorkerPool({ ...sharedParams, requestId, workspace, userId, sessionCookie })
 }
 
 // =============================================================================
@@ -212,6 +216,49 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     }
     console.log(`[Automation ${requestId}] OAuth ready (refreshed: ${oauthResult.refreshed})`)
 
+    // === Session Token for API Callbacks ===
+    // Automations run server-to-server (no browser cookies), but tools like
+    // restart_dev_server call back to the Bridge API which requires a session cookie.
+    // Mint a short-lived JWT so the worker process can authenticate these calls.
+    let sessionCookie: string | undefined
+    try {
+      const iam = createServiceIamClient()
+      const { data: user, error: userError } = await iam
+        .from("users")
+        .select("email, display_name")
+        .eq("user_id", params.userId)
+        .single()
+
+      if (userError) {
+        throw new Error(`Failed to load user for session token: ${userError.message}`)
+      }
+
+      if (user?.email) {
+        const { data: memberships, error: membershipsError } = await iam
+          .from("org_memberships")
+          .select("org_id, role")
+          .eq("user_id", params.userId)
+
+        if (membershipsError) {
+          throw new Error(`Failed to load org memberships for session token: ${membershipsError.message}`)
+        }
+
+        const { orgIds, orgRoles } = buildSessionOrgClaims(memberships)
+
+        sessionCookie = await createSessionToken({
+          userId: params.userId,
+          email: user.email,
+          name: user.display_name,
+          orgIds,
+          orgRoles,
+        })
+      } else {
+        console.warn(`[Automation ${requestId}] Could not find user ${params.userId} for session token`)
+      }
+    } catch (err) {
+      console.warn(`[Automation ${requestId}] Failed to mint session token:`, err)
+    }
+
     // === Build Prompts ===
     const systemPrompt = params.systemPromptOverride ?? buildDefaultSystemPrompt(cwd, thinkingPrompt)
 
@@ -227,6 +274,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       timeoutSeconds,
       extraTools: params.extraTools,
       responseToolName: params.responseToolName,
+      sessionCookie,
     })
 
     const durationMs = Date.now() - startTime

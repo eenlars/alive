@@ -14,6 +14,18 @@ export interface FixPortRequest {
   domain: string
 }
 
+export interface PermissionCheckResult {
+  domain: string
+  expectedOwner: string
+  siteDirectoryExists: boolean
+  totalFiles: number
+  rootOwnedFiles: number
+  wrongOwnerFiles: number
+  rootOwnedFilesList: string[]
+  wrongOwnerFilesList: string[]
+  error?: string
+}
+
 export async function deleteDomain(domain: string): Promise<void> {
   const response = await fetch("/api/manager", {
     method: "DELETE",
@@ -26,7 +38,7 @@ export async function deleteDomain(domain: string): Promise<void> {
   }
 }
 
-export async function checkPermissions(domain: string): Promise<any> {
+export async function checkPermissions(domain: string): Promise<PermissionCheckResult> {
   const response = await fetch(`/api/manager/permissions?domain=${encodeURIComponent(domain)}`, {
     method: "GET",
   })
@@ -51,7 +63,7 @@ export async function fixPort(domain: string): Promise<void> {
   }
 }
 
-export async function fixPermissions(domain: string): Promise<any> {
+export async function fixPermissions(domain: string): Promise<{ result: PermissionCheckResult }> {
   const response = await fetch("/api/manager/permissions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

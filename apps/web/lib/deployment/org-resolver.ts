@@ -9,14 +9,14 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { IamDatabase as Database } from "@webalive/database"
-import { FREE_CREDITS } from "@webalive/shared"
+import { FREE_CREDITS, isOrgRoleWithViewer, type OrgRoleWithViewer } from "@webalive/shared"
 import { createIamClient } from "@/lib/supabase/iam"
 
 export interface UserOrganization {
   orgId: string
   orgName: string
   credits: number
-  role: "owner" | "admin" | "member" | "viewer"
+  role: OrgRoleWithViewer
 }
 
 /**
@@ -60,11 +60,12 @@ export async function getUserOrganizations(
   // Combine membership + org data
   return memberships.map((m: { org_id: string; role: string }) => {
     const org = orgs.find((o: { org_id: string; name: string; credits: number }) => o.org_id === m.org_id)
+    const role = isOrgRoleWithViewer(m.role) ? m.role : "viewer"
     return {
       orgId: m.org_id,
       orgName: org?.name || "Unknown",
       credits: org?.credits || 0,
-      role: m.role as "owner" | "admin" | "member" | "viewer",
+      role,
     }
   })
 }

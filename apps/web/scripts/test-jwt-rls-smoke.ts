@@ -18,7 +18,7 @@
 import { randomUUID } from "node:crypto"
 import { resolve } from "node:path"
 import { createClient } from "@supabase/supabase-js"
-import { COOKIE_NAMES } from "@webalive/shared"
+import { COOKIE_NAMES, type OrgRole } from "@webalive/shared"
 import { hash as hashPassword } from "bcrypt"
 import { config as loadDotenv } from "dotenv"
 
@@ -26,7 +26,7 @@ const DEFAULT_BASE_URL = "http://localhost:8997"
 const DEFAULT_SCOPES = ["workspace:access", "workspace:list", "org:read"] as const
 const TEST_USER_PASSWORD = "rls-smoke-password-123"
 
-type SessionOrgRole = "owner" | "admin" | "member"
+type SessionOrgRole = OrgRole
 
 interface CliOptions {
   baseUrl: string

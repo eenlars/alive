@@ -1,5 +1,5 @@
 import type { Req as PkgReq, Res as PkgRes } from "@alive-brug/alrighty"
-import { CLAUDE_MODELS } from "@webalive/shared"
+import { CLAUDE_MODELS, ORG_ROLES } from "@webalive/shared"
 import { z } from "zod"
 import { RESERVED_SLUGS } from "@/features/deployment/types/guards"
 import { OptionalWorktreeSchema, OptionalWorktreeSlugSchema } from "@/types/guards/worktree-schemas"
@@ -317,7 +317,7 @@ export const apiSchemas = {
           name: z.string(),
           credits: z.number(),
           workspace_count: z.number(),
-          role: z.enum(["owner", "admin", "member"]),
+          role: z.enum(ORG_ROLES),
         }),
       ),
       current_user_id: z.string().optional(),
@@ -361,7 +361,7 @@ export const apiSchemas = {
           user_id: z.string(),
           email: z.string(),
           display_name: z.string().nullable(),
-          role: z.enum(["owner", "admin", "member"]),
+          role: z.enum(ORG_ROLES),
         }),
       ),
     }),

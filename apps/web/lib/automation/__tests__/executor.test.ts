@@ -8,6 +8,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { AttemptResult } from "../attempts"
 
+interface MockUserQueryResult {
+  data: { email: string | null; display_name: string | null } | null
+  error: { message: string } | null
+}
+
+interface MockMembershipsQueryResult {
+  data: Array<{ org_id: string | null; role: string | null }> | null
+  error: { message: string } | null
+}
+
 // Mock the attempts module to isolate executor logic
 const defaultAttempt: AttemptResult = {
   textMessages: ["Done"],
@@ -18,6 +28,33 @@ const defaultAttempt: AttemptResult = {
 const mockTryWorkerPool = vi.fn<() => Promise<AttemptResult>>(() => Promise.resolve(defaultAttempt))
 
 const mockWorkerPoolState = { ENABLED: true }
+const mockCreateSessionToken = vi.fn(() => Promise.resolve("session-token-123"))
+
+let mockUserQueryResult: MockUserQueryResult
+let mockMembershipsQueryResult: MockMembershipsQueryResult
+const mockCreateServiceIamClient = vi.fn(() => ({
+  from: (table: string) => {
+    if (table === "users") {
+      return {
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve(mockUserQueryResult),
+          }),
+        }),
+      }
+    }
+
+    if (table === "org_memberships") {
+      return {
+        select: () => ({
+          eq: () => Promise.resolve(mockMembershipsQueryResult),
+        }),
+      }
+    }
+
+    throw new Error(`Unexpected table: ${table}`)
+  },
+}))
 
 vi.mock("../attempts", () => ({
   tryWorkerPool: mockTryWorkerPool,
@@ -41,6 +78,10 @@ vi.mock("@/features/chat/lib/systemPrompt", () => ({
   getSystemPrompt: vi.fn(() => "system prompt"),
 }))
 
+vi.mock("@/features/auth/lib/jwt", () => ({
+  createSessionToken: mockCreateSessionToken,
+}))
+
 vi.mock("@/lib/anthropic-oauth", () => ({
   hasOAuthCredentials: vi.fn(() => true),
   getValidAccessToken: vi.fn(() => Promise.resolve({ accessToken: "test", refreshed: false })),
@@ -58,6 +99,10 @@ vi.mock("@/lib/utils", () => ({
   generateRequestId: vi.fn(() => "req-test-123"),
 }))
 
+vi.mock("@/lib/supabase/service", () => ({
+  createServiceIamClient: mockCreateServiceIamClient,
+}))
+
 vi.mock("node:fs", () => ({
   existsSync: vi.fn(() => true),
 }))
@@ -66,6 +111,15 @@ describe("runAutomationJob", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockWorkerPoolState.ENABLED = true
+    mockCreateSessionToken.mockResolvedValue("session-token-123")
+    mockUserQueryResult = {
+      data: { email: "user@example.com", display_name: "Test User" },
+      error: null,
+    }
+    mockMembershipsQueryResult = {
+      data: [{ org_id: "org-1", role: "owner" }],
+      error: null,
+    }
   })
 
   it("rejects empty workspace", async () => {
@@ -218,5 +272,62 @@ describe("runAutomationJob", () => {
 
     expect(result.success).toBe(true)
     expect(result.response).toBe("Hey Lars! The fans are humming steady tonight.")
+  })
+
+  it("passes minted session cookie to worker pool and filters invalid org roles", async () => {
+    mockMembershipsQueryResult = {
+      data: [
+        { org_id: "org-1", role: "owner" },
+        { org_id: "org-2", role: "viewer" },
+      ],
+      error: null,
+    }
+
+    const { runAutomationJob } = await import("../executor")
+    const result = await runAutomationJob({
+      jobId: "j1",
+      userId: "u1",
+      orgId: "o1",
+      workspace: "test.alive.best",
+      prompt: "test prompt",
+    })
+
+    expect(result.success).toBe(true)
+    expect(mockCreateSessionToken).toHaveBeenCalledWith({
+      userId: "u1",
+      email: "user@example.com",
+      name: "Test User",
+      orgIds: ["org-1"],
+      orgRoles: { "org-1": "owner" },
+    })
+    expect(mockTryWorkerPool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionCookie: "session-token-123",
+      }),
+    )
+  })
+
+  it("continues execution without session cookie when membership lookup fails", async () => {
+    mockMembershipsQueryResult = {
+      data: null,
+      error: { message: "db down" },
+    }
+
+    const { runAutomationJob } = await import("../executor")
+    const result = await runAutomationJob({
+      jobId: "j1",
+      userId: "u1",
+      orgId: "o1",
+      workspace: "test.alive.best",
+      prompt: "test prompt",
+    })
+
+    expect(result.success).toBe(true)
+    expect(mockCreateSessionToken).not.toHaveBeenCalled()
+    expect(mockTryWorkerPool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionCookie: undefined,
+      }),
+    )
   })
 })

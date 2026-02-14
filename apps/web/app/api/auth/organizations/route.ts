@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import * as Sentry from "@sentry/nextjs"
-import { SECURITY } from "@webalive/shared"
+import { isOrgAdminRole, isOrgRole, type OrgRole, SECURITY } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -96,19 +96,30 @@ export async function GET(req: NextRequest) {
     }
 
     // Create role map
-    const roleMap = new Map<string, string>()
+    const roleMap = new Map<string, OrgRole>()
     for (const membership of memberships) {
-      roleMap.set(membership.org_id, membership.role)
+      if (isOrgRole(membership.role)) {
+        roleMap.set(membership.org_id, membership.role)
+      }
     }
 
-    // Combine org data with workspace counts and user roles
-    const organizations = (orgs || []).map(org => ({
-      org_id: org.org_id,
-      name: org.name,
-      credits: org.credits,
-      workspace_count: workspaceCounts.get(org.org_id) || 0,
-      role: roleMap.get(org.org_id) || "member",
-    }))
+    // Combine org data with workspace counts and user roles (skip orgs with invalid roles)
+    const organizations = (orgs || []).flatMap(org => {
+      const role = roleMap.get(org.org_id)
+      if (!role) {
+        console.warn(`[Organizations API] Skipping org ${org.org_id} with invalid/missing role for user ${user.id}`)
+        return []
+      }
+      return [
+        {
+          org_id: org.org_id,
+          name: org.name,
+          credits: org.credits,
+          workspace_count: workspaceCounts.get(org.org_id) || 0,
+          role,
+        },
+      ]
+    })
 
     return createCorsSuccessResponse(origin, {
       organizations,
@@ -164,7 +175,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Only owners and admins can update org name
-    if (membership.role !== "owner" && membership.role !== "admin") {
+    if (!isOrgAdminRole(membership.role)) {
       return createCorsErrorResponse(origin, ErrorCodes.UNAUTHORIZED, 403, { requestId })
     }
 

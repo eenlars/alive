@@ -155,6 +155,19 @@ export {
   type OAuthWarningContent,
 } from "./oauth-warnings.js"
 export {
+  buildSessionOrgClaims,
+  isOrgAdminRole,
+  isOrgRole,
+  isOrgRoleWithViewer,
+  ORG_ROLES,
+  ORG_ROLES_WITH_VIEWER,
+  type OrgMembershipLike,
+  type OrgRole,
+  type OrgRoleMap,
+  type OrgRoleWithViewer,
+  type SessionOrgClaims,
+} from "./org-roles.js"
+export {
   DEFAULT_MAX_CHARS,
   DEFAULT_MAX_LINES,
   type TruncateOptions,

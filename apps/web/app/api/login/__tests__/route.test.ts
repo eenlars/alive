@@ -83,7 +83,7 @@ function setupMockSupabase(
   options: {
     user?: typeof MOCK_USER | null
     userError?: { code: string; message: string } | null
-    memberships?: typeof MOCK_MEMBERSHIPS
+    memberships?: Array<{ org_id: string; role: string }>
     domains?: typeof MOCK_DOMAINS
   } = {},
 ) {
@@ -310,6 +310,34 @@ describe("POST /api/login", () => {
         orgRoles: {
           "org-1": "owner",
           "org-2": "member",
+        },
+      })
+    })
+
+    it("filters invalid membership roles and deduplicates org IDs in JWT claims", async () => {
+      setupMockSupabase({
+        memberships: [
+          { org_id: "org-1", role: "owner" },
+          { org_id: "org-1", role: "owner" },
+          { org_id: "org-2", role: "viewer" },
+          { org_id: "org-3", role: "admin" },
+        ],
+      })
+
+      const req = createMockRequest({
+        email: "test@example.com",
+        password: "correct-password",
+      })
+      await POST(req)
+
+      expect(createSessionToken).toHaveBeenCalledWith({
+        userId: MOCK_USER.user_id,
+        email: MOCK_USER.email,
+        name: MOCK_USER.display_name,
+        orgIds: ["org-1", "org-3"],
+        orgRoles: {
+          "org-1": "owner",
+          "org-3": "admin",
         },
       })
     })

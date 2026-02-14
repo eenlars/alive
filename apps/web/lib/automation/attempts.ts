@@ -152,6 +152,8 @@ export interface ExecutionParams {
 interface WorkerPoolParams extends ExecutionParams {
   workspace: string
   userId: string
+  /** Session cookie for authenticating API callbacks (e.g. restart_dev_server) */
+  sessionCookie?: string
 }
 
 export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptResult> {
@@ -166,6 +168,7 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
     timeoutSeconds,
     extraTools,
     responseToolName,
+    sessionCookie,
   } = params
 
   const { getWorkerPool } = await import("@webalive/worker-pool")
@@ -211,6 +214,7 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
         oauthTokens: {},
         userEnvKeys: {},
         agentConfig,
+        sessionCookie,
       },
       onMessage: (msg: Record<string, unknown>) => {
         console.log(`[Automation ${requestId}] Message: type=${String(msg.type ?? "unknown")}`)
