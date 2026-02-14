@@ -624,7 +624,6 @@ export async function POST(req: NextRequest) {
             // Error recovery for stale session/message references
             // The error may come as "Claude Code process exited with code 1" with the actual
             // error message in stderr, so we check both
-            const errorMessage = err instanceof Error ? err.message : String(err)
             const stderrMessage = (err as { stderr?: string })?.stderr || ""
             const combinedMessage = buildCombinedErrorMessage(err)
 
