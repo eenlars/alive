@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import * as Sentry from "@sentry/nextjs"
-import { SECURITY } from "@webalive/shared"
+import { buildSessionOrgClaims, isOrgAdminRole, SECURITY } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -62,7 +62,23 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const orgIds = memberships.map(m => m.org_id)
+    // Normalize memberships: filter invalid roles, deduplicate org IDs
+    const { orgIds, orgRoles } = buildSessionOrgClaims(memberships)
+
+    // Log skipped invalid memberships
+    for (const membership of memberships) {
+      if (membership.org_id && !orgRoles[membership.org_id]) {
+        console.warn(
+          `[Organizations API] Skipping org ${membership.org_id} with invalid role "${membership.role}" for user ${user.id}`,
+        )
+      }
+    }
+
+    if (orgIds.length === 0) {
+      return createCorsSuccessResponse(origin, {
+        organizations: [],
+      })
+    }
 
     // Get org details
     const { data: orgs, error: orgsError } = await iam
@@ -95,19 +111,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Create role map
-    const roleMap = new Map<string, string>()
-    for (const membership of memberships) {
-      roleMap.set(membership.org_id, membership.role)
-    }
-
     // Combine org data with workspace counts and user roles
     const organizations = (orgs || []).map(org => ({
       org_id: org.org_id,
       name: org.name,
       credits: org.credits,
       workspace_count: workspaceCounts.get(org.org_id) || 0,
-      role: roleMap.get(org.org_id) || "member",
+      role: orgRoles[org.org_id],
     }))
 
     return createCorsSuccessResponse(origin, {
@@ -164,7 +174,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Only owners and admins can update org name
-    if (membership.role !== "owner" && membership.role !== "admin") {
+    if (!isOrgAdminRole(membership.role)) {
       return createCorsErrorResponse(origin, ErrorCodes.UNAUTHORIZED, 403, { requestId })
     }
 

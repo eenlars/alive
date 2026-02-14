@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { createClient } from "@supabase/supabase-js"
 import type { AppDatabase } from "@webalive/database"
+import { isOrgRole } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { isManagerAuthenticated } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -78,9 +79,15 @@ export async function GET(req: NextRequest) {
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
     }
 
-    // Group memberships by org_id
+    // Group memberships by org_id, filtering invalid roles
     const membersByOrg = (memberships as MembershipWithUser[] | null)?.reduce(
       (acc, membership) => {
+        if (!isOrgRole(membership.role)) {
+          console.warn(
+            `[Manager Orgs] Skipping membership with invalid role "${membership.role}" for user ${membership.user_id}`,
+          )
+          return acc
+        }
         if (!acc[membership.org_id]) {
           acc[membership.org_id] = []
         }

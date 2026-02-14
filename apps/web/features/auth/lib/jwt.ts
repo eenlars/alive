@@ -1,4 +1,5 @@
 import { env } from "@webalive/env/server"
+import { isOrgRole, ORG_ROLES, type OrgRole, type OrgRoleMap } from "@webalive/shared"
 import { importJWK, jwtVerify, SignJWT } from "jose"
 import type { Secret } from "jsonwebtoken"
 import jwt from "jsonwebtoken"
@@ -118,8 +119,9 @@ export const SESSION_SCOPES = {
 } as const
 
 export type SessionScope = (typeof SESSION_SCOPES)[keyof typeof SESSION_SCOPES]
-export type SessionOrgRole = "owner" | "admin" | "member"
-export type SessionOrgRoles = Record<string, SessionOrgRole>
+export const SESSION_ORG_ROLES = ORG_ROLES
+export type SessionOrgRole = OrgRole
+export type SessionOrgRoles = OrgRoleMap
 
 export const DEFAULT_USER_SCOPES: SessionScope[] = [
   SESSION_SCOPES.WORKSPACE_ACCESS,
@@ -131,8 +133,8 @@ function isValidScope(scope: unknown): scope is SessionScope {
   return Object.values(SESSION_SCOPES).includes(scope as SessionScope)
 }
 
-function isValidOrgRole(role: unknown): role is SessionOrgRole {
-  return role === "owner" || role === "admin" || role === "member"
+export function isSessionOrgRole(role: unknown): role is SessionOrgRole {
+  return isOrgRole(role)
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -223,7 +225,7 @@ export async function createSessionToken(input: CreateSessionTokenInput): Promis
 
   const roleEntries = Object.entries(orgRoles)
   for (const [orgId, role] of roleEntries) {
-    if (!isNonEmptyString(orgId) || !isValidOrgRole(role)) {
+    if (!isNonEmptyString(orgId) || !isSessionOrgRole(role)) {
       throw new Error("[JWT] orgRoles must map org IDs to valid roles")
     }
   }
@@ -363,7 +365,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
 
     const normalizedOrgRoles: SessionOrgRoles = {}
     for (const [orgId, role] of Object.entries(orgRoles)) {
-      if (!isNonEmptyString(orgId) || !isValidOrgRole(role)) {
+      if (!isNonEmptyString(orgId) || !isSessionOrgRole(role)) {
         console.error("[JWT] Invalid token payload: orgRoles must map org IDs to valid roles")
         return null
       }

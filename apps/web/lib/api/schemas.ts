@@ -1,5 +1,5 @@
 import type { Req as PkgReq, Res as PkgRes } from "@alive-brug/alrighty"
-import { CLAUDE_MODELS } from "@webalive/shared"
+import { CLAUDE_MODELS, ORG_ROLES } from "@webalive/shared"
 import { z } from "zod"
 import { RESERVED_SLUGS } from "@/features/deployment/types/guards"
 import { OptionalWorktreeSchema, OptionalWorktreeSlugSchema } from "@/types/guards/worktree-schemas"
@@ -300,6 +300,54 @@ export const apiSchemas = {
     }),
   },
   // ============================================================================
+  // MANAGER ENDPOINTS
+  // ============================================================================
+
+  /**
+   * GET /api/manager/orgs
+   * Get all organizations with members and domains (manager auth required)
+   */
+  "manager/orgs": {
+    req: z.undefined().brand<"ManagerOrgsRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      orgs: z.array(
+        z.object({
+          org_id: z.string(),
+          name: z.string(),
+          credits: z.number(),
+          created_at: z.string(),
+          updated_at: z.string().nullable().optional(),
+          member_count: z.number(),
+          domain_count: z.number(),
+          members: z.array(
+            z.object({
+              user_id: z.string(),
+              email: z.string(),
+              display_name: z.string().nullable(),
+              role: z.enum(ORG_ROLES),
+              created_at: z.string().nullable(),
+            }),
+          ),
+          domains: z.array(
+            z.object({
+              domain_id: z.string(),
+              hostname: z.string(),
+              port: z.number(),
+              org_id: z.string().nullable(),
+              server_id: z.string().nullable(),
+              is_test_env: z.boolean(),
+              test_run_id: z.string().nullable(),
+              created_at: z.string(),
+            }),
+          ),
+        }),
+      ),
+      feedback: z.array(z.record(z.string(), z.unknown())).optional(),
+    }),
+  },
+
+  // ============================================================================
   // AUTH ENDPOINTS (used by TanStack Query)
   // ============================================================================
 
@@ -317,7 +365,7 @@ export const apiSchemas = {
           name: z.string(),
           credits: z.number(),
           workspace_count: z.number(),
-          role: z.enum(["owner", "admin", "member"]),
+          role: z.enum(ORG_ROLES),
         }),
       ),
       current_user_id: z.string().optional(),
@@ -361,7 +409,7 @@ export const apiSchemas = {
           user_id: z.string(),
           email: z.string(),
           display_name: z.string().nullable(),
-          role: z.enum(["owner", "admin", "member"]),
+          role: z.enum(ORG_ROLES),
         }),
       ),
     }),

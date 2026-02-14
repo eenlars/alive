@@ -2,22 +2,16 @@
 
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
-
-interface Service {
-  service: string
-  status: "operational" | "degraded" | "offline"
-  message: string
-  latency?: number
-}
+import type { CleanupStats, ServiceStatus } from "@/features/manager/lib/services/settingsService"
 
 interface SettingsPanelProps {
-  serviceStatus: { services: Service[]; timestamp: string } | null
+  serviceStatus: ServiceStatus | null
   checkingStatus: boolean
   reloadingCaddy: boolean
   loadingStatus: boolean
   backingUp: boolean
   cleaningTestData: boolean
-  testDataStats: any
+  testDataStats: CleanupStats | null
   onCheckStatus: () => void
   onReloadCaddy: () => void
   onRefreshDomains: () => void
@@ -107,7 +101,7 @@ export function SettingsPanel({
             </div>
           ) : (
             <div className="space-y-3">
-              {serviceStatus.services.map((service: Service) => (
+              {serviceStatus.services.map(service => (
                 <div
                   key={service.service}
                   className="flex items-center justify-between p-3 rounded border border-slate-200 dark:border-white/10"

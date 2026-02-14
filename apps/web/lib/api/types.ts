@@ -5,6 +5,8 @@
  * Used by both API routes and frontend consumers.
  */
 
+import { isOrgRole, type OrgRole } from "@webalive/shared"
+
 // ============================================================================
 // Base Response Types
 // ============================================================================
@@ -31,7 +33,7 @@ export interface Organization {
   name: string
   credits: number
   workspace_count: number
-  role: "owner" | "admin" | "member"
+  role: OrgRole
 }
 
 export interface OrganizationsResponse {
@@ -170,7 +172,9 @@ export function isOrganization(data: unknown): data is Organization {
     "name" in data &&
     typeof (data as Organization).name === "string" &&
     "credits" in data &&
-    typeof (data as Organization).credits === "number"
+    typeof (data as Organization).credits === "number" &&
+    "role" in data &&
+    isOrgRole((data as Organization).role)
   )
 }
 

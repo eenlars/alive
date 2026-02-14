@@ -1,9 +1,11 @@
 import * as Sentry from "@sentry/nextjs"
+import { isOrgRole } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
+import { canRemoveMember } from "@/lib/permissions/org-permissions"
 import { createIamClient } from "@/lib/supabase/iam"
 import { generateRequestId } from "@/lib/utils"
 
@@ -31,6 +33,18 @@ export async function GET(req: NextRequest) {
 
     const iam = await createIamClient("service")
 
+    // Verify requesting user is a member of this org before revealing members
+    const { data: callerMembership, error: callerError } = await iam
+      .from("org_memberships")
+      .select("role")
+      .eq("org_id", orgId)
+      .eq("user_id", user.id)
+      .single()
+
+    if (callerError || !callerMembership) {
+      return createCorsErrorResponse(origin, ErrorCodes.ORG_ACCESS_DENIED, 403, { requestId })
+    }
+
     // Get all members of the organization with user details
     const { data: members, error: membersError } = await iam
       .from("org_memberships")
@@ -52,14 +66,22 @@ export async function GET(req: NextRequest) {
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
     }
 
-    // Transform the data to a flatter structure and sort by email
+    // Transform the data to a flatter structure, filtering invalid roles, and sort by email
     const formattedMembers = (members || [])
-      .map(m => ({
-        user_id: m.user_id,
-        role: m.role,
-        email: m.users?.email || "Unknown",
-        display_name: m.users?.display_name || null,
-      }))
+      .flatMap(m => {
+        if (!isOrgRole(m.role)) {
+          console.warn(`[Org Members] Skipping membership with invalid role "${m.role}" for user ${m.user_id}`)
+          return []
+        }
+        return [
+          {
+            user_id: m.user_id,
+            role: m.role,
+            email: m.users?.email || "Unknown",
+            display_name: m.users?.display_name || null,
+          },
+        ]
+      })
       .sort((a, b) => a.email.localeCompare(b.email))
 
     return createCorsSuccessResponse(origin, {
@@ -124,18 +146,15 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Permission check
+    if (!isOrgRole(currentUserMembership.role) || !isOrgRole(targetMembership.role)) {
+      return createCorsErrorResponse(origin, ErrorCodes.ORG_ACCESS_DENIED, 403, { requestId })
+    }
+
     const currentRole = currentUserMembership.role
     const targetRole = targetMembership.role
     const isLeavingOrg = userId === targetUserId
 
-    // Owner can remove anyone
-    // Admin can remove members (but not other admins or owner)
-    // Members cannot remove anyone, but can leave themselves
-    if (currentRole === "member" && !isLeavingOrg) {
-      return createCorsErrorResponse(origin, ErrorCodes.ORG_ACCESS_DENIED, 403, { requestId })
-    }
-
-    if (currentRole === "admin" && !isLeavingOrg && (targetRole === "admin" || targetRole === "owner")) {
+    if (!canRemoveMember(currentRole, targetRole, isLeavingOrg)) {
       return createCorsErrorResponse(origin, ErrorCodes.ORG_ACCESS_DENIED, 403, { requestId })
     }
 
