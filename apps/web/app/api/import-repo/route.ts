@@ -167,29 +167,37 @@ export async function POST(request: NextRequest) {
       chatUrl: `/chat?${QUERY_KEYS.workspace}=${encodeURIComponent(fullDomain)}`,
     })
 
-    // Regenerate JWT with the new workspace
-    const jar = await cookies()
-    const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
+    // Regenerate JWT with updated org membership if a new org was associated
+    try {
+      const jar = await cookies()
+      const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
 
-    if (sessionCookie?.value) {
-      const payload = await verifySessionToken(sessionCookie.value)
-      if (payload) {
-        const existingWorkspaces = Array.isArray(payload.workspaces) ? payload.workspaces : []
-        const updatedWorkspaces = Array.from(new Set([...existingWorkspaces, fullDomain]))
-        const newToken = await createSessionToken(
-          sessionUser.id,
-          sessionUser.email,
-          sessionUser.name,
-          updatedWorkspaces,
-        )
+      if (sessionCookie?.value) {
+        const payload = await verifySessionToken(sessionCookie.value)
+        if (payload) {
+          const isNewOrg = orgId && !payload.orgIds.includes(orgId)
+          const updatedOrgIds = isNewOrg ? [...payload.orgIds, orgId] : payload.orgIds
+          const updatedOrgRoles = isNewOrg ? { ...payload.orgRoles, [orgId]: "owner" as const } : payload.orgRoles
 
-        res.cookies.set(COOKIE_NAMES.SESSION, newToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
-          path: "/",
-        })
+          const newToken = await createSessionToken({
+            userId: sessionUser.id,
+            email: sessionUser.email,
+            name: sessionUser.name,
+            scopes: payload.scopes,
+            orgIds: updatedOrgIds,
+            orgRoles: updatedOrgRoles,
+          })
+
+          res.cookies.set(COOKIE_NAMES.SESSION, newToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "none",
+            path: "/",
+          })
+        }
       }
+    } catch (tokenError) {
+      console.error("[Import-Repo] JWT regeneration failed (deployment succeeded):", tokenError)
     }
 
     return res

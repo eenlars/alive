@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto"
 import { TEST_CONFIG } from "@webalive/shared"
 import { hash } from "bcrypt"
 import jwt from "jsonwebtoken"
+import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
 import { getUserDefaultOrgId } from "@/lib/deployment/org-resolver"
 import { createServiceAppClient, createServiceIamClient } from "@/lib/supabase/service"
 import { generateTestEmail, validateTestEmail } from "./test-email-domains"
@@ -135,7 +136,7 @@ export async function cleanupTestUser(userId: string): Promise<void> {
  * Create a JWT session token for E2E tests
  *
  * Uses HS256 signing (same as production) with proper payload structure.
- * Matches the SessionPayload interface from features/auth/lib/jwt.ts
+ * Matches the SessionPayloadV3 interface from features/auth/lib/jwt.ts
  *
  * @param testUser - Test user object from fixtures
  * @returns Signed JWT token
@@ -144,11 +145,14 @@ export async function createTestSessionToken(testUser: TestUser): Promise<string
   const JWT_SECRET = process.env.JWT_SECRET || "INSECURE_DEV_SECRET_CHANGE_IN_PRODUCTION"
 
   const payload = {
+    role: "authenticated" as const,
     sub: testUser.userId, // Standard JWT claim (used by RLS policies)
     userId: testUser.userId, // Legacy claim (backward compatibility)
     email: testUser.email,
     name: testUser.orgName,
-    workspaces: [], // Empty workspaces for test deployments
+    scopes: DEFAULT_USER_SCOPES,
+    orgIds: [testUser.orgId],
+    orgRoles: { [testUser.orgId]: "owner" as const },
   }
 
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "30d" })

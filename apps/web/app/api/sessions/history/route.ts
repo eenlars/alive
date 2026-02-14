@@ -13,8 +13,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
+import { createRLSAppClient } from "@/lib/supabase/server-rls"
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get domain ID
-    const app = await createAppClient("service")
+    const app = await createRLSAppClient()
     const { data: domain } = await app.from("domains").select("domain_id").eq("hostname", targetWorkspace).single()
 
     if (!domain) {

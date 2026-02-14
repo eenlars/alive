@@ -14,6 +14,7 @@ import type { Res } from "@/lib/api/schemas"
 import { alrighty } from "@/lib/api/server"
 import { pokeCronService } from "@/lib/automation/cron-service"
 import { ErrorCodes } from "@/lib/error-codes"
+import { createRLSAppClient } from "@/lib/supabase/server-rls"
 import { createServiceAppClient } from "@/lib/supabase/service"
 
 type AutomationJob = Res<"automations">["automations"][number]
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
     const siteId = searchParams.get("site_id")
     const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100)
 
-    const supabase = createServiceAppClient()
+    const supabase = await createRLSAppClient()
 
     // Build query - join with domains to get hostname
     let query = supabase

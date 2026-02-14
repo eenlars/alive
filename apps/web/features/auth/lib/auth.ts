@@ -3,10 +3,17 @@ import { SECURITY, STANDALONE, SUPERADMIN } from "@webalive/shared"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
+import { filterLocalDomains } from "@/lib/domains"
 import { type ErrorCode, ErrorCodes, getErrorMessage } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
-import { verifySessionToken } from "./jwt"
+import {
+  SESSION_SCOPES,
+  type SessionOrgRole,
+  type SessionPayloadV3,
+  type SessionScope,
+  verifySessionToken,
+} from "./jwt"
 
 /**
  * Custom error class for authentication failures
@@ -82,6 +89,131 @@ function buildSessionUser(id: string, email: string, name: string | null, enable
  */
 const enabledModelsCache = new Map<string, { models: string[]; expiry: number }>()
 const ENABLED_MODELS_CACHE_TTL_MS = 30_000
+const AUTHZ_CACHE_TTL_MS = 5 * 60 * 1000
+
+interface WorkspaceOrgCacheEntry {
+  orgId: string | null
+  expiry: number
+}
+
+interface UserOrgMembershipCacheEntry {
+  orgIds: string[]
+  orgRoles: Record<string, SessionOrgRole>
+  expiry: number
+}
+
+const workspaceOrgCache = new Map<string, WorkspaceOrgCacheEntry>()
+const userOrgMembershipCache = new Map<string, UserOrgMembershipCacheEntry>()
+
+function hasScope(payload: SessionPayloadV3 | null, requiredScope: SessionScope): boolean {
+  return Array.isArray(payload?.scopes) && payload.scopes.includes(requiredScope)
+}
+
+async function getSessionPayloadFromCookie(): Promise<SessionPayloadV3 | null> {
+  const jar = await cookies()
+  const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
+
+  if (!sessionCookie?.value) {
+    return null
+  }
+
+  return verifySessionToken(sessionCookie.value)
+}
+
+async function getWorkspaceOrgId(workspace: string): Promise<string | null> {
+  const cached = workspaceOrgCache.get(workspace)
+  if (cached && cached.expiry > Date.now()) {
+    return cached.orgId
+  }
+
+  const app = await createAppClient("service")
+  const { data, error } = await app.from("domains").select("org_id").eq("hostname", workspace).single()
+
+  if (error) {
+    // Don't cache failures; transient DB/network errors should be retryable.
+    return null
+  }
+
+  const orgId = data?.org_id ?? null
+
+  workspaceOrgCache.set(workspace, {
+    orgId,
+    expiry: Date.now() + AUTHZ_CACHE_TTL_MS,
+  })
+
+  return orgId
+}
+
+async function getUserOrgMemberships(userId: string): Promise<{
+  orgIds: string[]
+  orgRoles: Record<string, SessionOrgRole>
+}> {
+  const cached = userOrgMembershipCache.get(userId)
+  if (cached && cached.expiry > Date.now()) {
+    return {
+      orgIds: cached.orgIds,
+      orgRoles: cached.orgRoles,
+    }
+  }
+
+  const iam = await createIamClient("service")
+  const { data: memberships, error } = await iam.from("org_memberships").select("org_id, role").eq("user_id", userId)
+
+  if (error) {
+    // Don't cache failures; transient DB/network errors should be retryable.
+    return { orgIds: [], orgRoles: {} }
+  }
+
+  if (!memberships || memberships.length === 0) {
+    userOrgMembershipCache.set(userId, {
+      orgIds: [],
+      orgRoles: {},
+      expiry: Date.now() + AUTHZ_CACHE_TTL_MS,
+    })
+    return { orgIds: [], orgRoles: {} }
+  }
+
+  const orgRoles: Record<string, SessionOrgRole> = {}
+  const orgIds: string[] = []
+  for (const membership of memberships) {
+    if (!membership.org_id) continue
+    if (membership.role !== "owner" && membership.role !== "admin" && membership.role !== "member") continue
+    orgIds.push(membership.org_id)
+    orgRoles[membership.org_id] = membership.role
+  }
+
+  const dedupedOrgIds = [...new Set(orgIds)]
+  userOrgMembershipCache.set(userId, {
+    orgIds: dedupedOrgIds,
+    orgRoles,
+    expiry: Date.now() + AUTHZ_CACHE_TTL_MS,
+  })
+
+  return {
+    orgIds: dedupedOrgIds,
+    orgRoles,
+  }
+}
+
+// Cleanup cache entries periodically to keep memory bounded in long-lived processes.
+if (typeof setInterval !== "undefined" && typeof process !== "undefined" && !process.env.VITEST) {
+  setInterval(
+    () => {
+      const now = Date.now()
+      for (const [workspace, entry] of workspaceOrgCache.entries()) {
+        if (entry.expiry <= now) {
+          workspaceOrgCache.delete(workspace)
+        }
+      }
+      for (const [userId, entry] of userOrgMembershipCache.entries()) {
+        if (entry.expiry <= now) {
+          userOrgMembershipCache.delete(userId)
+        }
+      }
+    },
+    10 * 60 * 1000,
+  )
+}
 
 /**
  * Fetch per-user enabled models from iam.users.metadata.
@@ -130,30 +262,27 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     return null
   }
 
-  // Standalone mode - auto-login without database
-  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+  // Verify JWT and extract user data.
+  const payload = await verifySessionToken(sessionCookie.value)
+
+  if (!payload?.userId) {
+    return null
+  }
+
+  if (env.STREAM_ENV === "standalone" && payload.userId === STANDALONE.TEST_USER.ID) {
     return {
       id: STANDALONE.TEST_USER.ID,
       email: STANDALONE.TEST_USER.EMAIL,
       name: STANDALONE.TEST_USER.NAME,
       canSelectAnyModel: true,
       isAdmin: true,
-      isSuperadmin: false, // No superadmin access in standalone mode
+      isSuperadmin: false,
       enabledModels: [],
     }
   }
 
-  // Test mode
-  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
-    const testEmail = SECURITY.LOCAL_TEST.EMAIL
-    return buildSessionUser(SECURITY.LOCAL_TEST.SESSION_VALUE, testEmail, "Test User", [])
-  }
-
-  // Verify JWT and extract user data (NO DATABASE QUERY - all data in JWT)
-  const payload = await verifySessionToken(sessionCookie.value)
-
-  if (!payload?.userId) {
-    return null
+  if (env.STREAM_ENV === "local" && payload.userId === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+    return buildSessionUser(SECURITY.LOCAL_TEST.SESSION_VALUE, SECURITY.LOCAL_TEST.EMAIL, "Test User", [])
   }
 
   // Skip DB query for admins — they already get canSelectAnyModel: true
@@ -165,6 +294,30 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const enabledModels = await fetchEnabledModels(payload.userId)
 
   return buildSessionUser(payload.userId, payload.email, payload.name, enabledModels)
+}
+
+export async function hasSessionScope(scope: SessionScope): Promise<boolean> {
+  const jar = await cookies()
+  const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
+
+  if (!sessionCookie?.value) {
+    return false
+  }
+
+  const payload = await verifySessionToken(sessionCookie.value)
+  if (!payload) {
+    return false
+  }
+
+  if (env.STREAM_ENV === "standalone" && payload.userId === STANDALONE.TEST_USER.ID) {
+    return true
+  }
+
+  if (env.STREAM_ENV === "local" && payload.userId === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+    return true
+  }
+
+  return hasScope(payload, scope)
 }
 
 /**
@@ -198,31 +351,23 @@ export async function isWorkspaceAuthenticated(workspace: string): Promise<boole
     return true
   }
 
-  // Get user's org memberships
-  const iam = await createIamClient("service")
-  const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", user.id)
-
-  if (!memberships || memberships.length === 0) {
+  const payload = await getSessionPayloadFromCookie()
+  if (!payload || payload.userId !== user.id || !hasScope(payload, SESSION_SCOPES.WORKSPACE_ACCESS)) {
     return false
   }
 
-  const orgIds = memberships.map(m => m.org_id)
+  const orgId = await getWorkspaceOrgId(workspace)
+  if (!orgId) {
+    return false
+  }
 
-  // Check if any of user's orgs has this domain
-  const app = await createAppClient("service")
-  const { data: domain } = await app
-    .from("domains")
-    .select("domain_id")
-    .eq("hostname", workspace)
-    .in("org_id", orgIds)
-    .single()
-
-  return !!domain
+  const memberships = await getUserOrgMemberships(user.id)
+  return memberships.orgIds.includes(orgId)
 }
 
 /**
  * Get list of authenticated workspaces (domains) from session
- * Returns all domains from JWT workspaces array (NO DATABASE QUERIES)
+ * Uses JWT scope checks and organization membership/domain lookups.
  */
 export async function getAuthenticatedWorkspaces(): Promise<string[]> {
   const jar = await cookies()
@@ -232,24 +377,44 @@ export async function getAuthenticatedWorkspaces(): Promise<string[]> {
     return []
   }
 
+  const payload = await verifySessionToken(sessionCookie.value)
+  if (!payload) {
+    return []
+  }
+
   // Standalone mode - return all local workspaces
-  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
+  if (env.STREAM_ENV === "standalone" && payload.userId === STANDALONE.TEST_USER.ID) {
     const { getStandaloneWorkspaces } = await import("@/features/workspace/lib/standalone-workspace")
     return getStandaloneWorkspaces()
   }
 
   // Test mode
-  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
+  if (env.STREAM_ENV === "local" && payload.userId === SECURITY.LOCAL_TEST.SESSION_VALUE) {
     return []
   }
 
-  // Get workspaces from JWT (eliminates org_memberships + domains queries)
-  const payload = await verifySessionToken(sessionCookie.value)
-  if (!payload?.workspaces) {
+  if (!hasScope(payload, SESSION_SCOPES.WORKSPACE_LIST)) {
     return []
   }
 
-  return payload.workspaces
+  const app = await createAppClient("service")
+
+  if (superadminEmails.has(payload.email.toLowerCase())) {
+    const { data: allDomains } = await app.from("domains").select("hostname, is_test_env")
+    const realDomains = allDomains?.filter(d => !d.is_test_env).map(d => d.hostname) || []
+    const testDomains = allDomains?.filter(d => d.is_test_env).map(d => d.hostname) || []
+    return [...filterLocalDomains(realDomains), ...testDomains]
+  }
+
+  const memberships = await getUserOrgMemberships(payload.userId)
+  if (memberships.orgIds.length === 0) {
+    return []
+  }
+
+  const { data: domains } = await app.from("domains").select("hostname, is_test_env").in("org_id", memberships.orgIds)
+  const realDomains = domains?.filter(d => !d.is_test_env).map(d => d.hostname) || []
+  const testDomains = domains?.filter(d => d.is_test_env).map(d => d.hostname) || []
+  return [...filterLocalDomains(realDomains), ...testDomains].filter(w => w !== SUPERADMIN.WORKSPACE_NAME)
 }
 
 export async function requireSessionUser(): Promise<SessionUser> {
@@ -276,8 +441,8 @@ export async function isManagerAuthenticated(): Promise<boolean> {
   // Verify JWT token (just like regular user sessions)
   const payload = await verifySessionToken(managerCookie.value)
 
-  // Check if it's a manager token (userId === "manager")
-  return payload?.userId === "manager"
+  // Require dedicated manager identity + scope.
+  return payload?.userId === "manager" && hasScope(payload, SESSION_SCOPES.MANAGER_ACCESS)
 }
 
 /**
@@ -298,16 +463,6 @@ export async function getSafeSessionCookie(logPrefix = "[Auth]"): Promise<string
     return undefined
   }
 
-  // Standalone mode special value
-  if (env.STREAM_ENV === "standalone" && sessionCookie.value === STANDALONE.SESSION_VALUE) {
-    return sessionCookie.value
-  }
-
-  // Test mode special value
-  if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
-    return sessionCookie.value
-  }
-
   // Verify JWT format and validity
   const payload = await verifySessionToken(sessionCookie.value)
   if (!payload) {
@@ -324,8 +479,7 @@ export async function getSafeSessionCookie(logPrefix = "[Auth]"): Promise<string
  * Security: Ensures workspace is provided and user has access before any operations.
  * This prevents information leakage via filesystem checks on unauthorized workspaces.
  *
- * Uses JWT workspaces array to verify access (NO DATABASE QUERIES).
- * Workspace list is embedded in JWT at login time.
+ * Uses JWT scopes + database-backed organization membership checks.
  *
  * @param user - Already authenticated user (from requireSessionUser)
  * @param body - Request body containing workspace parameter
@@ -391,7 +545,7 @@ export async function verifyWorkspaceAccess(
     return workspace
   }
 
-  // Get workspaces from JWT (NO DATABASE QUERY - data already in session)
+  // Validate JWT and scope before membership/domain checks.
   const jar = await cookies()
   const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
 
@@ -401,13 +555,24 @@ export async function verifyWorkspaceAccess(
   }
 
   const payload = await verifySessionToken(sessionCookie.value)
-  if (!payload?.workspaces) {
-    console.log(`${logPrefix} Invalid JWT or missing workspaces`)
+  if (!payload || payload.userId !== user.id) {
+    console.log(`${logPrefix} Invalid JWT`)
     return null
   }
 
-  // Check if workspace is in user's authorized list (eliminates org_memberships + domains queries)
-  if (!payload.workspaces.includes(workspace)) {
+  if (!hasScope(payload, SESSION_SCOPES.WORKSPACE_ACCESS)) {
+    console.log(`${logPrefix} Missing scope ${SESSION_SCOPES.WORKSPACE_ACCESS}`)
+    return null
+  }
+
+  const workspaceOrgId = await getWorkspaceOrgId(workspace)
+  if (!workspaceOrgId) {
+    console.log(`${logPrefix} Workspace not found: ${workspace}`)
+    return null
+  }
+
+  const memberships = await getUserOrgMemberships(user.id)
+  if (!memberships.orgIds.includes(workspaceOrgId)) {
     console.log(`${logPrefix} User not authenticated for workspace: ${workspace}`)
     return null
   }

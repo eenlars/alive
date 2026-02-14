@@ -3,13 +3,16 @@
  *
  * Tests the preview subdomain infrastructure:
  * 1. TLS check endpoint — Caddy calls this before issuing on-demand certificates
+ * 2. Preview auth guard — preview token/session enforcement
  *
- * Preview proxying is handled by the Go preview-proxy (apps/preview-proxy/).
- * Auth is validated there via JWT preview tokens and HMAC session cookies.
+ * NOTE: Preview routing/auth now runs through the Go preview proxy and Caddy
+ * forward_auth. The old /api/preview-router route was removed.
  *
  * Tests are environment-agnostic: they work on local, staging, and production.
  */
 
+import { COOKIE_NAMES, TEST_CONFIG } from "@webalive/shared"
+import jwt from "jsonwebtoken"
 import { expect, test } from "./fixtures"
 
 /**
@@ -53,6 +56,39 @@ test.describe("Preview Subdomain Routing", () => {
     test("approves valid preview subdomain", async ({ request }) => {
       const response = await request.get(`/api/tls-check?domain=preview--mysite.${WILDCARD}`)
       expect(response.status()).toBe(200)
+    })
+  })
+
+  /**
+   * Preview Guard Authentication — /api/auth/preview-guard is used by Caddy
+   * forward_auth for preview subdomains.
+   */
+  test.describe("preview-guard authentication", () => {
+    test("returns 401 without auth cookie", async ({ request }) => {
+      const response = await request.get("/api/auth/preview-guard")
+      expect(response.status()).toBe(401)
+    })
+
+    test("returns 401 with invalid JWT", async ({ request }) => {
+      const response = await request.get("/api/auth/preview-guard", {
+        headers: { cookie: `${COOKIE_NAMES.SESSION}=this-is-not-a-valid-jwt` },
+      })
+      expect(response.status()).toBe(401)
+    })
+
+    test("returns 401 with expired preview token", async ({ request }) => {
+      const jwtSecret = process.env.JWT_SECRET || TEST_CONFIG.JWT_SECRET
+      const expiredToken = jwt.sign(
+        {
+          type: "preview",
+          userId: "test-user-id",
+        },
+        jwtSecret,
+        { expiresIn: "-1h" },
+      )
+
+      const response = await request.get(`/api/auth/preview-guard?preview_token=${encodeURIComponent(expiredToken)}`)
+      expect(response.status()).toBe(401)
     })
   })
 })

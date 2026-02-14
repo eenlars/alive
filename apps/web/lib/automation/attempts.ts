@@ -1,9 +1,7 @@
 /**
  * Execution Attempts
  *
- * Worker pool and child process execution strategies, each returning
- * an isolated AttemptResult. Failed attempts never leak state into
- * subsequent ones.
+ * Worker-pool execution strategy returning an isolated AttemptResult.
  */
 
 import { statSync } from "node:fs"
@@ -15,41 +13,9 @@ import {
   SETTINGS_SOURCES,
   STREAM_TYPES,
 } from "@/lib/claude/agent-constants.mjs"
-import { runAgentChild } from "@/lib/workspace-execution/agent-child-runner"
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-// =============================================================================
-// Failure Classification
-// =============================================================================
-
-type FailureKind = "oom" | "heartbeat" | "spawn" | "socket" | "unknown"
-
-export interface ClassifiedFailure {
-  kind: FailureKind
-  transient: boolean
-  message: string
-}
-
-const FAILURE_PATTERNS: Array<{ pattern: string; kind: FailureKind }> = [
-  { pattern: "out of memory", kind: "oom" },
-  { pattern: "Worker disconnected unexpectedly", kind: "heartbeat" },
-  { pattern: "crashed before becoming ready", kind: "spawn" },
-  { pattern: "Worker spawn error", kind: "spawn" },
-  { pattern: "Worker exited", kind: "heartbeat" },
-  { pattern: "Socket connection timed out", kind: "socket" },
-]
-
-export function classifyFailure(error: unknown): ClassifiedFailure {
-  const message = error instanceof Error ? error.message : String(error)
-  for (const { pattern, kind } of FAILURE_PATTERNS) {
-    if (message.includes(pattern)) {
-      return { kind, transient: kind !== "oom", message }
-    }
-  }
-  return { kind: "unknown", transient: false, message }
 }
 
 // =============================================================================
@@ -255,104 +221,6 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
     return state
   } finally {
     clearTimeout(timeoutId)
-  }
-}
-
-// =============================================================================
-// Child Process Attempt
-// =============================================================================
-
-interface ChildProcessParams extends ExecutionParams {
-  apiKey: string
-}
-
-export async function runChildProcess(params: ChildProcessParams): Promise<AttemptResult> {
-  const {
-    requestId,
-    cwd,
-    fullPrompt,
-    selectedModel,
-    systemPrompt,
-    timeoutSeconds,
-    apiKey,
-    extraTools,
-    responseToolName,
-  } = params
-
-  console.log(`[Automation ${requestId}] Using child process runner`)
-
-  const childStream = runAgentChild(cwd, {
-    message: fullPrompt,
-    model: selectedModel,
-    maxTurns: DEFAULTS.CLAUDE_MAX_TURNS,
-    systemPrompt,
-    apiKey,
-    isAdmin: false,
-    isSuperadmin: false,
-    extraTools,
-  })
-
-  const reader = childStream.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ""
-
-  const { state, collect } = createMessageCollector(responseToolName)
-
-  const readLoop = (async () => {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split("\n")
-      buffer = lines.pop() || ""
-
-      for (const line of lines) {
-        if (!line.trim()) continue
-        try {
-          const msg = JSON.parse(line) as Record<string, unknown>
-          // Child process messages have a flatter structure
-          if (typeof msg.role === "string" && msg.role === "assistant" && Array.isArray(msg.content)) {
-            state.allMessages.push(msg)
-            for (const block of msg.content as unknown[]) {
-              if (isRecord(block) && block.type === "text" && typeof block.text === "string") {
-                state.textMessages.push(block.text)
-              }
-            }
-            if (responseToolName) {
-              const toolText = extractToolResponseText(msg.content as unknown[], responseToolName)
-              if (toolText) state.toolResponseText = toolText
-            }
-          } else if (msg.type === "result" && isRecord(msg.data) && typeof msg.data.resultText === "string") {
-            state.allMessages.push(msg)
-            state.finalResponse = msg.data.resultText
-          } else {
-            collect(msg)
-          }
-        } catch {
-          // Skip non-JSON lines
-        }
-      }
-    }
-  })()
-
-  const abort = new AbortController()
-  const timeoutId = setTimeout(() => abort.abort(), timeoutSeconds * 1000)
-
-  const onAbort = () => {
-    reader.cancel("Automation timeout").catch(() => {})
-  }
-  abort.signal.addEventListener("abort", onAbort, { once: true })
-
-  try {
-    await readLoop
-    if (abort.signal.aborted) {
-      throw new Error("Automation timeout")
-    }
-    return state
-  } finally {
-    clearTimeout(timeoutId)
-    abort.signal.removeEventListener("abort", onAbort)
   }
 }
 

@@ -13,7 +13,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { createIamClient } from "@/lib/supabase/iam"
+import { createRLSIamClient } from "@/lib/supabase/server-rls"
 
 // =============================================================================
 // Types
@@ -42,7 +42,7 @@ export async function GET() {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
-    const iam = await createIamClient("service")
+    const iam = await createRLSIamClient()
 
     const { data, error } = await iam
       .from("user_preferences")
@@ -92,7 +92,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body: UserPreferencesPayload = await request.json()
-    const iam = await createIamClient("service")
+    const iam = await createRLSIamClient()
 
     // Build upsert payload
     const upsertData = {

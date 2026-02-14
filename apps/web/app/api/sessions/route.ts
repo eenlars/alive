@@ -12,8 +12,8 @@ import { getSessionUser } from "@/features/auth/lib/auth"
 import { isConversationLocked, type TabSessionKey } from "@/features/auth/types/session"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
+import { createRLSAppClient } from "@/lib/supabase/server-rls"
 
 /**
  * GET /api/sessions - List sessions
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
 
     let domainMap = new Map<string, string>()
     if (domainIds.length > 0) {
-      const app = await createAppClient("service")
+      const app = await createRLSAppClient()
       const { data: domains } = await app.from("domains").select("domain_id, hostname").in("domain_id", domainIds)
 
       if (domains) {
@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
 
     // Filter by workspace if specified
     let filteredSessions = sessions || []
+    filteredSessions = filteredSessions.filter(s => domainMap.has(s.domain_id))
     if (workspace) {
       const targetDomainId = [...domainMap.entries()].find(([_, hostname]) => hostname === workspace)?.[0]
       if (targetDomainId) {
@@ -166,7 +167,7 @@ export async function POST(req: NextRequest) {
 
     // Check if target session exists
     const iam = await createIamClient("service")
-    const app = await createAppClient("service")
+    const app = await createRLSAppClient()
 
     // Get domain ID
     const { data: domain } = await app.from("domains").select("domain_id").eq("hostname", targetWorkspace).single()

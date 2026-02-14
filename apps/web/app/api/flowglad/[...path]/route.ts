@@ -1,6 +1,4 @@
 import { nextRouteHandler } from "@flowglad/nextjs/server"
-import { env } from "@webalive/env/server"
-import { SECURITY } from "@webalive/shared"
 import { cookies } from "next/headers"
 import { verifySessionToken } from "@/features/auth/lib/jwt"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
@@ -25,11 +23,6 @@ export const { GET, POST } = nextRouteHandler({
 
     if (!sessionCookie?.value) {
       throw new Error("Not authenticated")
-    }
-
-    // Test mode
-    if (env.STREAM_ENV === "local" && sessionCookie.value === SECURITY.LOCAL_TEST.SESSION_VALUE) {
-      return SECURITY.LOCAL_TEST.SESSION_VALUE
     }
 
     // Verify JWT and extract user ID

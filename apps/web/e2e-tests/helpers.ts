@@ -1,6 +1,7 @@
 import type { BrowserContext, Page, Response } from "@playwright/test"
 import { COOKIE_NAMES, createWorkspaceStorageValue, TEST_CONFIG, WORKSPACE_STORAGE } from "@webalive/shared"
 import jwt from "jsonwebtoken"
+import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
 import type { TestUser } from "./fixtures"
 
 interface LoginResult {
@@ -65,11 +66,14 @@ export async function setAuthCookie(user: TestUser, context: BrowserContext) {
 
   // Create JWT payload with all required fields
   const payload = {
+    role: "authenticated" as const,
     sub: user.userId, // Standard JWT claim
     userId: user.userId,
     email: user.email,
     name: user.orgName, // Use org name as display name
-    workspaces: [], // Empty for now
+    scopes: DEFAULT_USER_SCOPES,
+    orgIds: [user.orgId],
+    orgRoles: { [user.orgId]: "owner" as const },
   }
 
   // Sign JWT (30 day expiration to match server)
