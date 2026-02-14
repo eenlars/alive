@@ -94,6 +94,7 @@ Create migration files:
 
 `packages/database/migrations/0002_rls_user_routes.sql`
 `packages/database/migrations/0003_rls_tighten_user_routes.sql`
+`packages/database/migrations/0004_repair_is_org_admin.sql`
 
 Migration requirements:
 
@@ -197,10 +198,17 @@ Mandatory:
 Recommended command sequence:
 
 ```bash
+bun run test:jwt-rls-smoke
+# Optional end-to-end route verification (requires running web server):
+bun run test:jwt-rls-smoke:api -- --base-url http://localhost:8998
+# Optional admin-write verification (owner/admin update paths):
+bun run test:jwt-rls-smoke:admin -- --base-url http://localhost:8998
 bun run --cwd apps/web test
 bun run lint
 bun run type-check
 ```
+
+If `test:jwt-rls-smoke:api` fails with `500` on `/api/auth/organizations`, verify app JWT signing config matches Supabase JWT verification config (`JWT_SECRET` / `JWT_ALGORITHM` + ES256 key setup).
 
 ## Rollout Plan
 
@@ -229,9 +237,4 @@ All must be true:
 3. Superadmin/global paths still function as intended.
 4. Local/standalone behavior is explicit and tested.
 5. No production secrets or credentials are present in repository docs or scripts.
-
-## Optional Optimization
-
-`iam.is_org_member()` can optionally check JWT `orgIds` first, then fallback to DB lookup for correctness with stale tokens.
-
-Only do this after baseline RLS rollout is stable.
+6. Membership checks for RLS continue to come from DB (`public.sub()` + `iam.org_memberships`), not from JWT `orgIds` short-circuit logic.
