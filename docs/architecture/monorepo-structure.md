@@ -44,8 +44,15 @@ Root-level commands should behave predictably:
 - `turbo run ci` does check-only lint/format validation
 - `bun run static-check` must not rewrite files
 
+### 5) Enforced by tooling (not review opinions)
+
+The script contract is machine-enforced:
+- `bun run check:workspace-contract` validates required scripts exist in each workspace.
+- It rejects `scripts.ci` commands that rewrite files (`--write`, `--fix`, `gofmt -w`).
+- `bun run static-check` includes this contract check.
+- PR CI runs `bun run check:affected` to keep feedback loops short while still enforcing the contract.
+
 ## Naming
 
 Internal workspace packages should use the `@webalive/*` scope unless there is a deliberate reason
 to use another scope (e.g. `@alive-game/*`).
-

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+cd "$PROJECT_ROOT"
+
+echo "🔍 Enforcing workspace script contract..."
+bun scripts/validation/check-workspace-contract.ts
+echo "✓ Workspace script contract passed"

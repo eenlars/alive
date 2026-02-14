@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs"
+import { isOrgRole } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { isManagerAuthenticated } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate role
-    if (!["owner", "admin", "member"].includes(role)) {
+    if (!isOrgRole(role)) {
       return createCorsErrorResponse(origin, ErrorCodes.INVALID_REQUEST, 400, { requestId })
     }
 

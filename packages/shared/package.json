@@ -29,6 +29,8 @@
     "lint": "biome lint .",
     "format": "biome format --write .",
     "ci": "biome ci .",
+    "test": "vitest run",
+    "test:unit": "vitest run",
     "generate-json": "node dist/generate-environments-json.js",
     "gen:types": "bun scripts/generate-database-types.ts"
   },
@@ -37,6 +39,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.5.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

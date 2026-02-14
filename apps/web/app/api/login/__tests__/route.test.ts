@@ -83,7 +83,7 @@ function setupMockSupabase(
   options: {
     user?: typeof MOCK_USER | null
     userError?: { code: string; message: string } | null
-    memberships?: typeof MOCK_MEMBERSHIPS
+    memberships?: Array<{ org_id: string; role: string }>
     domains?: typeof MOCK_DOMAINS
   } = {},
 ) {
@@ -311,6 +311,65 @@ describe("POST /api/login", () => {
           "org-1": "owner",
           "org-2": "member",
         },
+      })
+    })
+
+    it("filters invalid membership roles and deduplicates org IDs in JWT claims", async () => {
+      setupMockSupabase({
+        memberships: [
+          { org_id: "org-1", role: "owner" },
+          { org_id: "org-1", role: "owner" },
+          { org_id: "org-2", role: "viewer" },
+          { org_id: "org-3", role: "admin" },
+        ],
+      })
+
+      const req = createMockRequest({
+        email: "test@example.com",
+        password: "correct-password",
+      })
+      await POST(req)
+
+      expect(createSessionToken).toHaveBeenCalledWith({
+        userId: MOCK_USER.user_id,
+        email: MOCK_USER.email,
+        name: MOCK_USER.display_name,
+        orgIds: ["org-1", "org-3"],
+        orgRoles: {
+          "org-1": "owner",
+          "org-3": "admin",
+        },
+      })
+    })
+
+    it("skips domain query and creates empty JWT claims when all membership roles are invalid", async () => {
+      setupMockSupabase({
+        memberships: [
+          { org_id: "org-1", role: "viewer" },
+          { org_id: "org-2", role: "superadmin" },
+        ],
+      })
+
+      const req = createMockRequest({
+        email: "test@example.com",
+        password: "correct-password",
+      })
+      const response = await POST(req)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.workspaces).toEqual([])
+
+      // Domain query should NOT be called since orgIds is empty
+      expect(createAppClient).not.toHaveBeenCalled()
+
+      // JWT should have empty org claims
+      expect(createSessionToken).toHaveBeenCalledWith({
+        userId: MOCK_USER.user_id,
+        email: MOCK_USER.email,
+        name: MOCK_USER.display_name,
+        orgIds: [],
+        orgRoles: {},
       })
     })
 

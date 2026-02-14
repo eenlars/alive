@@ -1,20 +1,10 @@
 "use client"
 
 import { useState } from "react"
-
-interface Organization {
-  org_id: string
-  name: string
-  credits: number
-  member_count: number
-  domain_count: number
-  created_at: string
-  domains: any[]
-  members: any[]
-}
+import type { ManagerOrganization } from "@/features/manager/lib/services/orgService"
 
 interface OrganizationsListProps {
-  orgs: Organization[]
+  orgs: ManagerOrganization[]
   loading: boolean
   deleting: string | null
   transferring: string | null
@@ -177,7 +167,7 @@ export function OrganizationsList({
                         <p className="text-sm text-slate-500 dark:text-slate-400">No projects</p>
                       ) : (
                         <div className="space-y-2">
-                          {org.domains.map((domain: any) => (
+                          {org.domains.map(domain => (
                             <div
                               key={domain.domain_id}
                               className="px-3 py-2 bg-slate-50 dark:bg-[#333] rounded flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3"
@@ -228,7 +218,7 @@ export function OrganizationsList({
                         <p className="text-sm text-slate-500 dark:text-slate-400">No members</p>
                       ) : (
                         <div className="space-y-2">
-                          {org.members.map((member: any) => (
+                          {org.members.map(member => (
                             <div key={member.user_id} className="px-3 py-2 bg-slate-50 dark:bg-[#333] rounded">
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <div className="min-w-0 flex-1">

@@ -1,5 +1,6 @@
 "use client"
 
+import type { OrgRole } from "@webalive/shared"
 import { Building2, ChevronDown, UserMinus } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import toast from "react-hot-toast"
@@ -16,7 +17,7 @@ interface OrgMember {
   user_id: string
   email: string
   display_name: string | null
-  role: "owner" | "admin" | "member"
+  role: OrgRole
 }
 
 // Hook: Organization name editing
@@ -420,7 +421,7 @@ export function WorkspaceSettings() {
     }
   }, [selectedOrgId, members])
 
-  const getCurrentUserRole = (orgId: string): "owner" | "admin" | "member" | null => {
+  const getCurrentUserRole = (orgId: string): OrgRole | null => {
     const org = organizations.find(o => o.org_id === orgId)
     return org?.role || null
   }

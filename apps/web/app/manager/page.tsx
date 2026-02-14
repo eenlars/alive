@@ -1,6 +1,7 @@
 "use client"
 
 import type { AppDatabase } from "@webalive/database"
+import { isOrgRole, type OrgRole } from "@webalive/shared"
 import { useCallback, useEffect, useState } from "react"
 import toast, { Toaster } from "react-hot-toast"
 import { FeedbackList } from "@/components/manager/FeedbackList"
@@ -12,9 +13,12 @@ import { UsersPanel } from "@/components/manager/UsersPanel"
 import { ConfirmModal } from "@/components/modals/ConfirmModal"
 import { DeleteModal } from "@/components/modals/DeleteModal"
 import { Button } from "@/components/ui/primitives/Button"
+import type { PermissionCheckResult } from "@/features/manager/lib/services/domainService"
 import * as domainService from "@/features/manager/lib/services/domainService"
 import * as domainTransferService from "@/features/manager/lib/services/domainTransferService"
+import type { ManagerOrganization } from "@/features/manager/lib/services/orgService"
 import * as orgService from "@/features/manager/lib/services/orgService"
+import type { CleanupStats, ServiceStatus } from "@/features/manager/lib/services/settingsService"
 import * as settingsService from "@/features/manager/lib/services/settingsService"
 import { executeHandler } from "@/features/manager/lib/utils/executeHandler"
 import { ApiError, delly, getty, postty, putty } from "@/lib/api/api-client"
@@ -66,16 +70,18 @@ export default function ManagerPage() {
   const [_creatingUser, setCreatingUser] = useState(false)
 
   // Organizations state
-  const [orgs, setOrgs] = useState<any[]>([])
+  const [orgs, setOrgs] = useState<ManagerOrganization[]>([])
   const [orgsLoading, setOrgsLoading] = useState(false)
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null)
   const [newOrgCredits, setNewOrgCredits] = useState("")
   const [updatingOrgCredits, setUpdatingOrgCredits] = useState(false)
   const [deletingOrg, setDeletingOrg] = useState<string | null>(null)
   const [addMemberOrgId, setAddMemberOrgId] = useState<string | null>(null)
-  const [availableUsers, setAvailableUsers] = useState<any[]>([])
+  const [availableUsers, setAvailableUsers] = useState<
+    Array<{ user_id: string; email: string; display_name: string | null }>
+  >([])
   const [selectedUserId, setSelectedUserId] = useState("")
-  const [selectedRole, setSelectedRole] = useState<"owner" | "admin" | "member">("member")
+  const [selectedRole, setSelectedRole] = useState<OrgRole>("member")
   const [addingMember, setAddingMember] = useState(false)
   const [removingMember, setRemovingMember] = useState<string | null>(null)
   const [transferringOwnership, setTransferringOwnership] = useState<string | null>(null)
@@ -86,10 +92,10 @@ export default function ManagerPage() {
   const [reloadingCaddy, setReloadingCaddy] = useState(false)
   const [backingUp, setBackingUp] = useState(false)
   const [cleaningTestData, setCleaningTestData] = useState(false)
-  const [testDataStats, setTestDataStats] = useState<any>(null)
+  const [testDataStats, setTestDataStats] = useState<CleanupStats | null>(null)
 
   // Service status state
-  const [serviceStatus, setServiceStatus] = useState<any>(null)
+  const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null)
   const [checkingStatus, setCheckingStatus] = useState(false)
 
   // Login form state
@@ -100,7 +106,7 @@ export default function ManagerPage() {
 
   // Permissions check state
   const [permissionsModal, setPermissionsModal] = useState<string | null>(null)
-  const [permissionsData, setPermissionsData] = useState<any>(null)
+  const [permissionsData, setPermissionsData] = useState<PermissionCheckResult | null>(null)
   const [checkingPermissions, setCheckingPermissions] = useState(false)
   const [fixingPermissions, setFixingPermissions] = useState(false)
 
@@ -154,27 +160,11 @@ export default function ManagerPage() {
     setOrgsLoading(true)
     setFeedbackLoading(true)
     try {
-      const response = await fetch("/api/manager/orgs")
-      if (!response.ok) {
-        console.error("Failed to fetch organizations:", response.status, response.statusText)
-        toast.error("Failed to fetch organizations")
-        return
-      }
-      const data = await response.json()
-
-      // Log debug timings
-      if (data.debug?.timings) {
-        console.log("[Orgs + Feedback] Performance:", data.debug.timings)
-      }
-
-      if (data.ok) {
-        setOrgs(data.orgs)
-        // Set feedback from the same response
-        if (data.feedback) {
-          setFeedback(data.feedback)
-        }
-      } else {
-        toast.error("Failed to fetch organizations")
+      const data = await getty("manager/orgs")
+      setOrgs(data.orgs)
+      // Set feedback from the same response (loosely typed in schema)
+      if (data.feedback) {
+        setFeedback(data.feedback as unknown as FeedbackEntry[])
       }
     } catch (error) {
       console.error("Failed to fetch organizations:", error)
@@ -1529,7 +1519,11 @@ export default function ManagerPage() {
                 <select
                   id="role-select"
                   value={selectedRole}
-                  onChange={e => setSelectedRole(e.target.value as "owner" | "admin" | "member")}
+                  onChange={e => {
+                    if (isOrgRole(e.target.value)) {
+                      setSelectedRole(e.target.value)
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-white/10 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="member">Member</option>

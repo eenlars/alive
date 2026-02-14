@@ -14,7 +14,7 @@ interface User {
 }
 
 interface UsersPanelProps {
-  orgs: any[]
+  orgs: Array<{ org_id: string; name: string }>
   onSuccess: () => void
   onLoading: (loading: boolean) => void
 }

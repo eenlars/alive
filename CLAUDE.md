@@ -133,8 +133,8 @@ Alive is a **multi-tenant development platform** that enables Claude AI to assis
 |-----|------|---------|
 | `web` | 8997/9000 | Main Next.js app: Chat UI, Claude API, file ops, auth, deployments |
 | `broker` | configurable | Message broker for streaming state machines and persistence (Dexie) |
-| `shell-server` | - | Web terminal (node-pty + xterm.js) + CodeMirror file editor |
 | `shell-server-go` | - | Go rewrite of shell-server (WIP) |
+| `preview-proxy` | configurable | Go preview proxy for workspace preview subdomains |
 | `worker` | 5070 | Automation scheduler + executor (standalone Bun, survives web deploys) |
 | `image-processor` | 5012 | Python/FastAPI image manipulation service |
 | `mcp-servers/google-scraper` | - | MCP server for Google Maps business search |
@@ -173,7 +173,7 @@ Tools validate paths via `isPathWithinWorkspace()` before any file operation.
 
 ### 1. Workspace Isolation & Privilege Separation
 
-**Guide**: `apps/web/docs/architecture/workspace-privilege-separation.md`
+**Guide**: `docs/architecture/workspace-isolation.md`
 
 **🔥 CRITICAL RULE**: When working on package installs, file operations, builds, or ANY command that touches workspace files, you **MUST** read the guide first.
 
@@ -310,18 +310,27 @@ apps/web/
 **IMPORTANT**: This project uses Husky for automated quality checks. Hooks run automatically and cannot be disabled without `--no-verify`.
 
 #### Pre-Commit Hook
-- **What it does**: Formats only the files being committed using `lint-staged`
+- **What it does**:
+  - Blocks `.env` files from being committed
+  - Formats only staged files using `lint-staged`
+  - Runs type-check (`bun run type-check`)
 - **Speed**: Instant (only touches staged files)
 - **When it runs**: Every `git commit`
 
 #### Pre-Push Hook
-- **What it does**: Runs comprehensive checks before allowing push
+- **What it does**: Runs `bun run static-check` before allowing push
+  - Turbo env validation (`bun run validate:turbo-env`)
+  - Workspace contract validation (`bun run check:workspace-contract`)
   - Type checking (`turbo run type-check`)
-  - Linting (`turbo run lint`)
-  - Format checking (`turbo run format`)
-  - Unit tests (`bun run unit`)
+  - Lint/format check-only (`turbo run ci`)
+  - Core unit tests (`bun run test:core`)
 - **Speed**: 10-60 seconds (uses Turborepo cache)
 - **When it runs**: Every `git push`
+
+#### CI Defaults
+- **PRs** run fast, affected-only checks: `bun run check:affected` + error pattern check
+- **Pushes to `main`/`dev`/`staging`** run full checks: `bun run static-check` + error pattern check
+- **Stale runs auto-cancel** via workflow concurrency settings
 
 #### If Pre-Push Hook Fails
 
@@ -341,10 +350,8 @@ apps/web/
 # Test what pre-push will run
 bun run static-check
 
-# Or test individual checks
-bun run type-check
-bun run lint
-bun run unit
+# Fast PR check path (affected workspaces only)
+bun run check:affected
 ```
 
 **Common Issues:**
@@ -387,7 +394,7 @@ bun run unit
 2. ✅ Search for ALL references: `grep -r "old-file" .`
 3. ✅ Validate before deleting: `./scripts/validate-no-deleted-refs.sh old-file`
 4. ✅ Test service restarts: `systemctl restart alive-dev && journalctl -u alive-dev -n 20`
-5. ✅ Run full test suite: `bun run test && bun run test:e2e`
+5. ✅ Run full test suite: `bun run test && bun run e2e`
 
 **Never**:
 - ❌ Delete files before updating all references
@@ -513,14 +520,20 @@ systemctl status caddy
 ### Quick Commands
 
 ```bash
-# Run unit tests
-cd apps/web && bun run test
+# Fast PR checks (affected-only)
+bun run check:affected
+
+# Full local gate (matches pre-push)
+bun run static-check
+
+# Core unit tests
+bun run unit
 
 # Run E2E tests (first time: bunx playwright install chromium)
-bun run test:e2e
+bun run e2e
 
-# Run specific test
-bun run test security.test.ts
+# Run a specific web test
+cd apps/web && bun run test security.test.ts
 ```
 
 **Testing Notes:**
@@ -564,9 +577,8 @@ bun run dev
 ### Before Committing
 
 **Automated checks:**
-- [ ] Tests pass: `bun run test && bun run test:e2e` (if you wrote tests)
-- [ ] Format: `bun run format`
-- [ ] Lint: `bun run lint`
+- [ ] Run `bun run check:affected` (or `bun run static-check` for broad changes)
+- [ ] Run targeted tests for touched paths (`bun run unit`, `cd apps/web && bun run test ...`, and/or `bun run e2e`)
 
 **Manual verification (if applicable):**
 - [ ] Tested security functions manually (path traversal, auth)
@@ -581,12 +593,14 @@ For troubleshooting, inspecting production, and dev/staging work, see `docs/depl
 ### Available Commands
 
 ```bash
-make ship        # Full production deployment (port 9000)
-make staging     # Full staging deployment (port 8998)
+make ship        # Full pipeline: staging → production
+make ship-fast   # Same as ship, skips E2E tests
+make staging     # Deploy staging only (port 8998)
+make production  # Deploy production only (port 9000)
 make dev         # Rebuild tools + restart dev server (port 8997)
 make devchat     # Restart dev server via systemctl (safe from chat)
-make logs        # View production logs
 make logs-staging # View staging logs
+make logs-production # View production logs
 make logs-dev    # View dev environment logs
 
 # Status & monitoring
@@ -617,7 +631,7 @@ curl -X POST https://terminal.goalive.nl/api/deploy-subdomain \
 ### Core Stack
 - **Next.js**: 16.0.0 (App Router, RSC)
 - **React**: 19.2.0 (Concurrent features)
-- **Claude Agent SDK**: 0.1.60 (query, streaming, tools) - Note: 0.2.x available with breaking changes
+- **Claude Agent SDK**: ^0.2.34 (query, streaming, tools)
 - **Bun**: 1.2.22+ (runtime & package manager)
 - **TypeScript**: 5.x (strict mode)
 - **TailwindCSS**: 4.1.15 (utility-first CSS)

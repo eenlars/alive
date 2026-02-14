@@ -1,8 +1,8 @@
 import { env } from "@webalive/env/server"
-import { SECURITY, STANDALONE } from "@webalive/shared"
+import { buildSessionOrgClaims, SECURITY, STANDALONE } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { createSessionToken, type SessionOrgRole } from "@/features/auth/lib/jwt"
+import { createSessionToken } from "@/features/auth/lib/jwt"
 import { createCorsResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES, getSessionCookieOptions } from "@/lib/auth/cookies"
 import { addCorsHeaders } from "@/lib/cors-utils"
@@ -140,21 +140,11 @@ export async function POST(req: NextRequest) {
   const { data: memberships } = await iam.from("org_memberships").select("org_id, role").eq("user_id", user.user_id)
 
   const workspaces: string[] = []
-  const orgIds: string[] = []
-  const orgRoles: Record<string, SessionOrgRole> = {}
-  if (memberships && memberships.length > 0) {
-    for (const membership of memberships) {
-      if (!membership.org_id) continue
-      if (membership.role !== "owner" && membership.role !== "admin" && membership.role !== "member") continue
-      orgIds.push(membership.org_id)
-      orgRoles[membership.org_id] = membership.role
-    }
-
-    const dedupedOrgIds = [...new Set(orgIds)]
-
+  const { orgIds, orgRoles } = buildSessionOrgClaims(memberships)
+  if (orgIds.length > 0) {
     // Get all domains for these orgs (include is_test_env to handle test domains)
     const app = await createAppClient("service")
-    const { data: domains } = await app.from("domains").select("hostname, is_test_env").in("org_id", dedupedOrgIds)
+    const { data: domains } = await app.from("domains").select("hostname, is_test_env").in("org_id", orgIds)
 
     if (domains) {
       // Filter to only include domains that exist on THIS server
@@ -170,7 +160,7 @@ export async function POST(req: NextRequest) {
     userId: user.user_id,
     email: user.email || "",
     name: user.display_name,
-    orgIds: [...new Set(orgIds)],
+    orgIds,
     orgRoles,
   })
 

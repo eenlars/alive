@@ -1,3 +1,4 @@
+import type { OrgRole } from "@webalive/shared"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { runWithRequestContext } from "../../../../tests/setup"
@@ -39,7 +40,7 @@ function mockWorkspaceOrgId(orgId: string | null) {
   } as never)
 }
 
-function mockMemberships(memberships: Array<{ org_id: string; role: "owner" | "admin" | "member" }>) {
+function mockMemberships(memberships: Array<{ org_id: string; role: OrgRole }>) {
   vi.mocked(createIamClient).mockResolvedValue({
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
