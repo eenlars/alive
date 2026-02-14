@@ -1,32 +1,21 @@
 /**
  * Web application configuration
  *
- * Imports from centralized constants in @webalive/site-controller
- * See packages/site-controller/src/config.ts for all hardcoded constants
- *
- * Domain and stream URL configuration is now wired through validated env schema
- * (packages/env/src/schema.ts) which enforces required fields at startup.
+ * Domain config loaded from server-config.json via @webalive/shared (single source of truth).
+ * Env vars (MAIN_DOMAIN, etc.) override if set, but are NOT required — server-config.json
+ * provides all values. See packages/shared/src/config.ts for the loading logic.
  */
 
-import {
-  env,
-  getCookieDomain,
-  getMainDomain,
-  getPreviewBase,
-  getStreamDevUrl,
-  getStreamProdUrl,
-  getStreamStagingUrl,
-  getWildcardDomain,
-} from "@webalive/env/server"
-import { PATHS } from "@webalive/shared"
+import { env } from "@webalive/env/server"
+import { DOMAINS, PATHS } from "@webalive/shared"
 
-export const MAIN_DOMAIN = getMainDomain()
-export const WILDCARD_DOMAIN = getWildcardDomain()
-export const PREVIEW_BASE = getPreviewBase()
-export const COOKIE_DOMAIN = getCookieDomain()
-export const STREAM_PROD_URL = getStreamProdUrl()
-export const STREAM_STAGING_URL = getStreamStagingUrl()
-export const STREAM_DEV_URL = getStreamDevUrl()
+export const MAIN_DOMAIN = DOMAINS.MAIN
+export const WILDCARD_DOMAIN = DOMAINS.WILDCARD
+export const PREVIEW_BASE = DOMAINS.PREVIEW_BASE
+export const COOKIE_DOMAIN = DOMAINS.COOKIE_DOMAIN
+export const STREAM_PROD_URL = DOMAINS.STREAM_PROD
+export const STREAM_STAGING_URL = DOMAINS.STREAM_STAGING
+export const STREAM_DEV_URL = DOMAINS.STREAM_DEV
 
 export const WILDCARD_PATTERN = `*.${WILDCARD_DOMAIN}`
 export const WORKSPACE_BASE = env.WORKSPACE_BASE || PATHS.SITES_ROOT
