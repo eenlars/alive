@@ -351,7 +351,17 @@ export async function POST(req: NextRequest) {
 
     timing("before_session_lookup")
     logger.log(`[SESSION DEBUG] Looking up session for key: ${sessionKey}`)
-    const existingSessionId = await sessionStore.get(sessionKey)
+    let existingSessionId: string | null
+    try {
+      existingSessionId = await sessionStore.get(sessionKey)
+    } catch (sessionLookupError) {
+      logger.error("[SESSION DEBUG] Session lookup failed:", sessionLookupError)
+      throw new Error(
+        `[SESSION LOOKUP FAILED] ${
+          sessionLookupError instanceof Error ? sessionLookupError.message : String(sessionLookupError)
+        }`,
+      )
+    }
     timing("after_session_lookup")
     logger.log(`[SESSION DEBUG] Existing session: ${existingSessionId ? `found (${existingSessionId})` : "none"}`)
 
@@ -613,7 +623,13 @@ export async function POST(req: NextRequest) {
                     `[SESSION RECOVERY] Session "${existingSessionId}" also not found, clearing and starting fresh...`,
                   )
                   try {
-                    await sessionStore.delete(sessionKey)
+                    try {
+                      await sessionStore.delete(sessionKey)
+                    } catch (deleteError) {
+                      logger.error("[SESSION RECOVERY] Failed to clear stale session:", deleteError)
+                      controller.error(deleteError)
+                      return
+                    }
                     await runQuery(undefined, undefined)
                     controller.close()
                     return
@@ -665,7 +681,13 @@ export async function POST(req: NextRequest) {
               )
               try {
                 // Clear stale session from store
-                await sessionStore.delete(sessionKey)
+                try {
+                  await sessionStore.delete(sessionKey)
+                } catch (deleteError) {
+                  logger.error("[SESSION RECOVERY] Failed to clear stale session:", deleteError)
+                  controller.error(deleteError)
+                  return
+                }
                 logger.log("[SESSION RECOVERY] Cleared stale session, starting fresh conversation")
 
                 // Retry without resume - start fresh conversation

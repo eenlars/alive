@@ -198,11 +198,12 @@ async function processChildEvent(
       if (onSessionIdReceived) {
         await onSessionIdReceived(childEvent.sessionId)
       }
-    } catch (sessionError) {
+    } catch (error) {
       console.error(
-        `[NDJSON Stream ${requestId}] Error storing session ID:`,
-        sessionError instanceof Error ? sessionError.message : String(sessionError),
+        `[NDJSON Stream ${requestId}] Failed to store session ID:`,
+        error instanceof Error ? error.message : String(error),
       )
+      Sentry.captureException(error)
     }
     return { isComplete: false }
   }

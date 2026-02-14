@@ -80,6 +80,15 @@ interface DomainCacheEntry {
 const domainIdCache = new Map<string, DomainCacheEntry>()
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
+interface SupabaseErrorLike {
+  code?: string
+  message: string
+}
+
+function isNoRowsError(error: SupabaseErrorLike | null | undefined): boolean {
+  return error?.code === "PGRST116"
+}
+
 /**
  * Get domain_id for a hostname, using cache when possible
  * This reduces DB queries from 2 per session operation to 1
@@ -95,7 +104,15 @@ async function getDomainId(hostname: string): Promise<string | null> {
 
   // Cache miss or expired - query database
   const app = await createAppClient("service")
-  const { data: domain } = await app.from("domains").select("domain_id").eq("hostname", hostname).single()
+  const { data: domain, error } = await app.from("domains").select("domain_id").eq("hostname", hostname).single()
+
+  if (error) {
+    if (isNoRowsError(error)) {
+      domainIdCache.delete(hostname)
+      return null
+    }
+    throw new Error(`[SessionStore] Failed domain lookup for "${hostname}": ${error.message}`)
+  }
 
   if (!domain) {
     // Remove stale cache entry if domain no longer exists
@@ -171,13 +188,22 @@ function createSupabaseStore(): SessionStore {
 
       // Query session from IAM
       const iam = await createIamClient("service")
-      const { data: session } = await iam
+      const { data: session, error } = await iam
         .from("sessions")
         .select("sdk_session_id")
         .eq("user_id", userId)
         .eq("domain_id", domainId)
         .eq("tab_id", tabId)
         .single()
+
+      if (error) {
+        if (isNoRowsError(error)) {
+          return null
+        }
+        throw new Error(
+          `[SessionStore] Failed to get session (user_id=${userId}, domain_id=${domainId}, tab_id=${tabId}): ${error.message}`,
+        )
+      }
 
       return session?.sdk_session_id || null
     },
@@ -196,7 +222,7 @@ function createSupabaseStore(): SessionStore {
       const iam = await createIamClient("service")
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
-      await iam.from("sessions").upsert(
+      const { error } = await iam.from("sessions").upsert(
         {
           user_id: userId,
           domain_id: domainId,
@@ -209,6 +235,12 @@ function createSupabaseStore(): SessionStore {
           onConflict: "user_id,domain_id,tab_id",
         },
       )
+
+      if (error) {
+        throw new Error(
+          `[SessionStore] Failed to set session (user_id=${userId}, domain_id=${domainId}, tab_id=${tabId}): ${error.message}`,
+        )
+      }
     },
 
     async delete(key: TabSessionKey): Promise<void> {
@@ -224,7 +256,17 @@ function createSupabaseStore(): SessionStore {
 
       // Delete session from IAM
       const iam = await createIamClient("service")
-      await iam.from("sessions").delete().eq("user_id", userId).eq("domain_id", domainId).eq("tab_id", tabId)
+      const { error } = await iam
+        .from("sessions")
+        .delete()
+        .eq("user_id", userId)
+        .eq("domain_id", domainId)
+        .eq("tab_id", tabId)
+      if (error) {
+        throw new Error(
+          `[SessionStore] Failed to delete session (user_id=${userId}, domain_id=${domainId}, tab_id=${tabId}): ${error.message}`,
+        )
+      }
     },
   }
 }
