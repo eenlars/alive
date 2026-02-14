@@ -253,13 +253,19 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
           }
         }
 
-        sessionCookie = await createSessionToken({
-          userId: params.userId,
-          email: user.email,
-          name: user.display_name,
-          orgIds,
-          orgRoles,
-        })
+        if (orgIds.length > 0) {
+          sessionCookie = await createSessionToken({
+            userId: params.userId,
+            email: user.email,
+            name: user.display_name,
+            orgIds,
+            orgRoles,
+          })
+        } else {
+          console.warn(
+            `[Automation ${requestId}] User ${params.userId} has no valid membership for org ${params.orgId} — skipping session token`,
+          )
+        }
       } else {
         console.warn(`[Automation ${requestId}] Could not find user ${params.userId} for session token`)
       }
