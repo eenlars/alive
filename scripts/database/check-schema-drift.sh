@@ -23,13 +23,18 @@ STAGING_DUMP="$OUTPUT_DIR/staging.schema.sql"
 echo "SCHEMA_DRIFT=0" > "$STATUS_FILE"
 echo "BASELINE_DB_NAME=$BASELINE_DB_NAME" >> "$STATUS_FILE"
 
-export PGHOST="$LOCAL_PGHOST"
-export PGPORT="$LOCAL_PGPORT"
-export PGUSER="$LOCAL_PGUSER"
-export PGPASSWORD="$LOCAL_PGPASSWORD"
+local_pg() {
+  local cmd="$1"
+  shift
+  PGHOST="$LOCAL_PGHOST" \
+    PGPORT="$LOCAL_PGPORT" \
+    PGUSER="$LOCAL_PGUSER" \
+    PGPASSWORD="$LOCAL_PGPASSWORD" \
+    "$cmd" "$@"
+}
 
 cleanup() {
-  dropdb --if-exists "$BASELINE_DB_NAME" >/dev/null 2>&1 || true
+  local_pg dropdb --if-exists "$BASELINE_DB_NAME" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -69,8 +74,8 @@ dump_schema() {
 }
 
 echo "Preparing baseline database: $BASELINE_DB_NAME"
-dropdb --if-exists "$BASELINE_DB_NAME" >/dev/null 2>&1 || true
-createdb "$BASELINE_DB_NAME"
+local_pg dropdb --if-exists "$BASELINE_DB_NAME" >/dev/null 2>&1 || true
+local_pg createdb "$BASELINE_DB_NAME"
 
 BASELINE_DATABASE_URL="postgresql://${LOCAL_PGUSER}:${LOCAL_PGPASSWORD}@${LOCAL_PGHOST}:${LOCAL_PGPORT}/${BASELINE_DB_NAME}"
 
@@ -78,11 +83,10 @@ echo "Applying migrations from $MIGRATIONS_DIR"
 while IFS= read -r migration; do
   echo "  -> $(basename "$migration")"
   psql "$BASELINE_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration" >/dev/null
-done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' | sort)
+done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' | sort -V)
 
 echo "Dumping baseline schema"
 dump_schema "$BASELINE_DATABASE_URL" "$BASELINE_DUMP"
-
 echo "Dumping staging schema"
 dump_schema "$STAGING_DATABASE_URL" "$STAGING_DUMP"
 

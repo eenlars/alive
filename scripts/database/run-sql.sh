@@ -49,14 +49,26 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --target)
+      [[ $# -ge 2 ]] || {
+        echo "--target requires a value" >&2
+        exit 1
+      }
       TARGET="${2:-}"
       shift 2
       ;;
     --query)
+      [[ $# -ge 2 ]] || {
+        echo "--query requires a value" >&2
+        exit 1
+      }
       QUERY="${2:-}"
       shift 2
       ;;
     --file)
+      [[ $# -ge 2 ]] || {
+        echo "--file requires a value" >&2
+        exit 1
+      }
       FILE_PATH="${2:-}"
       shift 2
       ;;
@@ -77,6 +89,10 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --url)
+      [[ $# -ge 2 ]] || {
+        echo "--url requires a value" >&2
+        exit 1
+      }
       URL_OVERRIDE="${2:-}"
       shift 2
       ;;
@@ -120,6 +136,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 set -a
+# shellcheck source=/dev/null
 source "$ENV_FILE"
 set +a
 
@@ -151,7 +168,7 @@ fi
 
 is_mutating_sql() {
   local sql="$1"
-  if echo "$sql" | tr '[:lower:]' '[:upper:]' | rg -q '\b(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|CREATE|REVOKE|GRANT)\b'; then
+  if echo "$sql" | grep -iqE '\b(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|CREATE|REVOKE|GRANT)\b'; then
     return 0
   fi
   return 1
@@ -178,6 +195,10 @@ run_psql() {
 }
 
 if [[ "$INTERACTIVE" -eq 1 ]]; then
+  if [[ "$TARGET" == "production" && "$CONFIRM_PRODUCTION_WRITE" -ne 1 ]]; then
+    echo "Interactive sessions on production require --confirm-production-write." >&2
+    exit 1
+  fi
   echo "Opening interactive psql for target=$TARGET using $ENV_FILE"
   run_psql
   exit 0

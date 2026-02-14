@@ -139,6 +139,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== ""
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
 function normalizeScopes(scopes: SessionScope[] | undefined): SessionScope[] {
   const source = scopes && scopes.length > 0 ? scopes : DEFAULT_USER_SCOPES
   return [...new Set(source)]
@@ -280,7 +284,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
       return null
     }
 
-    let decoded: SessionPayloadV3
+    let decoded: Record<string, unknown>
 
     // Verify with the currently configured algorithm only.
     if (config.es256Enabled) {
@@ -292,10 +296,17 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
       const { payload } = await jwtVerify(token, publicKey, {
         algorithms: ["ES256"],
       })
-      decoded = payload as SessionPayloadV3
+      if (!isRecord(payload)) {
+        return null
+      }
+      decoded = payload
     } else {
       // HS256 mode only
-      decoded = verifyHS256(token, config.secret) as SessionPayloadV3
+      const hsPayload = verifyHS256(token, config.secret)
+      if (!isRecord(hsPayload)) {
+        return null
+      }
+      decoded = hsPayload
     }
 
     // Strict v3 claim requirements: both sub and userId must be present and match.
@@ -318,7 +329,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
     }
 
     // Extract and validate required fields
-    const role = (decoded as { role?: unknown }).role
+    const role = decoded.role
     const email = decoded.email
     const name = decoded.name ?? null
     const scopes = decoded.scopes
@@ -393,7 +404,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
     if (error instanceof TokenExpiredError) {
       console.log("[JWT] Token expired")
     } else if (error instanceof JsonWebTokenError) {
-      console.error("[JWT] Invalid token:", (error as Error).message)
+      console.error("[JWT] Invalid token:", error.message)
     } else {
       console.error("[JWT] Token verification failed:", error)
     }
