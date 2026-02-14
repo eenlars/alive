@@ -143,11 +143,20 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       }
     }
 
+    const existingTrigger = existingRow.trigger_type as TriggerType
+
     // Event triggers (email, webhook) never have schedule fields — strip them
-    if (!isScheduleTrigger(existingRow.trigger_type as TriggerType)) {
+    if (!isScheduleTrigger(existingTrigger)) {
       delete updates.cron_schedule
       delete updates.cron_timezone
       delete updates.run_at
+    } else if (existingTrigger === "cron") {
+      // Cron jobs only use cron_* fields
+      delete updates.run_at
+    } else if (existingTrigger === "one-time") {
+      // One-time jobs only use run_at
+      delete updates.cron_schedule
+      delete updates.cron_timezone
     }
 
     if (Object.keys(updates).length === 0) {
@@ -189,6 +198,18 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
           details: { field: "cron_timezone", message: tzCheck.error },
         })
       }
+    }
+
+    // Validate one-time run_at changes and keep next_run_at in sync
+    if ("run_at" in updates) {
+      const runAt = updates.run_at
+      if (typeof runAt !== "string" || Number.isNaN(Date.parse(runAt))) {
+        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+          status: 400,
+          details: { field: "run_at", message: "run_at must be a valid ISO datetime string" },
+        })
+      }
+      updates.next_run_at = runAt
     }
 
     // Validate timeout if changed

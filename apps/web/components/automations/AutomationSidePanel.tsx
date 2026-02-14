@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { CLAUDE_MODELS, type ClaudeModel, getModelDisplayName } from "@webalive/shared"
-import { ChevronDown, Mail, X } from "lucide-react"
+import { ChevronDown, Mail, X, Zap } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { isScheduleTrigger, type TriggerType } from "@/lib/api/schemas"
 import type { AutomationJob, Site } from "@/lib/hooks/useSettingsQueries"
@@ -60,6 +60,7 @@ interface AutomationSidePanelProps {
 
 export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave, saving }: AutomationSidePanelProps) {
   const [activeTab, setActiveTab] = useState<"general" | "schedule" | "skills">("general")
+  const isEditing = !!editingJob
 
   // The trigger type is fixed once set — editing preserves the original, new jobs default to "cron"
   const triggerType: TriggerType = (editingJob?.trigger_type as TriggerType) ?? "cron"
@@ -149,6 +150,7 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
 
     // For new jobs: derive trigger from the one-time toggle. For existing: preserve original.
     const effectiveTrigger: TriggerType = editingJob ? triggerType : isOneTime ? "one-time" : "cron"
+    const effectiveIsOneTime = editingJob ? triggerType === "one-time" : isOneTime
 
     const formData: AutomationFormData = {
       site_id: siteId,
@@ -156,9 +158,9 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
       description: "",
       trigger_type: effectiveTrigger,
       // Schedule fields: only populated for schedule triggers
-      cron_schedule: hasSchedule && !isOneTime ? cronSchedule : "",
+      cron_schedule: hasSchedule && !effectiveIsOneTime ? cronSchedule : "",
       cron_timezone: hasSchedule ? timezone : "",
-      run_at: hasSchedule && isOneTime ? new Date(`${oneTimeDate}T${oneTimeTime}`).toISOString() : "",
+      run_at: hasSchedule && effectiveIsOneTime ? new Date(`${oneTimeDate}T${oneTimeTime}`).toISOString() : "",
       action_type: "prompt",
       action_prompt: prompt,
       action_source: "",
@@ -173,9 +175,9 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
   }
 
   // Validation: schedule triggers need schedule data, event triggers don't
-  const scheduleValid = hasSchedule ? (isOneTime ? oneTimeDate && oneTimeTime : cronSchedule.trim()) : true
+  const effectiveIsOneTime = isEditing ? triggerType === "one-time" : isOneTime
+  const scheduleValid = hasSchedule ? (effectiveIsOneTime ? oneTimeDate && oneTimeTime : cronSchedule.trim()) : true
   const isValid = title.trim() && prompt.trim() && siteId && scheduleValid
-  const isEditing = !!editingJob
 
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -288,10 +290,16 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                 {/* Trigger type indicator for event-triggered agents */}
                 {!hasSchedule && editingJob && (
                   <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-black/[0.03] dark:bg-white/[0.03]">
-                    <Mail size={14} className="text-black/40 dark:text-white/40 shrink-0" />
+                    {triggerType === "email" ? (
+                      <Mail size={14} className="text-black/40 dark:text-white/40 shrink-0" />
+                    ) : (
+                      <Zap size={14} className="text-black/40 dark:text-white/40 shrink-0" />
+                    )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-black dark:text-white">Email trigger</p>
-                      {editingJob.email_address && (
+                      <p className="text-sm text-black dark:text-white">
+                        {triggerType === "email" ? "Email trigger" : "Webhook trigger"}
+                      </p>
+                      {triggerType === "email" && editingJob.email_address && (
                         <p className="text-[11px] text-black/40 dark:text-white/40 mt-0.5 font-mono truncate">
                           {editingJob.email_address}
                         </p>
@@ -308,6 +316,7 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                   value={cronSchedule}
                   onChange={setCronSchedule}
                   showOneTime={true}
+                  lockOneTimeToggle={isEditing}
                   isOneTime={isOneTime}
                   onOneTimeChange={setIsOneTime}
                   oneTimeDate={oneTimeDate}
@@ -316,29 +325,31 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
                   onOneTimeTimeChange={setOneTimeTime}
                 />
 
-                <div className="space-y-1.5">
-                  <label htmlFor="auto-tz" className="text-xs font-medium text-black/60 dark:text-white/60">
-                    Timezone
-                  </label>
-                  <select
-                    id="auto-tz"
-                    value={timezone}
-                    onChange={e => setTimezone(e.target.value)}
-                    className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer appearance-none"
-                    style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                      backgroundRepeat: "no-repeat",
-                      backgroundPosition: "right 12px center",
-                      paddingRight: "36px",
-                    }}
-                  >
-                    {TIMEZONES.map(tz => (
-                      <option key={tz.value} value={tz.value}>
-                        {tz.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {!effectiveIsOneTime && (
+                  <div className="space-y-1.5">
+                    <label htmlFor="auto-tz" className="text-xs font-medium text-black/60 dark:text-white/60">
+                      Timezone
+                    </label>
+                    <select
+                      id="auto-tz"
+                      value={timezone}
+                      onChange={e => setTimezone(e.target.value)}
+                      className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer appearance-none"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "right 12px center",
+                        paddingRight: "36px",
+                      }}
+                    >
+                      {TIMEZONES.map(tz => (
+                        <option key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </>
             )}
 

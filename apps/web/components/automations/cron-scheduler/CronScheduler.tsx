@@ -11,6 +11,7 @@ interface CronSchedulerProps {
   value: string
   onChange: (cron: string) => void
   showOneTime?: boolean
+  lockOneTimeToggle?: boolean
   isOneTime?: boolean
   onOneTimeChange?: (isOneTime: boolean) => void
   oneTimeDate?: string
@@ -23,6 +24,7 @@ export function CronScheduler({
   value,
   onChange,
   showOneTime = false,
+  lockOneTimeToggle = false,
   isOneTime: isOneTimeProp,
   onOneTimeChange,
   oneTimeDate,
@@ -77,23 +79,25 @@ export function CronScheduler({
         <div className="flex gap-2">
           <button
             type="button"
+            disabled={lockOneTimeToggle}
             onClick={() => handleOneTimeToggle(false)}
             className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
               !isOneTime
                 ? "bg-black dark:bg-white text-white dark:text-black"
                 : "bg-black/[0.04] dark:bg-white/[0.06] text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-            }`}
+            } ${lockOneTimeToggle ? "cursor-not-allowed opacity-60" : ""}`}
           >
             Recurring
           </button>
           <button
             type="button"
+            disabled={lockOneTimeToggle}
             onClick={() => handleOneTimeToggle(true)}
             className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
               isOneTime
                 ? "bg-black dark:bg-white text-white dark:text-black"
                 : "bg-black/[0.04] dark:bg-white/[0.06] text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-            }`}
+            } ${lockOneTimeToggle ? "cursor-not-allowed opacity-60" : ""}`}
           >
             One-time
           </button>
