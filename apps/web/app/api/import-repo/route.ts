@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
       chatUrl: `/chat?${QUERY_KEYS.workspace}=${encodeURIComponent(fullDomain)}`,
     })
 
-    // Regenerate JWT with the new workspace
+    // Regenerate JWT with updated org membership if a new org was associated
     try {
       const jar = await cookies()
       const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
