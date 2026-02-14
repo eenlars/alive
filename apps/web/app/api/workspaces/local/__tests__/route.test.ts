@@ -13,7 +13,7 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { STANDALONE } from "@webalive/shared"
+import { COOKIE_NAMES, STANDALONE } from "@webalive/shared"
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Store original env
@@ -49,15 +49,19 @@ vi.mock("@/features/workspace/lib/standalone-workspace", () => ({
   }),
 }))
 
+vi.mock("@/features/auth/lib/jwt", () => ({
+  verifySessionToken: vi.fn(),
+}))
+
 // Import after mocking
 const { cookies } = await import("next/headers")
+const { verifySessionToken } = await import("@/features/auth/lib/jwt")
 const { GET, POST } = await import("../route")
 
 function createMockCookies(sessionValue?: string) {
   return {
     get: vi.fn((name: string) => {
-      // COOKIE_NAMES.SESSION = "auth_session_v2"
-      if (name === "auth_session_v2" && sessionValue) {
+      if (name === COOKIE_NAMES.SESSION && sessionValue) {
         return { value: sessionValue }
       }
       return undefined
@@ -86,6 +90,9 @@ describe("GET /api/workspaces/local", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.STREAM_ENV = "standalone"
+    vi.mocked(verifySessionToken).mockImplementation(async token =>
+      token === "valid-jwt" ? ({ userId: STANDALONE.TEST_USER.ID } as any) : null,
+    )
   })
 
   afterEach(() => {
@@ -95,7 +102,7 @@ describe("GET /api/workspaces/local", () => {
   describe("Environment Checks", () => {
     it("should return 400 if not in standalone mode", async () => {
       process.env.STREAM_ENV = "local"
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const response = await GET()
       const data = await response.json()
@@ -108,7 +115,7 @@ describe("GET /api/workspaces/local", () => {
 
     it("should return 400 in production mode", async () => {
       process.env.STREAM_ENV = "production"
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const response = await GET()
       const data = await response.json()
@@ -143,7 +150,7 @@ describe("GET /api/workspaces/local", () => {
 
   describe("Happy Path", () => {
     it("should return list of workspaces with valid session", async () => {
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const response = await GET()
       const data = await response.json()
@@ -175,6 +182,9 @@ describe("POST /api/workspaces/local", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.STREAM_ENV = "standalone"
+    vi.mocked(verifySessionToken).mockImplementation(async token =>
+      token === "valid-jwt" ? ({ userId: STANDALONE.TEST_USER.ID } as any) : null,
+    )
   })
 
   afterEach(() => {
@@ -192,7 +202,7 @@ describe("POST /api/workspaces/local", () => {
   describe("Environment Checks", () => {
     it("should return 400 if not in standalone mode", async () => {
       process.env.STREAM_ENV = "local"
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const req = createMockRequest({ name: "new-workspace" })
       const response = await POST(req)
@@ -218,7 +228,7 @@ describe("POST /api/workspaces/local", () => {
 
   describe("Validation", () => {
     it("should return 400 for empty workspace name", async () => {
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const req = createMockRequest({ name: "" })
       const response = await POST(req)
@@ -229,7 +239,7 @@ describe("POST /api/workspaces/local", () => {
     })
 
     it("should return 400 for invalid JSON body", async () => {
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const req = new Request("http://localhost/api/workspaces/local", {
         method: "POST",
@@ -244,7 +254,7 @@ describe("POST /api/workspaces/local", () => {
     })
 
     it("should return 400 for workspace name with invalid characters", async () => {
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const req = createMockRequest({ name: "my workspace!" })
       const response = await POST(req)
@@ -257,7 +267,7 @@ describe("POST /api/workspaces/local", () => {
 
   describe("Path Traversal Prevention", () => {
     it("should block path traversal attempts with ..", async () => {
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const req = createMockRequest({ name: "../../../etc" })
       const response = await POST(req)
@@ -268,7 +278,7 @@ describe("POST /api/workspaces/local", () => {
     })
 
     it("should block path traversal with slashes", async () => {
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const req = createMockRequest({ name: "foo/bar" })
       const response = await POST(req)
@@ -280,7 +290,7 @@ describe("POST /api/workspaces/local", () => {
 
   describe("Duplicate Workspace", () => {
     it("should return 409 for existing workspace name", async () => {
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const req = createMockRequest({ name: "default" }) // "default" exists per mock
       const response = await POST(req)
@@ -294,7 +304,7 @@ describe("POST /api/workspaces/local", () => {
 
   describe("Happy Path", () => {
     it("should create new workspace successfully", async () => {
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const req = createMockRequest({ name: "new-project" })
       const response = await POST(req)
@@ -307,7 +317,7 @@ describe("POST /api/workspaces/local", () => {
     })
 
     it("should allow workspace names with hyphens and underscores", async () => {
-      vi.mocked(cookies).mockResolvedValue(createMockCookies(STANDALONE.SESSION_VALUE) as any)
+      vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
       const req = createMockRequest({ name: "my-project_v2" })
       const response = await POST(req)

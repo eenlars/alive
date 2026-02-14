@@ -9,12 +9,12 @@ import { describe, expect, it } from "vitest"
  *
  * Bug History (2025-11-21):
  * - MCP tools sent: Cookie: session=JWT
- * - API expected: Cookie: auth_session_v2=JWT
+ * - API expected: Cookie: auth_session_v3=JWT
  * - Cause: Hardcoded "session" instead of importing COOKIE_NAMES.SESSION
  */
 describe("Cookie Name Integration", () => {
   it("should use the correct session cookie name from shared constants", () => {
-    expect(COOKIE_NAMES.SESSION).toBe("auth_session_v2")
+    expect(COOKIE_NAMES.SESSION).toBe("auth_session_v3")
   })
 
   it("should have manager session cookie name", () => {
@@ -24,6 +24,6 @@ describe("Cookie Name Integration", () => {
   it("should be the same constant used in stream-api-client", async () => {
     // Dynamically import to verify it compiles and uses the shared constant
     const { COOKIE_NAMES: importedNames } = await import("@webalive/shared")
-    expect(importedNames.SESSION).toBe("auth_session_v2")
+    expect(importedNames.SESSION).toBe("auth_session_v3")
   })
 })

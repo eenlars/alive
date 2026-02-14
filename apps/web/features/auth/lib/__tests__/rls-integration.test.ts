@@ -13,7 +13,7 @@
 import { afterAll, beforeAll, describe, expect, it as test } from "vitest"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
-import { createSessionToken } from "../jwt"
+import { createSessionToken, type SessionOrgRole } from "../jwt"
 
 // Test data
 let testOrg1Id: string
@@ -26,10 +26,19 @@ let testDomain2Id: string // Belongs to Org 2
 // Test JWT data
 const TEST_EMAIL = "rls-test@example.com"
 const TEST_NAME = "RLS Test User"
-const TEST_WORKSPACES = ["rls-test-1.com", "rls-test-2.com"]
+async function createRlsToken(userId: string, orgId: string, role: SessionOrgRole): Promise<string> {
+  return createSessionToken({
+    userId,
+    email: TEST_EMAIL,
+    name: TEST_NAME,
+    orgIds: [orgId],
+    orgRoles: { [orgId]: role },
+  })
+}
 
-// TODO: Fix RLS test to work without special database permissions
-describe.skip("RLS Integration - Cross-Org Access Prevention", () => {
+const describeRls = process.env.RUN_RLS_INTEGRATION === "1" ? describe : describe.skip
+
+describeRls("RLS Integration - Cross-Org Access Prevention", () => {
   beforeAll(async () => {
     // Setup: Create test orgs, users, and domains
     const iam = await createIamClient("service")
@@ -111,7 +120,7 @@ describe.skip("RLS Integration - Cross-Org Access Prevention", () => {
 
   test("User 1 can see their own org's domain", async () => {
     // Create JWT for User 1
-    const token = await createSessionToken(testUser1Id, TEST_EMAIL, TEST_NAME, TEST_WORKSPACES)
+    const token = await createRlsToken(testUser1Id, testOrg1Id, "member")
 
     // Simulate createRLSClient behavior
     const { url, key } = await import("@/lib/env/server").then(m => m.getSupabaseCredentials("anon"))
@@ -135,7 +144,7 @@ describe.skip("RLS Integration - Cross-Org Access Prevention", () => {
   })
 
   test("User 1 CANNOT see User 2's org domain", async () => {
-    const token = await createSessionToken(testUser1Id, TEST_EMAIL, TEST_NAME, TEST_WORKSPACES)
+    const token = await createRlsToken(testUser1Id, testOrg1Id, "member")
 
     const { url, key } = await import("@/lib/env/server").then(m => m.getSupabaseCredentials("anon"))
     const { createClient } = await import("@supabase/supabase-js")
@@ -161,7 +170,7 @@ describe.skip("RLS Integration - Cross-Org Access Prevention", () => {
   })
 
   test("User 2 can see their own org's domain", async () => {
-    const token = await createSessionToken(testUser2Id, TEST_EMAIL, TEST_NAME, TEST_WORKSPACES)
+    const token = await createRlsToken(testUser2Id, testOrg2Id, "owner")
 
     const { url, key } = await import("@/lib/env/server").then(m => m.getSupabaseCredentials("anon"))
     const { createClient } = await import("@supabase/supabase-js")
@@ -209,7 +218,7 @@ describe.skip("RLS Integration - Cross-Org Access Prevention", () => {
   })
 
   test("User 1 cannot update User 2's domain (cross-org write prevention)", async () => {
-    const token = await createSessionToken(testUser1Id, TEST_EMAIL, TEST_NAME, TEST_WORKSPACES)
+    const token = await createRlsToken(testUser1Id, testOrg1Id, "member")
 
     const { url, key } = await import("@/lib/env/server").then(m => m.getSupabaseCredentials("anon"))
     const { createClient } = await import("@supabase/supabase-js")
@@ -236,7 +245,7 @@ describe.skip("RLS Integration - Cross-Org Access Prevention", () => {
 
   test("Member cannot update domain (read-only access)", async () => {
     // User 1 is a member (not owner/admin) of Org 1
-    const token = await createSessionToken(testUser1Id, TEST_EMAIL, TEST_NAME, TEST_WORKSPACES)
+    const token = await createRlsToken(testUser1Id, testOrg1Id, "member")
 
     const { url, key } = await import("@/lib/env/server").then(m => m.getSupabaseCredentials("anon"))
     const { createClient } = await import("@supabase/supabase-js")
@@ -263,7 +272,7 @@ describe.skip("RLS Integration - Cross-Org Access Prevention", () => {
 
   test("Owner can update their org's domain", async () => {
     // User 2 is owner of Org 2
-    const token = await createSessionToken(testUser2Id, TEST_EMAIL, TEST_NAME, TEST_WORKSPACES)
+    const token = await createRlsToken(testUser2Id, testOrg2Id, "owner")
 
     const { url, key } = await import("@/lib/env/server").then(m => m.getSupabaseCredentials("anon"))
     const { createClient } = await import("@supabase/supabase-js")
@@ -310,7 +319,7 @@ describe.skip("RLS Integration - Cross-Org Access Prevention", () => {
   })
 
   test("Tampered JWT returns no domains", async () => {
-    const token = await createSessionToken(testUser1Id, TEST_EMAIL, TEST_NAME, TEST_WORKSPACES)
+    const token = await createRlsToken(testUser1Id, testOrg1Id, "member")
 
     // Tamper with token
     const parts = token.split(".")

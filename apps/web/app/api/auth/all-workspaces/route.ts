@@ -2,13 +2,14 @@ import { randomUUID } from "node:crypto"
 import { env } from "@webalive/env/server"
 import { SECURITY, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
-import { getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser, hasSessionScope } from "@/features/auth/lib/auth"
+import { SESSION_SCOPES } from "@/features/auth/lib/jwt"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { domainExistsOnThisServer } from "@/lib/domains"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
-import { createIamClient } from "@/lib/supabase/iam"
+import { createRLSAppClient, createRLSIamClient } from "@/lib/supabase/server-rls"
 
 /**
  * Batch endpoint to fetch all workspaces for all organizations in one request
@@ -34,10 +35,13 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const app = await createAppClient("service")
+    if (!(await hasSessionScope(SESSION_SCOPES.WORKSPACE_LIST))) {
+      return createCorsErrorResponse(origin, ErrorCodes.ORG_ACCESS_DENIED, 403, { requestId })
+    }
 
     // Superadmins see ALL workspaces on this server (for support/debugging)
     if (user.isSuperadmin) {
+      const app = await createAppClient("service")
       const { data: allDomains } = await app.from("domains").select("hostname,org_id")
       const workspacesByOrg: Record<string, string[]> = {}
 
@@ -61,8 +65,10 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    const app = await createRLSAppClient()
+
     // Get user's org memberships
-    const iam = await createIamClient("service")
+    const iam = await createRLSIamClient()
     const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", user.id)
 
     if (!memberships || memberships.length === 0) {

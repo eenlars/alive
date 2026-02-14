@@ -156,14 +156,17 @@ export async function POST(req: NextRequest) {
     // Create default organization for user
     const orgId = await getUserDefaultOrgId(newUser.user_id, normalizedEmail)
 
-    // Create JWT session token with embedded profile + workspaces
-    // New user has no workspaces yet (will be added when they deploy)
+    // Create JWT session token with scoped org access claims
+    // New user starts with one default organization (owner role)
     // Use validated input values since we just created the user with these
     const sessionToken = await createSessionToken(
-      newUser.user_id,
-      normalizedEmail, // Use validated input, not nullable DB field
-      displayName, // Use validated input, not nullable DB field
-      [], // No workspaces yet
+      {
+        userId: newUser.user_id,
+        email: normalizedEmail, // Use validated input, not nullable DB field
+        name: displayName, // Use validated input, not nullable DB field
+        orgIds: [orgId],
+        orgRoles: { [orgId]: "owner" },
+      }, // No workspaces yet; org-scoped JWT claims
     )
 
     console.log(`[Signup] Created account for ${normalizedEmail} (org: ${orgId})`)

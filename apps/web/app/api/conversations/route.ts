@@ -8,9 +8,8 @@ import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
-import { getOrgIdForUser } from "@/lib/deployment/org-resolver"
 import { ErrorCodes } from "@/lib/error-codes"
-import { createAppClient } from "@/lib/supabase/app"
+import { createRLSAppClient } from "@/lib/supabase/server-rls"
 
 // =============================================================================
 // GET /api/conversations?workspace=xxx
@@ -31,54 +30,11 @@ export async function GET(request: NextRequest) {
       return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, { status: 400, details: { field: "workspace" } })
     }
 
-    // Get user's org
-    const orgId = await getOrgIdForUser(userId)
-    if (!orgId) {
-      return structuredErrorResponse(ErrorCodes.ORG_NOT_FOUND, { status: 404 })
-    }
+    const supabase = await createRLSAppClient()
 
-    const supabase = await createAppClient("service")
-
-    // Fetch user's own conversations
-    const { data: ownConversations, error: ownError } = await supabase
-      .from("conversations")
-      .select(`
-        conversation_id,
-        workspace,
-        org_id,
-        title,
-        visibility,
-        message_count,
-        last_message_at,
-        first_user_message_id,
-        auto_title_set,
-        created_at,
-        updated_at,
-        deleted_at,
-        archived_at,
-        conversation_tabs (
-          tab_id,
-          conversation_id,
-          name,
-          position,
-          message_count,
-          last_message_at,
-          created_at,
-          closed_at
-        )
-      `)
-      .eq("workspace", workspace)
-      .eq("user_id", userId)
-      .is("deleted_at", null)
-      .order("updated_at", { ascending: false })
-
-    if (ownError) {
-      console.error("[conversations] Failed to fetch own conversations:", ownError)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
-    }
-
-    // Fetch shared conversations from org
-    const { data: sharedConversations, error: sharedError } = await supabase
+    // Fetch all visible conversations in this workspace.
+    // RLS guarantees only user-owned and shared-in-org records are returned.
+    const { data: conversations, error } = await supabase
       .from("conversations")
       .select(`
         conversation_id,
@@ -107,19 +63,16 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq("workspace", workspace)
-      .eq("org_id", orgId)
-      .eq("visibility", "shared")
-      .neq("user_id", userId) // Exclude own conversations (already fetched)
       .is("deleted_at", null)
       .order("updated_at", { ascending: false })
 
-    if (sharedError) {
-      console.error("[conversations] Failed to fetch shared conversations:", sharedError)
-      // Don't fail - return own conversations at least
+    if (error) {
+      console.error("[conversations] Failed to fetch conversations:", error)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     // Transform to client format
-    const transform = (c: (typeof ownConversations)[0], isOwn: boolean) => ({
+    const transform = (c: NonNullable<typeof conversations>[number], isOwn: boolean) => ({
       id: c.conversation_id,
       workspace: c.workspace,
       orgId: c.org_id,
@@ -157,10 +110,10 @@ export async function GET(request: NextRequest) {
       ),
     })
 
-    return NextResponse.json({
-      own: (ownConversations || []).map(c => transform(c, true)),
-      shared: (sharedConversations || []).map(c => transform(c, false)),
-    })
+    const own = (conversations || []).filter(c => c.user_id === userId)
+    const shared = (conversations || []).filter(c => c.user_id !== userId)
+
+    return NextResponse.json({ own: own.map(c => transform(c, true)), shared: shared.map(c => transform(c, false)) })
   } catch (error) {
     console.error("[conversations] Unexpected error:", error)
     Sentry.captureException(error)

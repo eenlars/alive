@@ -11,7 +11,8 @@ Common issues, solutions, and postmortems.
 **Causes:**
 - No session cookie
 - Invalid/expired JWT
-- Workspace not in JWT workspaces array
+- Missing required JWT scope (for example `workspace:access` or `workspace:list`)
+- Workspace's organization not in the user's org memberships
 
 **Solution:**
 ```bash
@@ -19,8 +20,11 @@ Common issues, solutions, and postmortems.
 # Login again
 POST /api/login { "email": "user@example.com", "password": "..." }
 
-# Verify workspace access in JWT
-# JWT should include workspace in payload
+# Verify JWT scope + org access claims
+# JWT should include scopes, orgIds, and orgRoles
+
+# Verify workspace maps to an org the user belongs to
+# Authorization now uses workspace -> org and user -> org membership checks
 ```
 
 ### Path Validation

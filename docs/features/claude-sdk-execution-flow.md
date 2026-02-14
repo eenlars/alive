@@ -23,7 +23,7 @@ When a user sends a message in the chat UI, it flows through several layers of a
 │                                                                             │
 │  1. hasSessionCookie() ─────────── verify JWT cookie exists                 │
 │  2. requireSessionUser() ───────── decode JWT → user ID, email, isAdmin     │
-│  3. verifyWorkspaceAccess() ────── check workspace in JWT's workspaces[]    │
+│  3. verifyWorkspaceAccess() ────── check scope + workspace→org membership   │
 │  4. resolveWorkspace() ─────────── hostname → /srv/webalive/sites/{domain}  │
 │  5. tryLockConversation() ──────── prevent concurrent requests              │
 │  6. getAllowedTools() ──────────── determine permitted tools                │
@@ -172,8 +172,8 @@ const canUseTool = async (toolName, input) => {
 
 | Layer | Mechanism | Location |
 |-------|-----------|----------|
-| **Authentication** | JWT cookie with user ID, email, workspaces | `auth.ts` |
-| **Authorization** | Workspace must be in JWT's workspaces array | `verifyWorkspaceAccess()` |
+| **Authentication** | JWT cookie with user ID, scopes, and org access claims | `auth.ts` |
+| **Authorization** | `workspace:access` scope + workspace→org + user membership check (cached) | `verifyWorkspaceAccess()` |
 | **Workspace Isolation** | Each site = dedicated system user | systemd service |
 | **File Ownership** | Child drops to site user before SDK runs | `run-agent.mjs` |
 | **Tool Whitelist** | `allowedTools` + `canUseTool` callback | `stream-tools.ts` |

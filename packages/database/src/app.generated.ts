@@ -32,6 +32,7 @@ export type Database = {
           cron_timezone: string | null
           delete_after_run: boolean | null
           description: string | null
+          email_address: string | null
           id: string
           is_active: boolean
           last_run_at: string | null
@@ -52,7 +53,6 @@ export type Database = {
           updated_at: string
           user_id: string
           webhook_secret: string | null
-          email_address: string | null
         }
         Insert: {
           action_format_prompt?: string | null
@@ -70,6 +70,7 @@ export type Database = {
           cron_timezone?: string | null
           delete_after_run?: boolean | null
           description?: string | null
+          email_address?: string | null
           id?: string
           is_active?: boolean
           last_run_at?: string | null
@@ -90,7 +91,6 @@ export type Database = {
           updated_at?: string
           user_id: string
           webhook_secret?: string | null
-          email_address?: string | null
         }
         Update: {
           action_format_prompt?: string | null
@@ -108,6 +108,7 @@ export type Database = {
           cron_timezone?: string | null
           delete_after_run?: boolean | null
           description?: string | null
+          email_address?: string | null
           id?: string
           is_active?: boolean
           last_run_at?: string | null
@@ -128,7 +129,6 @@ export type Database = {
           updated_at?: string
           user_id?: string
           webhook_secret?: string | null
-          email_address?: string | null
         }
         Relationships: [
           {
@@ -702,6 +702,7 @@ export type Database = {
           cron_timezone: string | null
           delete_after_run: boolean | null
           description: string | null
+          email_address: string | null
           id: string
           is_active: boolean
           last_run_at: string | null
@@ -722,7 +723,6 @@ export type Database = {
           updated_at: string
           user_id: string
           webhook_secret: string | null
-          email_address: string | null
         }[]
         SetofOptions: {
           from: "*"

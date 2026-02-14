@@ -9,7 +9,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { createAppClient } from "@/lib/supabase/app"
+import { createRLSAppClient } from "@/lib/supabase/server-rls"
 
 // =============================================================================
 // GET /api/conversations/messages?tabId=xxx&cursor=xxx&limit=xxx
@@ -21,8 +21,6 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
-    const userId = user.id
-
     const { searchParams } = new URL(request.url)
     const tabId = searchParams.get("tabId")
     const cursor = searchParams.get("cursor") // ISO timestamp for pagination
@@ -32,19 +30,14 @@ export async function GET(request: NextRequest) {
       return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, { status: 400, details: { field: "tabId" } })
     }
 
-    const supabase = await createAppClient("service")
+    const supabase = await createRLSAppClient()
 
     // First verify the user has access to this tab
     const { data: tab, error: tabError } = await supabase
       .from("conversation_tabs")
       .select(`
         tab_id,
-        conversation_id,
-        conversations!inner (
-          user_id,
-          org_id,
-          visibility
-        )
+        conversations!inner (conversation_id)
       `)
       .eq("tab_id", tabId)
       .single()
@@ -53,21 +46,8 @@ export async function GET(request: NextRequest) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
     }
 
-    // Type assertion for the joined data
-    const conversation = tab.conversations as unknown as {
-      user_id: string
-      org_id: string
-      visibility: string
-    }
-
-    // Check access: owner OR shared conversation in same org
-    const isOwner = conversation.user_id === userId
-    // For shared access, we'd need to check org membership - for now just check ownership
-    // TODO: Add org membership check for shared conversations
-
-    if (!isOwner && conversation.visibility !== "shared") {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
-    }
+    // Access check is enforced by RLS through the join above.
+    // If no row is visible, the request is treated as not found.
 
     // Fetch messages
     let query = supabase

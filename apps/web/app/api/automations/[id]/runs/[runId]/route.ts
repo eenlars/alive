@@ -10,7 +10,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { createServiceAppClient } from "@/lib/supabase/service"
+import { createRLSAppClient } from "@/lib/supabase/server-rls"
 
 interface RouteContext {
   params: Promise<{ id: string; runId: string }>
@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     }
 
     const { id: jobId, runId } = await context.params
-    const supabase = createServiceAppClient()
+    const supabase = await createRLSAppClient()
 
     // Verify job ownership first
     const { data: job } = await supabase.from("automation_jobs").select("user_id").eq("id", jobId).single()
