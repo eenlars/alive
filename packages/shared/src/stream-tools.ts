@@ -26,7 +26,7 @@ import { GLOBAL_MCP_PROVIDERS, isOAuthMcpTool, OAUTH_MCP_PROVIDERS } from "./mcp
  * Categories:
  * - File operations: Read, Write, Edit, Glob, Grep (workspace-scoped)
  * - Planning/workflow: ExitPlanMode, TodoWrite
- * - MCP integration: ListMcpResources, Mcp, ReadMcpResource
+ * - MCP integration: Mcp
  * - Other safe: NotebookEdit, WebFetch, AskUserQuestion
  */
 // Use regular arrays (not as const) for compatibility with SDK types that expect string[]
@@ -47,9 +47,7 @@ export const STREAM_ALLOWED_SDK_TOOLS: string[] = [
   // When Claude tries to use it, canUseTool() denies with a message asking user to approve
   "TodoWrite",
   // MCP integration
-  "ListMcpResources",
   "Mcp",
-  "ReadMcpResource",
   // Other safe tools
   "NotebookEdit",
   "WebFetch",
@@ -69,9 +67,7 @@ export type StreamAllowedSDKTool =
   | "BashOutput"
   // ExitPlanMode intentionally omitted - requires user approval
   | "TodoWrite"
-  | "ListMcpResources"
   | "Mcp"
-  | "ReadMcpResource"
   | "NotebookEdit"
   | "WebFetch"
   | "AskUserQuestion"
@@ -92,10 +88,17 @@ export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number
  * - Task: Subagent spawning - not supported in Stream architecture
  * - WebSearch: External web access - not needed, cost concerns
  * - ExitPlanMode: Requires user approval - Claude cannot approve its own plan
+ * - ListMcpResources / ReadMcpResource: no MCP resources exposed, pure token waste
  *
  * Note: Superadmins get ALL tools including these.
  */
-export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = ["Task", "WebSearch", "ExitPlanMode"] as const
+export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = [
+  "Task",
+  "WebSearch",
+  "ExitPlanMode",
+  "ListMcpResources",
+  "ReadMcpResource",
+] as const
 export type StreamAlwaysDisallowedSDKTool = (typeof STREAM_ALWAYS_DISALLOWED_SDK_TOOLS)[number]
 
 /**

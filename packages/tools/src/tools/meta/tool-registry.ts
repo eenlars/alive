@@ -54,6 +54,10 @@ export interface ToolMetadata {
   description: string
   contextCost: ContextCost
   enabled: boolean
+  /** External MCP provider key (for category: external-mcp) */
+  providerKey?: string
+  /** Whether this external MCP entry requires OAuth connection */
+  requiresOAuthConnection?: boolean
   /** If true, this tool is only available to superadmins even if enabled=false in general */
   superadminOnly?: boolean
   parameters?: {
@@ -528,6 +532,8 @@ function generateExternalMcpEntries(): ToolMetadata[] {
   for (const [key, config] of Object.entries(GLOBAL_MCP_PROVIDERS)) {
     entries.push({
       name: key.replace(/-/g, "_"), // Convert to snake_case for consistency
+      providerKey: key,
+      requiresOAuthConnection: false,
       category: "external-mcp",
       description: `${config.friendlyName} integration (always available)`,
       contextCost: "medium",
@@ -539,6 +545,8 @@ function generateExternalMcpEntries(): ToolMetadata[] {
   for (const [key, config] of Object.entries(OAUTH_MCP_PROVIDERS)) {
     entries.push({
       name: key,
+      providerKey: key,
+      requiresOAuthConnection: true,
       category: "external-mcp",
       description: `${config.friendlyName} integration (requires OAuth connection)`,
       contextCost: "medium",
@@ -554,3 +562,18 @@ function generateExternalMcpEntries(): ToolMetadata[] {
  * Use this for search_tools and other discovery functions.
  */
 export const TOOL_REGISTRY: ToolMetadata[] = [...INTERNAL_TOOL_REGISTRY, ...generateExternalMcpEntries()]
+
+/**
+ * Tool registry for runtime discovery.
+ * Filters out OAuth-gated external MCP entries the user has not connected.
+ */
+export function getSearchToolRegistry(connectedOAuthProviders: string[] = []): ToolMetadata[] {
+  const connected = new Set(connectedOAuthProviders)
+
+  return TOOL_REGISTRY.filter(tool => {
+    if (tool.category !== "external-mcp") return true
+    if (!tool.requiresOAuthConnection) return true
+    if (!tool.providerKey) return false
+    return connected.has(tool.providerKey)
+  })
+}
