@@ -83,7 +83,7 @@ export const GET = protectedRoute(async ({ user, req }) => {
   }
 
   // Flatten the joined data
-  const automations: AutomationJob[] = (data || []).map((row: any) => ({
+  const automations: AutomationJob[] = (data || []).map(row => ({
     id: row.id,
     site_id: row.site_id,
     name: row.name,
@@ -94,7 +94,7 @@ export const GET = protectedRoute(async ({ user, req }) => {
     run_at: row.run_at,
     action_type: row.action_type,
     action_prompt: row.action_prompt,
-    action_source: row.action_source,
+    action_source: typeof row.action_source === "string" ? row.action_source : null,
     action_target_page: row.action_target_page,
     skills: row.skills,
     email_address: row.email_address ?? null,
@@ -114,7 +114,16 @@ export const GET = protectedRoute(async ({ user, req }) => {
  * POST /api/automations - Create a new automation
  */
 export const POST = protectedRoute(async ({ user, req }) => {
-  const body = await req.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- req.json() returns Promise<any> per Web API spec; body is validated below
+  let body: Record<string, any>
+  try {
+    body = await req.json()
+  } catch {
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { message: "Invalid JSON body" },
+    })
+  }
 
   // Import validators
   const {

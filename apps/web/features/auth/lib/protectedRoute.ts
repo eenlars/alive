@@ -54,7 +54,7 @@ function userRoute(handler: (ctx: UserRouteContext) => Promise<Response>): (req:
         return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
       }
 
-      return handler({ user, requestId, req })
+      return await handler({ user, requestId, req })
     } catch (error) {
       console.error(`[protectedRoute ${requestId}] Unhandled error:`, error)
       Sentry.captureException(error)
@@ -113,7 +113,7 @@ function workspaceRoute(
         return workspaceResult.response
       }
 
-      return handler({
+      return await handler({
         user,
         requestId,
         req,

@@ -44,10 +44,15 @@ else
     if [[ -f "$VITE_CONFIG" ]]; then
         # Patch PORT if not already using process.env.PORT
         if ! grep -q "process.env.PORT" "$VITE_CONFIG"; then
-            log_info "Patching PORT to $SITE_PORT..."
-            sed -i '/export default defineConfig/i\const PORT = Number(process.env.PORT) || '"$SITE_PORT"';\n' "$VITE_CONFIG"
-            sed -E -i 's/port:[[:space:]]*[0-9]+/port: PORT/g' "$VITE_CONFIG"
-            log_success "vite.config.ts PORT patched"
+            if grep -q 'export default defineConfig' "$VITE_CONFIG"; then
+                log_info "Patching PORT to $SITE_PORT..."
+                sed -i '/export default defineConfig/i\const PORT = Number(process.env.PORT) || '"$SITE_PORT"';\n' "$VITE_CONFIG"
+                # Replace only the first port: <number> (server.port), not HMR/proxy ports
+                sed -E -i '0,/port:[[:space:]]*[0-9]+/s//port: PORT/' "$VITE_CONFIG"
+                log_success "vite.config.ts PORT patched"
+            else
+                log_info "Could not locate defineConfig — skipping PORT patch"
+            fi
         fi
         # Patch allowedHosts: replace the template's domain with the actual domain.
         # Without this, Vite rejects requests with the new domain's Host header.
