@@ -10,8 +10,8 @@
 import { ChevronRight } from "lucide-react"
 import { useState } from "react"
 import { getGroupSummary } from "@/features/chat/lib/group-tool-messages"
-import { renderMessage } from "@/features/chat/lib/message-renderer"
 import type { UIMessage } from "@/features/chat/lib/message-parser"
+import { renderMessage } from "@/features/chat/lib/message-renderer"
 import { cn } from "@/lib/utils"
 import { interactiveText, mutedIcon, toolIndicatorButton } from "./styles"
 
