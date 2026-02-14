@@ -212,10 +212,7 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
     workspaceKey: workspace,
   }
 
-  const allowedTools = [...getAllowedTools(cwd, false, false)]
-  if (extraTools?.length) {
-    allowedTools.push(...extraTools)
-  }
+  const allowedTools = Array.from(new Set([...getAllowedTools(cwd, false, false), ...(extraTools ?? [])]))
 
   const agentConfig = {
     allowedTools,

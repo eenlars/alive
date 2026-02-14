@@ -5,9 +5,11 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
+import { isValidClaudeModel } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { isScheduleTrigger, type TriggerType } from "@/lib/api/schemas"
 import { pokeCronService } from "@/lib/automation/cron-service"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createServiceAppClient } from "@/lib/supabase/service"
@@ -19,6 +21,7 @@ interface RouteContext {
 /** Fields needed for ownership + validation in PATCH handler (user_id exists in DB but not yet in generated types) */
 interface AutomationJobOwnership {
   user_id: string
+  trigger_type: string | null
   cron_schedule: string | null
   cron_timezone: string | null
   action_type: string | null
@@ -98,7 +101,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     // Check ownership first
     const { data: existing } = await supabase
       .from("automation_jobs")
-      .select("user_id, cron_schedule, cron_timezone, action_type, running_at")
+      .select("user_id, trigger_type, cron_schedule, cron_timezone, action_type, running_at")
       .eq("id", id)
       .single()
 
@@ -123,6 +126,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       "action_prompt",
       "action_source",
       "action_target_page",
+      "action_model",
+      "action_timeout_seconds",
       "skills",
       "is_active",
     ]
@@ -136,6 +141,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
           updates[field] = body[field]
         }
       }
+    }
+
+    // Event triggers (email, webhook) never have schedule fields — strip them
+    if (!isScheduleTrigger(existingRow.trigger_type as TriggerType)) {
+      delete updates.cron_schedule
+      delete updates.cron_timezone
+      delete updates.run_at
     }
 
     if (Object.keys(updates).length === 0) {
@@ -180,15 +192,24 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     // Validate timeout if changed
-    if ("action_timeout_seconds" in body) {
-      const timeoutCheck = validateTimeout(body.action_timeout_seconds)
+    if ("action_timeout_seconds" in updates) {
+      const timeoutCheck = validateTimeout(updates.action_timeout_seconds as number)
       if (!timeoutCheck.valid) {
         return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
           status: 400,
           details: { field: "action_timeout_seconds", message: timeoutCheck.error },
         })
       }
-      updates.action_timeout_seconds = body.action_timeout_seconds
+    }
+
+    // Validate model if changed
+    if ("action_model" in updates && updates.action_model !== null) {
+      if (!isValidClaudeModel(updates.action_model)) {
+        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+          status: 400,
+          details: { field: "action_model", message: "Invalid model" },
+        })
+      }
     }
 
     // Validate prompt if changed

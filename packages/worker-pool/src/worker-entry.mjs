@@ -712,11 +712,15 @@ async function handleQuery(ipc, requestId, payload) {
     const OPTIONAL_MCP_REGISTRY = { "alive-email": emailInternalMcp }
     const optionalMcpServers = {}
     if (extraTools?.length) {
+      const requiredServers = new Set()
       for (const tool of extraTools) {
         const match = tool.match(/^mcp__([^_]+(?:-[^_]+)*)__/)
-        if (match && OPTIONAL_MCP_REGISTRY[match[1]]) {
-          optionalMcpServers[match[1]] = OPTIONAL_MCP_REGISTRY[match[1]]
-          console.error(`[worker] Loaded optional MCP server: ${match[1]}`)
+        if (match) requiredServers.add(match[1])
+      }
+      for (const serverName of requiredServers) {
+        if (OPTIONAL_MCP_REGISTRY[serverName]) {
+          optionalMcpServers[serverName] = OPTIONAL_MCP_REGISTRY[serverName]
+          console.error(`[worker] Loaded optional MCP server: ${serverName}`)
         }
       }
     }

@@ -6,6 +6,7 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { computeNextRunAtMs } from "@webalive/automation"
+import { isValidClaudeModel } from "@webalive/shared"
 import type { NextRequest } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
@@ -186,6 +187,14 @@ export async function POST(req: NextRequest) {
       return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
         status: 400,
         details: { field: "action_timeout_seconds", message: timeoutCheck.error },
+      })
+    }
+
+    // Step 5b: Validate model if provided
+    if (body.action_model && !isValidClaudeModel(body.action_model)) {
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { field: "action_model", message: "Invalid model" },
       })
     }
 

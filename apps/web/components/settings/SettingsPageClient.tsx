@@ -85,7 +85,7 @@ const allTabs: TabDefinition[] = [
   { id: "goal", label: "Project", icon: Target },
   { id: "skills", label: "Skills", icon: ClipboardList },
   { id: "websites", label: "Websites", icon: Globe },
-  { id: "automations", label: "Automations", icon: Zap },
+  { id: "automations", label: "Agents", icon: Zap },
   { id: "integrations", label: "Integrations", icon: Link },
   { id: "keys", label: "API Keys", icon: Key },
   { id: "organization", label: "Organization", icon: Building2 },

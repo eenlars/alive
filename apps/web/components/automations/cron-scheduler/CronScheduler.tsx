@@ -71,65 +71,61 @@ export function CronScheduler({
   const isValidCron = customCron ? parseCronExpression(customCron) !== null : false
 
   return (
-    <div className="space-y-0">
-      {/* Segmented control: Recurring / One-time */}
+    <div className="space-y-4">
+      {/* Recurring / One-time toggle */}
       {showOneTime && (
-        <div className="px-4 pt-4 pb-3 border-b border-black/[0.06] dark:border-white/[0.06]">
-          <div className="flex rounded-lg bg-black/[0.05] dark:bg-white/[0.06] p-0.5">
-            <button
-              type="button"
-              onClick={() => handleOneTimeToggle(false)}
-              className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                !isOneTime
-                  ? "bg-white dark:bg-white/[0.12] text-black dark:text-white shadow-sm"
-                  : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-              }`}
-            >
-              Recurring
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOneTimeToggle(true)}
-              className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                isOneTime
-                  ? "bg-white dark:bg-white/[0.12] text-black dark:text-white shadow-sm"
-                  : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-              }`}
-            >
-              One-time
-            </button>
-          </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleOneTimeToggle(false)}
+            className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
+              !isOneTime
+                ? "bg-black dark:bg-white text-white dark:text-black"
+                : "bg-black/[0.04] dark:bg-white/[0.06] text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+            }`}
+          >
+            Recurring
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOneTimeToggle(true)}
+            className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
+              isOneTime
+                ? "bg-black dark:bg-white text-white dark:text-black"
+                : "bg-black/[0.04] dark:bg-white/[0.06] text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+            }`}
+          >
+            One-time
+          </button>
         </div>
       )}
 
       {/* One-time mode */}
       {isOneTime && showOneTime && (
-        <div className="px-4 py-3 space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label htmlFor="one-time-date" className="text-[11px] font-medium text-black dark:text-white block">
-                Date
-              </label>
-              <input
-                id="one-time-date"
-                type="date"
-                value={oneTimeDate || ""}
-                onChange={e => onOneTimeDateChange?.(e.target.value)}
-                className="w-full h-8 px-2.5 rounded-lg text-xs bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer transition-all"
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="one-time-time" className="text-[11px] font-medium text-black dark:text-white block">
-                Time
-              </label>
-              <input
-                id="one-time-time"
-                type="time"
-                value={oneTimeTime || ""}
-                onChange={e => onOneTimeTimeChange?.(e.target.value)}
-                className="w-full h-8 px-2.5 rounded-lg text-xs bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer transition-all"
-              />
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label htmlFor="one-time-date" className="text-xs font-medium text-black/60 dark:text-white/60 block">
+              Date
+            </label>
+            <input
+              id="one-time-date"
+              type="date"
+              value={oneTimeDate || ""}
+              onChange={e => onOneTimeDateChange?.(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer transition-all"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="one-time-time" className="text-xs font-medium text-black/60 dark:text-white/60 block">
+              Time
+            </label>
+            <input
+              id="one-time-time"
+              type="time"
+              value={oneTimeTime || ""}
+              onChange={e => onOneTimeTimeChange?.(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-0 focus:outline-none focus:ring-1 focus:ring-black/[0.08] dark:focus:ring-white/[0.08] cursor-pointer transition-all"
+            />
           </div>
         </div>
       )}
@@ -137,59 +133,51 @@ export function CronScheduler({
       {/* Recurring mode */}
       {!isOneTime && (
         <>
-          {/* Segmented control: Presets / Custom */}
-          <div className="px-4 pt-3 pb-0">
-            <div className="flex rounded-lg bg-black/[0.05] dark:bg-white/[0.06] p-0.5">
-              <button
-                type="button"
-                onClick={() => setMode("preset")}
-                className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                  mode === "preset"
-                    ? "bg-white dark:bg-white/[0.12] text-black dark:text-white shadow-sm"
-                    : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-                }`}
-              >
-                Presets
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("custom")}
-                className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                  mode === "custom"
-                    ? "bg-white dark:bg-white/[0.12] text-black dark:text-white shadow-sm"
-                    : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
-                }`}
-              >
-                Custom
-              </button>
-            </div>
+          {/* Presets / Custom toggle */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("preset")}
+              className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
+                mode === "preset"
+                  ? "bg-black dark:bg-white text-white dark:text-black"
+                  : "bg-black/[0.04] dark:bg-white/[0.06] text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+              }`}
+            >
+              Presets
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("custom")}
+              className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${
+                mode === "custom"
+                  ? "bg-black dark:bg-white text-white dark:text-black"
+                  : "bg-black/[0.04] dark:bg-white/[0.06] text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+              }`}
+            >
+              Custom
+            </button>
           </div>
 
-          {/* Content area */}
-          <div className="px-4 py-3 space-y-3">
-            {mode === "preset" && (
-              <CronPresetsPanel selectedValue={customCron} onSelect={handlePresetSelect} showDescription={true} />
-            )}
+          {mode === "preset" && (
+            <CronPresetsPanel selectedValue={customCron} onSelect={handlePresetSelect} showDescription={true} />
+          )}
 
-            {mode === "custom" && (
-              <>
-                <CronExpressionInput value={customCron} onChange={handleCustomChange} />
+          {mode === "custom" && (
+            <div className="space-y-3">
+              <CronExpressionInput value={customCron} onChange={handleCustomChange} />
 
-                {/* Live description — shows what the expression means in plain language */}
-                {customCron && isValidCron && (
-                  <div className="px-3 py-2.5 rounded-lg bg-black/[0.03] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.06]">
-                    <div className="flex items-start gap-2">
-                      <Clock size={14} className="text-black/40 dark:text-white/40 mt-0.5 shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-black dark:text-white">{describeCron(customCron)}</p>
-                        <p className="text-[11px] text-black/40 dark:text-white/40 mt-0.5 font-mono">{customCron}</p>
-                      </div>
-                    </div>
+              {customCron && isValidCron && (
+                <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-black/[0.03] dark:bg-white/[0.03]">
+                  <Clock size={14} className="text-black/40 dark:text-white/40 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm text-black dark:text-white">{describeCron(customCron)}</p>
+                    <p className="text-[11px] text-black/40 dark:text-white/40 mt-0.5 font-mono">{customCron}</p>
                   </div>
-                )}
-              </>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

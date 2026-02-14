@@ -99,6 +99,6 @@ describe("CronExpressionInput structure", () => {
   })
 
   it("shows red border for invalid expressions", () => {
-    expect(componentSource).toContain("border-red")
+    expect(componentSource).toContain("ring-red")
   })
 })

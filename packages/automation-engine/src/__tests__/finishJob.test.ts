@@ -254,6 +254,25 @@ describe("finishJob", () => {
     })
   })
 
+  it("does not schedule autonomous retry for email job before max retries", async () => {
+    const { finishJob } = await import("../engine")
+    const { ctx, updateData } = makeRunContext({
+      triggerType: "email",
+      cronSchedule: null,
+      consecutiveFailures: 0,
+    })
+
+    await finishJob(ctx as never, { status: "failure", durationMs: 50, error: "email transient" })
+
+    expect(updateData[0]).toMatchObject({
+      is_active: true,
+      status: "idle",
+      consecutive_failures: 1,
+      next_run_at: null,
+    })
+    expect(computeNextRunAtMsMock).not.toHaveBeenCalled()
+  })
+
   it("calls onJobDisabled hook when job is disabled", async () => {
     const { finishJob } = await import("../engine")
     const { ctx } = makeRunContext({

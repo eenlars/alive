@@ -5,29 +5,14 @@ import { Plus, Zap } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { AutomationListCard } from "@/components/automations/AutomationListCard"
 import { AutomationRunsView } from "@/components/automations/AutomationRunsView"
-import { AutomationSidePanel } from "@/components/automations/AutomationSidePanel"
+import { type AutomationFormData, AutomationSidePanel } from "@/components/automations/AutomationSidePanel"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner"
 import { trackAutomationCreated, trackAutomationDeleted, trackAutomationsViewed } from "@/lib/analytics/events"
+import { isScheduleTrigger } from "@/lib/api/schemas"
 import { type AutomationJob, useAutomationsQuery, useSitesQuery } from "@/lib/hooks/useSettingsQueries"
 import { ApiError, queryKeys } from "@/lib/tanstack"
 import { SettingsTabLayout } from "./SettingsTabLayout"
-
-type FormData = {
-  site_id: string
-  name: string
-  description: string
-  trigger_type: "cron" | "webhook" | "one-time"
-  cron_schedule: string
-  cron_timezone: string
-  run_at: string
-  action_type: "prompt" | "sync" | "publish"
-  action_prompt: string
-  action_source: string
-  action_target_page: string
-  skills: string[]
-  is_active: boolean
-}
 
 export function AutomationsSettings() {
   const queryClient = useQueryClient()
@@ -58,7 +43,7 @@ export function AutomationsSettings() {
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new ApiError(data.error || "Failed to toggle automation", res.status)
+        throw new ApiError(data.error || "Failed to toggle agent", res.status)
       }
     },
     onMutate: async ({ id, active }) => {
@@ -77,7 +62,7 @@ export function AutomationsSettings() {
   })
 
   // Save mutation (create/update)
-  const saveMutation = useMutation<void, ApiError, { formData: FormData; editingJobId?: string }>({
+  const saveMutation = useMutation<void, ApiError, { formData: AutomationFormData; editingJobId?: string }>({
     mutationFn: async ({ formData, editingJobId }) => {
       const url = editingJobId ? `/api/automations/${editingJobId}` : "/api/automations"
       const method = editingJobId ? "PATCH" : "POST"
@@ -94,11 +79,14 @@ export function AutomationsSettings() {
         body.action_type = formData.action_type
       }
 
-      if (formData.trigger_type === "cron") {
-        body.cron_schedule = formData.cron_schedule
-        body.cron_timezone = formData.cron_timezone
-      } else if (formData.trigger_type === "one-time") {
-        body.run_at = new Date(formData.run_at).toISOString()
+      // Schedule fields only for schedule triggers — event triggers (email, webhook) have no schedule
+      if (isScheduleTrigger(formData.trigger_type)) {
+        if (formData.trigger_type === "cron") {
+          body.cron_schedule = formData.cron_schedule
+          body.cron_timezone = formData.cron_timezone
+        } else if (formData.trigger_type === "one-time") {
+          body.run_at = new Date(formData.run_at).toISOString()
+        }
       }
 
       if (formData.action_type === "prompt") {
@@ -109,6 +97,8 @@ export function AutomationsSettings() {
       }
 
       body.skills = formData.skills
+      body.action_timeout_seconds = formData.action_timeout_seconds
+      body.action_model = formData.action_model
 
       const res = await fetch(url, {
         method,
@@ -119,7 +109,7 @@ export function AutomationsSettings() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new ApiError(data.error || "Failed to save automation", res.status)
+        throw new ApiError(data.message || data.error || "Failed to save agent", res.status)
       }
     },
     onSuccess: (_data, variables) => {
@@ -142,7 +132,7 @@ export function AutomationsSettings() {
         credentials: "include",
       })
       if (!res.ok) {
-        throw new ApiError("Failed to delete automation", res.status)
+        throw new ApiError("Failed to delete agent", res.status)
       }
     },
     onMutate: async id => {
@@ -182,7 +172,7 @@ export function AutomationsSettings() {
   }, [])
 
   const handleSave = useCallback(
-    async (formData: FormData) => {
+    async (formData: AutomationFormData) => {
       saveMutation.mutate({ formData, editingJobId: editingJob?.id })
     },
     [editingJob, saveMutation],
@@ -210,15 +200,15 @@ export function AutomationsSettings() {
 
   if (loading) {
     return (
-      <SettingsTabLayout title="Automations" description="Loading...">
-        <LoadingSpinner message="Loading automations..." />
+      <SettingsTabLayout title="Agents" description="Loading...">
+        <LoadingSpinner message="Loading agents..." />
       </SettingsTabLayout>
     )
   }
 
   if (error) {
     return (
-      <SettingsTabLayout title="Automations" description="Schedule recurring tasks">
+      <SettingsTabLayout title="Agents" description="Schedule recurring tasks">
         <EmptyState icon={Zap} message={error} />
       </SettingsTabLayout>
     )
@@ -227,19 +217,19 @@ export function AutomationsSettings() {
   if (automations.length === 0) {
     return (
       <SettingsTabLayout
-        title="Automations"
+        title="Agents"
         description="Schedule recurring tasks for your websites"
         action={{
-          label: "Create Automation",
+          label: "Create Agent",
           icon: <Plus size={16} />,
           onClick: handleCreate,
         }}
       >
         <EmptyState
           icon={Zap}
-          message="No automations yet. Automations let you schedule recurring tasks like syncing calendars or running AI prompts."
+          message="No agents yet. Agents let you schedule recurring tasks like syncing calendars or running AI prompts."
           action={{
-            label: "Create Automation",
+            label: "Create Agent",
             onClick: handleCreate,
           }}
         />
@@ -249,10 +239,10 @@ export function AutomationsSettings() {
 
   return (
     <SettingsTabLayout
-      title="Automations"
-      description={`${activeCount} active automation${activeCount !== 1 ? "s" : ""} across your sites`}
+      title="Agents"
+      description={`${activeCount} active agent${activeCount !== 1 ? "s" : ""} across your sites`}
       action={{
-        label: "Add Automation",
+        label: "Add Agent",
         icon: <Plus size={16} />,
         onClick: handleCreate,
       }}
@@ -336,7 +326,7 @@ export function AutomationsSettings() {
         ) : (
           <div className="flex items-center justify-center border-l border-black/10 dark:border-white/10 pl-6">
             <div className="text-center">
-              <p className="text-black/40 dark:text-white/40 text-sm">Select an automation to edit or view runs</p>
+              <p className="text-black/40 dark:text-white/40 text-sm">Select an agent to edit or view runs</p>
             </div>
           </div>
         )}

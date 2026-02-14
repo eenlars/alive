@@ -50,7 +50,7 @@ export function AutomationRunsView({ job }: AutomationRunsViewProps) {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <History size={32} className="mx-auto mb-3 text-black/20 dark:text-white/20" />
-          <p className="text-black/40 dark:text-white/40 text-sm">Select an automation to view run history</p>
+          <p className="text-black/40 dark:text-white/40 text-sm">Select an agent to view run history</p>
         </div>
       </div>
     )
@@ -104,7 +104,7 @@ export function AutomationRunsView({ job }: AutomationRunsViewProps) {
         <div className="text-center">
           <History size={32} className="mx-auto mb-3 text-black/20 dark:text-white/20" />
           <p className="text-black/50 dark:text-white/50">No runs yet</p>
-          <p className="text-xs text-black/40 dark:text-white/40 mt-1">This automation hasn't been executed.</p>
+          <p className="text-xs text-black/40 dark:text-white/40 mt-1">This agent hasn't run yet.</p>
         </div>
       </div>
     )

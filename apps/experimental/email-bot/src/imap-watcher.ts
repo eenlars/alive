@@ -24,6 +24,11 @@ const processingQueue = new Map<string, Promise<void>>()
 /** Track watcher state for health checks */
 export const watcherStatus = new Map<string, { connected: boolean; lastEvent: number; error?: string }>()
 
+const MAX_HISTORY_MESSAGES = 8
+const MAX_HISTORY_CHARS = 6000
+const MAX_HISTORY_ENTRY_CHARS = 1200
+const MAX_NEW_EMAIL_CHARS = 5000
+
 /**
  * Start IMAP IDLE watcher for one mailbox.
  * Reconnects automatically on disconnect.
@@ -243,11 +248,14 @@ function buildSystemPrompt(characterPrompt: string): string {
 
 ## How email works
 
-You are receiving and replying to emails. You have workspace tools (Read, Glob, Grep) to explore the codebase you live in — use them first. Find something real and weave it into your reply.
+You are receiving and replying to emails. You have workspace tools (Read, Glob, Grep) to explore the codebase you live in.
 
-When ready, call the send_reply tool with your email text. That is the ONLY thing the person will see. Everything else (tool calls, file reads, thinking) is invisible to them.
-
-Do your work first. Then compose your reply.`
+RULES:
+1. You may explore the codebase a bit — a few Glob/Read calls to find something interesting. But stay focused. Don't read every file.
+2. When you're ready, call send_reply exactly once with your reply text.
+3. send_reply is the ONLY thing the person sees. Everything else is invisible.
+4. NEVER finish without calling send_reply. This is the most important rule.
+5. Keep replies under 150 words. Be concise and in character.`
 }
 
 /**
@@ -255,21 +263,54 @@ Do your work first. Then compose your reply.`
  */
 function buildUserMessage(history: ConversationMessage[], newEmail: Awaited<ReturnType<typeof parseEmail>>): string {
   const parts: string[] = []
+  const { messages: historyWindow, truncated } = selectHistoryWindow(history)
 
-  if (history.length > 0) {
+  if (historyWindow.length > 0) {
     parts.push("--- Conversation History ---")
-    for (const msg of history) {
+    if (truncated) {
+      parts.push("[Earlier messages omitted for brevity]")
+    }
+    for (const msg of historyWindow) {
       const label = msg.direction === "incoming" ? `[From: ${msg.sender}]` : "[You replied]"
-      parts.push(`${label}\n${msg.body}`)
+      parts.push(`${label}\n${truncateText(msg.body, MAX_HISTORY_ENTRY_CHARS)}`)
     }
     parts.push("--- End History ---\n")
   }
 
   parts.push(`New email from ${newEmail.from}:`)
   parts.push(`Subject: ${newEmail.subject}`)
-  parts.push(`\n${newEmail.textBody}`)
+  parts.push(`\n${truncateText(newEmail.textBody, MAX_NEW_EMAIL_CHARS)}`)
 
   return parts.join("\n")
+}
+
+function selectHistoryWindow(history: ConversationMessage[]): { messages: ConversationMessage[]; truncated: boolean } {
+  if (history.length === 0) {
+    return { messages: [], truncated: false }
+  }
+
+  const recent = history.slice(-MAX_HISTORY_MESSAGES)
+  const selected: ConversationMessage[] = []
+  let totalChars = 0
+
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const msg = recent[i]
+    const estimatedSize = Math.min(msg.body.length, MAX_HISTORY_ENTRY_CHARS) + msg.sender.length + 32
+    if (selected.length > 0 && totalChars + estimatedSize > MAX_HISTORY_CHARS) {
+      break
+    }
+    selected.push(msg)
+    totalChars += estimatedSize
+  }
+
+  selected.reverse()
+  const truncated = selected.length < history.length
+  return { messages: selected, truncated }
+}
+
+function truncateText(input: string, maxChars: number): string {
+  if (input.length <= maxChars) return input
+  return `${input.slice(0, maxChars)}\n\n[truncated]`
 }
 
 /**
