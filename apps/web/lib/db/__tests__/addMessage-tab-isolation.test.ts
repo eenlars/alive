@@ -16,9 +16,9 @@
 
 import "fake-indexeddb/auto"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { useTabDataStore } from "@/lib/stores/tabDataStore"
 import { useDexieMessageStore } from "../dexieMessageStore"
 import { getMessageDb } from "../messageDb"
-import { useTabDataStore } from "@/lib/stores/tabDataStore"
 
 const TEST_USER_ID = "test-user-123"
 const TEST_ORG_ID = "test-org-456"
