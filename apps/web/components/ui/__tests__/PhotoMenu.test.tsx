@@ -1,6 +1,4 @@
 // @vitest-environment happy-dom
-// TODO: Fix react/jsx-dev-runtime resolution issue in vitest 4.x with happy-dom
-// Temporarily skipped due to Vite import resolution failure
 import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
@@ -52,8 +50,7 @@ function PhotoMenuClickOutsideTest({
   )
 }
 
-// TODO: Fix react/jsx-dev-runtime resolution issue in vitest 4.x with happy-dom
-describe.skip("PhotoMenu click-outside behavior", () => {
+describe("PhotoMenu click-outside behavior", () => {
   it("should NOT close when clicking upload button inside mobile sheet", () => {
     const onClose = vi.fn()
 

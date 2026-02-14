@@ -10,7 +10,7 @@ import { gotoChatFast } from "./helpers/assertions"
  */
 
 test.describe("Organization and Workspace Selection", () => {
-  test.skip("workspace loads and chat interface is functional", async ({ authenticatedPage, workerTenant }) => {
+  test("workspace loads and chat interface is functional", async ({ authenticatedPage, workerTenant }) => {
     await gotoChatFast(authenticatedPage, workerTenant.workspace, workerTenant.orgId)
 
     // Workspace-ready already confirmed by gotoChatFast, just verify UI elements

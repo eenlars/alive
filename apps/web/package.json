@@ -32,7 +32,7 @@
     "test:e2e:staging": "ENV_FILE=.env.staging playwright test",
     "test:e2e:staging:ui": "ENV_FILE=.env.staging playwright test --ui",
     "test:e2e:production": "ENV_FILE=.env.production playwright test",
-    "test:gates": "playwright test smoke.spec.ts auth.spec.ts protection-verification.spec.ts org-workspace-selection.spec.ts chat.spec.ts deploy.spec.ts && playwright test --config=playwright.genuine.config.ts chat-genuine.spec.ts",
+    "test:gates": "playwright test auth.spec.ts protection-verification.spec.ts org-workspace-selection.spec.ts chat-improved.spec.ts deploy.spec.ts && playwright test --config=playwright.genuine.config.ts chat-genuine.spec.ts",
     "check:unregistered-domains": "bun run scripts/check-unregistered-domains.ts",
     "register:unregistered-domains": "bun run scripts/register-unregistered-domains.ts"
   },

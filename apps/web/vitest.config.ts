@@ -83,13 +83,6 @@ export const baseTestConfig = {
     "**/.next/**",
     "**/*.spec.{ts,tsx}",
     "**/lib/__tests__/claude-tool-permissions.test.ts",
-    // TODO: Fix react/jsx-dev-runtime resolution in vitest 4.x with happy-dom
-    "**/components/ui/__tests__/PhotoMenu.test.tsx",
-    "**/features/chat/hooks/__tests__/useStreamCancellation.test.ts",
-    "**/lib/db/__tests__/useTabMessages.test.ts",
-    "**/app/chat/components/__tests__/ChatEmptyState.test.tsx",
-    "**/app/chat/hooks/__tests__/useChatMessaging.timeout.test.ts",
-    "**/app/chat/hooks/__tests__/useChatMessaging.payload-safety.test.ts",
   ],
   // Use forks instead of threads - native modules (@napi-rs/image) hang with threads
   pool: "forks" as const,

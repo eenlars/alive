@@ -7,8 +7,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { computeNextRunAtMs } from "@webalive/automation"
 import { isValidClaudeModel } from "@webalive/shared"
-import type { NextRequest } from "next/server"
-import { getSessionUser } from "@/features/auth/lib/auth"
+import { protectedRoute } from "@/features/auth/lib/protectedRoute"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import type { Res } from "@/lib/api/schemas"
 import { alrighty } from "@/lib/api/server"
@@ -27,25 +26,19 @@ type AutomationJob = Res<"automations">["automations"][number]
  * - site_id: Filter by site (optional)
  * - limit: Max results (default 50)
  */
-export async function GET(req: NextRequest) {
-  try {
-    const user = await getSessionUser()
-    if (!user) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
-    }
+export const GET = protectedRoute(async ({ user, req }) => {
+  const { searchParams } = new URL(req.url)
+  const orgId = searchParams.get("org_id")
+  const siteId = searchParams.get("site_id")
+  const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100)
 
-    const { searchParams } = new URL(req.url)
-    const orgId = searchParams.get("org_id")
-    const siteId = searchParams.get("site_id")
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100)
+  const supabase = await createRLSAppClient()
 
-    const supabase = await createRLSAppClient()
-
-    // Build query - join with domains to get hostname
-    let query = supabase
-      .from("automation_jobs")
-      .select(
-        `
+  // Build query - join with domains to get hostname
+  let query = supabase
+    .from("automation_jobs")
+    .select(
+      `
         id,
         site_id,
         name,
@@ -68,225 +61,218 @@ export async function GET(req: NextRequest) {
         created_at,
         domains:site_id (hostname)
       `,
-      )
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(limit)
+    )
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit)
 
-    if (orgId) {
-      query = query.eq("org_id", orgId)
-    }
+  if (orgId) {
+    query = query.eq("org_id", orgId)
+  }
 
-    if (siteId) {
-      query = query.eq("site_id", siteId)
-    }
+  if (siteId) {
+    query = query.eq("site_id", siteId)
+  }
 
-    const { data, error } = await query
+  const { data, error } = await query
 
-    if (error) {
-      console.error("[Automations API] Query error:", error)
-      Sentry.captureException(error)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
-    }
-
-    // Flatten the joined data
-    const automations: AutomationJob[] = (data || []).map((row: any) => ({
-      id: row.id,
-      site_id: row.site_id,
-      name: row.name,
-      description: row.description,
-      trigger_type: row.trigger_type,
-      cron_schedule: row.cron_schedule,
-      cron_timezone: row.cron_timezone,
-      run_at: row.run_at,
-      action_type: row.action_type,
-      action_prompt: row.action_prompt,
-      action_source: row.action_source,
-      action_target_page: row.action_target_page,
-      skills: row.skills,
-      email_address: row.email_address ?? null,
-      is_active: row.is_active,
-      status: row.status,
-      last_run_at: row.last_run_at,
-      last_run_status: row.last_run_status,
-      next_run_at: row.next_run_at,
-      created_at: row.created_at,
-      hostname: row.domains?.hostname,
-    }))
-
-    return alrighty("automations", { ok: true, automations, total: automations.length })
-  } catch (error) {
-    console.error("[Automations API] GET error:", error)
+  if (error) {
+    console.error("[Automations API] Query error:", error)
     Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
-}
+
+  // Flatten the joined data
+  const automations: AutomationJob[] = (data || []).map(row => ({
+    id: row.id,
+    site_id: row.site_id,
+    name: row.name,
+    description: row.description,
+    trigger_type: row.trigger_type,
+    cron_schedule: row.cron_schedule,
+    cron_timezone: row.cron_timezone,
+    run_at: row.run_at,
+    action_type: row.action_type,
+    action_prompt: row.action_prompt,
+    action_source: typeof row.action_source === "string" ? row.action_source : null,
+    action_target_page: row.action_target_page,
+    skills: row.skills,
+    email_address: row.email_address ?? null,
+    is_active: row.is_active,
+    status: row.status,
+    last_run_at: row.last_run_at,
+    last_run_status: row.last_run_status,
+    next_run_at: row.next_run_at,
+    created_at: row.created_at,
+    hostname: row.domains?.hostname,
+  }))
+
+  return alrighty("automations", { ok: true, automations, total: automations.length })
+})
 
 /**
  * POST /api/automations - Create a new automation
  */
-export async function POST(req: NextRequest) {
+export const POST = protectedRoute(async ({ user, req }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- req.json() returns Promise<any> per Web API spec; body is validated below
+  let body: Record<string, any>
   try {
-    const user = await getSessionUser()
-    if (!user) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
-    }
+    body = await req.json()
+  } catch {
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { message: "Invalid JSON body" },
+    })
+  }
 
-    const body = await req.json()
+  // Import validators
+  const {
+    validateRequiredFields,
+    validateActionType,
+    validateTriggerType,
+    validateActionPrompt,
+    validateTimeout,
+    validateCronSchedule,
+    validateTimezone,
+    validateSiteId,
+  } = await import("@/lib/automation/validation")
 
-    // Import validators
-    const {
-      validateRequiredFields,
-      validateActionType,
-      validateTriggerType,
-      validateActionPrompt,
-      validateTimeout,
-      validateCronSchedule,
-      validateTimezone,
-      validateSiteId,
-    } = await import("@/lib/automation/validation")
+  // Step 1: Validate required fields
+  const requiredCheck = validateRequiredFields(body, ["site_id", "name", "trigger_type", "action_type"])
+  if (!requiredCheck.valid) {
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { message: `Missing required fields: ${requiredCheck.missing?.join(", ")}` },
+    })
+  }
 
-    // Step 1: Validate required fields
-    const requiredCheck = validateRequiredFields(body, ["site_id", "name", "trigger_type", "action_type"])
-    if (!requiredCheck.valid) {
+  // Step 2: Validate action_type
+  const actionTypeCheck = validateActionType(body.action_type)
+  if (!actionTypeCheck.valid) {
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { field: "action_type", message: actionTypeCheck.error },
+    })
+  }
+
+  // Step 3: Validate trigger_type and trigger-specific fields
+  const triggerCheck = validateTriggerType(body.trigger_type, body)
+  if (!triggerCheck.valid) {
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { field: body.trigger_type, message: triggerCheck.error },
+    })
+  }
+
+  // Step 4: Validate action_prompt if prompt type
+  const promptCheck = validateActionPrompt(body.action_type, body.action_prompt)
+  if (!promptCheck.valid) {
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { field: "action_prompt", message: promptCheck.error },
+    })
+  }
+
+  // Step 5: Validate timeout if provided
+  const timeoutCheck = validateTimeout(body.action_timeout_seconds)
+  if (!timeoutCheck.valid) {
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { field: "action_timeout_seconds", message: timeoutCheck.error },
+    })
+  }
+
+  // Step 5b: Validate model if provided
+  if (body.action_model && !isValidClaudeModel(body.action_model)) {
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { field: "action_model", message: "Invalid model" },
+    })
+  }
+
+  // Step 6: Validate timezone if provided
+  const tzCheck = validateTimezone(body.cron_timezone)
+  if (!tzCheck.valid) {
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { field: "cron_timezone", message: tzCheck.error },
+    })
+  }
+
+  // Step 7: Validate site exists and get hostname
+  const siteCheck = await validateSiteId(body.site_id)
+  if (!siteCheck.valid) {
+    return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, {
+      status: 404,
+      details: { field: "site_id", message: siteCheck.error },
+    })
+  }
+
+  const supabase = createServiceAppClient()
+
+  // Get org_id from the site
+  const { data: domain } = await supabase.from("domains").select("org_id").eq("domain_id", body.site_id).single()
+
+  if (!domain?.org_id) {
+    return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
+  }
+
+  // Step 8: Validate and compute cron schedule if present
+  let nextRunAt: string | null = null
+  if (body.trigger_type === "cron" && body.cron_schedule) {
+    const cronCheck = validateCronSchedule(body.cron_schedule, body.cron_timezone)
+    if (!cronCheck.valid) {
       return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
         status: 400,
-        details: { message: `Missing required fields: ${requiredCheck.missing?.join(", ")}` },
+        details: { field: "cron_schedule", message: cronCheck.error },
       })
     }
 
-    // Step 2: Validate action_type
-    const actionTypeCheck = validateActionType(body.action_type)
-    if (!actionTypeCheck.valid) {
-      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-        status: 400,
-        details: { field: "action_type", message: actionTypeCheck.error },
-      })
+    // Compute next_run_at and get preview
+    const nextMs = computeNextRunAtMs({ kind: "cron", expr: body.cron_schedule, tz: body.cron_timezone }, Date.now())
+    if (nextMs) {
+      nextRunAt = new Date(nextMs).toISOString()
     }
+  } else if (body.trigger_type === "one-time" && body.run_at) {
+    nextRunAt = body.run_at
+  }
 
-    // Step 3: Validate trigger_type and trigger-specific fields
-    const triggerCheck = validateTriggerType(body.trigger_type, body)
-    if (!triggerCheck.valid) {
-      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-        status: 400,
-        details: { field: body.trigger_type, message: triggerCheck.error },
-      })
-    }
+  // Validate skills if provided (must be array of strings)
+  const skills = Array.isArray(body.skills) ? body.skills.filter((s: unknown) => typeof s === "string") : []
 
-    // Step 4: Validate action_prompt if prompt type
-    const promptCheck = validateActionPrompt(body.action_type, body.action_prompt)
-    if (!promptCheck.valid) {
-      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-        status: 400,
-        details: { field: "action_prompt", message: promptCheck.error },
-      })
-    }
+  const { data, error } = await supabase
+    .from("automation_jobs")
+    .insert({
+      site_id: body.site_id,
+      user_id: user.id,
+      org_id: domain.org_id,
+      name: body.name,
+      description: body.description,
+      trigger_type: body.trigger_type,
+      cron_schedule: body.cron_schedule,
+      cron_timezone: body.cron_timezone,
+      run_at: body.run_at,
+      action_type: body.action_type,
+      action_prompt: body.action_prompt,
+      action_source: body.action_source,
+      action_target_page: body.action_target_page,
+      skills: skills.length > 0 ? skills : [],
+      action_model: body.action_model || null,
+      email_address: body.trigger_type === "email" ? body.email_address : null,
+      is_active: body.is_active ?? true,
+      next_run_at: nextRunAt,
+    })
+    .select()
+    .single()
 
-    // Step 5: Validate timeout if provided
-    const timeoutCheck = validateTimeout(body.action_timeout_seconds)
-    if (!timeoutCheck.valid) {
-      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-        status: 400,
-        details: { field: "action_timeout_seconds", message: timeoutCheck.error },
-      })
-    }
-
-    // Step 5b: Validate model if provided
-    if (body.action_model && !isValidClaudeModel(body.action_model)) {
-      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-        status: 400,
-        details: { field: "action_model", message: "Invalid model" },
-      })
-    }
-
-    // Step 6: Validate timezone if provided
-    const tzCheck = validateTimezone(body.cron_timezone)
-    if (!tzCheck.valid) {
-      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-        status: 400,
-        details: { field: "cron_timezone", message: tzCheck.error },
-      })
-    }
-
-    // Step 7: Validate site exists and get hostname
-    const siteCheck = await validateSiteId(body.site_id)
-    if (!siteCheck.valid) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, {
-        status: 404,
-        details: { field: "site_id", message: siteCheck.error },
-      })
-    }
-
-    const supabase = createServiceAppClient()
-
-    // Get org_id from the site
-    const { data: domain } = await supabase.from("domains").select("org_id").eq("domain_id", body.site_id).single()
-
-    if (!domain?.org_id) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
-    }
-
-    // Step 8: Validate and compute cron schedule if present
-    let nextRunAt: string | null = null
-    if (body.trigger_type === "cron" && body.cron_schedule) {
-      const cronCheck = validateCronSchedule(body.cron_schedule, body.cron_timezone)
-      if (!cronCheck.valid) {
-        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-          status: 400,
-          details: { field: "cron_schedule", message: cronCheck.error },
-        })
-      }
-
-      // Compute next_run_at and get preview
-      const nextMs = computeNextRunAtMs({ kind: "cron", expr: body.cron_schedule, tz: body.cron_timezone }, Date.now())
-      if (nextMs) {
-        nextRunAt = new Date(nextMs).toISOString()
-      }
-    } else if (body.trigger_type === "one-time" && body.run_at) {
-      nextRunAt = body.run_at
-    }
-
-    // Validate skills if provided (must be array of strings)
-    const skills = Array.isArray(body.skills) ? body.skills.filter((s: unknown) => typeof s === "string") : []
-
-    const { data, error } = await supabase
-      .from("automation_jobs")
-      .insert({
-        site_id: body.site_id,
-        user_id: user.id,
-        org_id: domain.org_id,
-        name: body.name,
-        description: body.description,
-        trigger_type: body.trigger_type,
-        cron_schedule: body.cron_schedule,
-        cron_timezone: body.cron_timezone,
-        run_at: body.run_at,
-        action_type: body.action_type,
-        action_prompt: body.action_prompt,
-        action_source: body.action_source,
-        action_target_page: body.action_target_page,
-        skills: skills.length > 0 ? skills : [],
-        action_model: body.action_model || null,
-        email_address: body.trigger_type === "email" ? body.email_address : null,
-        is_active: body.is_active ?? true,
-        next_run_at: nextRunAt,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      console.error("[Automations API] Insert error:", error)
-      Sentry.captureException(error)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
-    }
-
-    // Poke CronService so it picks up the new job immediately
-    pokeCronService()
-
-    return alrighty("automations/create", { ok: true, automation: data }, { status: 201 })
-  } catch (error) {
-    console.error("[Automations API] POST error:", error)
+  if (error) {
+    console.error("[Automations API] Insert error:", error)
     Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
-}
+
+  // Poke CronService so it picks up the new job immediately
+  pokeCronService()
+
+  return alrighty("automations/create", { ok: true, automation: data }, { status: 201 })
+})

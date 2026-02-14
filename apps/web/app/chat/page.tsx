@@ -16,6 +16,7 @@ import { ChatInput } from "@/features/chat/components/ChatInput"
 import type { ChatInputHandle } from "@/features/chat/components/ChatInput/types"
 import { ConversationSidebar } from "@/features/chat/components/ConversationSidebar"
 import { DevTerminal } from "@/features/chat/components/DevTerminal"
+import { CollapsibleToolGroup } from "@/features/chat/components/message-renderers/CollapsibleToolGroup"
 import { MessageWrapper } from "@/features/chat/components/message-renderers/MessageWrapper"
 import { PendingToolsIndicator } from "@/features/chat/components/PendingToolsIndicator"
 import { Sandbox } from "@/features/chat/components/Sandbox"
@@ -27,6 +28,7 @@ import { useImageUpload } from "@/features/chat/hooks/useImageUpload"
 import { useStreamCancellation } from "@/features/chat/hooks/useStreamCancellation"
 import { useStreamReconnect } from "@/features/chat/hooks/useStreamReconnect"
 import { ClientRequest, DevTerminalProvider, useDevTerminal } from "@/features/chat/lib/dev-terminal-context"
+import { groupToolMessages, type RenderItem } from "@/features/chat/lib/group-tool-messages"
 import { renderMessage, shouldRenderMessage } from "@/features/chat/lib/message-renderer"
 import { RetryProvider, useRetry } from "@/features/chat/lib/retry-context"
 import { PanelProvider, usePanelContext } from "@/features/chat/lib/sandbox-context"
@@ -747,15 +749,31 @@ function ChatPageContent() {
                 />
               )}
 
-              {messages
-                .filter(message => {
+              {(() => {
+                const filteredMessages = messages.filter(message => {
                   // Hide "compacting" indicator once compaction completes (compact_boundary exists)
                   if (message.type === "compacting" && messages.some(m => m.type === "compact_boundary")) {
                     return false
                   }
                   return shouldRenderMessage(message, isDebugMode)
                 })
-                .map((message, index, filteredMessages) => {
+
+                // Group consecutive exploration tool results (Read, Glob, Grep)
+                const renderItems: RenderItem[] = groupToolMessages(filteredMessages)
+
+                return renderItems.map(item => {
+                  if (item.type === "group") {
+                    return (
+                      <CollapsibleToolGroup
+                        key={`group-${item.messages[0].id}`}
+                        messages={item.messages}
+                        tabId={sessionTabId ?? undefined}
+                        onSubmitAnswer={sendMessage}
+                      />
+                    )
+                  }
+
+                  const { message, index } = item
                   const content = renderMessage(message, {
                     onSubmitAnswer: sendMessage,
                     tabId: sessionTabId ?? undefined,
@@ -787,7 +805,8 @@ function ChatPageContent() {
                       {content}
                     </MessageWrapper>
                   )
-                })}
+                })
+              })()}
 
               {/* Show pending tools (currently executing) - replaces generic "thinking" when tools are running */}
               {/* Suppress "thinking" during context compaction (compacting without compact_boundary) */}

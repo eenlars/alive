@@ -70,7 +70,7 @@ test.describe("Website Deployment with Authentication", () => {
     console.log("[E2E Cleanup] Complete")
   })
 
-  test.skip("deploy page is accessible without authentication", async ({ page }) => {
+  test("deploy page is accessible without authentication", async ({ page }) => {
     console.log("[Test] Navigate to /deploy without authentication")
     await page.goto("/deploy", { waitUntil: "domcontentloaded" })
 
@@ -176,13 +176,5 @@ test.describe("Website Deployment with Authentication", () => {
     } catch (_error) {
       throw new Error("Systemd service is not active")
     }
-  })
-
-  // TODO: Remove - CLI deployment deprecated, replaced by site-controller API
-  test.skip("CLI deployment works via bin/deploy.ts", async () => {
-    // DEPRECATED: CLI deployment via bin/deploy.ts has been replaced by site-controller package
-    // All deployments now go through POST /api/deploy-subdomain (tested above)
-    // This test is kept for reference but skipped
-    console.log("[Test] Skipped - CLI deployment deprecated in favor of API deployment")
   })
 })
