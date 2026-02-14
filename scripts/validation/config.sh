@@ -10,6 +10,7 @@
 declare -a CHECKS=(
     "env-files|No .env files in git|check-no-env-files.sh|true"
     "workspace|Workspace validation|detect-workspace-issues.sh|true"
+    "workspace-contract|Workspace script contract|check-workspace-contract.sh|true"
     "knip|Dead code detection (Knip)|check-knip.sh|false"
     "lint|Linting (Biome)|check-lint.sh|true"
     "types|Type checking (TypeScript)|check-types.sh|true"
