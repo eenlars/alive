@@ -63,18 +63,23 @@ describe("AutomationListCard structure", () => {
   })
 })
 
-describe("formatSchedule (via source inspection)", () => {
-  // Since formatSchedule is not exported, we verify the logic patterns exist in source.
+describe("formatTrigger (via source inspection)", () => {
+  // Since formatTrigger is not exported, we verify the logic patterns exist in source.
   // This catches regressions if someone removes the formatter.
 
   it("handles one-time trigger type", () => {
-    expect(componentSource).toContain('trigger_type === "one-time"')
+    expect(componentSource).toContain('"one-time"')
     expect(componentSource).toContain('"One-time"')
   })
 
   it("handles webhook trigger type", () => {
-    expect(componentSource).toContain('trigger_type === "webhook"')
-    expect(componentSource).toContain('"Webhook trigger"')
+    expect(componentSource).toContain('"webhook"')
+    expect(componentSource).toContain('"Webhook"')
+  })
+
+  it("handles email trigger type", () => {
+    expect(componentSource).toContain('"email"')
+    expect(componentSource).toContain('"Email trigger"')
   })
 
   it("handles daily cron schedule", () => {

@@ -1,30 +1,37 @@
 "use client"
 
-import { Calendar, Clock, Globe, History, Zap } from "lucide-react"
+import { Calendar, Clock, Globe, History, Mail, Zap } from "lucide-react"
 import type { AutomationJob } from "@/lib/hooks/useSettingsQueries"
 
-function formatSchedule(job: AutomationJob): string {
-  if (job.trigger_type === "one-time") {
-    return "One-time"
-  }
-  if (job.trigger_type === "webhook") {
-    return "Webhook trigger"
-  }
-  if (job.cron_schedule) {
-    const parts = job.cron_schedule.split(" ")
-    if (parts.length === 5) {
-      const [min, hour, day, month, weekday] = parts
-      if (min === "0" && hour !== "*" && day === "*" && month === "*" && weekday === "*") {
-        return `Daily at ${hour}:00`
+function formatTrigger(job: AutomationJob): { icon: typeof Calendar; label: string } {
+  switch (job.trigger_type) {
+    case "email":
+      return { icon: Mail, label: job.email_address || "Email trigger" }
+    case "one-time":
+      return { icon: Calendar, label: "One-time" }
+    case "webhook":
+      return { icon: Zap, label: "Webhook" }
+    default: {
+      // cron — format the schedule
+      if (job.cron_schedule) {
+        const parts = job.cron_schedule.split(" ")
+        if (parts.length === 5) {
+          const [min, hour, day, month, weekday] = parts
+          if (min === "0" && hour !== "*" && day === "*" && month === "*" && weekday === "*") {
+            return { icon: Calendar, label: `Daily at ${hour}:00` }
+          }
+          if (min === "0" && hour !== "*" && weekday !== "*" && day === "*") {
+            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+            const dayIndex = Number(weekday)
+            const dayLabel = Number.isInteger(dayIndex) && days[dayIndex] ? days[dayIndex] : weekday
+            return { icon: Calendar, label: `${dayLabel} at ${hour}:00` }
+          }
+        }
+        return { icon: Calendar, label: job.cron_schedule }
       }
-      if (min === "0" && hour !== "*" && weekday !== "*" && day === "*") {
-        const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        return `${days[parseInt(weekday, 10)] || "Weekly"} at ${hour}:00`
-      }
+      return { icon: Calendar, label: "No schedule" }
     }
-    return job.cron_schedule
   }
-  return "Unknown"
 }
 
 function formatRelativeTime(dateStr: string | null): string {
@@ -111,11 +118,17 @@ export function AutomationListCard({
           </p>
         )}
 
-        {/* Schedule info */}
-        <p className="text-[11px] text-black/60 dark:text-white/60 mb-1.5 flex items-center gap-1">
-          <Calendar size={10} />
-          {formatSchedule(job)}
-        </p>
+        {/* Trigger info */}
+        {(() => {
+          const trigger = formatTrigger(job)
+          const Icon = trigger.icon
+          return (
+            <p className="text-[11px] text-black/60 dark:text-white/60 mb-1.5 flex items-center gap-1 truncate">
+              <Icon size={10} className="shrink-0" />
+              {trigger.label}
+            </p>
+          )
+        })()}
 
         {/* Last run status */}
         {job.last_run_at && (

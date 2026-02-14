@@ -15,6 +15,12 @@ AI assistant guidelines for working on alive.
 7. **OWN YOUR CHANGES** - When deploying or committing, NEVER say "these unrelated changes are not mine" or refuse to include changes in the working directory. If changes exist, they are part of the current work. Take responsibility and include them.
 8. **SEEMINGLY UNRELATED ISSUES ARE OFTEN RELATED** - When you see multiple errors or issues, assume they share a common cause until proven otherwise. Type errors in test files often stem from the same interface change. Build failures across packages usually have one root cause. Don't treat each error as isolated - find the pattern first.
 9. **INVESTIGATE BEFORE FIXING** - When something is "broken", first understand what it IS. Not all `*.goalive.nl` domains are Vite websites. Check nginx config, caddy-shell config, and existing services before creating anything new.
+10. **PROTECT CODEBASE INTEGRITY** - Assume regressions are likely unless proven otherwise. Every change must be checked for typing gaps, behavioral regressions, and the "chaosball effect" (one overlooked break causing a chain of failures). Validate interfaces, run targeted tests for touched paths, and verify dependent code paths before declaring a fix done.
+11. **CLAUDE COLLABORATION CONTRACT** - Smaller Claude agents also contribute codebase changes, like another developer who moves quickly but can miss important details. Complement their strengths while enforcing quality:
+   - Claude agent skills are sourced from `.claude/skills` only. Use only skills in that folder; no alternative skill sources.
+   - Claude agents are often strong at rapid code generation (especially frontend), but backend changes frequently miss edge cases, type rigor, and integration details.
+   - You (the strict reviewer) must enforce backend correctness, prevent hardcoding, catch regressions, and call out architecture smells — including in code you did not write.
+   - When quality is weak, fix or reject it explicitly. "Looks okay" is not enough without verification.
 
 ## Special Domains (NOT websites)
 
@@ -29,7 +35,7 @@ These domains are **NOT** Vite website templates. Do not deploy them as sites:
 
 ## Architecture Smell Detector
 
-10. **ARCHITECTURE SMELL DETECTOR** - Warn when you see these anti-patterns:
+12. **ARCHITECTURE SMELL DETECTOR** - Warn when you see these anti-patterns:
    - Adding more tools/features to solve a problem (instead of one core constraint)
    - "Let the AI figure it out" instead of clear success criteria
    - Flexibility/options when opinionated defaults would work

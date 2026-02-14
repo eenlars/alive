@@ -230,10 +230,20 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     })
 
     const durationMs = Date.now() - startTime
-    // When responseToolName is set, prefer tool response over text messages
-    const response = params.responseToolName
-      ? (attempt.toolResponseText ?? attempt.finalResponse ?? attempt.textMessages.join("\n\n"))
-      : attempt.finalResponse || attempt.textMessages.join("\n\n")
+
+    // When responseToolName is set, the tool MUST have been called
+    let response: string
+    if (params.responseToolName) {
+      if (!attempt.toolResponseText) {
+        throw new Error(
+          `Automation expected tool "${params.responseToolName}" but it was never called. ` +
+            "Check extraTools and MCP server configuration.",
+        )
+      }
+      response = attempt.toolResponseText
+    } else {
+      response = attempt.finalResponse || attempt.textMessages.join("\n\n")
+    }
 
     console.log(
       `[Automation ${requestId}] Completed in ${durationMs}ms via worker-pool, ${attempt.allMessages.length} messages captured`,

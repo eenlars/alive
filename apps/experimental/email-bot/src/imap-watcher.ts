@@ -24,6 +24,11 @@ const processingQueue = new Map<string, Promise<void>>()
 /** Track watcher state for health checks */
 export const watcherStatus = new Map<string, { connected: boolean; lastEvent: number; error?: string }>()
 
+const MAX_HISTORY_MESSAGES = 8
+const MAX_HISTORY_CHARS = 6000
+const MAX_HISTORY_ENTRY_CHARS = 1200
+const MAX_NEW_EMAIL_CHARS = 5000
+
 /**
  * Start IMAP IDLE watcher for one mailbox.
  * Reconnects automatically on disconnect.
@@ -163,6 +168,9 @@ async function handleIncomingEmail(
     return
   }
 
+  // Get conversation history BEFORE storing incoming (avoids duplicate in history)
+  const history = getThreadHistory(mailbox, threadId)
+
   // Store incoming message
   storeMessage(
     mailbox,
@@ -175,13 +183,11 @@ async function handleIncomingEmail(
     "incoming",
   )
 
-  // Get conversation history
-  const history = getThreadHistory(mailbox, threadId)
+  // Build prompts — system prompt has character + instructions, user message has email
+  const systemPrompt = buildSystemPrompt(job.actionPrompt)
+  const userMessage = buildUserMessage(history, email)
 
-  // Build the full prompt
-  const fullPrompt = buildPrompt(job.actionPrompt, history, email)
-
-  // Trigger automation
+  // Trigger automation with send_reply tool
   const triggerContext = {
     type: "email",
     from: email.from,
@@ -192,7 +198,8 @@ async function handleIncomingEmail(
     conversationDepth: history.length,
   }
 
-  const result = await triggerAutomation(job.id, fullPrompt, triggerContext, {
+  const result = await triggerAutomation(job.id, userMessage, triggerContext, {
+    systemPromptOverride: systemPrompt,
     extraTools: [AUTOMATION.SEND_REPLY],
     responseToolName: AUTOMATION.SEND_REPLY_BARE,
   })
@@ -234,37 +241,76 @@ async function handleIncomingEmail(
 }
 
 /**
- * Build the full prompt for Claude, including character personality + conversation history + new email.
+ * Build the system prompt: character personality + instructions on how email works.
  */
-function buildPrompt(
-  characterPrompt: string,
-  history: ConversationMessage[],
-  newEmail: Awaited<ReturnType<typeof parseEmail>>,
-): string {
+function buildSystemPrompt(characterPrompt: string): string {
+  return `${characterPrompt}
+
+## How email works
+
+You are receiving and replying to emails. You have workspace tools (Read, Glob, Grep) to explore the codebase you live in.
+
+RULES:
+1. You may explore the codebase a bit — a few Glob/Read calls to find something interesting. But stay focused. Don't read every file.
+2. When you're ready, call send_reply exactly once with your reply text.
+3. send_reply is the ONLY thing the person sees. Everything else is invisible.
+4. NEVER finish without calling send_reply. This is the most important rule.
+5. Keep replies under 150 words. Be concise and in character.`
+}
+
+/**
+ * Build the user message: conversation history + the new incoming email.
+ */
+function buildUserMessage(history: ConversationMessage[], newEmail: Awaited<ReturnType<typeof parseEmail>>): string {
   const parts: string[] = []
+  const { messages: historyWindow, truncated } = selectHistoryWindow(history)
 
-  // Character personality / system context
-  parts.push(characterPrompt)
-
-  // Conversation history (if any previous messages)
-  if (history.length > 0) {
-    parts.push("\n--- Conversation History ---")
-    for (const msg of history) {
+  if (historyWindow.length > 0) {
+    parts.push("--- Conversation History ---")
+    if (truncated) {
+      parts.push("[Earlier messages omitted for brevity]")
+    }
+    for (const msg of historyWindow) {
       const label = msg.direction === "incoming" ? `[From: ${msg.sender}]` : "[You replied]"
-      parts.push(`${label}\n${msg.body}`)
+      parts.push(`${label}\n${truncateText(msg.body, MAX_HISTORY_ENTRY_CHARS)}`)
     }
     parts.push("--- End History ---\n")
   }
 
-  // New incoming email
   parts.push(`New email from ${newEmail.from}:`)
   parts.push(`Subject: ${newEmail.subject}`)
-  parts.push(`\n${newEmail.textBody}`)
-  parts.push(
-    "\nCompose your reply and send it using the send_reply tool. Be concise and in-character. Do NOT include a subject line or email headers — just the body text.",
-  )
+  parts.push(`\n${truncateText(newEmail.textBody, MAX_NEW_EMAIL_CHARS)}`)
 
   return parts.join("\n")
+}
+
+function selectHistoryWindow(history: ConversationMessage[]): { messages: ConversationMessage[]; truncated: boolean } {
+  if (history.length === 0) {
+    return { messages: [], truncated: false }
+  }
+
+  const recent = history.slice(-MAX_HISTORY_MESSAGES)
+  const selected: ConversationMessage[] = []
+  let totalChars = 0
+
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const msg = recent[i]
+    const estimatedSize = Math.min(msg.body.length, MAX_HISTORY_ENTRY_CHARS) + msg.sender.length + 32
+    if (selected.length > 0 && totalChars + estimatedSize > MAX_HISTORY_CHARS) {
+      break
+    }
+    selected.push(msg)
+    totalChars += estimatedSize
+  }
+
+  selected.reverse()
+  const truncated = selected.length < history.length
+  return { messages: selected, truncated }
+}
+
+function truncateText(input: string, maxChars: number): string {
+  if (input.length <= maxChars) return input
+  return `${input.slice(0, maxChars)}\n\n[truncated]`
 }
 
 /**

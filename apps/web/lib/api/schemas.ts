@@ -1,7 +1,33 @@
 import type { Req as PkgReq, Res as PkgRes } from "@alive-brug/alrighty"
+import { CLAUDE_MODELS } from "@webalive/shared"
 import { z } from "zod"
 import { RESERVED_SLUGS } from "@/features/deployment/types/guards"
 import { OptionalWorktreeSchema, OptionalWorktreeSlugSchema } from "@/types/guards/worktree-schemas"
+
+/** Zod schema for valid Claude model IDs, derived from the shared CLAUDE_MODELS constant */
+const ClaudeModelSchema = z.enum(Object.values(CLAUDE_MODELS) as [string, ...string[]])
+
+/**
+ * Automation trigger types — single source of truth.
+ *
+ * Schedule triggers: "cron" (recurring) | "one-time" (run once at a specific time)
+ * Event triggers:    "email" (incoming email) | "webhook" (HTTP call)
+ *
+ * A job is either schedule-based or event-based, never both.
+ */
+const SCHEDULE_TRIGGER_TYPES = ["cron", "one-time"] as const
+const EVENT_TRIGGER_TYPES = ["email", "webhook"] as const
+const ALL_TRIGGER_TYPES = [...SCHEDULE_TRIGGER_TYPES, ...EVENT_TRIGGER_TYPES] as const
+
+export type TriggerType = (typeof ALL_TRIGGER_TYPES)[number]
+export type ScheduleTriggerType = (typeof SCHEDULE_TRIGGER_TYPES)[number]
+export type EventTriggerType = (typeof EVENT_TRIGGER_TYPES)[number]
+
+const TriggerTypeSchema = z.enum(ALL_TRIGGER_TYPES)
+
+export function isScheduleTrigger(t: TriggerType): t is ScheduleTriggerType {
+  return (SCHEDULE_TRIGGER_TYPES as readonly string[]).includes(t)
+}
 
 // ============================================================================
 // STANDARDIZED RESPONSE ENVELOPES
@@ -481,7 +507,7 @@ export const apiSchemas = {
           site_id: z.string(),
           name: z.string(),
           description: z.string().nullable(),
-          trigger_type: z.enum(["cron", "webhook", "one-time", "email"]),
+          trigger_type: TriggerTypeSchema,
           cron_schedule: z.string().nullable(),
           cron_timezone: z.string().nullable(),
           run_at: z.string().nullable(),
@@ -489,6 +515,8 @@ export const apiSchemas = {
           action_prompt: z.string().nullable(),
           action_source: z.string().nullable(),
           action_target_page: z.string().nullable(),
+          action_timeout_seconds: z.number().nullable().optional(),
+          action_model: ClaudeModelSchema.nullable().optional(),
           skills: z.array(z.string()).nullable(),
           email_address: z.string().nullable().optional(),
           is_active: z.boolean(),
@@ -517,7 +545,7 @@ export const apiSchemas = {
         site_id: z.string(),
         name: z.string(),
         description: z.string().nullable(),
-        trigger_type: z.enum(["cron", "webhook", "one-time"]),
+        trigger_type: TriggerTypeSchema,
         cron_schedule: z.string().nullable(),
         cron_timezone: z.string().nullable(),
         run_at: z.string().nullable(),
@@ -525,6 +553,8 @@ export const apiSchemas = {
         action_prompt: z.string().nullable(),
         action_source: z.string().nullable(),
         action_target_page: z.string().nullable(),
+        action_timeout_seconds: z.number().nullable().optional(),
+        action_model: ClaudeModelSchema.nullable().optional(),
         skills: z.array(z.string()).nullable(),
         is_active: z.boolean(),
         status: z.enum(["idle", "running", "paused", "disabled"]).optional(),

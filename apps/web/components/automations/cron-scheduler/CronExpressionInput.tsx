@@ -62,13 +62,13 @@ export function CronExpressionInput({ value, onChange }: CronExpressionInputProp
   }, [])
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex gap-1.5">
         {FIELDS.map((field, i) => (
-          <div key={field.key} className="flex-1 min-w-0">
+          <div key={field.key} className="flex-1 min-w-0 space-y-1">
             <label
               htmlFor={`cron-${field.key}`}
-              className="block text-[10px] font-medium text-black/50 dark:text-white/50 text-center mb-1"
+              className="block text-[10px] font-medium text-black/40 dark:text-white/40 text-center"
             >
               {field.label}
             </label>
@@ -85,19 +85,18 @@ export function CronExpressionInput({ value, onChange }: CronExpressionInputProp
               onKeyDown={e => handleKeyDown(i, e)}
               onFocus={e => e.target.select()}
               placeholder={field.placeholder}
-              className={`w-full h-9 px-1 rounded-lg text-xs font-mono text-center bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/20 dark:placeholder:text-white/20 border transition-all focus:outline-none focus:ring-1 ${
+              className={`w-full h-9 px-1 rounded-lg text-xs font-mono text-center bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white placeholder:text-black/20 dark:placeholder:text-white/20 border-0 transition-all focus:outline-none focus:ring-1 ${
                 !value.trim() || isValid
-                  ? "border-black/[0.06] dark:border-white/[0.06] focus:ring-black/[0.12] dark:focus:ring-white/[0.12]"
-                  : "border-red-200 dark:border-red-800 focus:ring-red-300/50 dark:focus:ring-red-700/50"
+                  ? "focus:ring-black/[0.12] dark:focus:ring-white/[0.12]"
+                  : "ring-1 ring-red-300/50 dark:ring-red-700/50 focus:ring-red-300 dark:focus:ring-red-700"
               }`}
             />
-            <p className="text-[9px] text-black/30 dark:text-white/30 text-center mt-0.5">{field.hint}</p>
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-black/35 dark:text-white/35 text-center">
-        Use <span className="font-mono">*</span> for "every", <span className="font-mono">*/5</span> for "every 5th",{" "}
-        <span className="font-mono">1-5</span> for ranges
+      <p className="text-[11px] text-black/30 dark:text-white/30 text-center">
+        <span className="font-mono">*</span> every &middot; <span className="font-mono">*/5</span> every 5th &middot;{" "}
+        <span className="font-mono">1-5</span> ranges
       </p>
     </div>
   )

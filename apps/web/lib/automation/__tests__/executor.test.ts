@@ -6,15 +6,16 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import type { AttemptResult } from "../attempts"
 
 // Mock the attempts module to isolate executor logic
-const mockTryWorkerPool = vi.fn(() =>
-  Promise.resolve({
-    textMessages: ["Done"],
-    allMessages: [{ role: "assistant", content: [{ type: "text", text: "Done" }] }],
-    finalResponse: "Done",
-  }),
-)
+const defaultAttempt: AttemptResult = {
+  textMessages: ["Done"],
+  allMessages: [{ role: "assistant", content: [{ type: "text", text: "Done" }] }],
+  finalResponse: "Done",
+}
+
+const mockTryWorkerPool = vi.fn<() => Promise<AttemptResult>>(() => Promise.resolve(defaultAttempt))
 
 const mockWorkerPoolState = { ENABLED: true }
 
@@ -172,5 +173,50 @@ describe("runAutomationJob", () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toContain("WORKER_POOL.ENABLED=true")
+  })
+
+  it("fails when responseToolName is set but tool was never called", async () => {
+    mockTryWorkerPool.mockResolvedValueOnce({
+      textMessages: ["I can't find the send_reply tool"],
+      allMessages: [],
+      finalResponse: "I can't find the send_reply tool",
+      // toolResponseText is undefined — tool was never called
+    })
+
+    const { runAutomationJob } = await import("../executor")
+    const result = await runAutomationJob({
+      jobId: "j1",
+      userId: "u1",
+      orgId: "o1",
+      workspace: "test.alive.best",
+      prompt: "test",
+      responseToolName: "send_reply",
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain("send_reply")
+    expect(result.error).toContain("never called")
+  })
+
+  it("extracts toolResponseText when responseToolName matches", async () => {
+    mockTryWorkerPool.mockResolvedValueOnce({
+      textMessages: ["Let me look around..."],
+      allMessages: [],
+      finalResponse: "",
+      toolResponseText: "Hey Lars! The fans are humming steady tonight.",
+    })
+
+    const { runAutomationJob } = await import("../executor")
+    const result = await runAutomationJob({
+      jobId: "j1",
+      userId: "u1",
+      orgId: "o1",
+      workspace: "test.alive.best",
+      prompt: "test",
+      responseToolName: "send_reply",
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.response).toBe("Hey Lars! The fans are humming steady tonight.")
   })
 })

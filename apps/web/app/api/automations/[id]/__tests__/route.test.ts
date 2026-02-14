@@ -45,6 +45,7 @@ const { PATCH } = await import("../route")
 
 type OwnershipRow = {
   user_id: string
+  trigger_type: "cron" | "one-time" | "email" | "webhook"
   cron_schedule: string | null
   cron_timezone: string | null
   action_type: string | null
@@ -67,7 +68,7 @@ function makeSupabaseClient(existing: OwnershipRow, updated?: Record<string, unk
           Promise.resolve({
             data: {
               id: "job_1",
-              trigger_type: "one-time",
+              trigger_type: existing.trigger_type,
               cron_schedule: null,
               cron_timezone: null,
               ...updated,
@@ -119,6 +120,7 @@ describe("PATCH /api/automations/[id]", () => {
   it("returns 409 when toggling is_active while job is already running", async () => {
     const { client, updateMock } = makeSupabaseClient({
       user_id: "user_1",
+      trigger_type: "one-time",
       cron_schedule: null,
       cron_timezone: null,
       action_type: "prompt",
@@ -139,6 +141,7 @@ describe("PATCH /api/automations/[id]", () => {
   it("syncs status=disabled when is_active is set to false", async () => {
     const { client, updateMock } = makeSupabaseClient({
       user_id: "user_1",
+      trigger_type: "one-time",
       cron_schedule: null,
       cron_timezone: null,
       action_type: "prompt",
@@ -156,5 +159,56 @@ describe("PATCH /api/automations/[id]", () => {
     expect(updatePayload?.is_active).toBe(false)
     expect(updatePayload?.status).toBe("disabled")
     expect(pokeCronServiceMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("strips schedule fields for webhook triggers", async () => {
+    const { client, updateMock } = makeSupabaseClient({
+      user_id: "user_1",
+      trigger_type: "webhook",
+      cron_schedule: null,
+      cron_timezone: null,
+      action_type: "prompt",
+      running_at: null,
+    })
+    createServiceAppClientMock.mockReturnValueOnce(client)
+
+    const response = await PATCH(
+      makePatchRequest({
+        cron_schedule: "0 9 * * *",
+        cron_timezone: "UTC",
+        run_at: "2026-03-01T10:00:00.000Z",
+        action_prompt: "updated",
+      }),
+      { params: Promise.resolve({ id: "job_1" }) },
+    )
+
+    expect(response.status).toBe(200)
+    const updatePayload = updateMock.mock.calls[0]?.[0]
+    expect(updatePayload?.action_prompt).toBe("updated")
+    expect("cron_schedule" in updatePayload).toBe(false)
+    expect("cron_timezone" in updatePayload).toBe(false)
+    expect("run_at" in updatePayload).toBe(false)
+  })
+
+  it("syncs next_run_at when one-time run_at is updated", async () => {
+    const runAt = "2026-03-01T10:00:00.000Z"
+    const { client, updateMock } = makeSupabaseClient({
+      user_id: "user_1",
+      trigger_type: "one-time",
+      cron_schedule: null,
+      cron_timezone: null,
+      action_type: "prompt",
+      running_at: null,
+    })
+    createServiceAppClientMock.mockReturnValueOnce(client)
+
+    const response = await PATCH(makePatchRequest({ run_at: runAt }), {
+      params: Promise.resolve({ id: "job_1" }),
+    })
+
+    expect(response.status).toBe(200)
+    const updatePayload = updateMock.mock.calls[0]?.[0]
+    expect(updatePayload?.run_at).toBe(runAt)
+    expect(updatePayload?.next_run_at).toBe(runAt)
   })
 })

@@ -255,7 +255,22 @@ export async function finishJob(ctx: RunContext, result: FinishOptions): Promise
   } else if (result.status === "failure") {
     consecutiveFailures += 1
 
-    if (consecutiveFailures >= maxRetries) {
+    if (ctx.job.trigger_type === "email") {
+      // Email jobs are event-driven and depend on trigger-time context
+      // (prompt override, tool overrides, response extraction).
+      // Scheduler retries run with bare { jobId } and cannot reproduce that context,
+      // so never schedule autonomous backoff retries for email triggers.
+      nextRunAt = null
+
+      if (consecutiveFailures >= maxRetries) {
+        console.warn(
+          `[Engine] Job "${ctx.job.name}" (${ctx.job.id}) DISABLED after ${consecutiveFailures}/${maxRetries} failures`,
+        )
+        isActive = false
+        jobStatus = "disabled"
+        disabledDueToFailures = true
+      }
+    } else if (consecutiveFailures >= maxRetries) {
       if (ctx.job.trigger_type === "cron" && ctx.job.cron_schedule) {
         // Cron jobs: skip to next scheduled run instead of permanently disabling.
         // Transient failures (deployments, outages) shouldn't kill recurring jobs.

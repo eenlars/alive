@@ -31,7 +31,7 @@ const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 import { query } from "@anthropic-ai/claude-agent-sdk"
 // biome-ignore format: import checker expects a single-line import statement for this package.
 import { allowTool, DEFAULTS, denyTool, formatUncaughtError, GLOBAL_MCP_PROVIDERS, isAbortError, isFatalError, isHeavyBashCommand, isOAuthMcpTool, isTransientNetworkError, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
-import { toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
+import { emailInternalMcp, toolsInternalMcp, workspaceInternalMcp } from "@webalive/tools"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts
@@ -487,6 +487,7 @@ async function handleQuery(ipc, requestId, payload) {
     settingSources,
     oauthMcpServers, // Only OAuth HTTP servers are serializable via IPC
     streamTypes,
+    extraTools,
   } = agentConfig
 
   // Input validation - prevent type confusion attacks
@@ -561,6 +562,13 @@ async function handleQuery(ipc, requestId, payload) {
   }
   if (payload.userEnvKeys !== undefined && (typeof payload.userEnvKeys !== "object" || payload.userEnvKeys === null)) {
     validationErrors.push("userEnvKeys must be an object")
+  }
+  if (extraTools !== undefined && extraTools !== null) {
+    if (!Array.isArray(extraTools)) {
+      validationErrors.push("extraTools must be an array")
+    } else if (!extraTools.every(t => typeof t === "string")) {
+      validationErrors.push("extraTools must contain only strings")
+    }
   }
 
   if (validationErrors.length > 0) {
@@ -700,9 +708,27 @@ async function handleQuery(ipc, requestId, payload) {
       }
     }
 
+    // Optional MCP servers — only loaded when extraTools references them
+    const OPTIONAL_MCP_REGISTRY = { "alive-email": emailInternalMcp }
+    const optionalMcpServers = {}
+    if (extraTools?.length) {
+      const requiredServers = new Set()
+      for (const tool of extraTools) {
+        const match = tool.match(/^mcp__([^_]+(?:-[^_]+)*)__/)
+        if (match) requiredServers.add(match[1])
+      }
+      for (const serverName of requiredServers) {
+        if (OPTIONAL_MCP_REGISTRY[serverName]) {
+          optionalMcpServers[serverName] = OPTIONAL_MCP_REGISTRY[serverName]
+          console.error(`[worker] Loaded optional MCP server: ${serverName}`)
+        }
+      }
+    }
+
     const mcpServers = {
       "alive-workspace": workspaceInternalMcp,
       "alive-tools": toolsInternalMcp,
+      ...optionalMcpServers,
       ...globalMcpServers,
       ...(oauthMcpServers || {}),
     }
