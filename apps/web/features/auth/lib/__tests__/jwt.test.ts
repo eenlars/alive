@@ -141,6 +141,44 @@ describe("JWT Session Token v3 - Security & Behavior", () => {
       expect(await verifySessionToken(invalidToken)).toBeNull()
     })
 
+    test("rejects tokens missing sub", async () => {
+      const userId = "550e8400-e29b-41d4-a716-446655440000"
+      const invalidToken = sign(
+        {
+          role: "authenticated",
+          userId,
+          email: TEST_EMAIL,
+          name: TEST_NAME,
+          scopes: TEST_SCOPES,
+          orgIds: [TEST_ORG_ID],
+          orgRoles: { [TEST_ORG_ID]: "owner" },
+        },
+        JWT_SECRET,
+        { expiresIn: "30d" },
+      )
+
+      expect(await verifySessionToken(invalidToken)).toBeNull()
+    })
+
+    test("rejects tokens missing userId", async () => {
+      const userId = "550e8400-e29b-41d4-a716-446655440000"
+      const invalidToken = sign(
+        {
+          role: "authenticated",
+          sub: userId,
+          email: TEST_EMAIL,
+          name: TEST_NAME,
+          scopes: TEST_SCOPES,
+          orgIds: [TEST_ORG_ID],
+          orgRoles: { [TEST_ORG_ID]: "owner" },
+        },
+        JWT_SECRET,
+        { expiresIn: "30d" },
+      )
+
+      expect(await verifySessionToken(invalidToken)).toBeNull()
+    })
+
     test("rejects tokens missing scopes", async () => {
       const userId = "550e8400-e29b-41d4-a716-446655440000"
       const invalidToken = sign(

@@ -1,0 +1,85 @@
+name: Nightly DB Drift Audit
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  db-drift-audit:
+    name: DB Drift Audit (Staging vs Migrations)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client-16
+
+      - name: Validate staging DB secret
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          if [[ -z "${STAGING_DATABASE_URL}" ]]; then
+            echo "::error::Missing required secret: STAGING_DATABASE_URL"
+            exit 1
+          fi
+
+      - name: Run drift audit (non-strict)
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          OUTPUT_DIR: .artifacts/schema-drift
+          DRIFT_LOCAL_PGHOST: localhost
+          DRIFT_LOCAL_PGPORT: "5432"
+          DRIFT_LOCAL_PGUSER: postgres
+          DRIFT_LOCAL_PGPASSWORD: postgres
+          STRICT: "0"
+        run: scripts/database/check-schema-drift.sh
+
+      - name: Write summary
+        if: always()
+        run: |
+          if [[ -f .artifacts/schema-drift/status.env ]]; then
+            source .artifacts/schema-drift/status.env
+          else
+            export SCHEMA_DRIFT=0
+          fi
+          if [[ "${SCHEMA_DRIFT:-0}" == "1" ]]; then
+            {
+              echo "### ⚠️ Schema drift detected"
+              echo ""
+              echo "Drift file: \`.artifacts/schema-drift/schema-drift.diff\`"
+              echo ""
+              echo "Next step: reconcile staging changes into \`packages/database/migrations\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### ✅ No schema drift detected"
+              echo ""
+              echo "Staging schema matches migration-replayed baseline for schemas: app, iam, lockbox, integrations."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload drift artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-drift-audit
+          path: .artifacts/schema-drift/

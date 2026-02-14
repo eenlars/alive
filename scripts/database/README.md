@@ -46,6 +46,8 @@ The script reads environment variables from `apps/web/.env`:
 - `cleanup-test-database.ts` - Clean up test data from database
 - `superclean.ts` - Deep cleanup of test data
 - `generate-preview-caddyfile.ts` - Generate Caddy configuration for preview domains
+- `run-sql.sh` - Core SQL runner for staging/production targets
+- `sql.sh` - Thin wrapper around `run-sql.sh` for shorter command usage
 
 ### Notes
 

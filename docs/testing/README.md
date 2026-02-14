@@ -71,6 +71,7 @@ See these guides for detail:
 - docs/testing/E2E_TESTING.md
 - docs/testing/TEST_PATTERNS.md
 - docs/testing/TESTING_FAILURE_MODES.md
+- docs/testing/AUTH_RLS_CONTRACT_AND_DRIFT.md
 
 ## AI-heavy testing patterns (consultancy guidance)
 

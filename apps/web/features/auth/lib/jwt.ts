@@ -141,6 +141,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== ""
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
 function normalizeScopes(scopes: SessionScope[] | undefined): SessionScope[] {
   const source = scopes && scopes.length > 0 ? scopes : DEFAULT_USER_SCOPES
   return [...new Set(source)]
@@ -268,8 +272,8 @@ export async function createSessionToken(input: CreateSessionTokenInput): Promis
 }
 
 /**
- * Verify and decode a session JWT token
- * Supports both ES256 (new) and HS256 (legacy) tokens
+ * Verify and decode a session JWT token.
+ * Enforces strict SessionPayloadV3 shape (no legacy fallback claims).
  * @param token - JWT token to verify
  * @returns SessionPayloadV3 if valid, null if invalid/expired
  */
@@ -282,49 +286,52 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
       return null
     }
 
-    let decoded: SessionPayloadV3
+    let decoded: Record<string, unknown>
 
-    // Try ES256 verification first (if enabled)
+    // Verify with the currently configured algorithm only.
     if (config.es256Enabled) {
-      try {
-        // For verification, extract public key from JWK (remove 'd' parameter)
-        const publicKeyJWK = { ...config.es256PrivateKey }
-        delete publicKeyJWK.d
-        const publicKey = await importJWK(publicKeyJWK, "ES256")
+      // For verification, extract public key from JWK (remove 'd' parameter)
+      const publicKeyJWK = { ...config.es256PrivateKey }
+      delete publicKeyJWK.d
+      const publicKey = await importJWK(publicKeyJWK, "ES256")
 
-        const { payload } = await jwtVerify(token, publicKey, {
-          algorithms: ["ES256"],
-        })
-        decoded = payload as SessionPayloadV3
-      } catch (_es256Error) {
-        // If ES256 fails, try HS256 (for backward compatibility)
-        decoded = verifyHS256(token, config.secret) as SessionPayloadV3
+      const { payload } = await jwtVerify(token, publicKey, {
+        algorithms: ["ES256"],
+      })
+      if (!isRecord(payload)) {
+        return null
       }
+      decoded = payload
     } else {
       // HS256 mode only
-      decoded = verifyHS256(token, config.secret) as SessionPayloadV3
+      const hsPayload = verifyHS256(token, config.secret)
+      if (!isRecord(hsPayload)) {
+        return null
+      }
+      decoded = hsPayload
     }
 
-    // Extract user ID from either 'sub' or 'userId' (backward compatibility)
+    // Strict v3 claim requirements: both sub and userId must be present and match.
     const sub = decoded.sub
     const userId = decoded.userId
 
-    // Security: Both must be present and valid, OR one is present and we backfill
-    const extractedUserId = sub || userId
-
-    if (!isNonEmptyString(extractedUserId)) {
-      console.error("[JWT] Invalid token payload: sub/userId missing or invalid")
+    if (!isNonEmptyString(sub)) {
+      console.error("[JWT] Invalid token payload: sub missing or invalid")
       return null
     }
 
-    // Security: If both present, they must match (corruption detection)
-    if (sub && userId && sub !== userId) {
+    if (!isNonEmptyString(userId)) {
+      console.error("[JWT] Invalid token payload: userId missing or invalid")
+      return null
+    }
+
+    if (sub !== userId) {
       console.error("[JWT] Token corruption detected: sub and userId mismatch")
       return null
     }
 
     // Extract and validate required fields
-    const role = (decoded as { role?: unknown }).role
+    const role = decoded.role
     const email = decoded.email
     const name = decoded.name ?? null
     const scopes = decoded.scopes
@@ -387,8 +394,8 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
     return {
       ...decoded,
       role: "authenticated",
-      sub: sub || userId,
-      userId: userId || sub,
+      sub,
+      userId,
       email: email,
       name: name,
       scopes: [...new Set(scopes)],
@@ -399,7 +406,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayloadV
     if (error instanceof TokenExpiredError) {
       console.log("[JWT] Token expired")
     } else if (error instanceof JsonWebTokenError) {
-      console.error("[JWT] Invalid token:", (error as Error).message)
+      console.error("[JWT] Invalid token:", error.message)
     } else {
       console.error("[JWT] Token verification failed:", error)
     }

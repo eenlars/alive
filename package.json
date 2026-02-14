@@ -43,6 +43,8 @@
     "setup:standalone": "./scripts/setup-standalone.sh",
     "cleanup-test-db": "bun scripts/database/cleanup-test-database.ts",
     "superclean": "bun scripts/database/superclean.ts",
+    "db:drift-check": "bash scripts/database/check-schema-drift.sh",
+    "sql": "bash scripts/database/sql.sh",
     "test:jwt-rls-smoke": "bun run --cwd apps/web scripts/test-jwt-rls-smoke.ts --db-only",
     "test:jwt-rls-smoke:api": "bun run --cwd apps/web scripts/test-jwt-rls-smoke.ts",
     "test:jwt-rls-smoke:admin": "bun run --cwd apps/web scripts/test-jwt-rls-smoke.ts --check-admin-writes",

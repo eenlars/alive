@@ -1,15 +1,21 @@
 ---
-name: Run SQL on Production Database
-description: Execute SQL against the production Supabase database. USE WITH EXTREME CAUTION - this is the live production database.
+name: SQL
+description: Execute SQL against staging or production databases using the repo helper. Production writes require explicit confirmation.
 ---
 
-# Run SQL on Production Database
+# /sql
 
-You can execute SQL directly against the production Supabase database using `psql`.
+Use the helper script:
+
+`scripts/database/sql.sh`
+
+It loads DB URLs from `apps/web/.env.production` (or `ENV_FILE`) and supports:
+- `--target staging` (uses `STAGING_DATABASE_URL`)
+- `--target production` (uses `DATABASE_URL`)
 
 ## CRITICAL WARNINGS
 
-**THIS IS THE PRODUCTION DATABASE. THERE IS NO UNDO.**
+**Production is live data. There is no undo.**
 
 Before running ANY SQL:
 1. **Read-only first** - Always SELECT before UPDATE/DELETE
@@ -24,19 +30,19 @@ Before running ANY SQL:
 
 ```bash
 DATABASE_URL=$DATABASE_URL
-DATABASE_PASSWORD=$DATABASE_PASSWORD
+STAGING_DATABASE_URL=$STAGING_DATABASE_URL
 ```
 
 ## How to Run SQL
 
 ### Single Query
 ```bash
-PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL" -c "YOUR SQL HERE"
+scripts/database/sql.sh --target staging --query "SELECT now();"
 ```
 
 ### Multi-line / Complex Queries
 ```bash
-PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL" << 'EOF'
+cat << 'EOF' | scripts/database/sql.sh --target staging --stdin --tx
 -- Your SQL here
 SELECT * FROM iam.users LIMIT 5;
 EOF
@@ -44,7 +50,16 @@ EOF
 
 ### Interactive Session
 ```bash
-PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL"
+scripts/database/sql.sh --target staging --interactive
+```
+
+### Production Write (explicit confirm required)
+```bash
+scripts/database/sql.sh \
+  --target production \
+  --query "UPDATE iam.orgs SET credits = credits + 10 WHERE org_id = 'org_x'" \
+  --confirm-production-write \
+  --tx
 ```
 
 ## Database Schemas
@@ -54,7 +69,7 @@ PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL"
 | `iam` | Identity & Access | `users`, `orgs`, `org_memberships`, `sessions` |
 | `app` | Application data | `domains`, `templates`, `feedback`, `scheduled_jobs` |
 | `integrations` | OAuth & MCP | `providers`, `user_tokens` |
-| `lockbox` | Encrypted secrets | `secrets` |
+| `lockbox` | Encrypted secrets | `secret_keys`, `user_secrets` |
 | `mcp` | MCP access control | `beta_access`, `org_access` |
 | `public` | Supabase default | Various workflow tables |
 
@@ -62,17 +77,17 @@ PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL"
 
 ### List tables in a schema
 ```bash
-PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL" -c "\dt iam.*"
+scripts/database/sql.sh --target staging --query "\dt iam.*"
 ```
 
 ### Describe a table
 ```bash
-PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL" -c "\d iam.users"
+scripts/database/sql.sh --target staging --query "\d iam.users"
 ```
 
 ### Count rows
 ```bash
-PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM iam.users"
+scripts/database/sql.sh --target staging --query "SELECT COUNT(*) FROM iam.users;"
 ```
 
 ## Safe Migration Pattern
@@ -80,7 +95,7 @@ PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM ia
 For schema changes (CREATE TABLE, ALTER TABLE, etc.):
 
 ```bash
-PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL" << 'EOF'
+cat << 'EOF' | scripts/database/sql.sh --target staging --stdin --tx
 -- Step 1: Create table
 CREATE TABLE IF NOT EXISTS app.new_table (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -153,10 +168,16 @@ This updates the generated types in `packages/database/src/*.generated.ts`.
 ## Quick Reference
 
 ```bash
-# Shorthand for running SQL (copy this pattern)
-PGPASSWORD="$DATABASE_PASSWORD" psql "$DATABASE_URL" -c "SQL"
+# Staging read
+scripts/database/sql.sh --target staging --query "SELECT 1;"
+
+# Production read
+scripts/database/sql.sh --target production --query "SELECT 1;"
+
+# Production write (requires explicit confirmation flag)
+scripts/database/sql.sh --target production --query "UPDATE ... WHERE ..." --confirm-production-write
 ```
 
 ## Environment Note
 
-The password is stored in `apps/web/.env.production`. If the password is reset in Supabase Dashboard, update it there.
+If `STAGING_DATABASE_URL` is not present in `apps/web/.env.production`, staging target will fail by design until it is configured.
