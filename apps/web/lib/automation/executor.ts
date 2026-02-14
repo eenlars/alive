@@ -243,7 +243,15 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
           throw new Error(`Failed to load org memberships for session token: ${membershipsError.message}`)
         }
 
-        const { orgIds, orgRoles } = buildSessionOrgClaims(memberships)
+        // Scope token to only the org for this automation job (least privilege)
+        const allClaims = buildSessionOrgClaims(memberships)
+        const orgIds = allClaims.orgIds.filter(id => id === params.orgId)
+        const orgRoles: typeof allClaims.orgRoles = {}
+        for (const id of orgIds) {
+          if (allClaims.orgRoles[id]) {
+            orgRoles[id] = allClaims.orgRoles[id]
+          }
+        }
 
         sessionCookie = await createSessionToken({
           userId: params.userId,

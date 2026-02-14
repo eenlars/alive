@@ -117,7 +117,7 @@ describe("runAutomationJob", () => {
       error: null,
     }
     mockMembershipsQueryResult = {
-      data: [{ org_id: "org-1", role: "owner" }],
+      data: [{ org_id: "o1", role: "owner" }],
       error: null,
     }
   })
@@ -274,10 +274,10 @@ describe("runAutomationJob", () => {
     expect(result.response).toBe("Hey Lars! The fans are humming steady tonight.")
   })
 
-  it("passes minted session cookie to worker pool and filters invalid org roles", async () => {
+  it("passes minted session cookie to worker pool, scoped to job org, filtering invalid roles", async () => {
     mockMembershipsQueryResult = {
       data: [
-        { org_id: "org-1", role: "owner" },
+        { org_id: "o1", role: "owner" },
         { org_id: "org-2", role: "viewer" },
       ],
       error: null,
@@ -297,8 +297,8 @@ describe("runAutomationJob", () => {
       userId: "u1",
       email: "user@example.com",
       name: "Test User",
-      orgIds: ["org-1"],
-      orgRoles: { "org-1": "owner" },
+      orgIds: ["o1"],
+      orgRoles: { o1: "owner" },
     })
     expect(mockTryWorkerPool).toHaveBeenCalledWith(
       expect.objectContaining({
