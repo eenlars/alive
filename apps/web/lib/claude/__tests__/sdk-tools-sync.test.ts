@@ -114,6 +114,9 @@ describe("SDK Tools Sync", () => {
 
     it("should allow MCP tools for member baseline", () => {
       expect(isAllowed("Mcp")).toBe(true)
+    })
+
+    it("should allow MCP resource tools for member baseline", () => {
       expect(isAllowed("ListMcpResources")).toBe(true)
       expect(isAllowed("ReadMcpResource")).toBe(true)
     })
