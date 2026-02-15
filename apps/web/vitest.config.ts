@@ -1,5 +1,5 @@
-import { createRequire } from "node:module"
 import { readFileSync } from "node:fs"
+import { createRequire } from "node:module"
 import { dirname, join } from "node:path"
 import tsconfigPaths from "vite-tsconfig-paths"
 import { defineConfig, type Plugin, type ViteUserConfig } from "vitest/config"
