@@ -6,19 +6,11 @@
 
 import type { FullConfig } from "@playwright/test"
 import { TEST_CONFIG } from "@webalive/shared"
-import { getResolvedBaseUrlSource, resolveE2eBaseUrl } from "./lib/base-url"
+import { requireProjectBaseUrl } from "./lib/base-url"
 
 function resolveBaseUrl(config: FullConfig): string {
-  const projectBaseUrl = config.projects.find(project => {
-    return typeof project.use?.baseURL === "string" && project.use.baseURL.length > 0
-  })?.use?.baseURL
-
-  const resolvedBaseUrl = resolveE2eBaseUrl(projectBaseUrl)
-  if (!projectBaseUrl) {
-    const source = getResolvedBaseUrlSource(projectBaseUrl)
-    console.log(`ℹ️ [Global Setup] baseURL not found in project config, using ${source} fallback: ${resolvedBaseUrl}`)
-  }
-  return resolvedBaseUrl
+  const projectBaseUrl = config.projects[0]?.use?.baseURL
+  return requireProjectBaseUrl(projectBaseUrl)
 }
 
 /**

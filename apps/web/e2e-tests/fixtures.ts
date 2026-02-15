@@ -10,7 +10,7 @@ import { test as base, type Page } from "@playwright/test"
 import { COOKIE_NAMES, createTestStorageState, DOMAINS, TEST_CONFIG } from "@webalive/shared"
 import jwt from "jsonwebtoken"
 import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
-import { resolveE2eBaseUrl } from "./lib/base-url"
+import { requireProjectBaseUrl } from "./lib/base-url"
 
 export interface TestUser {
   userId: string
@@ -82,8 +82,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         throw new Error("E2E_RUN_ID not set - global setup not run?")
       }
 
-      // Use baseURL from Playwright config with TEST_ENV fallback for remote runs.
-      const baseUrl = resolveE2eBaseUrl(workerInfo.project.use.baseURL)
+      const baseUrl = requireProjectBaseUrl(workerInfo.project.use.baseURL)
 
       // Get test secret for staging/production E2E tests
       const testSecret = process.env.E2E_TEST_SECRET
@@ -137,8 +136,10 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   // Test-scoped: authenticated page for each test
   // Sets JWT cookie AND localStorage via context-level init script
   authenticatedPage: async ({ page, context, workerStorageState, baseURL }, use) => {
+    const resolvedBaseUrl = requireProjectBaseUrl(baseURL)
+
     // Determine if we're running against a remote environment
-    const isRemote = baseURL?.startsWith("https://") ?? false
+    const isRemote = resolvedBaseUrl.startsWith("https://")
 
     // For remote environments, use JWT_SECRET from env; for local use TEST_CONFIG
     const jwtSecret = isRemote ? process.env.JWT_SECRET : TEST_CONFIG.JWT_SECRET
@@ -162,7 +163,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     )
 
     // Extract domain from baseURL for cookie
-    const cookieDomain = baseURL ? new URL(baseURL).hostname : "localhost"
+    const cookieDomain = new URL(resolvedBaseUrl).hostname
 
     // Set auth cookie
     await context.addCookies([
