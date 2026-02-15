@@ -37,6 +37,15 @@ export interface WorkspaceRouteContext extends UserRouteContext {
 }
 
 // ---------------------------------------------------------------------------
+// Options
+// ---------------------------------------------------------------------------
+
+export interface UserRouteOptions {
+  /** If true, returns 403 when the authenticated user is not a superadmin. */
+  requireSuperadmin?: boolean
+}
+
+// ---------------------------------------------------------------------------
 // User-only route (most common)
 // ---------------------------------------------------------------------------
 
@@ -44,7 +53,10 @@ export interface WorkspaceRouteContext extends UserRouteContext {
  * Wraps a route handler with authentication. Returns 401 if no session.
  * Catches unhandled errors, logs to Sentry, returns 500.
  */
-function userRoute(handler: (ctx: UserRouteContext) => Promise<Response>): (req: NextRequest) => Promise<Response> {
+function userRoute(
+  handler: (ctx: UserRouteContext) => Promise<Response>,
+  options?: UserRouteOptions,
+): (req: NextRequest) => Promise<Response> {
   return async (req: NextRequest) => {
     const requestId = generateRequestId()
 
@@ -52,6 +64,10 @@ function userRoute(handler: (ctx: UserRouteContext) => Promise<Response>): (req:
       const user = await getSessionUser()
       if (!user) {
         return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
+      }
+
+      if (options?.requireSuperadmin && !user.isSuperadmin) {
+        return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
       }
 
       return await handler({ user, requestId, req })
@@ -133,6 +149,7 @@ function workspaceRoute(
 // Export
 // ---------------------------------------------------------------------------
 
-export const protectedRoute = Object.assign(userRoute, {
-  withWorkspace: workspaceRoute,
-})
+export const protectedRoute = Object.assign(
+  (handler: (ctx: UserRouteContext) => Promise<Response>, options?: UserRouteOptions) => userRoute(handler, options),
+  { withWorkspace: workspaceRoute },
+)

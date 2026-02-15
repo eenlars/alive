@@ -4,15 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 // Mock env modules before importing route
 // Both @/lib/env (internal) and @webalive/env/server (package) need to be mocked
 // to allow dynamic env access during tests via vi.stubEnv()
+// Uses a Proxy so any env key (JWT_SECRET, STREAM_ENV, etc.) forwards to process.env
 const envMock = {
-  env: {
-    get STREAM_ENV() {
-      return process.env.STREAM_ENV
+  env: new Proxy(
+    {},
+    {
+      get(_, prop) {
+        return process.env[prop as string]
+      },
     },
-    get NODE_ENV() {
-      return process.env.NODE_ENV
-    },
-  },
+  ),
 }
 
 vi.mock("@/lib/env", () => envMock)
@@ -129,6 +130,8 @@ describe("POST /api/logout - Cookie Configuration Consistency", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
+    // createSessionToken needs a JWT secret for signing; stub it so login can produce a token
+    vi.stubEnv("JWT_SECRET", "test-secret-for-cookie-consistency-tests")
   })
 
   afterEach(() => {
@@ -140,9 +143,8 @@ describe("POST /api/logout - Cookie Configuration Consistency", () => {
    * Login and logout MUST set identical cookie attributes in production
    * Otherwise logout won't clear the cookie properly
    *
-   * TODO: Fix this test to properly set up test user in database
    */
-  it.skip("should match login cookie config in production (THE COOKIE MISMATCH BUG)", async () => {
+  it("should match login cookie config in production (THE COOKIE MISMATCH BUG)", async () => {
     vi.stubEnv("NODE_ENV", "production")
 
     // Get login cookie config
@@ -202,9 +204,8 @@ describe("POST /api/logout - Cookie Configuration Consistency", () => {
    * THE COOKIE MISMATCH BUG TEST (DEVELOPMENT)
    * Same check for development environment
    *
-   * TODO: Fix this test to properly set up test user in database
    */
-  it.skip("should match login cookie config in development (THE COOKIE MISMATCH BUG)", async () => {
+  it("should match login cookie config in development (THE COOKIE MISMATCH BUG)", async () => {
     vi.stubEnv("NODE_ENV", "development")
 
     // Get login cookie config

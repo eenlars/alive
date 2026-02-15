@@ -12,6 +12,25 @@ export const ProxySchema = z.object({
 })
 
 /**
+ * Pagination configuration for following "next page" links
+ */
+export const PaginationSchema = z.object({
+  selector: z.string(),
+  maxPages: z.number().int().min(1).max(50).default(10),
+})
+
+/**
+ * Screenshot configuration
+ */
+export const ScreenshotSchema = z.union([
+  z.boolean(),
+  z.object({
+    type: z.enum(["png", "webp"]).default("png"),
+    fullPage: z.boolean().default(false),
+  }),
+])
+
+/**
  * Request configuration schema (internal format)
  */
 export const RequestSchema = z.object({
@@ -23,6 +42,16 @@ export const RequestSchema = z.object({
   recordNetworkRequests: z.boolean().nullish().default(false),
   // optional origin URL to navigate to for cookie collection (useful when API is on different subdomain)
   originUrl: z.string().url().nullish(),
+  // DOM features (GET only)
+  waitFor: z.string().nullish(),
+  extractLinks: z.boolean().default(false),
+  followPagination: PaginationSchema.nullish(),
+  screenshot: ScreenshotSchema.default(false),
+  executeJs: z.string().nullish(),
+  // Response caching (TTL in seconds, 0 = no cache)
+  cache: z.number().int().min(0).nullish(),
+  // Retry count on transient failures (default 2, 0 = no retry)
+  retry: z.number().int().min(0).max(5).nullish(),
 })
 
 export type ProxyConfig = z.infer<typeof ProxySchema>
@@ -48,6 +77,14 @@ export type NetworkRequest = {
 }
 
 /**
+ * Extracted link from a page
+ */
+export type ExtractedLink = {
+  href: string
+  text: string
+}
+
+/**
  * Internal response format from stealthRequest
  */
 export type RequestResponse = {
@@ -59,5 +96,6 @@ export type RequestResponse = {
   error?: string
   url: string
   method: string
+  format?: "html" | "links" | "screenshot"
   networkRequests?: NetworkRequest[]
 }

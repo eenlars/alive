@@ -142,7 +142,7 @@ export const clientSchema = {
   NEXT_PUBLIC_SUPABASE_URL: httpsUrl,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: jwt,
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
-  NEXT_PUBLIC_PREVIEW_BASE: z.string().min(1, "NEXT_PUBLIC_PREVIEW_BASE is required"),
+  NEXT_PUBLIC_PREVIEW_BASE: z.string().optional().default(""),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
 } as const
