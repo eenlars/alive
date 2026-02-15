@@ -77,7 +77,6 @@ alive is a **multi-tenant development platform** that enables Claude AI to assis
 | App | Port | Purpose |
 |-----|------|---------|
 | `web` | 8997/9000 | Main Next.js app: Chat UI, Claude API, file ops, auth, deployments |
-| `broker` | configurable | Message broker for streaming state machines and persistence (Dexie) |
 | `shell-server-go` | - | Go rewrite of shell-server (WIP) |
 | `preview-proxy` | configurable | Go preview proxy for workspace preview subdomains |
 | `worker` | 5070 | Automation scheduler + executor (standalone Bun, survives web deploys) |

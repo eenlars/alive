@@ -273,19 +273,6 @@ async function main() {
       tasksMax: 4096,
       syslogId: "alive-production",
     },
-    {
-      name: "alive-broker",
-      description: "Alive Broker",
-      workingDir: `${aliveRoot}/apps/broker`,
-      execStart: `${bunPath} run start`,
-      port: 3001,
-      env: "production",
-      envFiles: [`${aliveRoot}/.env.local`, `${aliveRoot}/apps/broker/.env.local`],
-      memory: { max: "512M", high: "384M" },
-      cpu: "100%",
-      tasksMax: 1000,
-      syslogId: "alive-broker",
-    },
   ]
 
   // Generate all services

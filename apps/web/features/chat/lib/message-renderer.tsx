@@ -1,3 +1,4 @@
+import { isStreamClientVisibleTool } from "@webalive/shared"
 import { MessageErrorBoundary } from "@/features/chat/components/MessageErrorBoundary"
 import { AgentManagerMessage } from "@/features/chat/components/message-renderers/AgentManagerMessage"
 import { AssistantMessage } from "@/features/chat/components/message-renderers/AssistantMessage"
@@ -60,14 +61,30 @@ export function shouldRenderMessage(message: UIMessage, isDebugMode: boolean): b
   }
 
   // Assistant messages: check if they have any visible content
-  // (text blocks or tool_use in debug mode)
+  // (non-empty text blocks or tool_use in debug mode)
   if (componentType === COMPONENT_TYPE.ASSISTANT) {
     const content = message.content as SDKAssistantMessage
     if (!content.message?.content) return false
 
     return content.message.content.some(item => {
-      if (item.type === "text") return true
+      if (item.type === "text") return item.text.trim().length > 0
       if (item.type === "tool_use") return isDebugMode
+      return false
+    })
+  }
+
+  // Tool result messages: only render if at least one result is client-visible
+  // Prevents empty MessageWrapper blocks for hidden tools (EnterPlanMode, Skill, etc.)
+  if (componentType === COMPONENT_TYPE.TOOL_RESULT) {
+    const content = message.content as SDKUserMessage
+    const items = content.message?.content
+    if (!Array.isArray(items) || items.length === 0) return false
+    return items.some((item: { type: string; tool_name?: string }) => {
+      if (item.type === "tool_result") {
+        const toolName = item.tool_name || "Tool Result"
+        return isStreamClientVisibleTool(toolName)
+      }
+      if (item.type === "image") return true
       return false
     })
   }

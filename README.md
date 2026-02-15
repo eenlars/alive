@@ -102,7 +102,6 @@ Workspace Sandboxes (systemd isolation)
 ```
 apps/
 ├── web/                  # Next.js — chat, agent API, auth, deployments
-├── broker/               # Streaming state machine + persistence
 ├── shell-server-go/      # Terminal + file editor (Go)
 └── mcp-servers/          # External service integrations
 

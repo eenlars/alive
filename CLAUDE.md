@@ -132,7 +132,6 @@ Alive is a **multi-tenant development platform** that enables Claude AI to assis
 | App | Port | Purpose |
 |-----|------|---------|
 | `web` | 8997/9000 | Main Next.js app: Chat UI, Claude API, file ops, auth, deployments |
-| `broker` | configurable | Message broker for streaming state machines and persistence (Dexie) |
 | `shell-server-go` | - | Go rewrite of shell-server (WIP) |
 | `preview-proxy` | configurable | Go preview proxy for workspace preview subdomains |
 | `worker` | 5070 | Automation scheduler + executor (standalone Bun, survives web deploys) |
@@ -728,7 +727,7 @@ const { data } = await iam.rpc('deduct_credits', {
 
 **Location**: `/srv/webalive/templates/` (git repo: `eenlars/alive-templates`)
 **Systemd**: `template@{slug}.service` (separate from `site@` services)
-**Config**: `server-config.json` → `templates` key maps template IDs to local paths
+**Config**: `server-config.json` → `paths.templatesRoot` (default: `/srv/webalive/templates`). The old `templates` key is rejected at parse time by `rejectRemovedKeys()`.
 **Server**: Templates only run on **Server 1** (alive.best). Server 2 has no local template sites — the preview proxy cannot reach them there (see [#98](https://github.com/eenlars/alive/issues/98)).
 **Push**: `GIT_SSH_COMMAND="ssh -i /root/.ssh/id_lars_deploy_bot" git push` (from `/srv/webalive/templates/`)
 
@@ -755,7 +754,7 @@ systemctl restart template@blank-alive-best.service
 # Check all template services
 systemctl list-units 'template@*'
 ```
-4. Template path resolution: `getLocalTemplatePath(templateId)` checks `server-config.json` → `templates` key, falls back to DB `source_path`
+4. Template path resolution: `resolveTemplatePath(dbSourcePath)` from `@webalive/shared` extracts the directory name from the DB `source_path` and joins with `TEMPLATES_ROOT`
 
 **IMPORTANT:** When updating `@alive-game/alive-tagger` or similar packages:
 - Update both `vite.config.ts` AND `package.json` in all sites

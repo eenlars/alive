@@ -24,7 +24,6 @@ sudo systemctl enable alive-dev  # auto-start on boot
 - `alive-dev.service` - Development server (port 8997)
 - `alive-staging.service` - Staging server (port 8998)
 - `alive-production.service` - Production server (port 9000)
-- `alive-broker.service` - WebSocket broker
 
 ## Configuration
 
