@@ -9,7 +9,7 @@ import {
   RETRY_MAX_DELAY_MS,
 } from "../constants"
 import { stealthRequest } from "../index"
-import type { RequestConfig, RequestResponse } from "../types"
+import { type RequestConfig, type RequestResponse, RequestSchema } from "../types"
 
 // Initialize Turndown for HTML to Markdown conversion
 const turndownService = new TurndownService({
@@ -66,7 +66,7 @@ async function stealthRequestWithRetry(
   config: RequestConfig,
   retries: number,
 ): Promise<RequestResponse & { attempts: number }> {
-  const maxAttempts = retries + 1
+  const maxAttempts = Math.max(1, retries + 1)
   let lastResult: RequestResponse | undefined
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     lastResult = await stealthRequest(config)
@@ -81,47 +81,19 @@ async function stealthRequestWithRetry(
     )
     await new Promise(r => setTimeout(r, delay))
   }
-  return { ...(lastResult as RequestResponse), attempts: maxAttempts }
+  // lastResult is always assigned since maxAttempts >= 1
+  return { ...lastResult!, attempts: maxAttempts }
 }
 
 function buildRequestConfig(params: Record<string, unknown>): RequestConfig {
-  const {
-    url,
-    method = "GET",
-    headers,
-    body,
-    timeout,
-    recordNetworkRequests,
-    originUrl,
-    waitFor,
-    extractLinks,
-    followPagination,
-    screenshot,
-    executeJs,
-    cache,
-    retry,
-  } = params
-
-  const fp = followPagination as { selector: string; maxPages?: number } | undefined
-  const ss = screenshot as boolean | { type?: "png" | "webp"; fullPage?: boolean } | undefined
-
-  return {
-    url: url as string,
-    method: (method as string).toUpperCase() as RequestConfig["method"],
-    headers: headers as Record<string, string> | undefined,
-    body: body as Record<string, unknown> | undefined,
-    timeout: (timeout as number) ?? null,
-    recordNetworkRequests: (recordNetworkRequests as boolean) ?? false,
-    originUrl: (originUrl as string) ?? null,
-    waitFor: (waitFor as string) ?? null,
-    extractLinks: (extractLinks as boolean) ?? false,
-    followPagination: fp ? { selector: fp.selector, maxPages: fp.maxPages ?? 10 } : null,
-    screenshot:
-      ss && typeof ss === "object" ? { type: ss.type ?? "png", fullPage: ss.fullPage ?? false } : (ss ?? false),
-    executeJs: (executeJs as string) ?? null,
-    cache: (cache as number) ?? null,
-    retry: (retry as number) ?? null,
+  // Normalize method to uppercase; default to GET for HTTP route (schema defaults POST for MCP)
+  const normalized = { ...params }
+  if (typeof normalized.method === "string") {
+    normalized.method = normalized.method.toUpperCase()
+  } else if (!normalized.method) {
+    normalized.method = "GET"
   }
+  return RequestSchema.parse(normalized)
 }
 
 function formatResponse(result: RequestResponse, format: string): object {
@@ -235,7 +207,7 @@ export function registerFetchRoutes(router: Router): void {
 
   router.post("/fetch-batch", async (req: Request, res: Response): Promise<void> => {
     try {
-      const { requests, concurrency = DEFAULT_BATCH_CONCURRENCY } = req.body
+      const { requests, concurrency: rawConcurrency } = req.body
 
       if (!Array.isArray(requests) || requests.length === 0) {
         res.status(400).json({ error: "requests must be a non-empty array" })
@@ -247,7 +219,11 @@ export function registerFetchRoutes(router: Router): void {
         return
       }
 
-      const effectiveConcurrency = Math.min(Math.max(1, concurrency), requests.length)
+      const parsedConcurrency =
+        typeof rawConcurrency === "number" && Number.isFinite(rawConcurrency)
+          ? rawConcurrency
+          : DEFAULT_BATCH_CONCURRENCY
+      const effectiveConcurrency = Math.min(Math.max(1, parsedConcurrency), requests.length)
       console.log(
         `[${new Date().toISOString()}] Batch: ${requests.length} requests, concurrency=${effectiveConcurrency}`,
       )

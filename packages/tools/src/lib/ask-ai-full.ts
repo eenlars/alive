@@ -193,6 +193,8 @@ export async function askAIFull(options: AskAIFullOptions): Promise<AskAIFullRes
       oauthTokens,
     )
 
+    // Cast needed: createStreamCanUseTool returns a compatible shape but @webalive/shared
+    // cannot import CanUseTool from the SDK (wrong dependency direction)
     canUseTool = createStreamCanUseTool(context, allowedTools) as CanUseTool
   } else {
     permissionMode = permissionMode ?? "bypassPermissions"

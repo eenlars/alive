@@ -10,6 +10,7 @@ import {
 } from "node:dns/promises"
 import { connect as netConnect, type Socket } from "node:net"
 import type { Request, Response, Router } from "express"
+import { z } from "zod"
 
 // ---------------------------------------------------------------------------
 // Subdomain discovery via Certificate Transparency + DNS brute-force
@@ -500,7 +501,17 @@ export function registerReconRoutes(router: Router): void {
 
   router.post("/discover-subdomains", async (req: Request, res: Response): Promise<void> => {
     try {
-      const { domain, methods } = req.body as { domain?: string; methods?: ("ct" | "dns" | "bruteforce")[] }
+      const parsed = z
+        .object({
+          domain: z.string().optional(),
+          methods: z.array(z.enum(["ct", "dns", "bruteforce"])).optional(),
+        })
+        .safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: "Invalid request body" })
+        return
+      }
+      const { domain, methods } = parsed.data
 
       if (!domain) {
         res.status(400).json({ error: "domain is required (e.g. 'example.com')" })
@@ -610,7 +621,12 @@ export function registerReconRoutes(router: Router): void {
   // DNS records
   router.post("/dns-records", async (req: Request, res: Response): Promise<void> => {
     try {
-      const { domain } = req.body as { domain?: string }
+      const parsed = z.object({ domain: z.string().optional() }).safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: "Invalid request body" })
+        return
+      }
+      const { domain } = parsed.data
       if (!domain) {
         res.status(400).json({ error: "domain is required" })
         return
@@ -633,7 +649,12 @@ export function registerReconRoutes(router: Router): void {
   // WHOIS
   router.post("/whois", async (req: Request, res: Response): Promise<void> => {
     try {
-      const { domain } = req.body as { domain?: string }
+      const parsed = z.object({ domain: z.string().optional() }).safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: "Invalid request body" })
+        return
+      }
+      const { domain } = parsed.data
       if (!domain) {
         res.status(400).json({ error: "domain is required" })
         return
@@ -683,7 +704,14 @@ export function registerReconRoutes(router: Router): void {
 
   router.post("/port-scan", async (req: Request, res: Response): Promise<void> => {
     try {
-      const { host, ports: customPorts } = req.body as { host?: string; ports?: number[] }
+      const parsed = z
+        .object({ host: z.string().optional(), ports: z.array(z.number()).optional() })
+        .safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: "Invalid request body" })
+        return
+      }
+      const { host, ports: customPorts } = parsed.data
       if (!host) {
         res.status(400).json({ error: "host is required (IP or domain)" })
         return

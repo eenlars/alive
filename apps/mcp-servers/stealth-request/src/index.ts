@@ -469,10 +469,10 @@ export async function stealthRequest(input: RequestConfig, proxy?: ProxyConfig):
       }
 
       if (jsResult !== undefined) {
-        ;(result as Record<string, unknown>).jsResult = jsResult
+        result.jsResult = jsResult
       }
       if (paginatedPages) {
-        ;(result as Record<string, unknown>).paginatedPages = paginatedPages
+        result.paginatedPages = paginatedPages
       }
 
       return result

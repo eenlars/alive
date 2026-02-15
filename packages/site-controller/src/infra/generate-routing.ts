@@ -193,13 +193,11 @@ function renderCaddySites(
   environments: EnvironmentConfig[],
   _snippets: { common: string; image: string },
   domains: DomainRow[],
-  embeddableTemplateHosts: Set<string>,
+  embeddableHosts: Set<string>,
 ): string {
   const filteredDomains = filterReservedDomains(domains, environments)
   const previewBase = cfg.domains.previewBase
-  const embeddableOnThisServer = filteredDomains.filter(d =>
-    embeddableTemplateHosts.has(d.hostname.toLowerCase()),
-  ).length
+  const embeddableOnThisServer = filteredDomains.filter(d => embeddableHosts.has(d.hostname.toLowerCase())).length
 
   const header = [
     "# GENERATED FILE - DO NOT EDIT",
@@ -218,11 +216,11 @@ function renderCaddySites(
   // Generate site blocks (main domain only — preview is handled by wildcard below)
   const siteBlocks = filteredDomains
     .map(({ hostname, port }) => {
-      const isEmbeddableTemplate = embeddableTemplateHosts.has(hostname.toLowerCase())
+      const isEmbeddable = embeddableHosts.has(hostname.toLowerCase())
       return [
         `${hostname} {`,
         "    tls force_automate",
-        ...(isEmbeddableTemplate ? [] : ["    import common_headers"]),
+        ...(isEmbeddable ? [] : ["    import common_headers"]),
         "    import image_serving",
         "",
         "    # Serve user work files directly from disk",
@@ -232,7 +230,7 @@ function renderCaddySites(
         "        file_server",
         "    }",
         "",
-        ...(isEmbeddableTemplate
+        ...(isEmbeddable
           ? [
               "    # Template preview host: keep security headers but allow iframe embedding",
               "    header {",

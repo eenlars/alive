@@ -507,8 +507,8 @@ export async function POST(req: NextRequest) {
       // Note: Internal MCP servers (alive-workspace, alive-tools) are created locally
       // in the worker because createSdkMcpServer returns function objects that cannot
       // be serialized via IPC. Only OAuth HTTP servers are passed here.
-      const allowedTools = getAllowedTools(cwd, user.isAdmin, isSuperadminWorkspace, isSuperadminWorkspace, !!planMode)
-      const disallowedTools = getDisallowedTools(user.isAdmin, isSuperadminWorkspace, !!planMode, isSuperadminWorkspace)
+      const allowedTools = getAllowedTools(cwd, user.isAdmin, user.isSuperadmin, isSuperadminWorkspace, !!planMode)
+      const disallowedTools = getDisallowedTools(user.isAdmin, user.isSuperadmin, !!planMode, isSuperadminWorkspace)
 
       // Log tool counts for debugging
       if (planMode) {
@@ -523,7 +523,8 @@ export async function POST(req: NextRequest) {
         oauthMcpServers: getOAuthMcpServers(oauthTokens) as Record<string, unknown>,
         streamTypes: STREAM_TYPES,
         isAdmin: user.isAdmin, // Pass to worker for permission checks
-        isSuperadmin: isSuperadminWorkspace, // Superadmin runs as root with elevated tool policy
+        isSuperadmin: user.isSuperadmin, // Superadmin gets elevated tool policy
+        isSuperadminWorkspace, // Whether accessing the alive workspace specifically
       }
 
       const pool = getWorkerPool()
@@ -763,7 +764,8 @@ export async function POST(req: NextRequest) {
         sessionCookie,
         oauthTokens, // OAuth tokens for connected MCP providers (stripe, linear, etc.)
         isAdmin: user.isAdmin, // Enables admin-only tool policy (TaskStop)
-        isSuperadmin: isSuperadminWorkspace, // Superadmin runs as root with elevated tool policy
+        isSuperadmin: user.isSuperadmin, // Superadmin gets elevated tool policy
+        isSuperadminWorkspace, // Whether accessing the alive workspace specifically
         permissionMode: effectivePermissionMode, // Plan mode: "plan" = read-only exploration
       })
     }

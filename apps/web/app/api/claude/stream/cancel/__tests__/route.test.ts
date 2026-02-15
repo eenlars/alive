@@ -2,6 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { tabKey } from "@/features/auth/lib/sessionStore"
 import { getRegistrySize, registerCancellation, unregisterCancellation } from "@/lib/stream/cancellation-registry"
 
+const TEST_TAB_GROUP_ID = "00000000-0000-0000-0000-000000000000"
+
+function makeConversationKey(userId: string, tabId: string, workspace = "test-workspace") {
+  return tabKey({ userId, workspace, tabGroupId: TEST_TAB_GROUP_ID, tabId })
+}
+
 // Mock auth functions
 interface MockUser {
   id: string
@@ -61,9 +67,10 @@ describe("POST /api/claude/stream/cancel", () => {
     let cancelled = false
     const requestId = "test-req-1"
     const userId = "test-user-123"
+    const conversationKey = makeConversationKey(userId, "cancel-active")
 
     // Register a stream
-    registerCancellation(requestId, userId, "conv-key", () => {
+    registerCancellation(requestId, userId, conversationKey, () => {
       cancelled = true
     })
 
@@ -117,9 +124,10 @@ describe("POST /api/claude/stream/cancel", () => {
     let cancelled = false
     const requestId = "test-req-2"
     const ownerUserId = "other-user-456"
+    const conversationKey = makeConversationKey(ownerUserId, "forbidden-cancel")
 
     // Register a stream owned by different user
-    registerCancellation(requestId, ownerUserId, "conv-key", () => {
+    registerCancellation(requestId, ownerUserId, conversationKey, () => {
       cancelled = true
     })
 
@@ -142,9 +150,10 @@ describe("POST /api/claude/stream/cancel", () => {
     let cancelCount = 0
     const requestId = "test-req-3"
     const userId = "test-user-123"
+    const conversationKey = makeConversationKey(userId, "idempotent-cancel")
 
     // Register a stream
-    registerCancellation(requestId, userId, "conv-key", () => {
+    registerCancellation(requestId, userId, conversationKey, () => {
       cancelCount++
     })
 

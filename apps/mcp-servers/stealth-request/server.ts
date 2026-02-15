@@ -27,7 +27,10 @@ registerFetchRoutes(app)
 registerDetectFrameworkRoutes(app)
 registerReconRoutes(app)
 registerAnalyzeJsRoutes(app)
-registerDiscoverRoutes(app)
+registerDiscoverRoutes(app, {
+  port: PORT,
+  publicUrl: `https://${process.env.STEALTH_PUBLIC_HOST ?? "scrape.alive.best"}`,
+})
 
 const HOST = "127.0.0.1"
 app.listen(PORT, HOST, () => {

@@ -114,8 +114,8 @@ function workspaceRoute(
       // Step 3: Verify workspace access
       const workspace = await verifyWorkspaceAccess(user, body, `[${requestId}]`)
       if (!workspace) {
-        return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
-          status: 401,
+        return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
+          status: 403,
           details: { message: "Workspace not authorized" },
         })
       }

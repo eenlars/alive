@@ -53,11 +53,13 @@ export function prepareRequestEnv(payload: EnvPayload): EnvPrepResult {
 
   // 4. Apply new user env keys (validated format only)
   const userEnvKeys = payload.userEnvKeys || {}
+  let appliedCount = 0
   for (const [keyName, keyValue] of Object.entries(userEnvKeys)) {
     if (/^[A-Z][A-Z0-9_]*$/.test(keyName)) {
       process.env[`USER_${keyName}`] = keyValue
+      appliedCount++
     }
   }
 
-  return { apiKeySource, userEnvKeyCount: Object.keys(userEnvKeys).length }
+  return { apiKeySource, userEnvKeyCount: appliedCount }
 }

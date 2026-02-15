@@ -628,7 +628,7 @@ async function handleQuery(ipc, requestId, payload) {
     const toolContext = createStreamToolContext({
       isAdmin: !!agentConfig.isAdmin,
       isSuperadmin: !!agentConfig.isSuperadmin,
-      isSuperadminWorkspace: !!agentConfig.isSuperadmin,
+      isSuperadminWorkspace: !!agentConfig.isSuperadminWorkspace,
       isPlanMode,
       connectedProviders,
     })

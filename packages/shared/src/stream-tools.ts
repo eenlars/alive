@@ -468,13 +468,12 @@ export function createStreamCanUseTool(
 ): (
   toolName: string,
   input: Record<string, unknown>,
-) => Promise<{
-  behavior: "allow" | "deny"
-  message?: string
-  updatedInput?: Record<string, unknown>
-  updatedPermissions?: unknown[]
-}> {
-  return async (toolName, input) => {
+  options: { signal: AbortSignal; toolUseID: string; [key: string]: unknown },
+) => Promise<
+  | { behavior: "allow"; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[] }
+  | { behavior: "deny"; message: string }
+> {
+  return async (toolName, input, _options) => {
     const decision = getStreamToolDecision(toolName, context)
 
     // Policy/internal denies always win (internal tools fail closed).
@@ -552,8 +551,12 @@ export function getStreamDisallowedTools(
 export function filterToolsForPlanMode(allowedTools: string[], isPlanMode: boolean): string[] {
   if (!isPlanMode) return allowedTools
 
-  const context = createStreamToolContext({ isPlanMode: true })
-  return allowedTools.filter(tool => getStreamToolDecision(tool, context).executable)
+  return allowedTools.filter(tool => {
+    const policy = STREAM_TOOL_POLICY_REGISTRY[tool as StreamPolicyToolName]
+    // If no registry entry (e.g. external MCP tool), keep it
+    if (!policy) return true
+    return policy.planMode !== "block"
+  })
 }
 
 /**

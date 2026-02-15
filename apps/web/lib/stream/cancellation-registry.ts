@@ -15,7 +15,7 @@ import { completeStreamBuffer } from "./stream-buffer"
 interface CancelEntry {
   cancel: () => void | Promise<void>
   userId: string
-  conversationKey: string
+  conversationKey: TabSessionKey
   requestId: string
   createdAt: number
 }
@@ -48,7 +48,7 @@ async function runCancelWithTimeout(entry: CancelEntry): Promise<void> {
     )
 
     // Fail-safe: release lock even if stream cleanup callback never resolves.
-    unlockConversation(entry.conversationKey as TabSessionKey)
+    unlockConversation(entry.conversationKey)
 
     completeStreamBuffer(entry.requestId).catch(err => {
       console.warn(`[CancellationRegistry] Failed to complete stream buffer after timeout for ${entry.requestId}:`, err)
@@ -63,7 +63,7 @@ async function runCancelWithTimeout(entry: CancelEntry): Promise<void> {
 export function registerCancellation(
   requestId: string,
   userId: string,
-  conversationKey: string,
+  conversationKey: TabSessionKey,
   cancel: () => void | Promise<void>,
 ): void {
   console.log(`[CancellationRegistry] REGISTER: requestId=${requestId}, convKey=${conversationKey}, userId=${userId}`)

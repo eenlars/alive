@@ -38,7 +38,7 @@ export const RequestSchema = z.object({
   method: z.enum(["POST", "GET", "PUT", "PATCH", "DELETE"]).default("POST"),
   body: z.record(z.string(), z.unknown()).nullish(),
   headers: z.record(z.string(), z.string()).nullish(),
-  timeout: z.number().nullish().default(30000),
+  timeout: z.number().nullish().default(60000),
   recordNetworkRequests: z.boolean().nullish().default(false),
   // optional origin URL to navigate to for cookie collection (useful when API is on different subdomain)
   originUrl: z.string().url().nullish(),
@@ -98,4 +98,6 @@ export type RequestResponse = {
   method: string
   format?: "html" | "links" | "screenshot"
   networkRequests?: NetworkRequest[]
+  jsResult?: unknown
+  paginatedPages?: Array<{ body: unknown; format: string; url: string }>
 }
