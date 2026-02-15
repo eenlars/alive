@@ -533,10 +533,29 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
 describe("Session Recovery - Error Detection Patterns", () => {
   /**
    * Test the exact error detection logic used in route.ts
-   * Now checks both message and stderr combined
+   * Now checks message + stderr + worker diagnostics combined
    */
-  function isSessionNotFoundError(errorMessage: string, stderr = ""): boolean {
-    const combinedMessage = `${errorMessage} ${stderr}`
+  function isSessionNotFoundError(
+    errorMessage: string,
+    stderr = "",
+    diagnostics?: {
+      surfacedErrorMessage?: string
+      originalErrorMessage?: string
+      queryResultErrors?: string[]
+    },
+  ): boolean {
+    const diagnosticHints: string[] = []
+    if (diagnostics?.surfacedErrorMessage) {
+      diagnosticHints.push(diagnostics.surfacedErrorMessage)
+    }
+    if (diagnostics?.originalErrorMessage) {
+      diagnosticHints.push(diagnostics.originalErrorMessage)
+    }
+    if (Array.isArray(diagnostics?.queryResultErrors)) {
+      diagnosticHints.push(...diagnostics.queryResultErrors.filter(v => typeof v === "string"))
+    }
+
+    const combinedMessage = `${errorMessage} ${stderr} ${diagnosticHints.join(" ")}`
     return (
       combinedMessage.includes("No conversation found") ||
       (combinedMessage.includes("session") && combinedMessage.includes("not found"))
@@ -556,6 +575,22 @@ describe("Session Recovery - Error Detection Patterns", () => {
         "Claude Code process exited with code 1",
         "[worker:claude-stderr] No conversation found with session ID: abc123\n",
       ),
+    ).toBe(true)
+  })
+
+  it("should match stale session errors from worker diagnostics.queryResultErrors", () => {
+    expect(
+      isSessionNotFoundError("Claude Code process exited with code 1", "", {
+        queryResultErrors: ["No conversation found with session ID abc123"],
+      }),
+    ).toBe(true)
+  })
+
+  it("should match stale session errors from worker diagnostics.surfacedErrorMessage", () => {
+    expect(
+      isSessionNotFoundError("Claude Code process exited with code 1", "", {
+        surfacedErrorMessage: "No conversation found",
+      }),
     ).toBe(true)
   })
 

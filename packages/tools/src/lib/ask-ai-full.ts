@@ -46,7 +46,7 @@ import {
   STREAM_SETTINGS_SOURCES,
 } from "@webalive/shared"
 import { toolsInternalMcp, workspaceInternalMcp } from "../mcp-server.js"
-import { getEnabledMcpToolNames } from "../tools/meta/search-tools.js"
+import { getEnabledMcpToolNames, withSearchToolsConnectedProviders } from "../tools/meta/search-tools.js"
 // Import CLAUDE_MODELS from ask-ai.ts - SINGLE SOURCE OF TRUTH
 import { CLAUDE_MODELS, type ClaudeModel } from "./ask-ai.js"
 
@@ -166,6 +166,7 @@ export async function askAIFull(options: AskAIFullOptions): Promise<AskAIFullRes
   let mcpServers = options.mcpServers
   let canUseTool: CanUseTool | undefined
   let settingSources = options.settingSources ?? ["project"]
+  let connectedProviders: string[] = []
 
   if (isBridgeMode) {
     permissionMode = permissionMode ?? STREAM_PERMISSION_MODE
@@ -183,72 +184,74 @@ export async function askAIFull(options: AskAIFullOptions): Promise<AskAIFullRes
       oauthTokens,
     )
 
-    const connectedProviders = Object.keys(oauthTokens).filter(k => !!oauthTokens[k])
+    connectedProviders = Object.keys(oauthTokens).filter(k => !!oauthTokens[k])
     canUseTool = createStreamCanUseTool(baseAllowedTools, connectedProviders, false) as CanUseTool
   } else {
     permissionMode = permissionMode ?? "bypassPermissions"
   }
 
-  const agentQuery = query({
-    prompt,
-    options: {
-      cwd,
-      model,
-      maxTurns,
-      permissionMode,
-      ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
-      // Cast needed: "managed" is valid for Claude Code but not in SDK's SettingSource type
-      settingSources: settingSources as ("project" | "user")[],
-      systemPrompt,
-      resume,
-      allowedTools,
-      disallowedTools,
-      mcpServers,
-      canUseTool,
-    },
-  })
+  return await withSearchToolsConnectedProviders(connectedProviders, async () => {
+    const agentQuery = query({
+      prompt,
+      options: {
+        cwd,
+        model,
+        maxTurns,
+        permissionMode,
+        ...(permissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
+        // Cast needed: "managed" is valid for Claude Code but not in SDK's SettingSource type
+        settingSources: settingSources as ("project" | "user")[],
+        systemPrompt,
+        resume,
+        allowedTools,
+        disallowedTools,
+        mcpServers,
+        canUseTool,
+      },
+    })
 
-  let responseText = ""
-  const messages: SDKMessage[] = []
-  let sessionId: string | undefined
-  let resultMessage: SDKResultMessage | null = null
-  let messageCount = 0
+    let responseText = ""
+    const messages: SDKMessage[] = []
+    let sessionId: string | undefined
+    let resultMessage: SDKResultMessage | null = null
+    let messageCount = 0
 
-  for await (const message of agentQuery) {
-    messageCount++
-    messages.push(message)
+    for await (const message of agentQuery) {
+      messageCount++
+      messages.push(message)
 
-    if (message.type === "system" && message.subtype === "init" && message.session_id) {
-      sessionId = message.session_id
-    }
+      if (message.type === "system" && message.subtype === "init" && message.session_id) {
+        sessionId = message.session_id
+      }
 
-    if (message.type === "result") {
-      resultMessage = message
-    }
+      if (message.type === "result") {
+        resultMessage = message
+      }
 
-    if (message.type === "assistant" && "message" in message) {
-      const content = message.message.content
-      if (Array.isArray(content)) {
-        for (const block of content) {
-          if (block.type === "text") {
-            responseText += block.text
+      if (message.type === "assistant" && "message" in message) {
+        const content = message.message.content
+        if (Array.isArray(content)) {
+          for (const block of content) {
+            if (block.type === "text") {
+              responseText += block.text
+            }
           }
         }
       }
+
+      onMessage?.(message)
     }
 
-    onMessage?.(message)
-  }
-
-  return {
-    text: responseText,
-    messages,
-    sessionId,
-    resultMessage,
-    messageCount,
-    mode,
-    workspacePath,
-  }
+    return {
+      text: responseText,
+      messages,
+      sessionId,
+      resultMessage,
+      messageCount,
+      mode,
+      workspacePath,
+    }
+  })
 }
 
 // =============================================================================
