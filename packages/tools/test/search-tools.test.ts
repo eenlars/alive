@@ -1,10 +1,6 @@
 import { GLOBAL_MCP_PROVIDERS, OAUTH_MCP_PROVIDERS } from "@webalive/shared"
 import { afterEach, describe, expect, it } from "vitest"
-import {
-  searchTools,
-  setSearchToolsConnectedProviders,
-  withSearchToolsConnectedProviders,
-} from "../src/tools/meta/search-tools.js"
+import { searchTools, setSearchToolsConnectedProviders } from "../src/tools/meta/search-tools.js"
 
 function parseToolNamesFromMinimalResult(text: string): string[] {
   return text
@@ -22,7 +18,7 @@ describe("search_tools", () => {
     setSearchToolsConnectedProviders([])
   })
 
-  it("should hide OAuth external MCP entries when user has no connected providers", async () => {
+  it("should show global MCP providers regardless of connection status", async () => {
     setSearchToolsConnectedProviders([])
     const result = await searchTools({ category: "external-mcp", detail_level: "minimal" })
     const output = result.content[0]?.text ?? ""
@@ -31,58 +27,20 @@ describe("search_tools", () => {
     for (const providerKey of Object.keys(GLOBAL_MCP_PROVIDERS)) {
       expect(names).toContain(normalizeExternalProviderKey(providerKey))
     }
-
-    for (const providerKey of Object.keys(OAUTH_MCP_PROVIDERS)) {
-      expect(names).not.toContain(providerKey)
-    }
   })
 
-  it("should show only connected OAuth external MCP entries", async () => {
-    const oauthProviderKeys = Object.keys(OAUTH_MCP_PROVIDERS)
-    const connectedProviders = oauthProviderKeys.slice(0, 2)
-    setSearchToolsConnectedProviders(connectedProviders)
+  it("should never include OAuth providers in registry (SDK handles their discovery)", async () => {
+    // Even with all OAuth providers "connected", they should not appear
+    // in search_tools results — the SDK's own MCP server listing handles them
+    const allOAuthKeys = Object.keys(OAUTH_MCP_PROVIDERS)
+    setSearchToolsConnectedProviders(allOAuthKeys)
 
     const result = await searchTools({ category: "external-mcp", detail_level: "minimal" })
     const output = result.content[0]?.text ?? ""
     const names = parseToolNamesFromMinimalResult(output)
 
-    for (const providerKey of Object.keys(GLOBAL_MCP_PROVIDERS)) {
-      expect(names).toContain(normalizeExternalProviderKey(providerKey))
-    }
-
-    for (const providerKey of connectedProviders) {
-      expect(names).toContain(providerKey)
-    }
-
-    const disconnectedProviders = oauthProviderKeys.filter(key => !connectedProviders.includes(key))
-    for (const providerKey of disconnectedProviders) {
+    for (const providerKey of allOAuthKeys) {
       expect(names).not.toContain(providerKey)
     }
-  })
-
-  it("should isolate connected providers across concurrent async contexts", async () => {
-    const oauthProviderKeys = Object.keys(OAUTH_MCP_PROVIDERS)
-    expect(oauthProviderKeys.length).toBeGreaterThanOrEqual(2)
-    const firstProvider = oauthProviderKeys[0]!
-    const secondProvider = oauthProviderKeys[1]!
-
-    const runScopedSearch = async (provider: string, delayMs: number): Promise<string[]> => {
-      return await withSearchToolsConnectedProviders([provider], async () => {
-        await new Promise(resolve => setTimeout(resolve, delayMs))
-        const result = await searchTools({ category: "external-mcp", detail_level: "minimal" })
-        const output = result.content[0]?.text ?? ""
-        return parseToolNamesFromMinimalResult(output)
-      })
-    }
-
-    const [firstNames, secondNames] = await Promise.all([
-      runScopedSearch(firstProvider, 25),
-      runScopedSearch(secondProvider, 0),
-    ])
-
-    expect(firstNames).toContain(firstProvider)
-    expect(firstNames).not.toContain(secondProvider)
-    expect(secondNames).toContain(secondProvider)
-    expect(secondNames).not.toContain(firstProvider)
   })
 })
