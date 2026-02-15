@@ -25,9 +25,9 @@ import { GLOBAL_MCP_PROVIDERS, isOAuthMcpTool, OAUTH_MCP_PROVIDERS } from "./mcp
  *
  * Categories:
  * - File operations: Read, Write, Edit, Glob, Grep (workspace-scoped)
- * - Planning/workflow: ExitPlanMode, TodoWrite
+ * - Planning/workflow: TodoWrite, AskUserQuestion
  * - MCP integration: Mcp
- * - Other safe: NotebookEdit, WebFetch, AskUserQuestion
+ * - Other safe: NotebookEdit, WebFetch
  */
 // Use regular arrays (not as const) for compatibility with SDK types that expect string[]
 export const STREAM_ALLOWED_SDK_TOOLS: string[] = [
@@ -46,12 +46,12 @@ export const STREAM_ALLOWED_SDK_TOOLS: string[] = [
   // NOTE: ExitPlanMode is intentionally NOT here - it requires user approval
   // When Claude tries to use it, canUseTool() denies with a message asking user to approve
   "TodoWrite",
+  "AskUserQuestion",
   // MCP integration
   "Mcp",
   // Other safe tools
   "NotebookEdit",
   "WebFetch",
-  "AskUserQuestion",
   // Skills (loaded from ~/.claude/skills/ or project .claude/skills/)
   "Skill",
 ]
@@ -67,10 +67,10 @@ export type StreamAllowedSDKTool =
   | "BashOutput"
   // ExitPlanMode intentionally omitted - requires user approval
   | "TodoWrite"
+  | "AskUserQuestion"
   | "Mcp"
   | "NotebookEdit"
   | "WebFetch"
-  | "AskUserQuestion"
   | "Skill"
 
 /**
@@ -85,22 +85,24 @@ export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number
  * SDK tools we ALWAYS DISALLOW in the Stream (even for admins).
  *
  * Why disallowed:
- * - Task: Subagent spawning - not supported in Stream architecture
- * - WebSearch: External web access - not needed, cost concerns
  * - ExitPlanMode: Requires user approval - Claude cannot approve its own plan
  * - ListMcpResources/ReadMcpResource: No MCP servers expose resources, pure noise
- *
- * Note: Superadmins get ALL tools including these.
+ * - These remain blocked even for superadmin
  */
 export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = [
-  "Task",
-  "WebSearch",
   "ExitPlanMode",
   // No MCP servers expose resources — these always return "No resources found"
   "ListMcpResources",
   "ReadMcpResource",
 ] as const
 export type StreamAlwaysDisallowedSDKTool = (typeof STREAM_ALWAYS_DISALLOWED_SDK_TOOLS)[number]
+
+/**
+ * SDK tools re-enabled only for superadmin.
+ * These are still blocked for admin/member.
+ */
+export const STREAM_SUPERADMIN_REENABLED_SDK_TOOLS = ["Task", "WebSearch"] as const
+export type StreamSuperadminReenabledSDKTool = (typeof STREAM_SUPERADMIN_REENABLED_SDK_TOOLS)[number]
 
 /**
  * Tools blocked in plan mode (read-only exploration).
@@ -140,27 +142,69 @@ export type PlanModeBlockedTool = (typeof PLAN_MODE_BLOCKED_TOOLS)[number]
 export const STREAM_SUPERADMIN_ONLY_MCP_TOOLS: readonly string[] = []
 export type StreamSuperadminOnlyMcpTool = string
 
+type StreamToolRole = "member" | "admin" | "superadmin"
+
+interface StreamSdkToolPolicy {
+  allowed: string[]
+  disallowed: string[]
+}
+
+function getStreamToolRole(isAdmin: boolean, isSuperadmin: boolean): StreamToolRole {
+  if (isSuperadmin) return "superadmin"
+  if (isAdmin) return "admin"
+  return "member"
+}
+
+/**
+ * Single role-policy source of truth for SDK tool allow/deny behavior.
+ *
+ * Role matrix:
+ * - member: default allowed SDK tools, admin-only + always-disallowed blocked
+ * - admin: member + admin-only allowed, always-disallowed blocked
+ * - superadmin: admin + superadmin re-enabled tools allowed, always-disallowed blocked
+ */
+function getStreamSdkToolPolicy(isAdmin: boolean, isSuperadmin: boolean): StreamSdkToolPolicy {
+  const role = getStreamToolRole(isAdmin, isSuperadmin)
+
+  if (role === "superadmin") {
+    return {
+      allowed: [...STREAM_ALLOWED_SDK_TOOLS, ...STREAM_ADMIN_ONLY_SDK_TOOLS, ...STREAM_SUPERADMIN_REENABLED_SDK_TOOLS],
+      disallowed: [...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS],
+    }
+  }
+
+  if (role === "admin") {
+    return {
+      allowed: [...STREAM_ALLOWED_SDK_TOOLS, ...STREAM_ADMIN_ONLY_SDK_TOOLS],
+      disallowed: [...STREAM_SUPERADMIN_REENABLED_SDK_TOOLS, ...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS],
+    }
+  }
+
+  return {
+    allowed: [...STREAM_ALLOWED_SDK_TOOLS],
+    disallowed: [
+      ...STREAM_ADMIN_ONLY_SDK_TOOLS,
+      ...STREAM_SUPERADMIN_REENABLED_SDK_TOOLS,
+      ...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS,
+    ],
+  }
+}
+
 /**
  * Get disallowed SDK tools based on admin/superadmin status.
  *
  * @param isAdmin - Whether the user is an admin
- * @param isSuperadmin - Whether the user is a superadmin (gets ALL tools)
+ * @param isSuperadmin - Whether the user is a superadmin
  * @returns Array of disallowed tool names
  */
 export function getStreamDisallowedTools(isAdmin: boolean, isSuperadmin = false): string[] {
-  // Superadmins have nothing blocked
-  if (isSuperadmin) {
-    return []
-  }
-  if (isAdmin) {
-    // Admins only have Task and WebSearch blocked
-    return [...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS]
-  }
-  // Non-admins have Bash tools + always-disallowed blocked
-  return [...STREAM_ADMIN_ONLY_SDK_TOOLS, ...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS]
+  return getStreamSdkToolPolicy(isAdmin, isSuperadmin).disallowed
 }
 
-export type StreamDisallowedSDKTool = StreamAdminOnlySDKTool | StreamAlwaysDisallowedSDKTool
+export type StreamDisallowedSDKTool =
+  | StreamAdminOnlySDKTool
+  | StreamAlwaysDisallowedSDKTool
+  | StreamSuperadminReenabledSDKTool
 
 /**
  * Default permission mode for Stream
@@ -253,7 +297,7 @@ export function filterToolsForPlanMode(allowedTools: string[], isPlanMode: boole
  *
  * @param getEnabledMcpToolNames - Function to get enabled MCP tool names from @webalive/tools
  * @param isAdmin - Whether the user is an admin (enables Bash tools)
- * @param isSuperadmin - Whether the user is a superadmin (gets ALL tools)
+ * @param isSuperadmin - Whether the user is a superadmin (re-enables Task + WebSearch)
  * @param isSuperadminWorkspace - Whether this is the superadmin "alive" workspace (excludes site-specific workspace tools)
  * @returns Array of allowed tool names
  */
@@ -264,6 +308,7 @@ export function getStreamAllowedTools(
   isSuperadminWorkspace = false,
 ): string[] {
   const mcpTools = getEnabledMcpToolNames()
+  const sdkPolicy = getStreamSdkToolPolicy(isAdmin, isSuperadmin)
   const globalMcpTools = Object.values(GLOBAL_MCP_PROVIDERS).flatMap(p => [...p.knownTools])
 
   // The "alive" workspace is the platform repo (Next.js monorepo), not a Vite site.
@@ -273,20 +318,8 @@ export function getStreamAllowedTools(
     ? mcpTools.filter(t => !t.startsWith("mcp__alive-workspace__"))
     : mcpTools
 
-  // Superadmins get ALL tools (including Task, WebSearch, superadmin-only MCP tools)
-  if (isSuperadmin) {
-    return [
-      ...STREAM_ALLOWED_SDK_TOOLS,
-      ...STREAM_ADMIN_ONLY_SDK_TOOLS,
-      ...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS, // Task, WebSearch enabled for superadmin
-      ...filteredMcpTools,
-      ...globalMcpTools,
-      ...STREAM_SUPERADMIN_ONLY_MCP_TOOLS, // Superadmin-only MCP tools
-    ]
-  }
-
-  const adminTools = isAdmin ? [...STREAM_ADMIN_ONLY_SDK_TOOLS] : []
-  return [...STREAM_ALLOWED_SDK_TOOLS, ...adminTools, ...filteredMcpTools, ...globalMcpTools]
+  const superadminOnlyMcpTools = isSuperadmin ? STREAM_SUPERADMIN_ONLY_MCP_TOOLS : []
+  return [...sdkPolicy.allowed, ...filteredMcpTools, ...globalMcpTools, ...superadminOnlyMcpTools]
 }
 
 /**

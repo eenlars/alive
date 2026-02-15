@@ -119,16 +119,17 @@ describe("SDK Tools Sync", () => {
       expect(isDisallowed("ReadMcpResource")).toBe(true)
     })
 
-    it("should allow planning/workflow tools (except ExitPlanMode which requires user approval)", () => {
+    it("should enforce planning/workflow policy", () => {
       // ExitPlanMode is disallowed - Claude cannot approve its own plan
       expect(isDisallowed("ExitPlanMode")).toBe(true)
+      // TodoWrite/AskUserQuestion are allowed in Stream mode
       expect(isAllowed("TodoWrite")).toBe(true)
+      expect(isAllowed("AskUserQuestion")).toBe(true)
     })
 
     it("should allow other safe tools", () => {
       expect(isAllowed("NotebookEdit")).toBe(true)
       expect(isAllowed("WebFetch")).toBe(true)
-      expect(isAllowed("AskUserQuestion")).toBe(true)
     })
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { isHeavyBashCommand } from "../stream-tools"
+import { getStreamAllowedTools, getStreamDisallowedTools, isHeavyBashCommand } from "../stream-tools"
 
 describe("isHeavyBashCommand", () => {
   it("flags known heavy monorepo commands", () => {
@@ -51,5 +51,61 @@ describe("isHeavyBashCommand", () => {
     expect(isHeavyBashCommand("pnpm run lint")).toBe(false)
     expect(isHeavyBashCommand("yarn build")).toBe(false)
     expect(isHeavyBashCommand("yarn lint")).toBe(false)
+  })
+})
+
+describe("stream tool role policy", () => {
+  const enabledMcpTools = () => [
+    "mcp__alive-workspace__read_file",
+    "mcp__alive-tools__ping",
+    "mcp__stripe__search_docs",
+  ]
+
+  it("gives member role default SDK tools and blocks admin/superadmin extras", () => {
+    const allowed = getStreamAllowedTools(enabledMcpTools, false, false, false)
+    const disallowed = getStreamDisallowedTools(false, false)
+
+    expect(allowed).toContain("TodoWrite")
+    expect(allowed).toContain("AskUserQuestion")
+    expect(disallowed).toContain("TaskStop")
+    expect(disallowed).toContain("Task")
+    expect(disallowed).toContain("WebSearch")
+    expect(disallowed).toContain("ExitPlanMode")
+    expect(disallowed).toContain("ListMcpResources")
+    expect(disallowed).toContain("ReadMcpResource")
+  })
+
+  it("gives admin role TaskStop but still blocks superadmin-only and always-blocked tools", () => {
+    const allowed = getStreamAllowedTools(enabledMcpTools, true, false, false)
+    const disallowed = getStreamDisallowedTools(true, false)
+
+    expect(allowed).toContain("TaskStop")
+    expect(disallowed).toContain("Task")
+    expect(disallowed).toContain("WebSearch")
+    expect(disallowed).toContain("ExitPlanMode")
+    expect(disallowed).toContain("ListMcpResources")
+    expect(disallowed).toContain("ReadMcpResource")
+  })
+
+  it("gives superadmin Task/WebSearch but still blocks always-blocked tools", () => {
+    const allowed = getStreamAllowedTools(enabledMcpTools, true, true, false)
+    const disallowed = getStreamDisallowedTools(true, true)
+
+    expect(allowed).toContain("Task")
+    expect(allowed).toContain("WebSearch")
+    expect(allowed).toContain("TodoWrite")
+    expect(allowed).toContain("AskUserQuestion")
+    expect(disallowed).toContain("ExitPlanMode")
+    expect(disallowed).toContain("ListMcpResources")
+    expect(disallowed).toContain("ReadMcpResource")
+    expect(disallowed).not.toContain("Task")
+    expect(disallowed).not.toContain("WebSearch")
+  })
+
+  it("filters site-specific workspace MCP tools in superadmin workspace", () => {
+    const allowed = getStreamAllowedTools(enabledMcpTools, true, true, true)
+
+    expect(allowed).not.toContain("mcp__alive-workspace__read_file")
+    expect(allowed).toContain("mcp__alive-tools__ping")
   })
 })

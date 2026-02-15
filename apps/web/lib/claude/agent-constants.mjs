@@ -43,7 +43,7 @@ export function getAllowedTools(_workspacePath, isAdmin = false, isSuperadmin = 
 /**
  * Get disallowed tools based on admin/superadmin status
  * @param {boolean} [isAdmin=false] - Whether the user is an admin
- * @param {boolean} [isSuperadmin=false] - Whether the user is a superadmin (no tools blocked)
+ * @param {boolean} [isSuperadmin=false] - Whether the user is a superadmin (still blocks ExitPlanMode and MCP resource tools)
  * @returns {string[]} Disallowed tools list
  */
 export function getDisallowedTools(isAdmin = false, isSuperadmin = false) {

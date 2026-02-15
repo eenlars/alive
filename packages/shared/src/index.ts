@@ -243,11 +243,13 @@ export {
   STREAM_ALWAYS_DISALLOWED_SDK_TOOLS,
   STREAM_PERMISSION_MODE,
   STREAM_SETTINGS_SOURCES,
+  STREAM_SUPERADMIN_REENABLED_SDK_TOOLS,
   type StreamAdminOnlySDKTool,
   type StreamAllowedSDKTool,
   type StreamAlwaysDisallowedSDKTool,
   type StreamDisallowedSDKTool,
   type StreamMcpServerConfig,
+  type StreamSuperadminReenabledSDKTool,
 } from "./stream-tools.js"
 export {
   getTemplateById,
