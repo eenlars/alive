@@ -96,7 +96,7 @@ function buildRequestConfig(params: Record<string, unknown>): RequestConfig {
   return RequestSchema.parse(normalized)
 }
 
-function formatResponse(result: RequestResponse, format: string): object {
+function formatResponse(result: RequestResponse, format: string): Record<string, unknown> {
   let responseBody = result.responseBody
   if (
     format === "markdown" &&
@@ -120,24 +120,24 @@ function formatResponse(result: RequestResponse, format: string): object {
   if (result.networkRequests) {
     response.networkRequests = result.networkRequests
   }
-  if ("jsResult" in result) {
-    response.jsResult = (result as Record<string, unknown>).jsResult
+  if (result.jsResult !== undefined) {
+    response.jsResult = result.jsResult
   }
-  if ("paginatedPages" in result) {
-    response.paginatedPages = (result as Record<string, unknown>).paginatedPages
+  if (result.paginatedPages) {
+    response.paginatedPages = result.paginatedPages
   }
 
   return response
 }
 
-const responseCache = new RequestCache<object>()
+const responseCache = new RequestCache<Record<string, unknown>>()
 
-export async function handleFetchRequest(params: Record<string, unknown>): Promise<object> {
-  const url = params.url as string
-  const format = (params.format as string) ?? "html"
-  const cacheTtl = params.cache as number | undefined
+export async function handleFetchRequest(params: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const format = typeof params.format === "string" ? params.format : "html"
+  const cacheTtl = typeof params.cache === "number" ? params.cache : undefined
 
   const config = buildRequestConfig(params)
+  const url = config.url
 
   // Check cache
   if (cacheTtl && cacheTtl > 0) {
@@ -167,7 +167,7 @@ export async function handleFetchRequest(params: Record<string, unknown>): Promi
 
   const response = formatResponse(result, format)
   if (result.attempts > 1) {
-    ;(response as Record<string, unknown>).attempts = result.attempts
+    response.attempts = result.attempts
   }
 
   // Store in cache
