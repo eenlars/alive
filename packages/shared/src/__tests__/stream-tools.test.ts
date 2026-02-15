@@ -186,4 +186,13 @@ describe("stream tool role policy", () => {
     expect(decision.policyFound).toBe(false)
     expect(isStreamClientVisibleTool(missingPolicyTool)).toBe(false)
   })
+
+  it("fails closed for unknown mcp__alive-* namespaces", () => {
+    const unknownInternalTool = "mcp__alive-foo__missing_policy_tool"
+    const decision = getStreamToolDecision(unknownInternalTool, createStreamToolContext())
+
+    expect(decision.executable).toBe(false)
+    expect(decision.policyFound).toBe(false)
+    expect(isStreamClientVisibleTool(unknownInternalTool)).toBe(false)
+  })
 })

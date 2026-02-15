@@ -6,6 +6,20 @@
 
 import type { FullConfig } from "@playwright/test"
 import { TEST_CONFIG } from "@webalive/shared"
+import { getResolvedBaseUrlSource, resolveE2eBaseUrl } from "./lib/base-url"
+
+function resolveBaseUrl(config: FullConfig): string {
+  const projectBaseUrl = config.projects.find(project => {
+    return typeof project.use?.baseURL === "string" && project.use.baseURL.length > 0
+  })?.use?.baseURL
+
+  const resolvedBaseUrl = resolveE2eBaseUrl(projectBaseUrl)
+  if (!projectBaseUrl) {
+    const source = getResolvedBaseUrlSource(projectBaseUrl)
+    console.log(`ℹ️ [Global Setup] baseURL not found in project config, using ${source} fallback: ${resolvedBaseUrl}`)
+  }
+  return resolvedBaseUrl
+}
 
 /**
  * Warm up critical pages to trigger Next.js compilation before parallel tests start
@@ -82,8 +96,7 @@ export default async function globalSetup(config: FullConfig) {
   const isMultiPort = config.projects.length > 1 && config.projects.every(p => p.use?.baseURL)
   const workers = isMultiPort ? config.projects.length : (config.workers ?? 4)
 
-  // Use first project's baseURL (in multi-port, all go to their own server for tenant verification)
-  const baseUrl = config.projects[0]?.use?.baseURL || TEST_CONFIG.BASE_URL
+  const baseUrl = resolveBaseUrl(config)
 
   console.log(`\n🚀 [Global Setup] Bootstrapping ${workers} worker tenants`)
   console.log(`📝 [Global Setup] Run ID: ${runId}`)

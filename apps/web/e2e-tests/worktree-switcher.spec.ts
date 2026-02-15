@@ -5,6 +5,7 @@ import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
 import type { TestUser } from "./fixtures"
 import { TEST_TIMEOUTS } from "./fixtures/test-data"
 import { gotoChat } from "./helpers/assertions"
+import { resolveE2eBaseUrl } from "./lib/base-url"
 
 /**
  * Worktree Switcher E2E Tests
@@ -38,7 +39,7 @@ const test = base.extend<
       const workerIndex = workerInfo.workerIndex % TEST_CONFIG.MAX_WORKERS
       if (!runId) throw new Error("E2E_RUN_ID not set")
 
-      const baseUrl = workerInfo.project.use.baseURL || TEST_CONFIG.BASE_URL
+      const baseUrl = resolveE2eBaseUrl(workerInfo.project.use.baseURL)
       const testSecret = process.env.E2E_TEST_SECRET
       const headers: Record<string, string> = { "Content-Type": "application/json" }
       if (testSecret) headers["x-test-secret"] = testSecret

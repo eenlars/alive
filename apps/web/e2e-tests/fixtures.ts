@@ -10,6 +10,7 @@ import { test as base, type Page } from "@playwright/test"
 import { COOKIE_NAMES, createTestStorageState, DOMAINS, TEST_CONFIG } from "@webalive/shared"
 import jwt from "jsonwebtoken"
 import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
+import { resolveE2eBaseUrl } from "./lib/base-url"
 
 export interface TestUser {
   userId: string
@@ -81,9 +82,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         throw new Error("E2E_RUN_ID not set - global setup not run?")
       }
 
-      // Use baseURL from Playwright config (handles staging/production)
-      // Falls back to TEST_CONFIG.BASE_URL for local tests
-      const baseUrl = workerInfo.project.use.baseURL || TEST_CONFIG.BASE_URL
+      // Use baseURL from Playwright config with TEST_ENV fallback for remote runs.
+      const baseUrl = resolveE2eBaseUrl(workerInfo.project.use.baseURL)
 
       // Get test secret for staging/production E2E tests
       const testSecret = process.env.E2E_TEST_SECRET

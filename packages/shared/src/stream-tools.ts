@@ -250,7 +250,7 @@ export const STREAM_TOOL_POLICY_REGISTRY = {
 } as const satisfies Record<StreamPolicyToolName, StreamToolPolicy>
 
 function isInternalPolicyTool(toolName: string): boolean {
-  return toolName.startsWith("mcp__alive-workspace__") || toolName.startsWith("mcp__alive-tools__")
+  return toolName.startsWith("mcp__alive-")
 }
 
 /**
@@ -363,6 +363,10 @@ function getSdkToolsForPolicyEvaluation(): string[] {
 }
 
 function getInternalMcpToolsForPolicyEvaluation(getEnabledMcpToolNames: () => string[]): string[] {
+  // SECURITY INVARIANT:
+  // Any enabled `mcp__alive-*` tool is treated as internal and must be
+  // explicitly policy-registered (or covered by an approved prefix policy),
+  // otherwise it is denied by default (fail closed).
   return getEnabledMcpToolNames().filter(name => name.startsWith("mcp__alive-"))
 }
 
