@@ -241,6 +241,7 @@ export {
   // SDK tool constants
   STREAM_ALLOWED_SDK_TOOLS,
   STREAM_ALWAYS_DISALLOWED_SDK_TOOLS,
+  STREAM_MEMBER_ONLY_SDK_TOOLS,
   STREAM_PERMISSION_MODE,
   STREAM_SETTINGS_SOURCES,
   STREAM_SUPERADMIN_REENABLED_SDK_TOOLS,
@@ -249,6 +250,7 @@ export {
   type StreamAlwaysDisallowedSDKTool,
   type StreamDisallowedSDKTool,
   type StreamMcpServerConfig,
+  type StreamMemberOnlySDKTool,
   type StreamSuperadminReenabledSDKTool,
 } from "./stream-tools.js"
 export {

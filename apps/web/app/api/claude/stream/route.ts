@@ -527,7 +527,7 @@ export async function POST(req: NextRequest) {
         oauthMcpServers: getOAuthMcpServers(oauthTokens) as Record<string, unknown>,
         streamTypes: STREAM_TYPES,
         isAdmin: user.isAdmin, // Pass to worker for permission checks
-        isSuperadmin: isSuperadminWorkspace, // Superadmin has all tools, runs as root
+        isSuperadmin: isSuperadminWorkspace, // Superadmin runs as root with elevated tool policy
       }
 
       const pool = getWorkerPool()
@@ -732,8 +732,8 @@ export async function POST(req: NextRequest) {
         apiKey: effectiveApiKey || undefined,
         sessionCookie,
         oauthTokens, // OAuth tokens for connected MCP providers (stripe, linear, etc.)
-        isAdmin: user.isAdmin, // Enable Bash tools for admins
-        isSuperadmin: isSuperadminWorkspace, // Superadmin has all tools, runs as root
+        isAdmin: user.isAdmin, // Enables admin-only tool policy (TaskStop)
+        isSuperadmin: isSuperadminWorkspace, // Superadmin runs as root with elevated tool policy
         permissionMode: effectivePermissionMode, // Plan mode: "plan" = read-only exploration
       })
     }

@@ -112,8 +112,8 @@ async function readStdinJson() {
 
     // Get base allowed tools (SDK + internal MCP tools)
     // OAuth MCP tools are allowed dynamically in canUseTool
-    // Admin users get Bash, BashOutput, TaskStop tools
-    // Superadmin users get ALL tools (Task, WebSearch included)
+    // Admin users get TaskStop; superadmin re-enables Task/WebSearch.
+    // Member-only MCP resource tools remain hidden for elevated roles.
     // isSuperadmin is also used as isSuperadminWorkspace — the alive workspace
     // is the only superadmin workspace, and site-specific tools (switch_serve_mode, etc.)
     // should not be available there since it's not a Vite site.
@@ -145,8 +145,8 @@ async function readStdinJson() {
         `[runner] 🔓 SUPERADMIN tools: Task=${hasTask}, WebSearch=${hasWebSearch}, disallowed=${disallowedTools.length}`,
       )
     } else if (isAdmin) {
-      const hasBash = baseAllowedTools.includes("Bash")
-      console.error(`[runner] Admin tools: Bash=${hasBash}, disallowed=${disallowedTools.length}`)
+      const hasTaskStop = baseAllowedTools.includes("TaskStop")
+      console.error(`[runner] Admin tools: TaskStop=${hasTaskStop}, disallowed=${disallowedTools.length}`)
     }
 
     /**

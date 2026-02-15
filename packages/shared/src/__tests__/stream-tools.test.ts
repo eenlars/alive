@@ -67,27 +67,29 @@ describe("stream tool role policy", () => {
 
     expect(allowed).toContain("TodoWrite")
     expect(allowed).toContain("AskUserQuestion")
+    expect(allowed).toContain("ListMcpResources")
+    expect(allowed).toContain("ReadMcpResource")
     expect(disallowed).toContain("TaskStop")
     expect(disallowed).toContain("Task")
     expect(disallowed).toContain("WebSearch")
     expect(disallowed).toContain("ExitPlanMode")
-    expect(disallowed).toContain("ListMcpResources")
-    expect(disallowed).toContain("ReadMcpResource")
+    expect(disallowed).not.toContain("ListMcpResources")
+    expect(disallowed).not.toContain("ReadMcpResource")
   })
 
-  it("gives admin role TaskStop but still blocks superadmin-only and always-blocked tools", () => {
+  it("gives admin role TaskStop and hides member-only MCP resource tools", () => {
     const allowed = getStreamAllowedTools(enabledMcpTools, true, false, false)
     const disallowed = getStreamDisallowedTools(true, false)
 
     expect(allowed).toContain("TaskStop")
+    expect(allowed).not.toContain("ListMcpResources")
+    expect(allowed).not.toContain("ReadMcpResource")
     expect(disallowed).toContain("Task")
     expect(disallowed).toContain("WebSearch")
     expect(disallowed).toContain("ExitPlanMode")
-    expect(disallowed).toContain("ListMcpResources")
-    expect(disallowed).toContain("ReadMcpResource")
   })
 
-  it("gives superadmin Task/WebSearch but still blocks always-blocked tools", () => {
+  it("gives superadmin Task/WebSearch but still hides member-only MCP resource tools", () => {
     const allowed = getStreamAllowedTools(enabledMcpTools, true, true, false)
     const disallowed = getStreamDisallowedTools(true, true)
 
@@ -95,9 +97,9 @@ describe("stream tool role policy", () => {
     expect(allowed).toContain("WebSearch")
     expect(allowed).toContain("TodoWrite")
     expect(allowed).toContain("AskUserQuestion")
+    expect(allowed).not.toContain("ListMcpResources")
+    expect(allowed).not.toContain("ReadMcpResource")
     expect(disallowed).toContain("ExitPlanMode")
-    expect(disallowed).toContain("ListMcpResources")
-    expect(disallowed).toContain("ReadMcpResource")
     expect(disallowed).not.toContain("Task")
     expect(disallowed).not.toContain("WebSearch")
   })
