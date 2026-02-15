@@ -30,6 +30,7 @@ interface AgentRequest {
   oauthTokens?: Record<string, string> // OAuth tokens keyed by provider (stripe, linear, etc.)
   isAdmin?: boolean // Whether the user is an admin (enables Bash tools)
   isSuperadmin?: boolean // Whether the user is a superadmin (all tools, runs as root)
+  isSuperadminWorkspace?: boolean // Whether workspace is the alive superadmin workspace
   permissionMode?: string // Plan mode: "plan" = read-only exploration, "default" = full access
   /** Additional MCP tool names to register (e.g. ["mcp__alive-email__send_reply"]) */
   extraTools?: string[]

@@ -33,7 +33,7 @@ describe("search_tools", () => {
     }
 
     for (const providerKey of Object.keys(OAUTH_MCP_PROVIDERS)) {
-      expect(names).not.toContain(providerKey)
+      expect(names).not.toContain(normalizeExternalProviderKey(providerKey))
     }
   })
 
@@ -51,12 +51,12 @@ describe("search_tools", () => {
     }
 
     for (const providerKey of connectedProviders) {
-      expect(names).toContain(providerKey)
+      expect(names).toContain(normalizeExternalProviderKey(providerKey))
     }
 
     const disconnectedProviders = oauthProviderKeys.filter(key => !connectedProviders.includes(key))
     for (const providerKey of disconnectedProviders) {
-      expect(names).not.toContain(providerKey)
+      expect(names).not.toContain(normalizeExternalProviderKey(providerKey))
     }
   })
 

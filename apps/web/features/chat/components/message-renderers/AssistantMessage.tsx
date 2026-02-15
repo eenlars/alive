@@ -17,6 +17,7 @@
  */
 
 import type { SDKAssistantMessage } from "@anthropic-ai/claude-agent-sdk"
+import { isStreamClientVisibleTool } from "@webalive/shared"
 import { ChevronRight } from "lucide-react"
 import { useState } from "react"
 import { OAuthErrorMessage } from "@/components/ui/chat/errors/OAuthErrorMessage"
@@ -82,13 +83,17 @@ function ToolUseItem({ item }: { item: ContentItem }): React.ReactNode {
   }
 
   if (isToolUseBlock(item)) {
+    const toolItem = item as { name: string; input: Record<string, unknown> }
+    if (!isStreamClientVisibleTool(toolItem.name)) {
+      return null
+    }
+
     // Hide all tool_use blocks in normal mode - users only want to see results
     // In debug mode, show them for inspection
     if (!isDebugMode) {
       return null
     }
 
-    const toolItem = item as { name: string; input: Record<string, unknown> }
     const Icon = getToolIcon(toolItem.name)
 
     const getActionLabel = (toolName: string) => {

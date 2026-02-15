@@ -1,11 +1,9 @@
 /**
  * SDK Tools Sync - Type validation against Claude Agent SDK
  *
- * This file validates that our Bridge tool lists (from @webalive/shared)
- * match the actual SDK types. Provides compile-time safety.
- *
- * SOURCE OF TRUTH for tool arrays: @webalive/shared/stream-tools.ts
- * This file only does TYPE VALIDATION.
+ * Validates that our Stream tool registry in @webalive/shared is aligned with
+ * SDK tool names/types. This module also derives runtime allow/deny snapshots
+ * for tests from the centralized stream policy registry.
  */
 
 import type {
@@ -29,26 +27,59 @@ import type {
   WebSearchInput,
 } from "@anthropic-ai/claude-agent-sdk/sdk-tools"
 
-// Import from shared - single source of truth
 import {
-  getStreamDisallowedTools,
-  STREAM_ADMIN_ONLY_SDK_TOOLS,
-  STREAM_ALLOWED_SDK_TOOLS,
-  STREAM_ALWAYS_DISALLOWED_SDK_TOOLS,
-  type StreamAllowedSDKTool,
-  type StreamDisallowedSDKTool,
+  createStreamToolContext,
+  getStreamToolDecision,
+  STREAM_SDK_TOOL_NAMES,
+  type StreamSdkToolName,
 } from "@webalive/shared"
 
-// Re-export for use in tests
-export const ALLOWED_SDK_TOOLS = STREAM_ALLOWED_SDK_TOOLS
-// Combined list for tests (all disallowed for non-admin = full list)
-export const DISALLOWED_SDK_TOOLS = getStreamDisallowedTools(false)
-export type AllowedSDKTool = StreamAllowedSDKTool
-export type DisallowedSDKTool = StreamDisallowedSDKTool
+// -----------------------------------------------------------------------------
+// Runtime snapshots derived from central policy
+// -----------------------------------------------------------------------------
 
-// Export granular lists for advanced use cases
-export const ADMIN_ONLY_SDK_TOOLS = STREAM_ADMIN_ONLY_SDK_TOOLS
-export const ALWAYS_DISALLOWED_SDK_TOOLS = STREAM_ALWAYS_DISALLOWED_SDK_TOOLS
+const memberContext = createStreamToolContext({
+  isAdmin: false,
+  isSuperadmin: false,
+  isSuperadminWorkspace: false,
+  isPlanMode: false,
+})
+
+const adminContext = createStreamToolContext({
+  isAdmin: true,
+  isSuperadmin: false,
+  isSuperadminWorkspace: false,
+  isPlanMode: false,
+})
+
+const superadminContext = createStreamToolContext({
+  isAdmin: true,
+  isSuperadmin: true,
+  isSuperadminWorkspace: false,
+  isPlanMode: false,
+})
+
+export const ALLOWED_SDK_TOOLS = STREAM_SDK_TOOL_NAMES.filter(
+  tool => getStreamToolDecision(tool, memberContext).executable,
+)
+export const DISALLOWED_SDK_TOOLS = STREAM_SDK_TOOL_NAMES.filter(
+  tool => !getStreamToolDecision(tool, memberContext).executable,
+)
+
+export const ADMIN_ONLY_SDK_TOOLS = STREAM_SDK_TOOL_NAMES.filter(
+  tool =>
+    getStreamToolDecision(tool, adminContext).executable && !getStreamToolDecision(tool, memberContext).executable,
+)
+
+export const ALWAYS_DISALLOWED_SDK_TOOLS = STREAM_SDK_TOOL_NAMES.filter(
+  tool =>
+    !getStreamToolDecision(tool, memberContext).executable &&
+    !getStreamToolDecision(tool, adminContext).executable &&
+    !getStreamToolDecision(tool, superadminContext).executable,
+)
+
+export type AllowedSDKTool = (typeof ALLOWED_SDK_TOOLS)[number]
+export type DisallowedSDKTool = (typeof DISALLOWED_SDK_TOOLS)[number]
 
 /**
  * Maps SDK Input types to their tool names.
@@ -75,8 +106,8 @@ type SDKToolMap = {
 }
 
 /**
- * Type-level validation using imported types.
- * If SDK removes a tool type, the import will fail at compile time.
+ * Type-level validation using imported SDK input types.
+ * If SDK removes a tool type, the import/check fails at compile time.
  */
 type _ValidateAgentInput = AgentInput extends ToolInputSchemas ? true : never
 type _ValidateBashInput = BashInput extends ToolInputSchemas ? true : never
@@ -145,22 +176,11 @@ export const SDK_TOOL_NAMES = [
 ] as const satisfies readonly SDKToolName[]
 
 /**
- * Compile-time check: Ensure allowed and disallowed don't overlap.
- */
-type _OverlapCheck = StreamAllowedSDKTool & StreamDisallowedSDKTool
-const _assertNoOverlap: _OverlapCheck extends never ? true : never = true
-
-/**
- * Compile-time check: Ensure all SDK tools are categorized.
- */
-type _AllCategorized = StreamAllowedSDKTool | StreamDisallowedSDKTool
-type _MissingTools = Exclude<SDKToolName, _AllCategorized>
-const _assertAllCategorized: _MissingTools extends never ? true : never = true
-
-/**
- * Compile-time check: Ensure no extra tools beyond SDK.
- * Note: "Skill" is a Stream-specific tool (loaded from .claude/skills/) not in SDK's ToolInputSchemas.
+ * Compile-time checks for shared registry <-> SDK alignment.
  */
 type _StreamOnlyTools = "Skill" | "BashOutput"
-type _ExtraTools = Exclude<_AllCategorized, SDKToolName | _StreamOnlyTools>
-const _assertNoExtraTools: _ExtraTools extends never ? true : never = true
+type _MissingInShared = Exclude<SDKToolName, StreamSdkToolName>
+const _assertSharedCoversAllSdkTools: _MissingInShared extends never ? true : never = true
+
+type _UnexpectedInShared = Exclude<StreamSdkToolName, SDKToolName | _StreamOnlyTools>
+const _assertNoUnexpectedSharedSdkTools: _UnexpectedInShared extends never ? true : never = true

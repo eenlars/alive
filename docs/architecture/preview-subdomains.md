@@ -162,7 +162,7 @@ function getPreviewUrl(workspace: string): string {
 1. **Authentication:** Session cookie validated at Caddy edge
 2. **Embedding:** CSP `frame-ancestors` restricts to terminal.goalive.nl domains only
 3. **Isolation:** Each workspace runs on separate port with systemd isolation
-4. **Headers:** Production sites keep `X-Frame-Options: DENY`, only preview subdomains allow embedding
+4. **Headers:** Production sites default to `X-Frame-Options: DENY`; template preview domains and explicit allowlisted hosts are exempted for deploy-ui iframe previews (allowlist: `ops/caddy/embeddable-hosts.txt`)
 
 ## Why This Works
 
@@ -219,7 +219,7 @@ deploy-site-systemd.sh newsite.com
 6. [FUTURE] Reload Caddy
   ↓
 Workspace accessible at:
-- Production: https://newsite.com (X-Frame-Options: DENY)
+- Production: https://newsite.com (X-Frame-Options: DENY by default)
 - Preview: https://newsite-com.preview.terminal.goalive.nl (embeddable)
 ```
 

@@ -10,7 +10,7 @@ export default defineConfig({
       formats: ["es"],
     },
     rollupOptions: {
-      external: ["puppeteer", "puppeteer-extra", "puppeteer-extra-plugin-stealth", "zod"],
+      external: ["puppeteer", "puppeteer-extra", "puppeteer-extra-plugin-stealth", "zod", "node:crypto"],
       output: {
         globals: {
           puppeteer: "puppeteer",

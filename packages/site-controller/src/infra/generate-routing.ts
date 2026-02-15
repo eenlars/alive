@@ -35,6 +35,10 @@ interface DomainRow {
   port: number
 }
 
+interface TemplateRow {
+  preview_url: string | null
+}
+
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -92,6 +96,24 @@ async function loadSnippet(aliveRoot: string, rel: string): Promise<string> {
   return readFile(p, "utf8")
 }
 
+async function loadStaticEmbeddableHosts(aliveRoot: string): Promise<Set<string>> {
+  const filePath = path.join(aliveRoot, "ops/caddy/embeddable-hosts.txt")
+  if (!existsSync(filePath)) {
+    return new Set()
+  }
+
+  const raw = await readFile(filePath, "utf8")
+  const hosts = new Set<string>()
+
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim().toLowerCase()
+    if (!trimmed || trimmed.startsWith("#")) continue
+    hosts.add(trimmed)
+  }
+
+  return hosts
+}
+
 async function atomicWrite(filePath: string, content: string) {
   const dir = path.dirname(filePath)
   if (!existsSync(dir)) await mkdir(dir, { recursive: true })
@@ -106,16 +128,20 @@ async function atomicWrite(filePath: string, content: string) {
 // Database Query
 // =============================================================================
 
-async function queryDomains(serverId: string): Promise<DomainRow[]> {
+function createAppSupabaseClient() {
   const url = must(process.env.SUPABASE_URL, "SUPABASE_URL is required")
   const key = must(
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY,
     "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY is required",
   )
 
-  const supabase = createClient(url, key, {
+  return createClient(url, key, {
     db: { schema: "app" },
   })
+}
+
+async function queryDomains(serverId: string): Promise<DomainRow[]> {
+  const supabase = createAppSupabaseClient()
 
   // Query domains assigned to this server
   // The user said they added server_id column via migration
@@ -133,6 +159,31 @@ async function queryDomains(serverId: string): Promise<DomainRow[]> {
   return (data || []) as DomainRow[]
 }
 
+async function queryEmbeddableTemplateHosts(): Promise<Set<string>> {
+  const supabase = createAppSupabaseClient()
+  const { data, error } = await supabase.from("templates").select("preview_url").eq("is_active", true)
+
+  if (error) {
+    throw new Error(`Failed to query templates: ${error.message}`)
+  }
+
+  const hosts = new Set<string>()
+  for (const row of (data || []) as TemplateRow[]) {
+    if (!row.preview_url) continue
+
+    try {
+      const url = new URL(row.preview_url)
+      if (url.hostname) {
+        hosts.add(url.hostname.toLowerCase())
+      }
+    } catch {
+      console.warn(`  Skipping invalid template preview_url: ${row.preview_url}`)
+    }
+  }
+
+  return hosts
+}
+
 // =============================================================================
 // Renderers
 // =============================================================================
@@ -142,15 +193,18 @@ function renderCaddySites(
   environments: EnvironmentConfig[],
   _snippets: { common: string; image: string },
   domains: DomainRow[],
+  embeddableHosts: Set<string>,
 ): string {
   const filteredDomains = filterReservedDomains(domains, environments)
   const previewBase = cfg.domains.previewBase
+  const embeddableOnThisServer = filteredDomains.filter(d => embeddableHosts.has(d.hostname.toLowerCase())).length
 
   const header = [
     "# GENERATED FILE - DO NOT EDIT",
     `# serverId: ${cfg.serverId}`,
     `# generated: ${new Date().toISOString()}`,
     `# domains: ${filteredDomains.length}`,
+    `# embeddable_template_domains: ${embeddableOnThisServer}`,
     `# environments: ${environments.map(e => e.key).join(", ")}`,
     `# previewBase: ${previewBase || "(not configured)"}`,
     "",
@@ -162,10 +216,11 @@ function renderCaddySites(
   // Generate site blocks (main domain only — preview is handled by wildcard below)
   const siteBlocks = filteredDomains
     .map(({ hostname, port }) => {
+      const isEmbeddable = embeddableHosts.has(hostname.toLowerCase())
       return [
         `${hostname} {`,
         "    tls force_automate",
-        "    import common_headers",
+        ...(isEmbeddable ? [] : ["    import common_headers"]),
         "    import image_serving",
         "",
         "    # Serve user work files directly from disk",
@@ -175,15 +230,19 @@ function renderCaddySites(
         "        file_server",
         "    }",
         "",
-        "    header {",
-        "        -X-Frame-Options",
-        "        X-Content-Type-Options nosniff",
-        '        X-XSS-Protection "1; mode=block"',
-        "        Referrer-Policy strict-origin-when-cross-origin",
-        "        -Server",
-        "        -X-Powered-By",
-        "    }",
-        "",
+        ...(isEmbeddable
+          ? [
+              "    # Template preview host: keep security headers but allow iframe embedding",
+              "    header {",
+              "        X-Content-Type-Options nosniff",
+              '        X-XSS-Protection "1; mode=block"',
+              "        Referrer-Policy strict-origin-when-cross-origin",
+              "        -Server",
+              "        -X-Powered-By",
+              "    }",
+              "",
+            ]
+          : []),
         `    reverse_proxy localhost:${port} {`,
         "        header_up Host {host}",
         "        header_up X-Real-IP {remote_host}",
@@ -314,17 +373,27 @@ async function run() {
   }
 
   console.log("\nLoading snippets...")
-  const [commonHeaders, imageServing] = await Promise.all([
+  const [commonHeaders, imageServing, staticEmbeddableHosts] = await Promise.all([
     loadSnippet(cfg.paths.aliveRoot, "ops/caddy/snippets/common_headers.caddy"),
     loadSnippet(cfg.paths.aliveRoot, "ops/caddy/snippets/image_serving.caddy"),
+    loadStaticEmbeddableHosts(cfg.paths.aliveRoot),
   ])
   console.log("  Loaded common_headers.caddy")
   console.log("  Loaded image_serving.caddy")
+  console.log(`  Loaded ${staticEmbeddableHosts.size} static embeddable hosts`)
 
   console.log("\nQuerying database for domains...")
-  const domains = await queryDomains(cfg.serverId)
+  const [domains, embeddableTemplateHosts] = await Promise.all([
+    queryDomains(cfg.serverId),
+    queryEmbeddableTemplateHosts(),
+  ])
+  const embeddableHosts = new Set([...embeddableTemplateHosts, ...staticEmbeddableHosts])
   const filteredDomains = filterReservedDomains(domains, environments)
+  const embeddableOnThisServer = filteredDomains.filter(d => embeddableHosts.has(d.hostname.toLowerCase())).length
   console.log(`  Found ${domains.length} domains for this server`)
+  console.log(`  Found ${embeddableTemplateHosts.size} embeddable template domains (global)`)
+  console.log(`  Found ${staticEmbeddableHosts.size} embeddable hosts from static allowlist`)
+  console.log(`  Found ${embeddableOnThisServer} embeddable hosts on this server`)
   console.log(`  Will generate ${filteredDomains.length + (cfg.domains.previewBase ? 1 : 0)} blocks total`)
   console.log(`    - ${filteredDomains.length} main domain blocks`)
   if (cfg.domains.previewBase) {
@@ -339,7 +408,13 @@ async function run() {
   await mkdir(cfg.generated.dir, { recursive: true })
 
   // Generate Caddyfile.sites
-  const sites = renderCaddySites(cfg, environments, { common: commonHeaders, image: imageServing }, domains)
+  const sites = renderCaddySites(
+    cfg,
+    environments,
+    { common: commonHeaders, image: imageServing },
+    domains,
+    embeddableHosts,
+  )
   await atomicWrite(cfg.generated.caddySites, sites)
   console.log(`  ${cfg.generated.caddySites}`)
 

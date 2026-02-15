@@ -3,19 +3,11 @@ import "./e2e-tests/lib/load-env"
 
 // Now safe to import modules that read process.env
 import { defineConfig } from "@playwright/test"
-import { DOMAINS, TEST_CONFIG } from "@webalive/shared"
-import { isRemoteEnv, TEST_ENV, TIMEOUTS } from "./e2e-tests/lib/test-env"
+import { TEST_CONFIG } from "@webalive/shared"
+import { requireEnvAppBaseUrl } from "./e2e-tests/lib/base-url"
+import { isRemoteEnv, TIMEOUTS } from "./e2e-tests/lib/test-env"
 
-// Use TEST_CONFIG.PORT for testing to avoid conflicts with production (8999)
-const LOCAL_BASE_URL = `http://localhost:${TEST_CONFIG.PORT}`
-
-// Determine base URL based on environment (TEST_ENV is validated, no fallback needed)
-const BASE_URLS: Record<string, string> = {
-  local: LOCAL_BASE_URL,
-  staging: DOMAINS.STREAM_STAGING,
-  production: DOMAINS.STREAM_PROD,
-}
-const baseURL = BASE_URLS[TEST_ENV]
+const APP_BASE_URL = requireEnvAppBaseUrl()
 
 // Enforce worker limits against centralized config (single source of truth)
 // - CI: 2 workers (conservative for shared runners)
@@ -41,7 +33,6 @@ export default defineConfig({
   globalTeardown: "./e2e-tests/global-teardown.ts",
 
   use: {
-    baseURL,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
@@ -51,7 +42,7 @@ export default defineConfig({
     ? undefined
     : {
         command: "bash scripts/start-test-server.sh",
-        url: LOCAL_BASE_URL,
+        url: APP_BASE_URL,
         reuseExistingServer: !process.env.CI,
         timeout: 180000, // Increased timeout for slower starts
       },
@@ -59,7 +50,10 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { browserName: "chromium" },
+      use: {
+        browserName: "chromium",
+        baseURL: APP_BASE_URL,
+      },
     },
   ],
 })

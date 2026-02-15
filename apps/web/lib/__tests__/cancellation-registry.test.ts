@@ -8,6 +8,12 @@ import {
   unregisterCancellation,
 } from "../stream/cancellation-registry"
 
+const TEST_TAB_GROUP_ID = "00000000-0000-0000-0000-000000000000"
+
+function makeConversationKey(userId: string, workspace: string, tabId: string) {
+  return tabKey({ userId, workspace, tabGroupId: TEST_TAB_GROUP_ID, tabId })
+}
+
 describe("Cancellation Registry", () => {
   // Note: Registry is global, so we need to be careful about test isolation
   // In a real scenario, we'd want to add a clearRegistry() function for testing
@@ -16,7 +22,7 @@ describe("Cancellation Registry", () => {
     let cancelled = false
     const requestId = "test-request-1"
     const userId = "user-123"
-    const convKey = "user-123::workspace::conv-1"
+    const convKey = makeConversationKey(userId, "workspace", "conv-1")
 
     registerCancellation(requestId, userId, convKey, () => {
       cancelled = true
@@ -39,7 +45,7 @@ describe("Cancellation Registry", () => {
     const requestId = "test-request-2"
     const ownerUserId = "user-owner"
     const attackerUserId = "user-attacker"
-    const convKey = "user-owner::workspace::conv-2"
+    const convKey = makeConversationKey(ownerUserId, "workspace", "conv-2")
 
     registerCancellation(requestId, ownerUserId, convKey, () => {
       cancelled = true
@@ -56,7 +62,7 @@ describe("Cancellation Registry", () => {
   test("should unregister a stream", async () => {
     const requestId = "test-request-3"
     const userId = "user-123"
-    const convKey = "user-123::workspace::conv-3"
+    const convKey = makeConversationKey(userId, "workspace", "conv-3")
 
     registerCancellation(requestId, userId, convKey, () => {})
 
@@ -74,13 +80,13 @@ describe("Cancellation Registry", () => {
   test("should handle multiple registrations", async () => {
     const cancellations: string[] = []
 
-    registerCancellation("req-1", "user-1", "user-1::ws::conv-1", () => {
+    registerCancellation("req-1", "user-1", makeConversationKey("user-1", "ws", "conv-1"), () => {
       cancellations.push("req-1")
     })
-    registerCancellation("req-2", "user-1", "user-1::ws::conv-2", () => {
+    registerCancellation("req-2", "user-1", makeConversationKey("user-1", "ws", "conv-2"), () => {
       cancellations.push("req-2")
     })
-    registerCancellation("req-3", "user-2", "user-2::ws::conv-3", () => {
+    registerCancellation("req-3", "user-2", makeConversationKey("user-2", "ws", "conv-3"), () => {
       cancellations.push("req-3")
     })
 
@@ -99,7 +105,7 @@ describe("Cancellation Registry", () => {
     let cancelCount = 0
     const requestId = "test-request-4"
     const userId = "user-123"
-    const convKey = "user-123::workspace::conv-4"
+    const convKey = makeConversationKey(userId, "workspace", "conv-4")
 
     registerCancellation(requestId, userId, convKey, () => {
       cancelCount++
@@ -121,7 +127,7 @@ describe("Cancellation Registry", () => {
     let cancelled = false
     const requestId = "test-request-5"
     const userId = "user-123"
-    const convKey = "user-123::workspace::conv-5"
+    const convKey = makeConversationKey(userId, "workspace", "conv-5")
 
     registerCancellation(requestId, userId, convKey, () => {
       cancelled = true
@@ -143,7 +149,7 @@ describe("Cancellation Registry", () => {
     const requestId = "test-request-6"
     const ownerUserId = "user-owner"
     const attackerUserId = "user-attacker"
-    const convKey = "user-owner::workspace::conv-6"
+    const convKey = makeConversationKey(ownerUserId, "workspace", "conv-6")
 
     registerCancellation(requestId, ownerUserId, convKey, () => {
       cancelled = true
@@ -161,23 +167,27 @@ describe("Cancellation Registry", () => {
     const cancellations: string[] = []
 
     // Different conversations but similar keys
-    registerCancellation("req-1", "user-1", "user-1::ws::conv-abc", () => {
+    const convKeyA = makeConversationKey("user-1", "ws", "conv-abc")
+    const convKeyB = makeConversationKey("user-1", "ws", "conv-abcd")
+    const convKeyC = makeConversationKey("user-2", "ws", "conv-abc")
+
+    registerCancellation("req-1", "user-1", convKeyA, () => {
       cancellations.push("req-1")
     })
-    registerCancellation("req-2", "user-1", "user-1::ws::conv-abcd", () => {
+    registerCancellation("req-2", "user-1", convKeyB, () => {
       cancellations.push("req-2")
     })
-    registerCancellation("req-3", "user-2", "user-2::ws::conv-abc", () => {
+    registerCancellation("req-3", "user-2", convKeyC, () => {
       cancellations.push("req-3")
     })
 
     // Cancel by exact conversationKey match
-    const result1 = await cancelStreamByConversationKey("user-1::ws::conv-abc", "user-1")
+    const result1 = await cancelStreamByConversationKey(convKeyA, "user-1")
     expect(result1).toBe(true)
     expect(cancellations).toEqual(["req-1"])
 
     // Other streams should still be active
-    const result2 = await cancelStreamByConversationKey("user-1::ws::conv-abcd", "user-1")
+    const result2 = await cancelStreamByConversationKey(convKeyB, "user-1")
     expect(result2).toBe(true)
     expect(cancellations).toEqual(["req-1", "req-2"])
 
@@ -191,7 +201,7 @@ describe("Cancellation Registry", () => {
     let cleanupCompleted = false
     const requestId = "test-request-async"
     const userId = "user-123"
-    const convKey = "user-123::workspace::conv-async"
+    const convKey = makeConversationKey(userId, "workspace", "conv-async")
 
     // Register with an async cancel callback
     registerCancellation(requestId, userId, convKey, () => {

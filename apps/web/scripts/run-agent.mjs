@@ -15,7 +15,13 @@ import { chownSync, existsSync, mkdirSync } from "node:fs"
 import { join } from "node:path"
 import process from "node:process"
 import { query } from "@anthropic-ai/claude-agent-sdk"
-import { allowTool, DEFAULTS, denyTool, isOAuthMcpTool, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
+import {
+  createStreamCanUseTool,
+  createStreamToolContext,
+  DEFAULTS,
+  isOAuthMcpTool,
+  isStreamClientVisibleTool,
+} from "@webalive/shared"
 import { withSearchToolsConnectedProviders } from "@webalive/tools"
 import {
   getAllowedTools,
@@ -113,31 +119,28 @@ async function readStdinJson() {
 
     // Get base allowed tools (SDK + internal MCP tools)
     // OAuth MCP tools are allowed dynamically in canUseTool
-    // Admin users get Bash, BashOutput, TaskStop tools
-    // Superadmin users get ALL tools (Task, WebSearch included)
+    // Admin users get TaskStop; superadmin re-enables Task/WebSearch.
+    // Member-only MCP resource tools remain hidden for elevated roles.
     // isSuperadmin is also used as isSuperadminWorkspace — the alive workspace
     // is the only superadmin workspace, and site-specific tools (switch_serve_mode, etc.)
     // should not be available there since it's not a Vite site.
-    const baseAllowedTools = getAllowedTools(targetCwd || process.cwd(), isAdmin, isSuperadmin, isSuperadmin)
+    const baseAllowedTools = getAllowedTools(
+      targetCwd || process.cwd(),
+      isAdmin,
+      isSuperadmin,
+      isSuperadmin,
+      isPlanMode,
+    )
     // Extra tools from trigger request (e.g. email's send_reply)
     if (request.extraTools?.length) {
       baseAllowedTools.push(...request.extraTools)
       console.error(`[runner] Extra tools added: ${request.extraTools.join(", ")}`)
     }
-    const disallowedTools = getDisallowedTools(isAdmin, isSuperadmin)
-
-    // Plan mode: Filter out blocked tools from allowedTools
-    // The SDK auto-allows tools in allowedTools without calling canUseTool,
-    // so we must remove them from the list to enforce plan mode restrictions
-    const effectiveAllowedTools = isPlanMode
-      ? baseAllowedTools.filter(t => !PLAN_MODE_BLOCKED_TOOLS.includes(t))
-      : baseAllowedTools
+    const disallowedTools = getDisallowedTools(isAdmin, isSuperadmin, isPlanMode, isSuperadmin)
 
     console.error(`[runner] Base allowed tools count: ${baseAllowedTools.length}`)
     if (isPlanMode) {
-      console.error(
-        `[runner] 🔒 PLAN MODE: Filtered to ${effectiveAllowedTools.length} tools (removed ${baseAllowedTools.length - effectiveAllowedTools.length} modification tools)`,
-      )
+      console.error(`[runner] 🔒 PLAN MODE: ${baseAllowedTools.length} tools available under registry policy`)
     }
     if (isSuperadmin) {
       const hasTask = baseAllowedTools.includes("Task")
@@ -146,36 +149,29 @@ async function readStdinJson() {
         `[runner] 🔓 SUPERADMIN tools: Task=${hasTask}, WebSearch=${hasWebSearch}, disallowed=${disallowedTools.length}`,
       )
     } else if (isAdmin) {
-      const hasBash = baseAllowedTools.includes("Bash")
-      console.error(`[runner] Admin tools: Bash=${hasBash}, disallowed=${disallowedTools.length}`)
+      const hasTaskStop = baseAllowedTools.includes("TaskStop")
+      console.error(`[runner] Admin tools: TaskStop=${hasTaskStop}, disallowed=${disallowedTools.length}`)
     }
 
+    const toolContext = createStreamToolContext({
+      isAdmin,
+      isSuperadmin,
+      isSuperadminWorkspace: isSuperadmin,
+      isPlanMode,
+      connectedProviders,
+    })
+
     /**
-     * Tool permission handler - enforces disallowedTools blacklist and dynamic OAuth MCP tool permissions
-     * Uses allowTool/denyTool helpers from @webalive/shared
+     * Tool permission handler - delegated to shared stream policy registry.
      * @type {import('@anthropic-ai/claude-agent-sdk').CanUseTool}
      */
-    const canUseTool = async (toolName, input, _options) => {
-      // Plan mode: block modification tools (backup check - primary filtering is in allowedTools)
-      if (isPlanMode && PLAN_MODE_BLOCKED_TOOLS.includes(toolName)) {
-        console.error(`[runner] 🔒 PLAN MODE: Blocked ${toolName}`)
-        return denyTool(`Tool "${toolName}" is not allowed in plan mode.`)
-      }
-
-      // Explicit deny list takes precedence
-      if (disallowedTools.includes(toolName)) {
+    const baseCanUseTool = createStreamCanUseTool(toolContext, baseAllowedTools)
+    const canUseTool = async (toolName, input, options) => {
+      const result = await baseCanUseTool(toolName, input, options)
+      if (result.behavior === "deny") {
         console.error(`[runner] SECURITY: Blocked ${toolName}`)
-        return denyTool(`Tool "${toolName}" is explicitly disallowed.`)
       }
-
-      // Check allowed tools (SDK + internal MCP + OAuth MCP)
-      if (baseAllowedTools.includes(toolName) || isOAuthMcpTool(toolName, connectedProviders)) {
-        return allowTool(input)
-      }
-
-      // Tool not in any allowed list
-      console.error(`[runner] SECURITY: Unauthorized ${toolName}`)
-      return denyTool(`Tool "${toolName}" is not permitted.`)
+      return result
     }
 
     // MCP tools use process.cwd() which is set by process.chdir() above
@@ -232,7 +228,7 @@ async function readStdinJson() {
           maxTurns: request.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
           permissionMode: effectivePermissionMode,
           ...(effectivePermissionMode === "bypassPermissions" ? { allowDangerouslySkipPermissions: true } : {}),
-          allowedTools: effectiveAllowedTools, // Plan mode filters out modification tools
+          allowedTools: baseAllowedTools,
           disallowedTools, // Dynamic based on admin status
           canUseTool,
           settingSources: SETTINGS_SOURCES,
@@ -277,13 +273,15 @@ async function readStdinJson() {
           )
         }
 
-        // Filter system init message to only show allowed tools (base + connected OAuth MCP)
+        // Filter system init message to only show allowed + client-visible tools
         let outputMessage = message
         if (message.type === "system" && message.subtype === "init" && message.tools) {
           outputMessage = {
             ...message,
             tools: message.tools.filter(
-              tool => baseAllowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders),
+              tool =>
+                (baseAllowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders)) &&
+                isStreamClientVisibleTool(tool),
             ),
           }
         }

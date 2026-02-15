@@ -5,6 +5,7 @@ import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
 import type { TestUser } from "./fixtures"
 import { TEST_TIMEOUTS } from "./fixtures/test-data"
 import { gotoChat } from "./helpers/assertions"
+import { requireProjectBaseUrl } from "./lib/base-url"
 
 /**
  * Worktree Switcher E2E Tests
@@ -38,7 +39,7 @@ const test = base.extend<
       const workerIndex = workerInfo.workerIndex % TEST_CONFIG.MAX_WORKERS
       if (!runId) throw new Error("E2E_RUN_ID not set")
 
-      const baseUrl = workerInfo.project.use.baseURL || TEST_CONFIG.BASE_URL
+      const baseUrl = requireProjectBaseUrl(workerInfo.project.use.baseURL)
       const testSecret = process.env.E2E_TEST_SECRET
       const headers: Record<string, string> = { "Content-Type": "application/json" }
       if (testSecret) headers["x-test-secret"] = testSecret
@@ -64,7 +65,8 @@ const test = base.extend<
   },
 
   authenticatedPage: async ({ page, context, workerStorageState, baseURL }, use) => {
-    const isRemote = baseURL?.startsWith("https://") ?? false
+    const resolvedBaseUrl = requireProjectBaseUrl(baseURL)
+    const isRemote = resolvedBaseUrl.startsWith("https://")
     const jwtSecret = isRemote ? process.env.JWT_SECRET : TEST_CONFIG.JWT_SECRET
     if (!jwtSecret) throw new Error("JWT_SECRET not set")
 
@@ -83,7 +85,7 @@ const test = base.extend<
       { expiresIn: "30d" },
     )
 
-    const cookieDomain = baseURL ? new URL(baseURL).hostname : "localhost"
+    const cookieDomain = new URL(resolvedBaseUrl).hostname
     await context.addCookies([
       {
         name: COOKIE_NAMES.SESSION,

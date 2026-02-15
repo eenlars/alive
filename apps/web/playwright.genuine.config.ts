@@ -26,7 +26,6 @@ export default defineConfig({
   globalTeardown: "./e2e-tests/genuine-teardown.ts",
 
   use: {
-    baseURL: BASE_URL,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
@@ -43,7 +42,10 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { browserName: "chromium" },
+      use: {
+        browserName: "chromium",
+        baseURL: BASE_URL,
+      },
     },
   ],
 })

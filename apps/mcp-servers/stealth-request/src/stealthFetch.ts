@@ -11,6 +11,16 @@ export interface StealthFetchOptions extends RequestInit {
   recordNetworkRequests?: boolean
   // optional origin URL to navigate to for cookie collection (useful when API is on different subdomain)
   originUrl?: string
+  // DOM features (GET only)
+  waitFor?: string
+  extractLinks?: boolean
+  followPagination?: { selector: string; maxPages?: number }
+  screenshot?: boolean | { type?: "png" | "webp"; fullPage?: boolean }
+  executeJs?: string
+  // Response caching (TTL in seconds) — named cacheTtl to avoid conflict with RequestInit.cache
+  cacheTtl?: number
+  // Retry count on transient failures (default 2, 0 = no retry)
+  retry?: number
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -116,6 +126,19 @@ export async function stealthFetch(input: string | URL, init?: StealthFetchOptio
     timeout: init?.timeout ?? null,
     recordNetworkRequests: init?.recordNetworkRequests ?? false,
     originUrl: init?.originUrl ?? null,
+    waitFor: init?.waitFor ?? null,
+    extractLinks: init?.extractLinks ?? false,
+    followPagination: init?.followPagination
+      ? { selector: init.followPagination.selector, maxPages: init.followPagination.maxPages ?? 10 }
+      : null,
+    screenshot: init?.screenshot
+      ? typeof init.screenshot === "object"
+        ? { type: init.screenshot.type ?? "png", fullPage: init.screenshot.fullPage ?? false }
+        : init.screenshot
+      : false,
+    executeJs: init?.executeJs ?? null,
+    cache: init?.cacheTtl ?? null,
+    retry: init?.retry ?? null,
   }
 
   // Make the stealth request

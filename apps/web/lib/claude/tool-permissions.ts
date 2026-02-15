@@ -6,8 +6,8 @@ import {
 } from "@/lib/claude/agent-constants.mjs"
 
 // Convert arrays to Sets for O(1) lookup performance
-export const ALLOWED_SDK_TOOLS = new Set(SDK_TOOLS_ARRAY)
-export const ALLOWED_MCP_TOOLS = new Set(MCP_TOOLS_ARRAY)
+export const ALLOWED_SDK_TOOLS: Set<string> = new Set(SDK_TOOLS_ARRAY)
+export const ALLOWED_MCP_TOOLS: Set<string> = new Set(MCP_TOOLS_ARRAY)
 
 function extractFilePath(input: Record<string, unknown>): string | null {
   const filePathValue = input.file_path ?? input.path ?? input.notebook_path

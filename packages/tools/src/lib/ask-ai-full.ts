@@ -36,10 +36,10 @@ import {
   type SDKResultMessage,
 } from "@anthropic-ai/claude-agent-sdk"
 import {
+  buildStreamToolRuntimeConfig,
   createStreamCanUseTool,
+  createStreamToolContext,
   DEFAULTS,
-  getStreamAllowedTools,
-  getStreamDisallowedTools,
   getStreamMcpServers,
   getWorkspacePath,
   STREAM_PERMISSION_MODE,
@@ -173,19 +173,29 @@ export async function askAIFull(options: AskAIFullOptions): Promise<AskAIFullRes
     // Cast to SettingsSource[] - "managed" is valid for Claude Code but not in SDK types
     settingSources = [...STREAM_SETTINGS_SOURCES] as SettingsSource[]
 
+    connectedProviders = Object.keys(oauthTokens).filter(k => !!oauthTokens[k])
+    const context = createStreamToolContext({
+      isAdmin: false,
+      isSuperadmin: false,
+      isSuperadminWorkspace: false,
+      isPlanMode: permissionMode === "plan",
+      connectedProviders,
+    })
+
     // Note: ask-ai-full is used by MCP tools, not by admin users
     // Always use non-admin tools (isAdmin=false)
-    const baseAllowedTools = getStreamAllowedTools(getEnabledMcpToolNames, false)
-    allowedTools = baseAllowedTools
-    disallowedTools = getStreamDisallowedTools(false)
+    const runtimeTools = buildStreamToolRuntimeConfig(getEnabledMcpToolNames, context)
+    allowedTools = runtimeTools.allowedTools
+    disallowedTools = runtimeTools.disallowedTools
 
     mcpServers = getStreamMcpServers(
       { "alive-workspace": workspaceInternalMcp, "alive-tools": toolsInternalMcp },
       oauthTokens,
     )
 
-    connectedProviders = Object.keys(oauthTokens).filter(k => !!oauthTokens[k])
-    canUseTool = createStreamCanUseTool(baseAllowedTools, connectedProviders, false) as CanUseTool
+    // Cast needed: createStreamCanUseTool returns a compatible shape but @webalive/shared
+    // cannot import CanUseTool from the SDK (wrong dependency direction)
+    canUseTool = createStreamCanUseTool(context, allowedTools) as CanUseTool
   } else {
     permissionMode = permissionMode ?? "bypassPermissions"
   }

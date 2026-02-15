@@ -51,15 +51,17 @@ describe("@webalive/shared exports", () => {
   it("exports stream tool configuration", async () => {
     const shared = await import("@webalive/shared")
 
-    // Tools allowed in stream - security boundary
-    expect(shared.STREAM_ALLOWED_SDK_TOOLS).toBeDefined()
-    expect(Array.isArray(shared.STREAM_ALLOWED_SDK_TOOLS)).toBe(true)
-    expect(shared.STREAM_ALLOWED_SDK_TOOLS.length).toBeGreaterThan(0)
+    // Central registry + SDK list - security boundary
+    expect(shared.STREAM_TOOL_POLICY_REGISTRY).toBeDefined()
+    expect(typeof shared.STREAM_TOOL_POLICY_REGISTRY).toBe("object")
+    expect(shared.STREAM_SDK_TOOL_NAMES).toBeDefined()
+    expect(Array.isArray(shared.STREAM_SDK_TOOL_NAMES)).toBe(true)
+    expect(shared.STREAM_SDK_TOOL_NAMES.length).toBeGreaterThan(0)
 
-    // Must include basic file operations
-    expect(shared.STREAM_ALLOWED_SDK_TOOLS).toContain("Read")
-    expect(shared.STREAM_ALLOWED_SDK_TOOLS).toContain("Write")
-    expect(shared.STREAM_ALLOWED_SDK_TOOLS).toContain("Edit")
+    // Must include basic SDK file operations
+    expect(shared.STREAM_SDK_TOOL_NAMES).toContain("Read")
+    expect(shared.STREAM_SDK_TOOL_NAMES).toContain("Write")
+    expect(shared.STREAM_SDK_TOOL_NAMES).toContain("Edit")
   })
 })
 

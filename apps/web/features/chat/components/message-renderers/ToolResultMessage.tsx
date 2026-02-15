@@ -7,6 +7,7 @@
  * - Custom renderers for rich UI
  */
 
+import { isStreamClientVisibleTool } from "@webalive/shared"
 import { useState } from "react"
 import { ToolOutputRouter } from "@/components/ui/chat/tools/ToolOutputRouter"
 import type { SDKUserMessage } from "@/features/chat/types/sdk-types"
@@ -105,6 +106,10 @@ function ToolResult({
 
   // Auto-expand based on tool config (errors always expand)
   const [isExpanded, setIsExpanded] = useState(() => shouldAutoExpand(toolName, result.is_error ?? false))
+
+  if (!isStreamClientVisibleTool(toolName)) {
+    return null
+  }
 
   const Icon = getToolIcon(toolName)
 

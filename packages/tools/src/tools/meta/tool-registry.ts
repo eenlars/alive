@@ -3,7 +3,7 @@
  *
  * Central registry of all MCP tools with their metadata.
  * Internal tools are defined here. External MCP entries are auto-generated
- * from GLOBAL_MCP_PROVIDERS and OAUTH_MCP_PROVIDERS in @webalive/shared.
+ * from GLOBAL_MCP_PROVIDERS in @webalive/shared.
  */
 import { DEFAULTS, GLOBAL_MCP_PROVIDERS, getTemplateIdsInline, OAUTH_MCP_PROVIDERS } from "@webalive/shared"
 
@@ -523,7 +523,10 @@ const INTERNAL_TOOL_REGISTRY: ToolMetadata[] = [
 
 /**
  * Auto-generate external MCP entries from shared registries.
- * Single source of truth - no manual duplication needed.
+ *
+ * Includes:
+ * - GLOBAL providers (always available, no auth)
+ * - OAuth providers (discoverable only when connected at runtime)
  */
 function generateExternalMcpEntries(): ToolMetadata[] {
   const entries: ToolMetadata[] = []
@@ -553,7 +556,6 @@ function generateExternalMcpEntries(): ToolMetadata[] {
       enabled: false, // External HTTP server, not registered in internal MCP
     })
   }
-
   return entries
 }
 

@@ -1,13 +1,13 @@
 import {
-  getGlobalMcpToolNames,
-  getStreamAllowedTools,
-  getStreamDisallowedTools,
+  buildStreamToolRuntimeConfig,
+  createStreamToolContext,
   getStreamMcpServers,
+  getStreamToolDecision,
   OAUTH_MCP_PROVIDERS,
-  // Single source of truth for Stream tool configuration
-  STREAM_ALLOWED_SDK_TOOLS,
   STREAM_INTERRUPT_SOURCES,
   STREAM_PERMISSION_MODE,
+  // Single source of truth for Stream tool configuration
+  STREAM_SDK_TOOL_NAMES,
   STREAM_SETTINGS_SOURCES,
   STREAM_SYNTHETIC_MESSAGE_TYPES,
   STREAM_TYPES,
@@ -18,36 +18,56 @@ import { getEnabledMcpToolNames, toolsInternalMcp, workspaceInternalMcp } from "
 export { STREAM_TYPES, STREAM_SYNTHETIC_MESSAGE_TYPES, STREAM_INTERRUPT_SOURCES }
 
 // Re-export SDK tools from shared (single source of truth)
-export const ALLOWED_SDK_TOOLS = STREAM_ALLOWED_SDK_TOOLS
+const defaultMemberContext = createStreamToolContext()
+export const ALLOWED_SDK_TOOLS = STREAM_SDK_TOOL_NAMES.filter(
+  tool => getStreamToolDecision(tool, defaultMemberContext).executable,
+)
 export const PERMISSION_MODE = STREAM_PERMISSION_MODE
 /** @type {import('@anthropic-ai/claude-agent-sdk').SettingSource[]} */
 export const SETTINGS_SOURCES = STREAM_SETTINGS_SOURCES
 
 // MCP tools (auto-generated from TOOL_REGISTRY)
-const BASE_MCP_TOOLS = getEnabledMcpToolNames()
-const GLOBAL_MCP_TOOLS = getGlobalMcpToolNames()
-export const ALLOWED_MCP_TOOLS = [...BASE_MCP_TOOLS, ...GLOBAL_MCP_TOOLS]
+export const ALLOWED_MCP_TOOLS = buildStreamToolRuntimeConfig(
+  getEnabledMcpToolNames,
+  defaultMemberContext,
+).allowedTools.filter(tool => tool.startsWith("mcp__"))
 
 /**
  * Get base allowed tools (SDK tools + internal MCP tools)
  * @param {string} _workspacePath - Path to workspace (unused, kept for backwards compat)
- * @param {boolean} [isAdmin=false] - Whether the user is an admin (enables Bash tools)
- * @param {boolean} [isSuperadmin=false] - Whether the user is a superadmin (enables ALL tools)
+ * @param {boolean} [isAdmin=false] - Whether the user is an admin (enables admin-only tools)
+ * @param {boolean} [isSuperadmin=false] - Whether the user is a superadmin (re-enables Task/WebSearch, excludes member-only MCP resource tools)
  * @param {boolean} [isSuperadminWorkspace=false] - Whether this is the "alive" workspace (excludes site-specific tools)
+ * @param {boolean} [isPlanMode=false] - Whether plan mode is active (read-only policy)
  * @returns {string[]} Base allowed tools list
  */
-export function getAllowedTools(_workspacePath, isAdmin = false, isSuperadmin = false, isSuperadminWorkspace = false) {
-  return getStreamAllowedTools(getEnabledMcpToolNames, isAdmin, isSuperadmin, isSuperadminWorkspace)
+export function getAllowedTools(
+  _workspacePath,
+  isAdmin = false,
+  isSuperadmin = false,
+  isSuperadminWorkspace = false,
+  isPlanMode = false,
+) {
+  const context = createStreamToolContext({ isAdmin, isSuperadmin, isSuperadminWorkspace, isPlanMode })
+  return buildStreamToolRuntimeConfig(getEnabledMcpToolNames, context).allowedTools
 }
 
 /**
  * Get disallowed tools based on admin/superadmin status
  * @param {boolean} [isAdmin=false] - Whether the user is an admin
- * @param {boolean} [isSuperadmin=false] - Whether the user is a superadmin (no tools blocked)
+ * @param {boolean} [isSuperadmin=false] - Whether the user is a superadmin (still blocks ExitPlanMode)
+ * @param {boolean} [isPlanMode=false] - Whether plan mode is active
+ * @param {boolean} [isSuperadminWorkspace=false] - Whether this is the platform workspace
  * @returns {string[]} Disallowed tools list
  */
-export function getDisallowedTools(isAdmin = false, isSuperadmin = false) {
-  return getStreamDisallowedTools(isAdmin, isSuperadmin)
+export function getDisallowedTools(
+  isAdmin = false,
+  isSuperadmin = false,
+  isPlanMode = false,
+  isSuperadminWorkspace = false,
+) {
+  const context = createStreamToolContext({ isAdmin, isSuperadmin, isSuperadminWorkspace, isPlanMode })
+  return buildStreamToolRuntimeConfig(getEnabledMcpToolNames, context).disallowedTools
 }
 
 /**
