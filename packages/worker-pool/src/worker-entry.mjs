@@ -601,7 +601,11 @@ async function handleQuery(ipc, requestId, payload) {
     // SECURITY: Isolate process.env between requests to prevent credential leakage.
     // See src/env-isolation.ts for the full contract.
     const envResult = prepareRequestEnv(payload)
-    console.error(`[worker] Using ${envResult.apiKeySource === "user" ? "user-provided API key from payload" : "OAuth credentials from CLAUDE_CONFIG_DIR"}`)
+    const apiKeyMsg =
+      envResult.apiKeySource === "user"
+        ? "user-provided API key from payload"
+        : "OAuth credentials from CLAUDE_CONFIG_DIR"
+    console.error(`[worker] Using ${apiKeyMsg}`)
     if (envResult.userEnvKeyCount > 0) {
       console.error(`[worker] Set ${envResult.userEnvKeyCount} user environment key(s)`)
     }
