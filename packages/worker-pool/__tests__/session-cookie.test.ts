@@ -16,13 +16,15 @@
 
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { prepareRequestEnv } from "../src/env-isolation"
 import type { AgentConfig, AgentRequest } from "../src/types"
 import { ENV_VARS } from "../src/types"
 
 // Paths to actual production code
 const ROUTE_PATH = join(__dirname, "../../../apps/web/app/api/claude/stream/route.ts")
 const WORKER_ENTRY_PATH = join(__dirname, "../src/worker-entry.mjs")
+const ENV_ISOLATION_PATH = join(__dirname, "../src/env-isolation.ts")
 const API_CLIENT_PATH = join(__dirname, "../../tools/src/lib/api-client.ts")
 
 // Extract field names from types for validation
@@ -87,44 +89,34 @@ describe("Session Cookie: Static Analysis of Production Code", () => {
   })
 
   /**
-   * CRITICAL: Verify worker-entry.mjs sets ALIVE_SESSION_COOKIE from payload.
+   * CRITICAL: Verify worker-entry delegates env handling to prepareRequestEnv.
    *
-   * Without this, MCP tools can't authenticate API calls.
+   * Without this call, MCP tools lose auth and env leakage protections can regress.
    */
-  it(`worker-entry.mjs MUST set ${ENV_VARS.ALIVE_SESSION_COOKIE} env var from payload`, () => {
+  it("worker-entry.mjs MUST call prepareRequestEnv(payload)", () => {
     const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
 
-    // Must check for payload.sessionCookie
-    expect(workerCode).toContain("payload.sessionCookie")
-
-    // Must set process.env.ALIVE_SESSION_COOKIE
-    expect(workerCode).toContain(`process.env.${ENV_VARS.ALIVE_SESSION_COOKIE}`)
-
-    // The assignment must exist
-    const assignmentRegex = new RegExp(
-      `process\\.env\\.${ENV_VARS.ALIVE_SESSION_COOKIE}\\s*=\\s*payload\\.sessionCookie`,
-    )
-    expect(assignmentRegex.test(workerCode)).toBe(true)
+    expect(workerCode).toContain("prepareRequestEnv(payload)")
   })
 
   /**
-   * Verify the env var setting happens BEFORE the query execution.
+   * Verify env preparation happens BEFORE the query execution.
    *
-   * If it's set after, MCP tools won't have access to it.
+   * If env prep runs after query(), MCP tools won't have auth/correct secrets.
    */
-  it("worker-entry.mjs MUST set env var before query() call", () => {
+  it("worker-entry.mjs MUST call prepareRequestEnv before query() call", () => {
     const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
 
-    // Find where ALIVE_SESSION_COOKIE is set
-    const envSetIndex = workerCode.indexOf(`process.env.${ENV_VARS.ALIVE_SESSION_COOKIE} = payload.sessionCookie`)
-    expect(envSetIndex).toBeGreaterThan(-1)
+    // Find where env isolation is applied
+    const envPrepIndex = workerCode.indexOf("prepareRequestEnv(payload)")
+    expect(envPrepIndex).toBeGreaterThan(-1)
 
     // Find where query() is called
     const queryCallIndex = workerCode.indexOf("const agentQuery = query({")
     expect(queryCallIndex).toBeGreaterThan(-1)
 
-    // Env var must be set BEFORE query is called
-    expect(envSetIndex).toBeLessThan(queryCallIndex)
+    // Env must be prepared BEFORE query is called
+    expect(envPrepIndex).toBeLessThan(queryCallIndex)
   })
 
   /**
@@ -258,12 +250,19 @@ describe("Session Cookie: Security Considerations", () => {
    * Verify cookie is always cleared/set at start of each request.
    * This prevents cookie leakage between requests from different users.
    */
-  it("worker-entry.mjs should always set/clear env var to prevent leakage", () => {
-    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+  it("env-isolation.ts should always set/clear env var to prevent leakage", () => {
+    const envIsolationCode = readFileSync(ENV_ISOLATION_PATH, "utf-8")
 
     // Should always set ALIVE_SESSION_COOKIE (with fallback to empty string)
     // Pattern: process.env.ALIVE_SESSION_COOKIE = payload.sessionCookie || ""
-    expect(workerCode).toMatch(/process\.env\.ALIVE_SESSION_COOKIE\s*=\s*payload\.sessionCookie\s*\|\|\s*["']/)
+    expect(envIsolationCode).toMatch(/process\.env\.ALIVE_SESSION_COOKIE\s*=\s*payload\.sessionCookie\s*\|\|\s*["']/)
+  })
+
+  it("worker-entry.mjs delegates env isolation to prepareRequestEnv", () => {
+    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+
+    // Worker must call the shared function rather than inline the logic.
+    expect(workerCode).toContain("prepareRequestEnv(payload)")
   })
 })
 
@@ -322,5 +321,93 @@ describe("Query Cancellation: Complete Result", () => {
 
     // Must include cancelled field
     expect(typesCode).toMatch(/cancelled:\s*boolean/)
+  })
+})
+
+describe("Environment Isolation: Behavioral Tests", () => {
+  let savedEnv: Record<string, string | undefined>
+
+  beforeEach(() => {
+    // Snapshot env keys we'll touch so we can restore after each test
+    savedEnv = {
+      ALIVE_SESSION_COOKIE: process.env.ALIVE_SESSION_COOKIE,
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    }
+    // Also snapshot any existing USER_* keys
+    for (const key of Object.keys(process.env)) {
+      if (key.startsWith("USER_")) {
+        savedEnv[key] = process.env[key]
+      }
+    }
+  })
+
+  afterEach(() => {
+    // Restore original env
+    for (const [key, value] of Object.entries(savedEnv)) {
+      if (value === undefined) {
+        delete process.env[key]
+      } else {
+        process.env[key] = value
+      }
+    }
+    // Clean up any USER_* keys created during test
+    for (const key of Object.keys(process.env)) {
+      if (key.startsWith("USER_") && !(key in savedEnv)) {
+        delete process.env[key]
+      }
+    }
+  })
+
+  it("sets ALIVE_SESSION_COOKIE from payload", () => {
+    prepareRequestEnv({ sessionCookie: "cookie-abc" })
+    expect(process.env.ALIVE_SESSION_COOKIE).toBe("cookie-abc")
+  })
+
+  it("clears ALIVE_SESSION_COOKIE when payload has none", () => {
+    process.env.ALIVE_SESSION_COOKIE = "stale-cookie"
+    prepareRequestEnv({})
+    expect(process.env.ALIVE_SESSION_COOKIE).toBe("")
+  })
+
+  it("deletes ANTHROPIC_API_KEY when request supplies no apiKey", () => {
+    process.env.ANTHROPIC_API_KEY = "leaked-key-from-previous-request"
+    prepareRequestEnv({ sessionCookie: "x" })
+    expect(process.env.ANTHROPIC_API_KEY).toBeUndefined()
+  })
+
+  it("sets ANTHROPIC_API_KEY when request supplies apiKey", () => {
+    prepareRequestEnv({ apiKey: "user-key-123" })
+    expect(process.env.ANTHROPIC_API_KEY).toBe("user-key-123")
+  })
+
+  it("clears stale USER_* env keys from a previous request", () => {
+    process.env.USER_OLD_SECRET = "should-be-cleared"
+    process.env.USER_ANOTHER = "also-stale"
+    prepareRequestEnv({ userEnvKeys: { FRESH: "new-value" } })
+    expect(process.env.USER_OLD_SECRET).toBeUndefined()
+    expect(process.env.USER_ANOTHER).toBeUndefined()
+    expect(process.env.USER_FRESH).toBe("new-value")
+  })
+
+  it("clears USER_* keys even when payload has no new keys", () => {
+    process.env.USER_LEFTOVER = "stale"
+    prepareRequestEnv({})
+    expect(process.env.USER_LEFTOVER).toBeUndefined()
+  })
+
+  it("rejects invalid USER_* key names", () => {
+    prepareRequestEnv({ userEnvKeys: { valid_KEY: "ok", lower: "bad", "HAS SPACE": "bad" } })
+    // Only keys that don't match /^[A-Z][A-Z0-9_]*$/ are rejected
+    expect(process.env.USER_lower).toBeUndefined()
+    expect(process.env["USER_HAS SPACE"]).toBeUndefined()
+  })
+
+  it("returns correct apiKeySource and userEnvKeyCount", () => {
+    const result1 = prepareRequestEnv({ apiKey: "k" })
+    expect(result1.apiKeySource).toBe("user")
+
+    const result2 = prepareRequestEnv({ userEnvKeys: { A: "1", B: "2" } })
+    expect(result2.apiKeySource).toBe("oauth")
+    expect(result2.userEnvKeyCount).toBe(2)
   })
 })

@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "alive-mono",
@@ -404,6 +403,9 @@
         "@webalive/shared": "workspace:*",
         "@webalive/tools": "workspace:*",
         "typescript": "^5.0.0",
+      },
+      "devDependencies": {
+        "vitest": "^4.0.18",
       },
     },
   },

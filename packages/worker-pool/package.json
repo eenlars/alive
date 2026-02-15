@@ -14,7 +14,7 @@
     "dev": "tsc --watch",
     "type-check": "tsgo --noEmit",
     "typecheck": "bun run type-check",
-    "test": "bun test",
+    "test": "vitest run",
     "check:imports": "node scripts/check-import-order.mjs",
     "lint": "biome lint . && bun run check:imports",
     "format": "biome format --write .",
@@ -27,6 +27,9 @@
     "@webalive/shared": "workspace:*",
     "@webalive/tools": "workspace:*",
     "typescript": "^5.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.18"
   },
   "keywords": [
     "worker-pool",

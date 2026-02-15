@@ -8,6 +8,8 @@
  * - Mark stream buffers as complete on TTL expiry
  */
 
+import { WORKER_POOL } from "@webalive/shared"
+import { type TabSessionKey, unlockConversation } from "@/features/auth/lib/sessionStore"
 import { completeStreamBuffer } from "./stream-buffer"
 
 interface CancelEntry {
@@ -23,6 +25,36 @@ interface CancelEntry {
  * Key: requestId, Value: cancel callback + metadata
  */
 const registry = new Map<string, CancelEntry>()
+const CANCEL_WAIT_TIMEOUT_MS = Math.max(WORKER_POOL.CANCEL_TIMEOUT_MS * 4, 2_000)
+const CANCEL_TIMEOUT = Symbol("cancel-timeout")
+
+async function runCancelWithTimeout(entry: CancelEntry): Promise<void> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+
+  const timeoutPromise = new Promise<typeof CANCEL_TIMEOUT>(resolve => {
+    timeoutHandle = setTimeout(() => resolve(CANCEL_TIMEOUT), CANCEL_WAIT_TIMEOUT_MS)
+  })
+
+  const cancelPromise = Promise.resolve(entry.cancel()).then(() => undefined)
+  const result = await Promise.race([cancelPromise, timeoutPromise])
+
+  if (timeoutHandle) {
+    clearTimeout(timeoutHandle)
+  }
+
+  if (result === CANCEL_TIMEOUT) {
+    console.error(
+      `[CancellationRegistry] Cancel callback timed out after ${CANCEL_WAIT_TIMEOUT_MS}ms for requestId=${entry.requestId}; forcing cleanup`,
+    )
+
+    // Fail-safe: release lock even if stream cleanup callback never resolves.
+    unlockConversation(entry.conversationKey as TabSessionKey)
+
+    completeStreamBuffer(entry.requestId).catch(err => {
+      console.warn(`[CancellationRegistry] Failed to complete stream buffer after timeout for ${entry.requestId}:`, err)
+    })
+  }
+}
 
 /**
  * Register a stream for cancellation
@@ -67,8 +99,12 @@ export async function cancelStream(requestId: string, userId: string): Promise<b
   }
 
   // Await the cancel callback (may return Promise for cleanup completion)
-  await entry.cancel()
-  registry.delete(requestId) // Auto-cleanup after cancel
+  // with timeout guard to prevent lock deadlocks when abort hangs silently.
+  try {
+    await runCancelWithTimeout(entry)
+  } finally {
+    registry.delete(requestId) // Auto-cleanup after cancel
+  }
   return true
 }
 
@@ -100,8 +136,12 @@ export async function cancelStreamByConversationKey(conversationKey: string, use
 
       console.log(`[CancellationRegistry] Found match! Cancelling requestId=${requestId}`)
       // Await the cancel callback (may return Promise for cleanup completion)
-      await entry.cancel()
-      registry.delete(requestId) // Auto-cleanup after cancel
+      // with timeout guard to prevent lock deadlocks when abort hangs silently.
+      try {
+        await runCancelWithTimeout(entry)
+      } finally {
+        registry.delete(requestId) // Auto-cleanup after cancel
+      }
       return true
     }
   }
@@ -170,7 +210,7 @@ export function getRegistryState(): Array<{
  * Previously set to 3 minutes which killed every Opus conversation >3min.
  * See: https://github.com/eenlars/alive/issues/126
  */
-const TTL_MS = 30 * 60 * 1000 // 30 minutes
+const TTL_MS = 90 * 60 * 1000 // 90 minutes
 const CLEANUP_INTERVAL_MS = 1 * 60 * 1000 // 1 minute
 
 let cleanupInterval: NodeJS.Timeout | null = null
@@ -208,7 +248,7 @@ export function startTTLCleanup(): void {
     }
   }, CLEANUP_INTERVAL_MS)
 
-  console.log("[Registry TTL] Cleanup started (check every 1min, TTL: 3min)")
+  console.log(`[Registry TTL] Cleanup started (check every 1min, TTL: ${Math.round(TTL_MS / 60000)}min)`)
 }
 
 /**
