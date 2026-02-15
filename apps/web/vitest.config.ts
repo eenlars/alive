@@ -1,7 +1,14 @@
 import { readFileSync } from "node:fs"
-import { join } from "node:path"
+import { createRequire } from "node:module"
+import { dirname, join } from "node:path"
 import tsconfigPaths from "vite-tsconfig-paths"
 import { defineConfig, type Plugin, type ViteUserConfig } from "vitest/config"
+
+const require = createRequire(import.meta.url)
+// Resolve React paths via module resolution instead of hardcoding node_modules layout.
+// Bun doesn't always hoist packages to the workspace root, so ../../node_modules/react may not exist.
+const reactDir = dirname(require.resolve("react/package.json"))
+const reactDomDir = dirname(require.resolve("react-dom/package.json"))
 
 // Load .env.test file manually for tests
 function loadEnvFile() {
@@ -44,11 +51,10 @@ export const sharedConfig = {
       "@webalive/template": join(process.cwd(), "../../packages/template"),
       "@webalive/guides": join(process.cwd(), "../../packages/guides"),
       // Ensure single React copy for DOM testing environments (prevents "Invalid hook call" errors)
-      // All workspace packages now use React 19
-      react: join(process.cwd(), "../../node_modules/react"),
-      "react-dom": join(process.cwd(), "../../node_modules/react-dom"),
-      "react/jsx-dev-runtime": join(process.cwd(), "../../node_modules/react/jsx-dev-runtime.js"),
-      "react/jsx-runtime": join(process.cwd(), "../../node_modules/react/jsx-runtime.js"),
+      react: reactDir,
+      "react-dom": reactDomDir,
+      "react/jsx-dev-runtime": join(reactDir, "jsx-dev-runtime.js"),
+      "react/jsx-runtime": join(reactDir, "jsx-runtime.js"),
     },
   },
   // Dedupe React to prevent multiple copies
