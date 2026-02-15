@@ -3,9 +3,9 @@
  *
  * Central registry of all MCP tools with their metadata.
  * Internal tools are defined here. External MCP entries are auto-generated
- * from GLOBAL_MCP_PROVIDERS and OAUTH_MCP_PROVIDERS in @webalive/shared.
+ * from GLOBAL_MCP_PROVIDERS in @webalive/shared.
  */
-import { DEFAULTS, GLOBAL_MCP_PROVIDERS, getTemplateIdsInline, OAUTH_MCP_PROVIDERS } from "@webalive/shared"
+import { DEFAULTS, GLOBAL_MCP_PROVIDERS, getTemplateIdsInline } from "@webalive/shared"
 
 /**
  * SDK Built-in Tools
@@ -523,7 +523,11 @@ const INTERNAL_TOOL_REGISTRY: ToolMetadata[] = [
 
 /**
  * Auto-generate external MCP entries from shared registries.
- * Single source of truth - no manual duplication needed.
+ *
+ * Only includes GLOBAL providers (always available, no auth).
+ * OAuth providers are intentionally excluded — Claude discovers them
+ * through the SDK's own MCP server listing, and including them here
+ * misleads search_tools into advertising tools the user can't access.
  */
 function generateExternalMcpEntries(): ToolMetadata[] {
   const entries: ToolMetadata[] = []
@@ -536,19 +540,6 @@ function generateExternalMcpEntries(): ToolMetadata[] {
       requiresOAuthConnection: false,
       category: "external-mcp",
       description: `${config.friendlyName} integration (always available)`,
-      contextCost: "medium",
-      enabled: false, // External HTTP server, not registered in internal MCP
-    })
-  }
-
-  // From OAUTH_MCP_PROVIDERS (requires user authentication)
-  for (const [key, config] of Object.entries(OAUTH_MCP_PROVIDERS)) {
-    entries.push({
-      name: key,
-      providerKey: key,
-      requiresOAuthConnection: true,
-      category: "external-mcp",
-      description: `${config.friendlyName} integration (requires OAuth connection)`,
       contextCost: "medium",
       enabled: false, // External HTTP server, not registered in internal MCP
     })

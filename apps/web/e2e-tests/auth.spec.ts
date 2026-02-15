@@ -8,7 +8,7 @@ import { gotoChatFast } from "./helpers/assertions"
  * Uses authenticatedPage fixture which pre-sets JWT cookie.
  * gotoChatFast injects localStorage and navigates.
  */
-test.skip("can access chat with worker tenant auth", async ({ authenticatedPage, workerTenant }) => {
+test("can access chat with worker tenant auth", async ({ authenticatedPage, workerTenant }) => {
   await gotoChatFast(authenticatedPage, workerTenant.workspace, workerTenant.orgId)
   await expect(authenticatedPage.locator('[data-testid="message-input"]')).toBeVisible({ timeout: 3000 })
 

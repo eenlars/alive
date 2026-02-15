@@ -41,6 +41,8 @@ export interface AutomationJobParams {
   extraTools?: string[]
   /** Extract response from this tool's input.text instead of text messages */
   responseToolName?: string
+  /** Action type of the automation job (prompt, sync, publish) */
+  actionType?: string
 }
 
 export interface AutomationJobResult {
@@ -146,7 +148,7 @@ async function executeWithWorkerPoolOnly(ctx: ExecutionContext): Promise<Attempt
  * Callers (CronService, trigger routes) own all DB state updates.
  */
 export async function runAutomationJob(params: AutomationJobParams): Promise<AutomationJobResult> {
-  const { jobId, workspace, prompt, timeoutSeconds = 300, model, thinkingPrompt, skills } = params
+  const { jobId, workspace, prompt, timeoutSeconds = 300, model, thinkingPrompt, skills, actionType } = params
   const requestId = generateRequestId()
   const startTime = Date.now()
 
@@ -174,9 +176,15 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     console.log(`[Automation ${requestId}] Loaded ${skillIds.length} skill(s)`)
   }
 
+  // For sync actions, automatically prepend deduplication instructions
+  const deduplicationNote =
+    actionType === "sync"
+      ? "IMPORTANT: Before adding any items, check if they already exist in the target location. Never add duplicate items — compare against existing items to avoid duplication. If an item already exists, skip it.\n\n"
+      : ""
+
   const fullPrompt = skillContext
-    ? `${skillContext}\n\n---\n\nNow, please complete the following task:\n\n${prompt}`
-    : prompt
+    ? `${skillContext}\n\n---\n\n${deduplicationNote}Now, please complete the following task:\n\n${prompt}`
+    : `${deduplicationNote}${prompt}`
 
   try {
     // === Workspace Validation ===

@@ -707,7 +707,7 @@ systemctl restart template@blank-alive-best.service
 
 ## Git Workflow
 
-**Custom SSH Key**: Uses `alive_brug_deploy` for GitHub
+**Custom SSH Key**: Uses `id_lars_deploy_bot` for GitHub
 
 ```bash
 # Push changes

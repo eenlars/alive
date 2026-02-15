@@ -51,16 +51,17 @@ export const serverSchema = {
   SUPABASE_ACCESS_TOKEN: z.string().optional(),
   SUPABASE_PROJECT_ID: z.string().optional(),
 
-  // Domain Configuration (REQUIRED - no fallbacks, fails fast at startup)
-  MAIN_DOMAIN: domainName,
-  WILDCARD_DOMAIN: domainName,
-  PREVIEW_BASE: domainName,
-  COOKIE_DOMAIN: domainName,
+  // Domain Configuration (optional in env — derived from server-config.json when absent)
+  // Values in server-config.json are the source of truth; env vars override if set.
+  MAIN_DOMAIN: domainName.optional(),
+  WILDCARD_DOMAIN: domainName.optional(),
+  PREVIEW_BASE: domainName.optional(),
+  COOKIE_DOMAIN: domainName.optional(),
 
-  // Stream URLs (REQUIRED - no fallbacks, fails fast at startup)
-  STREAM_PROD_URL: httpsUrl,
-  STREAM_STAGING_URL: httpsUrl,
-  STREAM_DEV_URL: httpsUrl,
+  // Stream URLs (optional in env — derived from MAIN_DOMAIN when absent)
+  STREAM_PROD_URL: httpsUrl.optional(),
+  STREAM_STAGING_URL: httpsUrl.optional(),
+  STREAM_DEV_URL: httpsUrl.optional(),
 
   // Stream configuration
   WORKSPACE_BASE: z.string().default("/srv/webalive/sites"),
@@ -141,7 +142,7 @@ export const clientSchema = {
   NEXT_PUBLIC_SUPABASE_URL: httpsUrl,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: jwt,
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
-  NEXT_PUBLIC_PREVIEW_BASE: z.string().min(1, "NEXT_PUBLIC_PREVIEW_BASE is required"),
+  NEXT_PUBLIC_PREVIEW_BASE: z.string().optional().default(""),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
 } as const

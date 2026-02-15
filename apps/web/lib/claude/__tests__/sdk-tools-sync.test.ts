@@ -112,11 +112,9 @@ describe("SDK Tools Sync", () => {
       expect(isDisallowed("WebSearch")).toBe(true)
     })
 
-    it("should allow MCP execution tool", () => {
+    it("should allow Mcp tool and disallow unused MCP resource tools", () => {
       expect(isAllowed("Mcp")).toBe(true)
-    })
-
-    it("should disallow MCP resource tools (no resources exposed)", () => {
+      // No MCP servers expose resources — these always return empty results
       expect(isDisallowed("ListMcpResources")).toBe(true)
       expect(isDisallowed("ReadMcpResource")).toBe(true)
     })

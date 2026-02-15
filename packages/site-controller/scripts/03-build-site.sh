@@ -22,24 +22,45 @@ EOF
 chmod 640 "$ENV_FILE_PATH"
 chown root:"$SITE_USER" "$ENV_FILE_PATH"
 
-# Generate vite.config.ts with domain-specific allowedHosts and correct PORT/proxy
-# The generate-config.js script produces a proper config with:
-#   - allowedHosts derived from the domain (via tldts)
-#   - Dynamic PORT from process.env.PORT
-#   - /api proxy to PORT+1000 for dev mode
+# Generate vite.config.ts with domain-specific allowedHosts and correct PORT/proxy.
+#
+# Two paths:
+#   1. Fresh template (has scripts/generate-config.js): generates a complete vite.config.ts
+#      from scratch with the correct domain, port, and proxy settings.
+#   2. Live-site template (no scripts/ dir): the vite.config.ts was rsync'd from the source
+#      site and still contains that site's domain in allowedHosts. We patch it in-place.
+#      Without this, Vite blocks requests: "This host is not allowed."
 GENERATE_SCRIPT="${TARGET_DIR}/scripts/generate-config.js"
 if [[ -f "$GENERATE_SCRIPT" ]]; then
     log_info "Generating vite.config.ts for $SITE_DOMAIN:$SITE_PORT..."
     bun "$GENERATE_SCRIPT" "$SITE_DOMAIN" "$SITE_PORT" "$TARGET_DIR"
     log_success "vite.config.ts generated"
 else
-    log_info "No generate-config.js found, checking existing vite.config.ts..."
+    # Fallback: patch the existing vite.config.ts copied from the template site.
+    # This happens when deploying from a live site (e.g. saas.alive.best) which
+    # doesn't ship scripts/generate-config.js — only the raw user/ directory.
+    log_info "No generate-config.js found, patching existing vite.config.ts..."
     VITE_CONFIG="${TARGET_DIR}/user/vite.config.ts"
-    if [[ -f "$VITE_CONFIG" ]] && ! grep -q "process.env.PORT" "$VITE_CONFIG"; then
-        log_info "Patching vite.config.ts to use PORT=$SITE_PORT from environment..."
-        sed -i '/export default defineConfig/i\const PORT = Number(process.env.PORT) || '"$SITE_PORT"';\n' "$VITE_CONFIG"
-        sed -i 's/port: [0-9]\+/port: PORT/g' "$VITE_CONFIG"
-        log_success "vite.config.ts patched"
+    if [[ -f "$VITE_CONFIG" ]]; then
+        # Patch PORT if not already using process.env.PORT
+        if ! grep -q "process.env.PORT" "$VITE_CONFIG"; then
+            if grep -q 'export default defineConfig' "$VITE_CONFIG"; then
+                log_info "Patching PORT to $SITE_PORT..."
+                sed -i '/export default defineConfig/i\const PORT = Number(process.env.PORT) || '"$SITE_PORT"';\n' "$VITE_CONFIG"
+                # Replace only the first port: <number> (server.port), not HMR/proxy ports
+                sed -E -i '0,/port:[[:space:]]*[0-9]+/s//port: PORT/' "$VITE_CONFIG"
+                log_success "vite.config.ts PORT patched"
+            else
+                log_info "Could not locate defineConfig — skipping PORT patch"
+            fi
+        fi
+        # Patch allowedHosts: replace the template's domain with the actual domain.
+        # Without this, Vite rejects requests with the new domain's Host header.
+        if grep -q 'allowedHosts:' "$VITE_CONFIG"; then
+            log_info "Patching allowedHosts to ${SITE_DOMAIN}..."
+            sed -E -i 's/allowedHosts:[[:space:]]*\[[^]]*\]/allowedHosts: ["'"$SITE_DOMAIN"'"]/g' "$VITE_CONFIG"
+            log_success "vite.config.ts allowedHosts patched"
+        fi
     fi
 fi
 

@@ -88,7 +88,7 @@ export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number
  * - Task: Subagent spawning - not supported in Stream architecture
  * - WebSearch: External web access - not needed, cost concerns
  * - ExitPlanMode: Requires user approval - Claude cannot approve its own plan
- * - ListMcpResources / ReadMcpResource: no MCP resources exposed, pure token waste
+ * - ListMcpResources/ReadMcpResource: No MCP servers expose resources, pure noise
  *
  * Note: Superadmins get ALL tools including these.
  */
@@ -96,6 +96,7 @@ export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = [
   "Task",
   "WebSearch",
   "ExitPlanMode",
+  // No MCP servers expose resources — these always return "No resources found"
   "ListMcpResources",
   "ReadMcpResource",
 ] as const

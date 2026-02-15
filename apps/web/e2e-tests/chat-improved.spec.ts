@@ -10,7 +10,7 @@ import { TEST_MESSAGES, TEST_TIMEOUTS } from "./fixtures/test-data"
 import { handlers } from "./lib/handlers"
 import { ChatPage } from "./pages/ChatPage"
 
-test.skip("has chat interface", async ({ authenticatedPage, workerTenant }) => {
+test("has chat interface", async ({ authenticatedPage, workerTenant }) => {
   const chat = new ChatPage(authenticatedPage)
   await chat.gotoFast(workerTenant.workspace, workerTenant.orgId)
 
@@ -18,7 +18,7 @@ test.skip("has chat interface", async ({ authenticatedPage, workerTenant }) => {
   await expect(chat.sendButton).toBeVisible({ timeout: TEST_TIMEOUTS.fast })
 })
 
-test.skip("can send a message and receive response", async ({ authenticatedPage, workerTenant }) => {
+test("can send a message and receive response", async ({ authenticatedPage, workerTenant }) => {
   await authenticatedPage.route("**/api/claude/stream", handlers.text("Hi there! How can I help you today?"))
 
   const chat = new ChatPage(authenticatedPage)
@@ -29,7 +29,7 @@ test.skip("can send a message and receive response", async ({ authenticatedPage,
   await chat.expectMessage(/Hi there.*help you today/)
 })
 
-test.skip("can send multiple messages", async ({ authenticatedPage, workerTenant }) => {
+test("can send multiple messages", async ({ authenticatedPage, workerTenant }) => {
   await authenticatedPage.route("**/api/claude/stream", handlers.text("Response received"))
 
   const chat = new ChatPage(authenticatedPage)

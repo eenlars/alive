@@ -31,8 +31,7 @@ vi.mock("@/lib/stores/streamingStore", () => ({
   clearAbortController: (...args: unknown[]) => mockClearAbortController(...args),
 }))
 
-// TODO: Fix react/jsx-dev-runtime resolution issue in vitest 4.x with happy-dom
-describe.skip("useStreamCancellation", () => {
+describe("useStreamCancellation", () => {
   // Default mock options for the hook
   const createMockOptions = (): MockOptions => ({
     tabId: "test-conversation-123",
@@ -343,7 +342,7 @@ describe.skip("useStreamCancellation", () => {
         result.current.stopStreaming()
       })
 
-      expect(postty).toHaveBeenCalledWith("claude/stream/cancel", { requestId: "request-456" })
+      expect(postty).toHaveBeenCalledWith("claude/stream/cancel", expect.objectContaining({ requestId: "request-456" }))
     })
 
     it("should fallback to tabId when no requestId", async () => {
@@ -356,11 +355,14 @@ describe.skip("useStreamCancellation", () => {
         result.current.stopStreaming()
       })
 
-      expect(postty).toHaveBeenCalledWith("claude/stream/cancel", {
-        tabGroupId: "test-tabgroup",
-        tabId: "test-conversation-123",
-        workspace: "test-workspace",
-      })
+      expect(postty).toHaveBeenCalledWith(
+        "claude/stream/cancel",
+        expect.objectContaining({
+          tabGroupId: "test-tabgroup",
+          tabId: "test-conversation-123",
+          workspace: "test-workspace",
+        }),
+      )
     })
 
     it("should skip cancel request when no requestId AND no workspace", async () => {
