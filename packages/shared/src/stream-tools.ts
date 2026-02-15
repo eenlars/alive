@@ -1,238 +1,415 @@
 /**
  * Stream Tools Configuration
  *
- * SOURCE OF TRUTH for SDK tool permissions and Stream agent configuration.
+ * SOURCE OF TRUTH for Stream tool permissions and configuration.
  *
  * This file defines:
- * - Which SDK tools are allowed/disallowed in Stream mode
- * - Helper functions for building tool lists and MCP servers
+ * - A single per-tool policy registry (SDK + internal MCP tools)
+ * - Role/workspace/plan-mode enforcement helpers
+ * - Derived runtime config (allowed/disallowed/visible tool lists)
  *
  * Used by:
- * - apps/web/lib/claude/agent-constants.mjs (runtime)
- * - apps/web/lib/claude/sdk-tools-sync.ts (type validation)
- * - packages/tools/src/lib/ask-ai-full.ts (askAIFull Stream mode)
+ * - apps/web runtime routes and runners
+ * - packages/tools ask-ai bridge mode
+ * - worker-pool tool permission enforcement
  */
 
 import { PATHS } from "./config.js"
-import { GLOBAL_MCP_PROVIDERS, isOAuthMcpTool, OAUTH_MCP_PROVIDERS } from "./mcp-providers.js"
+import { GLOBAL_MCP_PROVIDERS, getGlobalMcpToolNames, isOAuthMcpTool, OAUTH_MCP_PROVIDERS } from "./mcp-providers.js"
 
 // =============================================================================
-// SDK TOOL DEFINITIONS
+// STREAM TOOL POLICY TYPES
 // =============================================================================
 
-/**
- * SDK built-in tools we ALLOW in the Stream.
- *
- * Categories:
- * - File operations: Read, Write, Edit, Glob, Grep (workspace-scoped)
- * - Planning/workflow: TodoWrite, AskUserQuestion
- * - MCP integration: Mcp, ListMcpResources, ReadMcpResource (member-only for MCP resources)
- * - Other safe: NotebookEdit, WebFetch
- */
-// Use regular arrays (not as const) for compatibility with SDK types that expect string[]
-export const STREAM_ALLOWED_SDK_TOOLS: string[] = [
-  // File operations (workspace-scoped)
-  "Read",
-  "Write",
-  "Edit",
-  "Glob",
-  "Grep",
-  // Shell execution (available to all users)
-  "Bash",
-  "TaskOutput",
-  // Legacy alias used by older Claude Code SDK versions
-  "BashOutput",
-  // Planning & workflow
-  // NOTE: ExitPlanMode is intentionally NOT here - it requires user approval
-  // When Claude tries to use it, canUseTool() denies with a message asking user to approve
-  "TodoWrite",
-  "AskUserQuestion",
-  // MCP integration
-  "Mcp",
-  "ListMcpResources",
-  "ReadMcpResource",
-  // Other safe tools
-  "NotebookEdit",
-  "WebFetch",
-  // Skills (loaded from ~/.claude/skills/ or project .claude/skills/)
-  "Skill",
-]
+export type StreamToolRole = "member" | "admin" | "superadmin"
+export type StreamWorkspaceKind = "site" | "platform"
+export type StreamPlanModeBehavior = "allow" | "block"
+export type StreamToolVisibility = "visible" | "silent"
 
-export type StreamAllowedSDKTool =
-  | "Read"
-  | "Write"
-  | "Edit"
-  | "Glob"
-  | "Grep"
-  | "Bash"
-  | "TaskOutput"
-  | "BashOutput"
-  // ExitPlanMode intentionally omitted - requires user approval
-  | "TodoWrite"
-  | "AskUserQuestion"
-  | "Mcp"
-  | "ListMcpResources"
-  | "ReadMcpResource"
-  | "NotebookEdit"
-  | "WebFetch"
-  | "Skill"
-
-/**
- * Admin-only SDK tools.
- * TaskStop is admin-only because it can terminate background tasks.
- * Bash/TaskOutput/BashOutput are in STREAM_ALLOWED_SDK_TOOLS (available to all users).
- */
-export const STREAM_ADMIN_ONLY_SDK_TOOLS = ["TaskStop"] as const
-export type StreamAdminOnlySDKTool = (typeof STREAM_ADMIN_ONLY_SDK_TOOLS)[number]
-
-/**
- * SDK tools we ALWAYS DISALLOW in the Stream (even for admins).
- *
- * Why disallowed:
- * - ExitPlanMode: Requires user approval - Claude cannot approve its own plan
- */
-export const STREAM_ALWAYS_DISALLOWED_SDK_TOOLS = ["ExitPlanMode"] as const
-export type StreamAlwaysDisallowedSDKTool = (typeof STREAM_ALWAYS_DISALLOWED_SDK_TOOLS)[number]
-
-/**
- * SDK tools allowed only for member users.
- * Elevated roles use the platform workspace and should not use site-level MCP resources.
- */
-export const STREAM_MEMBER_ONLY_SDK_TOOLS = ["ListMcpResources", "ReadMcpResource"] as const
-export type StreamMemberOnlySDKTool = (typeof STREAM_MEMBER_ONLY_SDK_TOOLS)[number]
-const STREAM_MEMBER_ONLY_SDK_TOOL_SET = new Set<string>(STREAM_MEMBER_ONLY_SDK_TOOLS)
-
-/**
- * SDK tools re-enabled only for superadmin.
- * These are still blocked for admin/member.
- */
-export const STREAM_SUPERADMIN_REENABLED_SDK_TOOLS = ["Task", "WebSearch"] as const
-export type StreamSuperadminReenabledSDKTool = (typeof STREAM_SUPERADMIN_REENABLED_SDK_TOOLS)[number]
-
-/**
- * Tools blocked in plan mode (read-only exploration).
- *
- * Plan mode allows Claude to explore and analyze without modifications.
- * When plan mode is enabled, these tools are filtered OUT of allowedTools
- * before passing to the SDK.
- *
- * ARCHITECTURE NOTE: The Claude SDK only calls canUseTool() for tools NOT in
- * the allowedTools array. Tools IN allowedTools are auto-allowed without checking.
- * Therefore, we must filter blocked tools from allowedTools, not just deny in canUseTool.
- *
- * See: docs/architecture/plan-mode.md
- */
-export const PLAN_MODE_BLOCKED_TOOLS = [
-  // SDK file modification tools
-  "Write",
-  "Edit",
-  "MultiEdit",
-  "Bash",
-  "NotebookEdit",
-  // MCP tools that modify workspace
-  "mcp__alive-workspace__delete_file",
-  "mcp__alive-workspace__install_package",
-  "mcp__alive-workspace__restart_dev_server",
-  "mcp__alive-workspace__switch_serve_mode",
-  "mcp__alive-workspace__create_website",
-] as const
-export type PlanModeBlockedTool = (typeof PLAN_MODE_BLOCKED_TOOLS)[number]
-
-/**
- * MCP tools only available to superadmins.
- *
- * These are experimental/advanced tools not ready for general use.
- * Currently empty - ask_clarification moved to general availability.
- */
-export const STREAM_SUPERADMIN_ONLY_MCP_TOOLS: readonly string[] = []
-export type StreamSuperadminOnlyMcpTool = string
-
-type StreamToolRole = "member" | "admin" | "superadmin"
-
-interface StreamSdkToolPolicy {
-  allowed: string[]
-  disallowed: string[]
+export interface StreamToolContext {
+  role: StreamToolRole
+  workspaceKind: StreamWorkspaceKind
+  isPlanMode: boolean
+  connectedProviders: string[]
 }
 
-function getStreamToolRole(isAdmin: boolean, isSuperadmin: boolean): StreamToolRole {
+export interface StreamToolPolicy {
+  roles: readonly StreamToolRole[]
+  workspaceKinds: readonly StreamWorkspaceKind[]
+  planMode: StreamPlanModeBehavior
+  visibility: StreamToolVisibility
+  requiresUserApproval?: boolean
+  reason: string
+}
+
+export interface StreamToolDecision {
+  executable: boolean
+  visibleToClient: boolean
+  policyFound: boolean
+  reason?: string
+}
+
+export interface StreamToolRuntimeConfig {
+  allowedTools: string[]
+  disallowedTools: string[]
+  visibleTools: string[]
+}
+
+interface StreamToolContextInput {
+  isAdmin?: boolean
+  isSuperadmin?: boolean
+  isSuperadminWorkspace?: boolean
+  isPlanMode?: boolean
+  connectedProviders?: string[]
+}
+
+function dedupeStrings(values: string[]): string[] {
+  return Array.from(new Set(values))
+}
+
+export function getStreamToolRole(isAdmin: boolean, isSuperadmin: boolean): StreamToolRole {
   if (isSuperadmin) return "superadmin"
   if (isAdmin) return "admin"
   return "member"
 }
 
-/**
- * Single role-policy source of truth for SDK tool allow/deny behavior.
- *
- * Role matrix:
- * - member: default allowed SDK tools (includes MCP resource tools), admin-only + superadmin tools + always-disallowed blocked
- * - admin: member minus member-only tools + admin-only tools, superadmin tools + always-disallowed blocked
- * - superadmin: admin + superadmin re-enabled tools, always-disallowed blocked
- */
-function getStreamSdkToolPolicy(isAdmin: boolean, isSuperadmin: boolean): StreamSdkToolPolicy {
-  const role = getStreamToolRole(isAdmin, isSuperadmin)
-  const memberAllowedTools = [...STREAM_ALLOWED_SDK_TOOLS]
-  const elevatedAllowedTools = memberAllowedTools.filter(tool => !STREAM_MEMBER_ONLY_SDK_TOOL_SET.has(tool))
+export function getStreamWorkspaceKind(isSuperadminWorkspace: boolean): StreamWorkspaceKind {
+  return isSuperadminWorkspace ? "platform" : "site"
+}
 
-  if (role === "superadmin") {
+export function createStreamToolContext(input: StreamToolContextInput = {}): StreamToolContext {
+  const role = getStreamToolRole(!!input.isAdmin, !!input.isSuperadmin)
+  const workspaceKind = getStreamWorkspaceKind(!!input.isSuperadminWorkspace)
+  const connectedProviders = dedupeStrings((input.connectedProviders ?? []).filter(Boolean))
+
+  return {
+    role,
+    workspaceKind,
+    isPlanMode: !!input.isPlanMode,
+    connectedProviders,
+  }
+}
+
+// =============================================================================
+// TOOL REGISTRY (SINGLE SOURCE OF TRUTH)
+// =============================================================================
+
+export const STREAM_SDK_TOOL_NAMES = [
+  "Task",
+  "Bash",
+  "TaskOutput",
+  "ExitPlanMode",
+  "Edit",
+  "Read",
+  "Write",
+  "Glob",
+  "Grep",
+  "TaskStop",
+  "ListMcpResources",
+  "Mcp",
+  "NotebookEdit",
+  "ReadMcpResource",
+  "TodoWrite",
+  "WebFetch",
+  "WebSearch",
+  "AskUserQuestion",
+  // Stream-only compatibility tools
+  "Skill",
+  "BashOutput",
+] as const
+export type StreamSdkToolName = (typeof STREAM_SDK_TOOL_NAMES)[number]
+
+export const STREAM_INTERNAL_MCP_TOOLS = [
+  "mcp__alive-tools__search_tools",
+  "mcp__alive-tools__list_workflows",
+  "mcp__alive-tools__get_workflow",
+  "mcp__alive-tools__debug_workspace",
+  "mcp__alive-tools__get_alive_super_template",
+  "mcp__alive-tools__read_server_logs",
+  "mcp__alive-tools__ask_clarification",
+  "mcp__alive-tools__ask_website_config",
+  "mcp__alive-tools__ask_automation_config",
+  "mcp__alive-tools__generate_persona",
+  "mcp__alive-workspace__check_codebase",
+  "mcp__alive-workspace__restart_dev_server",
+  "mcp__alive-workspace__install_package",
+  "mcp__alive-workspace__delete_file",
+  "mcp__alive-workspace__switch_serve_mode",
+  "mcp__alive-workspace__copy_shared_asset",
+  "mcp__alive-workspace__create_website",
+] as const
+export type StreamInternalMcpToolName = (typeof STREAM_INTERNAL_MCP_TOOLS)[number]
+
+export type StreamPolicyToolName = StreamSdkToolName | StreamInternalMcpToolName
+
+const ALL_ROLES = ["member", "admin", "superadmin"] as const
+const ADMIN_AND_SUPERADMIN = ["admin", "superadmin"] as const
+const SUPERADMIN_ONLY = ["superadmin"] as const
+const MEMBER_ONLY = ["member"] as const
+const BOTH_WORKSPACE_KINDS = ["site", "platform"] as const
+const SITE_WORKSPACE_ONLY = ["site"] as const
+
+function policy(overrides: Partial<StreamToolPolicy> & Pick<StreamToolPolicy, "reason">): StreamToolPolicy {
+  return {
+    roles: ALL_ROLES,
+    workspaceKinds: BOTH_WORKSPACE_KINDS,
+    planMode: "allow",
+    visibility: "visible",
+    ...overrides,
+  }
+}
+
+/**
+ * Single registry that defines execution + visibility policy per tool.
+ */
+export const STREAM_TOOL_POLICY_REGISTRY = {
+  // SDK tools (file + shell + planning + MCP bridge)
+  Read: policy({ reason: "Workspace-scoped file reads are allowed." }),
+  Write: policy({ reason: "Workspace file writes are allowed in normal mode.", planMode: "block" }),
+  Edit: policy({ reason: "Workspace file edits are allowed in normal mode.", planMode: "block" }),
+  Glob: policy({ reason: "Workspace discovery is allowed." }),
+  Grep: policy({ reason: "Workspace search is allowed." }),
+  Bash: policy({ reason: "Shell commands are allowed with runtime safeguards.", planMode: "block" }),
+  TaskOutput: policy({ reason: "Task output streaming is allowed." }),
+  BashOutput: policy({ reason: "Legacy bash output alias is allowed." }),
+  TodoWrite: policy({ reason: "Planning scratchpad is allowed but hidden from user UI.", visibility: "silent" }),
+  AskUserQuestion: policy({ reason: "Clarification UI questions are allowed for all roles." }),
+  Mcp: policy({ reason: "MCP bridge invocation is allowed." }),
+  ListMcpResources: policy({
+    reason: "MCP resource listing is member-only by product policy.",
+    roles: MEMBER_ONLY,
+  }),
+  ReadMcpResource: policy({
+    reason: "MCP resource reading is member-only by product policy.",
+    roles: MEMBER_ONLY,
+  }),
+  NotebookEdit: policy({ reason: "Notebook editing is allowed in normal mode.", planMode: "block" }),
+  WebFetch: policy({ reason: "Single-page fetch is allowed." }),
+  Skill: policy({ reason: "Local skills are allowed." }),
+  TaskStop: policy({
+    reason: "Stopping tasks is admin/superadmin only.",
+    roles: ADMIN_AND_SUPERADMIN,
+    planMode: "block",
+  }),
+  Task: policy({ reason: "Subagent spawning is superadmin-only.", roles: SUPERADMIN_ONLY, planMode: "block" }),
+  WebSearch: policy({ reason: "Web search is superadmin-only.", roles: SUPERADMIN_ONLY }),
+  ExitPlanMode: policy({
+    reason: "Exiting plan mode requires explicit user action in UI.",
+    roles: [],
+    requiresUserApproval: true,
+    planMode: "block",
+  }),
+
+  // Internal MCP tools (alive-tools)
+  "mcp__alive-tools__search_tools": policy({ reason: "Internal tool discovery is allowed." }),
+  "mcp__alive-tools__list_workflows": policy({ reason: "Workflow discovery is allowed." }),
+  "mcp__alive-tools__get_workflow": policy({ reason: "Workflow reads are allowed." }),
+  "mcp__alive-tools__debug_workspace": policy({ reason: "Workspace diagnostics are allowed." }),
+  "mcp__alive-tools__get_alive_super_template": policy({ reason: "Template reads are allowed." }),
+  "mcp__alive-tools__read_server_logs": policy({ reason: "Server log reads are allowed." }),
+  "mcp__alive-tools__ask_clarification": policy({ reason: "Clarification tool is allowed." }),
+  "mcp__alive-tools__ask_website_config": policy({ reason: "Website config collection is allowed." }),
+  "mcp__alive-tools__ask_automation_config": policy({ reason: "Automation config collection is allowed." }),
+  "mcp__alive-tools__generate_persona": policy({ reason: "Persona generation is allowed." }),
+
+  // Internal MCP tools (alive-workspace, site-only)
+  "mcp__alive-workspace__check_codebase": policy({
+    reason: "Codebase analysis is site-workspace only.",
+    workspaceKinds: SITE_WORKSPACE_ONLY,
+  }),
+  "mcp__alive-workspace__restart_dev_server": policy({
+    reason: "Dev server restart mutates runtime state and is site-workspace only.",
+    workspaceKinds: SITE_WORKSPACE_ONLY,
+    planMode: "block",
+  }),
+  "mcp__alive-workspace__install_package": policy({
+    reason: "Package install mutates dependencies and is site-workspace only.",
+    workspaceKinds: SITE_WORKSPACE_ONLY,
+    planMode: "block",
+  }),
+  "mcp__alive-workspace__delete_file": policy({
+    reason: "File deletion mutates workspace and is site-workspace only.",
+    workspaceKinds: SITE_WORKSPACE_ONLY,
+    planMode: "block",
+  }),
+  "mcp__alive-workspace__switch_serve_mode": policy({
+    reason: "Serve mode changes runtime behavior and is site-workspace only.",
+    workspaceKinds: SITE_WORKSPACE_ONLY,
+    planMode: "block",
+  }),
+  "mcp__alive-workspace__copy_shared_asset": policy({
+    reason: "Copying assets mutates workspace and is site-workspace only.",
+    workspaceKinds: SITE_WORKSPACE_ONLY,
+    planMode: "block",
+  }),
+  "mcp__alive-workspace__create_website": policy({
+    reason: "Website creation mutates workspace and is site-workspace only.",
+    workspaceKinds: SITE_WORKSPACE_ONLY,
+    planMode: "block",
+  }),
+} as const satisfies Record<StreamPolicyToolName, StreamToolPolicy>
+
+function isInternalPolicyTool(toolName: string): boolean {
+  return toolName.startsWith("mcp__alive-workspace__") || toolName.startsWith("mcp__alive-tools__")
+}
+
+/**
+ * Optional internal MCP server used by automation/email workflows.
+ * Kept as prefix policy because tool names may evolve independently.
+ */
+const OPTIONAL_INTERNAL_PREFIX_POLICIES: ReadonlyArray<{
+  prefix: string
+  policy: StreamToolPolicy
+}> = [
+  {
+    prefix: "mcp__alive-email__",
+    policy: policy({ reason: "Automation email MCP tools are allowed." }),
+  },
+]
+
+function getPolicyForTool(toolName: string): StreamToolPolicy | undefined {
+  const exact = STREAM_TOOL_POLICY_REGISTRY[toolName as StreamPolicyToolName]
+  if (exact) return exact
+
+  const prefixMatch = OPTIONAL_INTERNAL_PREFIX_POLICIES.find(entry => toolName.startsWith(entry.prefix))
+  return prefixMatch?.policy
+}
+
+export function isStreamPolicyTool(toolName: string): boolean {
+  return !!getPolicyForTool(toolName)
+}
+
+export function isStreamClientVisibleTool(toolName: string): boolean {
+  const policy = getPolicyForTool(toolName)
+  if (policy) {
+    return policy.visibility === "visible"
+  }
+  // Internal tools without explicit policy fail closed.
+  if (isInternalPolicyTool(toolName)) {
+    return false
+  }
+  return true
+}
+
+export function getStreamToolDecision(toolName: string, context: StreamToolContext): StreamToolDecision {
+  const policy = getPolicyForTool(toolName)
+
+  if (!policy) {
+    // Internal tools must always have a policy entry (fail closed).
+    if (isInternalPolicyTool(toolName)) {
+      return {
+        executable: false,
+        visibleToClient: false,
+        policyFound: false,
+        reason: `Internal tool "${toolName}" has no policy entry in STREAM_TOOL_POLICY_REGISTRY.`,
+      }
+    }
+
+    // External MCP tools are controlled by allowedTools + OAuth checks.
     return {
-      allowed: [...elevatedAllowedTools, ...STREAM_ADMIN_ONLY_SDK_TOOLS, ...STREAM_SUPERADMIN_REENABLED_SDK_TOOLS],
-      disallowed: [...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS],
+      executable: true,
+      visibleToClient: true,
+      policyFound: false,
     }
   }
 
-  if (role === "admin") {
+  const visibleToClient = policy.visibility === "visible"
+
+  if (policy.requiresUserApproval) {
     return {
-      allowed: [...elevatedAllowedTools, ...STREAM_ADMIN_ONLY_SDK_TOOLS],
-      disallowed: [...STREAM_SUPERADMIN_REENABLED_SDK_TOOLS, ...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS],
+      executable: false,
+      visibleToClient,
+      policyFound: true,
+      reason: policy.reason,
+    }
+  }
+
+  if (!policy.roles.includes(context.role)) {
+    return {
+      executable: false,
+      visibleToClient,
+      policyFound: true,
+      reason: policy.reason,
+    }
+  }
+
+  if (!policy.workspaceKinds.includes(context.workspaceKind)) {
+    return {
+      executable: false,
+      visibleToClient,
+      policyFound: true,
+      reason: policy.reason,
+    }
+  }
+
+  if (context.isPlanMode && policy.planMode === "block") {
+    return {
+      executable: false,
+      visibleToClient,
+      policyFound: true,
+      reason: `Tool "${toolName}" is blocked in plan mode. ${policy.reason}`,
     }
   }
 
   return {
-    allowed: memberAllowedTools,
-    disallowed: [
-      ...STREAM_ADMIN_ONLY_SDK_TOOLS,
-      ...STREAM_SUPERADMIN_REENABLED_SDK_TOOLS,
-      ...STREAM_ALWAYS_DISALLOWED_SDK_TOOLS,
-    ],
+    executable: true,
+    visibleToClient,
+    policyFound: true,
   }
 }
 
-/**
- * Get disallowed SDK tools based on admin/superadmin status.
- *
- * @param isAdmin - Whether the user is an admin
- * @param isSuperadmin - Whether the user is a superadmin
- * @returns Array of disallowed tool names
- */
-export function getStreamDisallowedTools(isAdmin: boolean, isSuperadmin = false): string[] {
-  return getStreamSdkToolPolicy(isAdmin, isSuperadmin).disallowed
+function getSdkToolsForPolicyEvaluation(): string[] {
+  return [...STREAM_SDK_TOOL_NAMES]
 }
 
-export type StreamDisallowedSDKTool =
-  | StreamAdminOnlySDKTool
-  | StreamAlwaysDisallowedSDKTool
-  | StreamSuperadminReenabledSDKTool
+function getInternalMcpToolsForPolicyEvaluation(getEnabledMcpToolNames: () => string[]): string[] {
+  return getEnabledMcpToolNames().filter(name => name.startsWith("mcp__alive-"))
+}
 
 /**
- * Default permission mode for Stream
+ * Build runtime allowed/disallowed/visible tool lists from the single registry.
+ */
+export function buildStreamToolRuntimeConfig(
+  getEnabledMcpToolNames: () => string[],
+  context: StreamToolContext,
+): StreamToolRuntimeConfig {
+  const sdkTools = getSdkToolsForPolicyEvaluation()
+  const internalMcpTools = getInternalMcpToolsForPolicyEvaluation(getEnabledMcpToolNames)
+
+  const allowedSdkTools = sdkTools.filter(tool => getStreamToolDecision(tool, context).executable)
+  const disallowedSdkTools = sdkTools.filter(tool => !getStreamToolDecision(tool, context).executable)
+
+  const allowedInternalMcpTools = internalMcpTools.filter(tool => getStreamToolDecision(tool, context).executable)
+
+  const globalMcpTools = getGlobalMcpToolNames()
+
+  const allowedTools = dedupeStrings([...allowedSdkTools, ...allowedInternalMcpTools, ...globalMcpTools])
+  const visibleTools = allowedTools.filter(tool => getStreamToolDecision(tool, context).visibleToClient)
+
+  return {
+    allowedTools,
+    disallowedTools: disallowedSdkTools,
+    visibleTools,
+  }
+}
+
+// =============================================================================
+// DEFAULT STREAM SETTINGS
+// =============================================================================
+
+/**
+ * Default permission mode for Stream.
  */
 export const STREAM_PERMISSION_MODE = "default" as const
 
 /**
- * Default settings sources for Stream
- *
- * Hierarchy (highest to lowest precedence):
- * - project: {cwd}/.claude/ (workspace-specific)
- * - user: ~/.claude/ (user-level)
- *
- * Global skills flow:
- * 1. Git-tracked in .claude/skills/ (source of truth)
- * 2. Synced to /etc/claude-code/skills/ during deploy (build-and-serve.sh)
- * 3. Copied to worker temp HOME's .claude/skills/ at startup (worker-entry.mjs)
- *
- * Users can add workspace-specific skills in {workspace}/.claude/skills/ (project scope)
+ * Default settings sources for Stream.
  */
 export const STREAM_SETTINGS_SOURCES = ["project", "user"] as const
+
+// =============================================================================
+// SHELL HEAVY COMMAND SAFEGUARDS
+// =============================================================================
 
 const EXACT_HEAVY_BASH_COMMANDS = new Set([
   // Monorepo-specific scripts (don't exist in site workspaces)
@@ -253,8 +430,19 @@ const HEAVY_BASH_PATTERNS = [
   /\b(turbo|bun run turbo)\s+run\s+(build|type-check|lint|test)\b/,
 ]
 
+/**
+ * Detect shell commands that are known to be expensive at monorepo scope.
+ */
+export function isHeavyBashCommand(command: unknown): boolean {
+  if (typeof command !== "string") return false
+  const normalized = command.toLowerCase().trim().replace(/\s+/g, " ")
+  if (!normalized) return false
+  if (EXACT_HEAVY_BASH_COMMANDS.has(normalized)) return true
+  return HEAVY_BASH_PATTERNS.some(pattern => pattern.test(normalized))
+}
+
 // =============================================================================
-// TOOL PERMISSION HELPERS
+// TOOL PERMISSION RESPONSE HELPERS
 // =============================================================================
 
 /**
@@ -272,27 +460,47 @@ export function denyTool(message: string) {
 }
 
 /**
- * Detect shell commands that are known to be expensive at monorepo scope.
- * This is a conservative deny-list used to protect shared CPU capacity.
+ * Create canUseTool handler from the registry-based policy.
  */
-export function isHeavyBashCommand(command: unknown): boolean {
-  if (typeof command !== "string") return false
-  const normalized = command.toLowerCase().trim().replace(/\s+/g, " ")
-  if (!normalized) return false
-  if (EXACT_HEAVY_BASH_COMMANDS.has(normalized)) return true
-  return HEAVY_BASH_PATTERNS.some(pattern => pattern.test(normalized))
-}
+export function createStreamCanUseTool(
+  context: StreamToolContext,
+  allowedTools: string[],
+): (
+  toolName: string,
+  input: Record<string, unknown>,
+) => Promise<{
+  behavior: "allow" | "deny"
+  message?: string
+  updatedInput?: Record<string, unknown>
+  updatedPermissions?: unknown[]
+}> {
+  return async (toolName, input) => {
+    const decision = getStreamToolDecision(toolName, context)
 
-/**
- * Filter allowed tools for plan mode.
- *
- * Plan mode is read-only exploration - must remove modification tools
- * BEFORE passing to SDK (SDK auto-allows tools in allowedTools).
- */
-export function filterToolsForPlanMode(allowedTools: string[], isPlanMode: boolean): string[] {
-  if (!isPlanMode) return allowedTools
-  const blocked: readonly string[] = PLAN_MODE_BLOCKED_TOOLS
-  return allowedTools.filter(t => !blocked.includes(t))
+    // Policy/internal denies always win (internal tools fail closed).
+    if (!decision.executable && (decision.policyFound || isInternalPolicyTool(toolName))) {
+      if (toolName === "ExitPlanMode") {
+        return denyTool(
+          `You cannot approve your own plan. The user must click "Approve Plan" in the UI. ` +
+            "Present the plan clearly and wait for user approval.",
+        )
+      }
+      return denyTool(`Tool "${toolName}" is not available in site builder mode. ${decision.reason ?? ""}`.trim())
+    }
+
+    if (allowedTools.includes(toolName)) {
+      return allowTool(input)
+    }
+
+    // OAuth MCP tools are dynamically available when connected.
+    if (isOAuthMcpTool(toolName, context.connectedProviders)) {
+      return allowTool(input)
+    }
+
+    return denyTool(
+      `Tool "${toolName}" is not permitted. Connect the required integration in Settings to use this tool.`,
+    )
+  }
 }
 
 // =============================================================================
@@ -300,37 +508,56 @@ export function filterToolsForPlanMode(allowedTools: string[], isPlanMode: boole
 // =============================================================================
 
 /**
- * Get all allowed tools for Stream mode (SDK + MCP tools).
- *
- * @param getEnabledMcpToolNames - Function to get enabled MCP tool names from @webalive/tools
- * @param isAdmin - Whether the user is an admin (enables admin-only SDK tools)
- * @param isSuperadmin - Whether the user is a superadmin (re-enables Task + WebSearch)
- * @param isSuperadminWorkspace - Whether this is the superadmin "alive" workspace (excludes site-specific workspace tools)
- * @returns Array of allowed tool names
+ * Get all allowed tools for Stream mode (SDK + internal MCP + global MCP).
  */
 export function getStreamAllowedTools(
   getEnabledMcpToolNames: () => string[],
   isAdmin = false,
   isSuperadmin = false,
   isSuperadminWorkspace = false,
+  isPlanMode = false,
+  connectedProviders: string[] = [],
 ): string[] {
-  const mcpTools = getEnabledMcpToolNames()
-  const sdkPolicy = getStreamSdkToolPolicy(isAdmin, isSuperadmin)
-  const globalMcpTools = Object.values(GLOBAL_MCP_PROVIDERS).flatMap(p => [...p.knownTools])
-
-  // The "alive" workspace is the platform repo (Next.js monorepo), not a Vite site.
-  // Workspace tools (switch_serve_mode, restart_dev_server, install_package, etc.)
-  // assume a Vite site structure and would break or do the wrong thing here.
-  const filteredMcpTools = isSuperadminWorkspace
-    ? mcpTools.filter(t => !t.startsWith("mcp__alive-workspace__"))
-    : mcpTools
-
-  const superadminOnlyMcpTools = isSuperadmin ? STREAM_SUPERADMIN_ONLY_MCP_TOOLS : []
-  return [...sdkPolicy.allowed, ...filteredMcpTools, ...globalMcpTools, ...superadminOnlyMcpTools]
+  const context = createStreamToolContext({
+    isAdmin,
+    isSuperadmin,
+    isSuperadminWorkspace,
+    isPlanMode,
+    connectedProviders,
+  })
+  return buildStreamToolRuntimeConfig(getEnabledMcpToolNames, context).allowedTools
 }
 
 /**
- * MCP server configuration type (simplified for serialization)
+ * Get disallowed SDK tools for Stream mode.
+ */
+export function getStreamDisallowedTools(
+  isAdmin: boolean,
+  isSuperadmin = false,
+  isPlanMode = false,
+  isSuperadminWorkspace = false,
+): string[] {
+  const context = createStreamToolContext({
+    isAdmin,
+    isSuperadmin,
+    isSuperadminWorkspace,
+    isPlanMode,
+  })
+  return getSdkToolsForPolicyEvaluation().filter(tool => !getStreamToolDecision(tool, context).executable)
+}
+
+/**
+ * Backwards-compatible helper that now delegates to registry logic.
+ */
+export function filterToolsForPlanMode(allowedTools: string[], isPlanMode: boolean): string[] {
+  if (!isPlanMode) return allowedTools
+
+  const context = createStreamToolContext({ isPlanMode: true })
+  return allowedTools.filter(tool => getStreamToolDecision(tool, context).executable)
+}
+
+/**
+ * MCP server configuration type (simplified for serialization).
  */
 export interface StreamMcpServerConfig {
   type: "http" | "sdk"
@@ -340,10 +567,6 @@ export interface StreamMcpServerConfig {
 
 /**
  * Get MCP servers configuration for Stream mode.
- *
- * @param internalMcpServers - Internal MCP servers from @webalive/tools
- * @param oauthTokens - OAuth tokens keyed by provider
- * @returns MCP servers configuration
  */
 export function getStreamMcpServers<T>(
   internalMcpServers: { "alive-workspace": T; "alive-tools": T },
@@ -380,69 +603,7 @@ export function getStreamMcpServers<T>(
 }
 
 /**
- * Create canUseTool handler for Stream mode.
- *
- * @param baseAllowedTools - Base allowed tools array
- * @param connectedProviders - Array of connected OAuth provider keys
- * @param isAdmin - Whether the user is an admin (used for role-based disallow list)
- * @returns Permission handler function
- */
-export function createStreamCanUseTool(
-  baseAllowedTools: string[],
-  connectedProviders: string[],
-  isAdmin = false,
-): (
-  toolName: string,
-  input: Record<string, unknown>,
-) => Promise<{
-  behavior: "allow" | "deny"
-  message?: string
-  updatedInput?: Record<string, unknown>
-  updatedPermissions?: unknown[]
-}> {
-  // Get disallowed tools based on admin status
-  const disallowedTools = getStreamDisallowedTools(isAdmin)
-
-  return async (toolName, input) => {
-    // Explicit deny list takes precedence (respects admin status)
-    if (disallowedTools.includes(toolName)) {
-      return {
-        behavior: "deny",
-        message: `Tool "${toolName}" is not available in site builder mode.`,
-      }
-    }
-
-    // Check base allowed tools (SDK + internal MCP tools + admin tools if applicable)
-    if (baseAllowedTools.includes(toolName)) {
-      return {
-        behavior: "allow",
-        updatedInput: input,
-        updatedPermissions: [],
-      }
-    }
-
-    // Check OAuth MCP tools - auto-allowed if user has that provider connected
-    if (isOAuthMcpTool(toolName, connectedProviders)) {
-      return {
-        behavior: "allow",
-        updatedInput: input,
-        updatedPermissions: [],
-      }
-    }
-
-    // Tool not in any allowed list
-    return {
-      behavior: "deny",
-      message: `Tool "${toolName}" is not permitted. Connect the required integration in Settings to use this tool.`,
-    }
-  }
-}
-
-/**
  * Get workspace path for a domain.
- *
- * @param domain - Domain name (e.g., "example.com")
- * @returns Full workspace path
  */
 export function getWorkspacePath(domain: string): string {
   return `${PATHS.SITES_ROOT}/${domain}/user`

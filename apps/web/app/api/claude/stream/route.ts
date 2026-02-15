@@ -1,5 +1,5 @@
 import { statSync } from "node:fs"
-import { DEFAULTS, filterToolsForPlanMode, SUPERADMIN, WORKER_POOL } from "@webalive/shared"
+import { DEFAULTS, SUPERADMIN, WORKER_POOL } from "@webalive/shared"
 import { getWorkerPool, type WorkerToParentMessage } from "@webalive/worker-pool"
 import { cookies, headers } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
@@ -507,16 +507,12 @@ export async function POST(req: NextRequest) {
       // Note: Internal MCP servers (alive-workspace, alive-tools) are created locally
       // in the worker because createSdkMcpServer returns function objects that cannot
       // be serialized via IPC. Only OAuth HTTP servers are passed here.
-      const baseAllowedTools = getAllowedTools(cwd, user.isAdmin, isSuperadminWorkspace, isSuperadminWorkspace)
-      const disallowedTools = getDisallowedTools(user.isAdmin, isSuperadminWorkspace)
-
-      // Plan mode: filter blocked tools BEFORE sending to worker
-      // See docs/architecture/plan-mode.md for why this must happen here
-      const allowedTools = filterToolsForPlanMode(baseAllowedTools, !!planMode)
+      const allowedTools = getAllowedTools(cwd, user.isAdmin, isSuperadminWorkspace, isSuperadminWorkspace, !!planMode)
+      const disallowedTools = getDisallowedTools(user.isAdmin, isSuperadminWorkspace, !!planMode, isSuperadminWorkspace)
 
       // Log tool counts for debugging
       if (planMode) {
-        logger.log(`Plan mode: ${allowedTools.length} tools (filtered from ${baseAllowedTools.length})`)
+        logger.log(`Plan mode: ${allowedTools.length} tools available under registry policy`)
       }
 
       const agentConfig = {

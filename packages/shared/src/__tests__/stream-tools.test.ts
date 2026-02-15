@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { getStreamAllowedTools, getStreamDisallowedTools, isHeavyBashCommand } from "../stream-tools"
+import {
+  buildStreamToolRuntimeConfig,
+  createStreamToolContext,
+  getStreamAllowedTools,
+  getStreamDisallowedTools,
+  getStreamToolDecision,
+  isHeavyBashCommand,
+  isStreamClientVisibleTool,
+} from "../stream-tools"
 
 describe("isHeavyBashCommand", () => {
   it("flags known heavy monorepo commands", () => {
@@ -56,8 +64,8 @@ describe("isHeavyBashCommand", () => {
 
 describe("stream tool role policy", () => {
   const enabledMcpTools = () => [
-    "mcp__alive-workspace__read_file",
-    "mcp__alive-tools__ping",
+    "mcp__alive-workspace__check_codebase",
+    "mcp__alive-tools__search_tools",
     "mcp__stripe__search_docs",
   ]
 
@@ -107,7 +115,75 @@ describe("stream tool role policy", () => {
   it("filters site-specific workspace MCP tools in superadmin workspace", () => {
     const allowed = getStreamAllowedTools(enabledMcpTools, true, true, true)
 
-    expect(allowed).not.toContain("mcp__alive-workspace__read_file")
-    expect(allowed).toContain("mcp__alive-tools__ping")
+    expect(allowed).not.toContain("mcp__alive-workspace__check_codebase")
+    expect(allowed).toContain("mcp__alive-tools__search_tools")
+  })
+
+  it("hides TodoWrite from client visibility while still allowing execution", () => {
+    const context = createStreamToolContext()
+    const decision = getStreamToolDecision("TodoWrite", context)
+
+    expect(decision.executable).toBe(true)
+    expect(decision.visibleToClient).toBe(false)
+    expect(isStreamClientVisibleTool("TodoWrite")).toBe(false)
+  })
+
+  it("allows AskUserQuestion for all roles", () => {
+    const member = getStreamToolDecision("AskUserQuestion", createStreamToolContext())
+    const admin = getStreamToolDecision("AskUserQuestion", createStreamToolContext({ isAdmin: true }))
+    const superadmin = getStreamToolDecision(
+      "AskUserQuestion",
+      createStreamToolContext({ isAdmin: true, isSuperadmin: true }),
+    )
+
+    expect(member.executable).toBe(true)
+    expect(admin.executable).toBe(true)
+    expect(superadmin.executable).toBe(true)
+  })
+
+  it("blocks ExitPlanMode for all roles", () => {
+    const member = getStreamToolDecision("ExitPlanMode", createStreamToolContext())
+    const admin = getStreamToolDecision("ExitPlanMode", createStreamToolContext({ isAdmin: true }))
+    const superadmin = getStreamToolDecision(
+      "ExitPlanMode",
+      createStreamToolContext({ isAdmin: true, isSuperadmin: true }),
+    )
+
+    expect(member.executable).toBe(false)
+    expect(admin.executable).toBe(false)
+    expect(superadmin.executable).toBe(false)
+  })
+
+  it("enforces member-only MCP resource SDK tools", () => {
+    const member = createStreamToolContext()
+    const admin = createStreamToolContext({ isAdmin: true })
+    const superadmin = createStreamToolContext({ isAdmin: true, isSuperadmin: true })
+
+    expect(getStreamToolDecision("ListMcpResources", member).executable).toBe(true)
+    expect(getStreamToolDecision("ReadMcpResource", member).executable).toBe(true)
+    expect(getStreamToolDecision("ListMcpResources", admin).executable).toBe(false)
+    expect(getStreamToolDecision("ReadMcpResource", admin).executable).toBe(false)
+    expect(getStreamToolDecision("ListMcpResources", superadmin).executable).toBe(false)
+    expect(getStreamToolDecision("ReadMcpResource", superadmin).executable).toBe(false)
+  })
+
+  it("blocks write/edit tools in plan mode at config-build time", () => {
+    const context = createStreamToolContext({ isPlanMode: true })
+    const runtime = buildStreamToolRuntimeConfig(enabledMcpTools, context)
+
+    expect(runtime.allowedTools).not.toContain("Write")
+    expect(runtime.allowedTools).not.toContain("Edit")
+    expect(runtime.allowedTools).not.toContain("Bash")
+    expect(runtime.disallowedTools).toContain("Write")
+    expect(runtime.disallowedTools).toContain("Edit")
+  })
+
+  it("fails closed for internal tools that have no policy entry", () => {
+    const missingPolicyTool = "mcp__alive-tools__missing_policy_tool"
+    const decision = getStreamToolDecision(missingPolicyTool, createStreamToolContext())
+
+    expect(decision.executable).toBe(false)
+    expect(decision.policyFound).toBe(false)
+    expect(isStreamClientVisibleTool(missingPolicyTool)).toBe(false)
   })
 })

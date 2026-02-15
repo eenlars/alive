@@ -30,7 +30,7 @@ const SESSIONS_BASE_DIR = "/var/lib/claude-sessions"
 // After privilege drop, the worker can't read /root/alive/node_modules/
 import { query } from "@anthropic-ai/claude-agent-sdk"
 // biome-ignore format: import checker expects a single-line import statement for this package.
-import { allowTool, DEFAULTS, denyTool, formatUncaughtError, GLOBAL_MCP_PROVIDERS, isAbortError, isFatalError, isHeavyBashCommand, isOAuthMcpTool, isTransientNetworkError, PLAN_MODE_BLOCKED_TOOLS } from "@webalive/shared"
+import { createStreamCanUseTool, createStreamToolContext, DEFAULTS, formatUncaughtError, GLOBAL_MCP_PROVIDERS, isAbortError, isFatalError, isHeavyBashCommand, isOAuthMcpTool, isStreamClientVisibleTool, isTransientNetworkError } from "@webalive/shared"
 import {
   emailInternalMcp,
   toolsInternalMcp,
@@ -190,8 +190,6 @@ function summarizeMcpStatuses(mcpServers) {
 
   return summary
 }
-
-// allowTool and denyTool imported from @webalive/shared
 
 // =============================================================================
 // NDJSON IPC Client
@@ -627,29 +625,20 @@ async function handleQuery(ipc, requestId, payload) {
       console.error("[worker] PLAN MODE: Write/Edit/Bash tools will be blocked")
     }
 
+    const toolContext = createStreamToolContext({
+      isAdmin: !!agentConfig.isAdmin,
+      isSuperadmin: !!agentConfig.isSuperadmin,
+      isSuperadminWorkspace: !!agentConfig.isSuperadmin,
+      isPlanMode,
+      connectedProviders,
+    })
+
+    const baseCanUseTool = createStreamCanUseTool(toolContext, allowedTools)
+
     // Tool permission handler
-    const canUseTool = async (toolName, input, _options) => {
-      // ExitPlanMode requires user approval - Claude cannot approve its own plan
-      // The user must click "Approve Plan" in the UI to exit plan mode
-      if (toolName === "ExitPlanMode") {
-        console.error("[worker] PLAN MODE: ExitPlanMode blocked - requires user approval")
-        return denyTool(
-          `You cannot approve your own plan. The user must review and approve the plan by clicking "Approve Plan" in the UI. ` +
-            "Present your plan clearly and wait for user approval before proceeding with implementation.",
-        )
-      }
-
-      // Plan mode: block modification tools
-      if (isPlanMode && PLAN_MODE_BLOCKED_TOOLS.includes(toolName)) {
-        console.error(`[worker] PLAN MODE: Blocked modification tool: ${toolName}`)
-        return denyTool(
-          `Tool "${toolName}" is not allowed in plan mode. Plan mode is for exploration only - Claude can read and analyze but not modify files.`,
-        )
-      }
-
+    const canUseTool = async (toolName, input, options) => {
       if (disallowedTools.includes(toolName)) {
         console.error(`[worker] SECURITY: Blocked disallowed tool: ${toolName}`)
-        return denyTool(`Tool "${toolName}" is explicitly disallowed for security reasons.`)
       }
 
       // Protect shared compute from expensive monorepo-wide shell commands.
@@ -658,19 +647,20 @@ async function handleQuery(ipc, requestId, payload) {
         const command = typeof input?.command === "string" ? input.command : ""
         if (isHeavyBashCommand(command)) {
           console.error("[worker] SECURITY: Blocked heavy Bash command for non-superadmin")
-          return denyTool(
-            "This Bash command is blocked because it is too heavy for shared capacity. " +
+          return {
+            behavior: "deny",
+            message:
+              "This Bash command is blocked because it is too heavy for shared capacity. " +
               "Use narrower commands (single package/file) or ask a superadmin to run full builds/checks.",
-          )
+          }
         }
       }
 
-      if (allowedTools.includes(toolName) || isOAuthMcpTool(toolName, connectedProviders)) {
-        return allowTool(input)
+      const result = await baseCanUseTool(toolName, input, options)
+      if (result.behavior === "deny") {
+        console.error(`[worker] SECURITY: Blocked unauthorized tool: ${toolName}`)
       }
-
-      console.error(`[worker] SECURITY: Blocked unauthorized tool: ${toolName}`)
-      return denyTool(`Tool "${toolName}" is not permitted.`)
+      return result
     }
 
     // Build MCP servers: internal (created locally) + global HTTP + OAuth (received via IPC)
@@ -802,13 +792,15 @@ async function handleQuery(ipc, requestId, payload) {
           })
         }
 
-        // Filter system init message to only show allowed tools
+        // Filter system init message to only show allowed + client-visible tools
         let outputMessage = message
         if (message.type === "system" && message.subtype === "init" && message.tools) {
           outputMessage = {
             ...message,
             tools: message.tools.filter(
-              tool => allowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders),
+              tool =>
+                (allowedTools.includes(tool) || isOAuthMcpTool(tool, connectedProviders)) &&
+                isStreamClientVisibleTool(tool),
             ),
           }
         }

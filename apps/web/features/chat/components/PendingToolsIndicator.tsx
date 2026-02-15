@@ -13,6 +13,7 @@
  * Updates in real-time as tool_progress events arrive.
  */
 
+import { isStreamClientVisibleTool } from "@webalive/shared"
 import { useEffect, useState } from "react"
 import { type PendingTool, useIsStreamActive, usePendingTools } from "@/lib/stores/streamingStore"
 import { cn } from "@/lib/utils"
@@ -118,22 +119,23 @@ function ThinkingIndicator() {
 
 export function PendingToolsIndicator({ tabId, suppressThinking }: PendingToolsIndicatorProps) {
   const pendingTools = usePendingTools(tabId)
+  const visiblePendingTools = pendingTools.filter(tool => isStreamClientVisibleTool(tool.toolName))
   const isStreamActive = useIsStreamActive(tabId)
 
   // Show thinking indicator when stream is active but no tools are running
   // (unless suppressed, e.g., during context compaction which has its own indicator)
-  if (isStreamActive && pendingTools.length === 0 && !suppressThinking) {
+  if (isStreamActive && visiblePendingTools.length === 0 && !suppressThinking) {
     return <ThinkingIndicator />
   }
 
   // Show pending tools when they exist
-  if (pendingTools.length === 0) {
+  if (visiblePendingTools.length === 0) {
     return null
   }
 
   return (
     <div>
-      {pendingTools.map(tool => (
+      {visiblePendingTools.map(tool => (
         <PendingToolItem key={tool.toolUseId} tool={tool} />
       ))}
     </div>
