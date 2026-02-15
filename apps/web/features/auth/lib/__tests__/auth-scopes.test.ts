@@ -64,6 +64,29 @@ describe("Auth Scopes and Cached Org Authorization", () => {
     vi.clearAllMocks()
   })
 
+  it("verifyWorkspaceAccess denies when JWT userId does not match authenticated user", async () => {
+    const token = await createSessionToken({
+      userId: "user-from-token",
+      email: "user-from-token@example.com",
+      name: "Token User",
+      scopes: [SESSION_SCOPES.WORKSPACE_ACCESS],
+      orgIds: ["org-token"],
+      orgRoles: { "org-token": "owner" },
+    })
+
+    const result = await withSessionToken(token, async () =>
+      verifyWorkspaceAccess(
+        createUser("different-auth-user"),
+        { workspace: "jwt-mismatch.example.com" },
+        "[test-jwt-mismatch]",
+      ),
+    )
+
+    expect(result).toBeNull()
+    expect(createAppClient).not.toHaveBeenCalled()
+    expect(createIamClient).not.toHaveBeenCalled()
+  })
+
   it("verifyWorkspaceAccess denies when workspace:access scope is missing", async () => {
     const user = createUser("user-scope-missing")
     const token = await createSessionToken({

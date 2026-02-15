@@ -37,6 +37,7 @@ import {
   withSearchToolsConnectedProviders,
   workspaceInternalMcp,
 } from "@webalive/tools"
+import { prepareRequestEnv } from "../dist/env-isolation.js"
 
 // Global unhandled rejection handler - smart handling based on error type
 // Pattern from OpenClaw: don't crash on transient network errors or intentional aborts
@@ -597,42 +598,12 @@ async function handleQuery(ipc, requestId, payload) {
   let enabledMcpServerKeys = []
 
   try {
-    // SECURITY: Always set/clear session cookie at start of each request
-    // This prevents cookie leakage between requests from different users
-    // If payload has cookie, use it; otherwise clear any previous value
-    process.env.ALIVE_SESSION_COOKIE = payload.sessionCookie || ""
-
-    // API key handling:
-    // - For user-provided API keys: pass via payload.apiKey
-    // - For OAuth: SDK reads from CLAUDE_CONFIG_DIR/.credentials.json directly
-    //   (file permissions must be 644 so workers can read after dropping privileges)
-    if (payload.apiKey) {
-      process.env.ANTHROPIC_API_KEY = payload.apiKey
-      console.error("[worker] Using user-provided API key from payload")
-    } else {
-      // Don't set ANTHROPIC_API_KEY - let SDK use OAuth from credentials file
-      delete process.env.ANTHROPIC_API_KEY
-      console.error("[worker] Using OAuth credentials from CLAUDE_CONFIG_DIR")
-    }
-
-    // Set user-defined environment keys (custom API keys from lockbox)
-    // These are prefixed with USER_ to avoid conflicts with system env vars
-    // SECURITY: Clear any previous user env keys before setting new ones
-    for (const key of Object.keys(process.env)) {
-      if (key.startsWith("USER_")) {
-        delete process.env[key]
-      }
-    }
-    const userEnvKeys = payload.userEnvKeys || {}
-    const userEnvKeyCount = Object.keys(userEnvKeys).length
-    if (userEnvKeyCount > 0) {
-      for (const [keyName, keyValue] of Object.entries(userEnvKeys)) {
-        // Only set if the key name is valid format (uppercase alphanumeric + underscore)
-        if (/^[A-Z][A-Z0-9_]*$/.test(keyName)) {
-          process.env[`USER_${keyName}`] = keyValue
-        }
-      }
-      console.error(`[worker] Set ${userEnvKeyCount} user environment key(s)`)
+    // SECURITY: Isolate process.env between requests to prevent credential leakage.
+    // See src/env-isolation.ts for the full contract.
+    const envResult = prepareRequestEnv(payload)
+    console.error(`[worker] Using ${envResult.apiKeySource === "user" ? "user-provided API key from payload" : "OAuth credentials from CLAUDE_CONFIG_DIR"}`)
+    if (envResult.userEnvKeyCount > 0) {
+      console.error(`[worker] Set ${envResult.userEnvKeyCount} user environment key(s)`)
     }
 
     // Get OAuth tokens for connected MCP providers
