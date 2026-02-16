@@ -298,7 +298,7 @@ function mockIamClientForPost(options: {
   callerRole?: string | null
   targetUser?: { user_id: string; email: string; display_name: string | null } | null
   existingMembership?: { user_id: string } | null
-  insertError?: { message: string } | null
+  insertError?: { code?: string; message: string } | null
 }) {
   const fromCalls: string[] = []
 
@@ -490,14 +490,31 @@ describe("POST /api/auth/org-members", () => {
 
   // --- DB insert failure ---
 
-  it("returns 500 when database insert fails", async () => {
+  it("returns 409 on concurrent invite race (PostgreSQL 23505)", async () => {
     vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
 
     mockIamClientForPost({
       callerRole: "admin",
       targetUser: { user_id: "target-1", email: "new@test.com", display_name: "New" },
       existingMembership: null,
-      insertError: { message: "unique constraint violation" },
+      insertError: { code: "23505", message: "unique_violation" },
+    })
+
+    const res = await POST(makePostRequest({ orgId: "org-1", email: "new@test.com" }))
+    expect(res.status).toBe(409)
+
+    const data = await res.json()
+    expect(data.error).toBe("MEMBER_ALREADY_EXISTS")
+  })
+
+  it("returns 500 when database insert fails (non-constraint error)", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
+
+    mockIamClientForPost({
+      callerRole: "admin",
+      targetUser: { user_id: "target-1", email: "new@test.com", display_name: "New" },
+      existingMembership: null,
+      insertError: { message: "connection lost" },
     })
 
     const res = await POST(makePostRequest({ orgId: "org-1", email: "new@test.com" }))
