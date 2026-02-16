@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { isOrgRole } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
-import { getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser, invalidateUserAuthzCache } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse } from "@/lib/api/responses"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { addCorsHeaders } from "@/lib/cors-utils"
@@ -180,6 +180,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Org Members] User ${user.id} added ${targetUser.user_id} (${email}) to org ${orgId} as ${role}`)
+    invalidateUserAuthzCache(targetUser.user_id)
 
     const res = alrighty("auth/org-members/create", {
       member: {
@@ -294,6 +295,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     console.log(`[Org Members] User ${userId} removed ${targetUserId} from org ${orgId}`)
+    invalidateUserAuthzCache(targetUserId)
 
     const res = alrighty("auth/org-members/delete", { message: "Member removed successfully" })
     addCorsHeaders(res, origin)

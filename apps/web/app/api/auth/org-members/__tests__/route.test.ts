@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/features/auth/lib/auth", () => ({
   getSessionUser: vi.fn(),
+  invalidateUserAuthzCache: vi.fn(),
 }))
 
 vi.mock("@/lib/supabase/iam", () => ({
@@ -11,6 +12,7 @@ vi.mock("@/lib/supabase/iam", () => ({
 
 const { GET, POST, DELETE, OPTIONS } = await import("../route")
 const { getSessionUser } = await import("@/features/auth/lib/auth")
+const { invalidateUserAuthzCache } = await import("@/features/auth/lib/auth")
 const { createIamClient } = await import("@/lib/supabase/iam")
 
 const MOCK_USER = {
@@ -544,6 +546,7 @@ describe("POST /api/auth/org-members", () => {
       display_name: "New User",
       role: "member",
     })
+    expect(invalidateUserAuthzCache).toHaveBeenCalledWith("target-1")
   })
 
   it("returns 200 when owner adds a member", async () => {
@@ -882,6 +885,7 @@ describe("DELETE /api/auth/org-members", () => {
     const data = await res.json()
     expect(data.ok).toBe(true)
     expect(data.message).toBe("Member removed successfully")
+    expect(invalidateUserAuthzCache).toHaveBeenCalledWith("member-1")
   })
 
   it("returns 200 when owner removes an admin", async () => {

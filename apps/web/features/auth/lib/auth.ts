@@ -105,6 +105,14 @@ interface UserOrgMembershipCacheEntry {
 const workspaceOrgCache = new Map<string, WorkspaceOrgCacheEntry>()
 const userOrgMembershipCache = new Map<string, UserOrgMembershipCacheEntry>()
 
+/**
+ * Invalidate cached org memberships for a user.
+ * Call this after membership mutations to avoid stale authz decisions.
+ */
+export function invalidateUserAuthzCache(userId: string): void {
+  userOrgMembershipCache.delete(userId)
+}
+
 function hasScope(payload: SessionPayloadV3 | null, requiredScope: SessionScope): boolean {
   return Array.isArray(payload?.scopes) && payload.scopes.includes(requiredScope)
 }
