@@ -42,8 +42,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     if (config?.allowWorkspaceSelection) {
       return <Navigate to="/dashboard" replace />
     }
-    // No workspace selection - go directly to shell
-    return <Navigate to={`/shell?workspace=${config?.shellDefaultPath || "root"}`} replace />
+    // No workspace selection - open root workspace explicitly.
+    return <Navigate to="/shell?workspace=root" replace />
   }
 
   return <>{children}</>

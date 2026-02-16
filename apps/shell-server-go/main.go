@@ -118,6 +118,7 @@ func main() {
 
 	// WebSocket (handles its own auth)
 	mux.HandleFunc("/ws", wsHandler.Handle)
+	mux.Handle("POST /api/ws-lease", authAPIMiddleware(http.HandlerFunc(wsHandler.CreateLease)))
 
 	// File API routes (protected)
 	mux.Handle("POST /api/check-directory", authAPIMiddleware(http.HandlerFunc(fileHandler.CheckDirectory)))

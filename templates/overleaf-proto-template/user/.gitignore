@@ -1,0 +1,23 @@
+# dependencies
+node_modules
+.bun
+
+# build outputs
+dist
+build
+.next
+.out
+.turbo
+coverage
+*.tsbuildinfo
+
+# runtime
+*.log
+.tmp
+apps/renderer/.cache
+apps/renderer/bin
+
+# env
+.env
+.env.*
+!.env.example

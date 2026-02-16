@@ -2,7 +2,11 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -11,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/creack/pty"
@@ -43,6 +48,16 @@ const (
 
 	// PTYReadBufferSize is the buffer size for reading from PTY
 	PTYReadBufferSize = 8192
+
+	// WSLeaseTTL is the validity period for a WebSocket lease token
+	WSLeaseTTL = 90 * time.Second
+)
+
+var (
+	ErrMissingLease       = errors.New("missing lease token")
+	ErrInvalidLease       = errors.New("invalid lease token")
+	ErrExpiredLease       = errors.New("expired lease token")
+	ErrLeaseSessionDenied = errors.New("lease session mismatch")
 )
 
 var wsLog = logger.WithComponent("WS")
@@ -51,6 +66,9 @@ var wsLog = logger.WithComponent("WS")
 type WSHandler struct {
 	config           *config.AppConfig
 	sessions         *session.Store
+	resolver         *PathResolver
+	leaseMu          sync.Mutex
+	leases           map[string]WSLease
 	upgrader         websocket.Upgrader
 	activeConns      int32
 	connections      sync.Map // map[*websocket.Conn]*connInfo
@@ -77,11 +95,22 @@ type WSMessage struct {
 	Message  string `json:"message,omitempty"`
 }
 
+// WSLease is a one-time token that authorizes one WebSocket terminal upgrade.
+type WSLease struct {
+	SessionToken string
+	Workspace    string
+	Cwd          string
+	RunAsOwner   bool
+	ExpiresAt    time.Time
+}
+
 // NewWSHandler creates a new WebSocket handler
 func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 	return &WSHandler{
 		config:   cfg,
 		sessions: sessions,
+		resolver: NewPathResolver(cfg),
+		leases:   make(map[string]WSLease),
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -109,10 +138,52 @@ func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 	}
 }
 
+// CreateLease issues a short-lived single-use token for a terminal WebSocket connection.
+func (h *WSHandler) CreateLease(w http.ResponseWriter, r *http.Request) {
+	if !ParseFormRequest(w, r) {
+		return
+	}
+
+	sessionToken := middleware.GetSessionToken(r)
+	if sessionToken == "" || !h.sessions.Valid(sessionToken) {
+		http.Error(w, `{"error":"Unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	requestedWorkspace := GetWorkspace(r)
+
+	leaseToken, lease, err := h.createLease(sessionToken, requestedWorkspace)
+	if err != nil {
+		var pathErr *PathSecurityError
+		switch {
+		case errors.As(err, &pathErr):
+			HandlePathSecurityError(w, err)
+		case os.IsNotExist(err):
+			jsonError(w, "Workspace not found", http.StatusNotFound)
+		default:
+			wsLog.Error("Failed to create WS lease | workspace=%s err=%v", requestedWorkspace, err)
+			jsonError(w, "Failed to create terminal lease", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	jsonResponse(w, map[string]interface{}{
+		"lease":     leaseToken,
+		"workspace": lease.Workspace,
+		"expiresAt": lease.ExpiresAt.UnixMilli(),
+	})
+}
+
 // Handle handles WebSocket connections
 func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	// Check authentication
 	if !middleware.IsAuthenticated(r, h.sessions) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	sessionToken := middleware.GetSessionToken(r)
+	if sessionToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -125,24 +196,36 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get workspace from query
-	workspace := r.URL.Query().Get("workspace")
-	if workspace == "" {
-		workspace = "root"
+	leaseToken := strings.TrimSpace(r.URL.Query().Get("lease"))
+	workspace, cwd, runAsOwner, err := h.consumeLease(sessionToken, leaseToken)
+	if err != nil {
+		wsLog.Warn("Lease rejected: %v", err)
+		http.Error(w, "Invalid or expired lease", http.StatusUnauthorized)
+		return
 	}
 
-	// Determine working directory
-	var cwd string
-	if workspace == "root" {
-		cwd = h.config.ResolvedDefaultCwd
-	} else {
-		cwd = filepath.Join(h.config.ResolvedSitesPath, workspace)
-	}
-
-	// Validate workspace directory exists
-	if _, err := os.Stat(cwd); os.IsNotExist(err) {
+	// Validate workspace directory exists and is a directory
+	dirInfo, err := os.Stat(cwd)
+	if os.IsNotExist(err) {
 		wsLog.Error("Workspace directory does not exist: %s", cwd)
 		http.Error(w, "Workspace not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		wsLog.Error("Failed to stat workspace directory %s: %v", cwd, err)
+		http.Error(w, "Failed to access workspace", http.StatusInternalServerError)
+		return
+	}
+	if !dirInfo.IsDir() {
+		wsLog.Warn("Workspace path is not a directory: %s", cwd)
+		http.Error(w, "Invalid workspace", http.StatusBadRequest)
+		return
+	}
+
+	credential, err := h.resolveWorkspaceCredential(cwd, runAsOwner)
+	if err != nil {
+		wsLog.Error("Failed to resolve workspace credential | workspace=%s cwd=%s err=%v", workspace, cwd, err)
+		http.Error(w, "Workspace terminal unavailable", http.StatusForbidden)
 		return
 	}
 
@@ -173,11 +256,18 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	wsLog.Info("Connection opened | workspace=%s cwd=%s remoteAddr=%s", workspace, cwd, r.RemoteAddr)
 
 	// Run the PTY session
-	h.runPTYSession(ctx, conn, cwd, info)
+	h.runPTYSession(ctx, conn, cwd, credential, runAsOwner, info)
 }
 
 // runPTYSession manages a PTY session over WebSocket
-func (h *WSHandler) runPTYSession(ctx context.Context, conn *websocket.Conn, cwd string, info *connInfo) {
+func (h *WSHandler) runPTYSession(
+	ctx context.Context,
+	conn *websocket.Conn,
+	cwd string,
+	credential *syscall.Credential,
+	runAsOwner bool,
+	info *connInfo,
+) {
 	// Ensure connection is closed when we exit
 	defer func() {
 		conn.Close()
@@ -188,16 +278,23 @@ func (h *WSHandler) runPTYSession(ctx context.Context, conn *websocket.Conn, cwd
 	shell := "/bin/bash"
 	cmd := exec.CommandContext(ctx, shell)
 	cmd.Dir = cwd
+	if credential != nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{Credential: credential}
+	}
 
 	// Set environment with TERM=xterm-256color for color support
 	env := os.Environ()
-	filteredEnv := make([]string, 0, len(env)+1)
+	filteredEnv := make([]string, 0, len(env)+2)
 	for _, e := range env {
-		if !strings.HasPrefix(e, "TERM=") {
+		if !strings.HasPrefix(e, "TERM=") && !(runAsOwner && strings.HasPrefix(e, "HOME=")) {
 			filteredEnv = append(filteredEnv, e)
 		}
 	}
 	filteredEnv = append(filteredEnv, "TERM=xterm-256color")
+	if runAsOwner {
+		// Keep shell history/config local to the workspace user directory.
+		filteredEnv = append(filteredEnv, "HOME="+cwd)
+	}
 	cmd.Env = filteredEnv
 
 	// Start PTY
@@ -398,6 +495,10 @@ func (h *WSHandler) ActiveConnections() int {
 func (h *WSHandler) Shutdown(ctx context.Context) {
 	close(h.shutdownChan)
 
+	h.leaseMu.Lock()
+	h.leases = make(map[string]WSLease)
+	h.leaseMu.Unlock()
+
 	// Cancel all active connections
 	h.connections.Range(func(key, value interface{}) bool {
 		if info, ok := value.(*connInfo); ok {
@@ -461,4 +562,177 @@ func (h *WSHandler) GetStats(includeDetails bool) ConnectionStats {
 	}
 
 	return stats
+}
+
+func (h *WSHandler) createLease(sessionToken, workspaceQuery string) (string, WSLease, error) {
+	workspace, cwd, runAsOwner, err := h.resolveShellWorkspace(workspaceQuery)
+	if err != nil {
+		return "", WSLease{}, err
+	}
+
+	// Validate workspace is still available at lease-issuance time.
+	dirInfo, err := os.Stat(cwd)
+	if err != nil {
+		return "", WSLease{}, err
+	}
+	if !dirInfo.IsDir() {
+		return "", WSLease{}, &PathSecurityError{Op: "lease_workspace_not_dir", Path: cwd, Wrapped: ErrInvalidPath}
+	}
+
+	// If this workspace should run as owner, verify we can resolve credentials now.
+	if _, err := h.resolveWorkspaceCredential(cwd, runAsOwner); err != nil {
+		return "", WSLease{}, err
+	}
+
+	token, err := generateLeaseToken()
+	if err != nil {
+		return "", WSLease{}, fmt.Errorf("generate lease token: %w", err)
+	}
+
+	lease := WSLease{
+		SessionToken: sessionToken,
+		Workspace:    workspace,
+		Cwd:          cwd,
+		RunAsOwner:   runAsOwner,
+		ExpiresAt:    time.Now().Add(WSLeaseTTL),
+	}
+
+	h.leaseMu.Lock()
+	defer h.leaseMu.Unlock()
+	h.pruneExpiredLeasesLocked(time.Now())
+	h.leases[token] = lease
+
+	return token, lease, nil
+}
+
+func (h *WSHandler) consumeLease(sessionToken, token string) (workspace string, cwd string, runAsOwner bool, err error) {
+	if strings.TrimSpace(token) == "" {
+		return "", "", false, ErrMissingLease
+	}
+
+	now := time.Now()
+
+	h.leaseMu.Lock()
+	lease, ok := h.leases[token]
+	if ok {
+		// Single-use: remove immediately once presented, regardless of outcome.
+		delete(h.leases, token)
+	}
+	h.pruneExpiredLeasesLocked(now)
+	h.leaseMu.Unlock()
+
+	if !ok {
+		return "", "", false, ErrInvalidLease
+	}
+	if now.After(lease.ExpiresAt) {
+		return "", "", false, ErrExpiredLease
+	}
+	if lease.SessionToken != sessionToken {
+		return "", "", false, ErrLeaseSessionDenied
+	}
+
+	return lease.Workspace, lease.Cwd, lease.RunAsOwner, nil
+}
+
+func (h *WSHandler) pruneExpiredLeasesLocked(now time.Time) {
+	for token, lease := range h.leases {
+		if now.After(lease.ExpiresAt) {
+			delete(h.leases, token)
+		}
+	}
+}
+
+func generateLeaseToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+func (h *WSHandler) resolveShellWorkspace(workspaceQuery string) (workspace string, cwd string, runAsOwner bool, err error) {
+	workspace = strings.TrimSpace(workspaceQuery)
+	if workspace == "" || workspace == "root" {
+		return "root", h.config.ResolvedDefaultCwd, false, nil
+	}
+
+	// Backward compatible input:
+	// - site:example.com
+	// - example.com
+	siteWorkspace := workspace
+	if !strings.HasPrefix(siteWorkspace, "site:") {
+		siteWorkspace = "site:" + siteWorkspace
+	}
+
+	cwd, err = h.resolver.ResolveWorkspaceBase(siteWorkspace)
+	if err != nil {
+		return "", "", false, err
+	}
+
+	if err := validateSiteWorkspaceBoundary(cwd, h.config.ResolvedSitesPath); err != nil {
+		return "", "", false, err
+	}
+
+	return siteWorkspace, cwd, true, nil
+}
+
+func validateSiteWorkspaceBoundary(workspacePath, sitesPath string) error {
+	realSites, err := resolveRealPathOrAbs(sitesPath)
+	if err != nil {
+		return &PathSecurityError{Op: "resolve_sites_root", Path: sitesPath, Wrapped: ErrInvalidPath}
+	}
+
+	realWorkspace, err := resolveRealPathOrAbs(workspacePath)
+	if err != nil {
+		return &PathSecurityError{Op: "resolve_workspace_path", Path: workspacePath, Wrapped: ErrInvalidPath}
+	}
+
+	if !isWithinBase(realWorkspace, realSites) {
+		return &PathSecurityError{Op: "validate_sites_boundary", Path: workspacePath, Wrapped: ErrOutsideBoundary}
+	}
+
+	return nil
+}
+
+func resolveRealPathOrAbs(path string) (string, error) {
+	realPath, err := filepath.EvalSymlinks(path)
+	if err == nil {
+		return realPath, nil
+	}
+	return filepath.Abs(path)
+}
+
+func (h *WSHandler) resolveWorkspaceCredential(cwd string, runAsOwner bool) (*syscall.Credential, error) {
+	if !runAsOwner {
+		return nil, nil
+	}
+
+	info, err := os.Stat(cwd)
+	if err != nil {
+		return nil, fmt.Errorf("stat workspace: %w", err)
+	}
+
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return nil, fmt.Errorf("workspace stat does not expose uid/gid")
+	}
+
+	currentUID := os.Geteuid()
+	currentGID := os.Getegid()
+	targetUID := int(stat.Uid)
+	targetGID := int(stat.Gid)
+
+	if currentUID == targetUID && currentGID == targetGID {
+		return nil, nil
+	}
+
+	if currentUID != 0 {
+		return nil, fmt.Errorf("cannot switch uid/gid without root (current=%d:%d target=%d:%d)", currentUID, currentGID, targetUID, targetGID)
+	}
+
+	return &syscall.Credential{
+		Uid:         stat.Uid,
+		Gid:         stat.Gid,
+		NoSetGroups: true,
+	}, nil
 }

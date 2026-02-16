@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RendererEvent",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "render.queued",
+        "render.started",
+        "render.succeeded",
+        "render.failed"
+      ]
+    },
+    "projectId": {
+      "type": "string"
+    },
+    "jobId": {
+      "type": "string"
+    },
+    "filePath": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "error": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "projectId",
+    "jobId",
+    "timestamp"
+  ],
+  "additionalProperties": false
+}
