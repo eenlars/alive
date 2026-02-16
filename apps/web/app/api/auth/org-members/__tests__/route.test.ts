@@ -974,5 +974,6 @@ describe("OPTIONS /api/auth/org-members", () => {
 
     const res = await OPTIONS(req)
     expect(res.status).toBe(200)
+    expect(res.headers.get("access-control-allow-origin")).toBeTruthy()
   })
 })
