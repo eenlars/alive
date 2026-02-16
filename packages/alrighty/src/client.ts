@@ -2,27 +2,6 @@ import { ZodError } from "zod"
 import { ApiError } from "./error"
 import type { ClientOptions, Endpoint, Req, Res, SchemaRegistry } from "./types"
 
-const REQUEST_INIT_KEYS = new Set([
-  "cache",
-  "credentials",
-  "headers",
-  "integrity",
-  "keepalive",
-  "mode",
-  "redirect",
-  "referrer",
-  "referrerPolicy",
-  "signal",
-  "window",
-  "duplex",
-])
-
-function isRequestInitLike(value: unknown): value is Omit<RequestInit, "body" | "method"> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false
-  const keys = Object.keys(value as Record<string, unknown>)
-  return keys.some(key => REQUEST_INIT_KEYS.has(key))
-}
-
 /**
  * Creates a typed API client from a schema registry
  */
@@ -141,15 +120,12 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
       init = initOrPath as Omit<RequestInit, "body" | "method"> | undefined
     } else if (bodyOrInit === undefined) {
       init = undefined
-    } else if (isRequestInitLike(bodyOrInit)) {
-      // Backward compatible form: deletty(endpoint, init)
-      init = bodyOrInit
-    } else if (!schemas[endpoint].req) {
-      // Endpoint has no request schema; treat second arg as RequestInit for compatibility.
-      init = bodyOrInit as Omit<RequestInit, "body" | "method">
-    } else {
+    } else if (schemas[endpoint].req) {
       // New form: deletty(endpoint, body)
       body = bodyOrInit
+    } else {
+      // Endpoint has no request schema; treat second arg as RequestInit for compatibility.
+      init = bodyOrInit as Omit<RequestInit, "body" | "method">
     }
 
     return api(endpoint, "DELETE", body, init, pathOverrideResolved)

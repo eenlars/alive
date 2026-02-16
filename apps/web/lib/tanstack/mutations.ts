@@ -156,7 +156,7 @@ export function useRemoveOrgMember(
       }
 
       try {
-        return apiSchemas["auth/org-members/delete"].res.parse(json) as Res<"auth/org-members/delete">
+        return apiSchemas["auth/org-members/delete"].res.parse(json)
       } catch {
         throw new ApiError("Response validation failed", response.status, "VALIDATION_ERROR", json)
       }
