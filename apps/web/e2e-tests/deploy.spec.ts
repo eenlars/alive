@@ -80,10 +80,9 @@ test.describe("Website Deployment with Authentication", () => {
       .or(page.getByRole("heading", { level: 1, name: /Launch your (site|website)/i }))
     await expect(deployHeading).toBeVisible({ timeout: TEST_TIMEOUTS.max })
 
-    const quickLaunch = page
-      .getByTestId("mode-option-quick-launch")
-      .or(page.getByRole("heading", { level: 3, name: "Quick Launch" }))
-    await expect(quickLaunch).toBeVisible({ timeout: TEST_TIMEOUTS.max })
+    await expect(page.getByTestId("mode-option-quick-launch")).toBeVisible({
+      timeout: TEST_TIMEOUTS.max,
+    })
 
     console.log("[Test] ✓ Deploy page accessible without authentication")
   })
