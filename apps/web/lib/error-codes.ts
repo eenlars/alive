@@ -126,6 +126,8 @@ export const ErrorCodes = {
   INTEGRATION_NOT_CONNECTED: "INTEGRATION_NOT_CONNECTED",
   INTEGRATION_NOT_CONFIGURED: "INTEGRATION_NOT_CONFIGURED",
 
+  MEMBER_ALREADY_EXISTS: "MEMBER_ALREADY_EXISTS",
+
   // Referral errors (11xxx)
   REFERRAL_INVALID_CODE: "REFERRAL_INVALID_CODE",
   REFERRAL_ALREADY_INVITED: "REFERRAL_ALREADY_INVITED",
@@ -534,6 +536,11 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
 
     case ErrorCodes.USER_NOT_FOUND:
       return details?.userId ? `User '${details.userId}' was not found.` : "User not found."
+
+    case ErrorCodes.MEMBER_ALREADY_EXISTS:
+      return details?.email
+        ? `${details.email} is already a member of this organization.`
+        : "This user is already a member of this organization."
 
     case ErrorCodes.AUTOMATION_JOB_NOT_FOUND:
       return details?.jobId ? `Automation job '${details.jobId}' was not found.` : "Automation job not found."
