@@ -132,7 +132,6 @@ export async function POST(request: NextRequest) {
     }
 
     const res = alrighty("deploy-subdomain", {
-      ok: true,
       message: `Site ${fullDomain} deployed successfully!`,
       domain: fullDomain,
       orgId,

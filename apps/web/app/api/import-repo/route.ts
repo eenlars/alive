@@ -160,7 +160,6 @@ export async function POST(request: NextRequest) {
     }
 
     const res = alrighty("import-repo", {
-      ok: true,
       message: `Site ${fullDomain} deployed from GitHub repository!`,
       domain: fullDomain,
       orgId,

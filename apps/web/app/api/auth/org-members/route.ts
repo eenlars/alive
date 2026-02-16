@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
       })
       .sort((a, b) => a.email.localeCompare(b.email))
 
-    const res = alrighty("auth/org-members", { ok: true, members: formattedMembers })
+    const res = alrighty("auth/org-members", { members: formattedMembers })
     addCorsHeaders(res, origin)
     return res
   } catch (error) {
@@ -168,6 +168,13 @@ export async function POST(req: NextRequest) {
     })
 
     if (insertError) {
+      // Handle unique constraint violation (concurrent invite race)
+      if (insertError.code === "23505") {
+        return createCorsErrorResponse(origin, ErrorCodes.MEMBER_ALREADY_EXISTS, 409, {
+          requestId,
+          details: { email },
+        })
+      }
       console.error("[Org Members] Failed to add member:", insertError)
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
     }
@@ -175,7 +182,6 @@ export async function POST(req: NextRequest) {
     console.log(`[Org Members] User ${user.id} added ${targetUser.user_id} (${email}) to org ${orgId} as ${role}`)
 
     const res = alrighty("auth/org-members/create", {
-      ok: true,
       member: {
         user_id: targetUser.user_id,
         email: targetUser.email,
@@ -289,7 +295,7 @@ export async function DELETE(req: NextRequest) {
 
     console.log(`[Org Members] User ${userId} removed ${targetUserId} from org ${orgId}`)
 
-    const res = alrighty("auth/org-members/delete", { ok: true, message: "Member removed successfully" })
+    const res = alrighty("auth/org-members/delete", { message: "Member removed successfully" })
     addCorsHeaders(res, origin)
     return res
   } catch (error) {

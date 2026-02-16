@@ -58,6 +58,12 @@ export type Req<T extends SchemaRegistry, E extends Endpoint<T>> = T[E]["req"] e
 export type Res<T extends SchemaRegistry, E extends Endpoint<T>> = z.infer<T[E]["res"]>
 
 /**
+ * Response payload type for an endpoint — what callers actually pass.
+ * Strips `ok` since alrighty auto-injects `ok: true`.
+ */
+export type ResPayload<T extends SchemaRegistry, E extends Endpoint<T>> = Omit<Res<T, E>, "ok">
+
+/**
  * Client configuration options
  */
 export interface ClientOptions {

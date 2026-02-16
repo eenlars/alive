@@ -107,7 +107,7 @@ export const GET = protectedRoute(async ({ user, req }) => {
     hostname: row.domains?.hostname,
   }))
 
-  return alrighty("automations", { ok: true, automations, total: automations.length })
+  return alrighty("automations", { automations, total: automations.length })
 })
 
 /**
@@ -274,5 +274,5 @@ export const POST = protectedRoute(async ({ user, req }) => {
   // Poke CronService so it picks up the new job immediately
   pokeCronService()
 
-  return alrighty("automations/create", { ok: true, automation: data }, { status: 201 })
+  return alrighty("automations/create", { automation: data }, { status: 201 })
 })

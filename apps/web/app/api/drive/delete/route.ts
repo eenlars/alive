@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
     console.log(`[Drive Delete ${requestId}] Deleted: ${resolvedPath}`)
 
     return alrighty("drive/delete", {
-      ok: true,
       deleted: parsed.path,
       type: isDir ? "directory" : "file",
     })

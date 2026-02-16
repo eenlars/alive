@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
       )
 
       return alrighty("drive/list", {
-        ok: true,
         path: targetPath,
         files,
       })

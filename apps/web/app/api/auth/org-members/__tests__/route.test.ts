@@ -567,12 +567,66 @@ describe("POST /api/auth/org-members", () => {
   it("normalizes email (trims whitespace and lowercases)", async () => {
     vi.mocked(getSessionUser).mockResolvedValue(MOCK_USER)
 
-    mockIamClientForPost({
-      callerRole: "admin",
-      targetUser: { user_id: "target-1", email: "new@test.com", display_name: "New User" },
-      existingMembership: null,
-      insertError: null,
+    // Track the email value passed to the users table .eq("email", ...) call
+    let emailUsedInLookup: string | undefined
+    const fromCalls: string[] = []
+
+    const mockFrom = vi.fn((table: string) => {
+      fromCalls.push(table)
+      const callIndex = fromCalls.length
+
+      if (table === "org_memberships" && callIndex === 1) {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: { role: "admin" }, error: null }),
+              })),
+            })),
+          })),
+        }
+      }
+
+      if (table === "users") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn((_col: string, val: string) => {
+              emailUsedInLookup = val
+              return {
+                single: vi.fn().mockResolvedValue({
+                  data: { user_id: "target-1", email: "new@test.com", display_name: "New User" },
+                  error: null,
+                }),
+              }
+            }),
+          })),
+        }
+      }
+
+      if (table === "org_memberships" && callIndex === 3) {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({ data: null, error: { code: "PGRST116" } }),
+              })),
+            })),
+          })),
+        }
+      }
+
+      if (table === "org_memberships" && callIndex === 4) {
+        return { insert: vi.fn().mockResolvedValue({ error: null }) }
+      }
+
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: null, error: null }) })) })),
+        })),
+      }
     })
+
+    vi.mocked(createIamClient).mockResolvedValue({ from: mockFrom } as never)
 
     // Email with leading/trailing spaces and mixed case
     const res = await POST(makePostRequest({ orgId: "org-1", email: "  New@Test.com  " }))
@@ -581,6 +635,9 @@ describe("POST /api/auth/org-members", () => {
     const data = await res.json()
     expect(data.ok).toBe(true)
     expect(data.member.email).toBe("new@test.com")
+
+    // Verify the DB lookup used the normalized email, not the raw input
+    expect(emailUsedInLookup).toBe("new@test.com")
   })
 })
 

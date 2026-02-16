@@ -1,4 +1,4 @@
-import type { Req as PkgReq, Res as PkgRes } from "@alive-brug/alrighty"
+import type { Req as PkgReq, Res as PkgRes, ResPayload as PkgResPayload } from "@alive-brug/alrighty"
 import { CLAUDE_MODELS, ORG_ROLES } from "@webalive/shared"
 import { z } from "zod"
 import { RESERVED_SLUGS } from "@/features/deployment/types/guards"
@@ -879,6 +879,8 @@ export const apiSchemas = {
 export type Endpoint = keyof typeof apiSchemas
 export type Req<E extends Endpoint> = PkgReq<typeof apiSchemas, E>
 export type Res<E extends Endpoint> = PkgRes<typeof apiSchemas, E>
+/** What callers pass to alrighty — `ok` is auto-injected */
+export type ResPayload<E extends Endpoint> = PkgResPayload<typeof apiSchemas, E>
 
 // ============================================================================
 // VALIDATION HELPER
