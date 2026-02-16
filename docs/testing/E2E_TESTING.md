@@ -68,7 +68,7 @@ This section explains how E2E tests work across different environments.
 **Key points:**
 - Tests run on the **same server** as the deployed app
 - No separate test server - tests hit the real deployed application
-- Uses production Supabase database
+- Uses shared Supabase database (same DB for staging and production)
 - Test users use `.alive.local` domain (not real TLD) for isolation
 
 ### E2E Flow
@@ -123,11 +123,8 @@ Without this secret, the `/api/test/bootstrap-tenant` endpoint rejects requests.
 ### Running E2E Tests
 
 ```bash
-# Default
+# Run E2E tests (against staging — always the default)
 bun run test:e2e
-
-# Explicit staging
-ENV_FILE=.env.staging bun run test:e2e
 ```
 
 ---

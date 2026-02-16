@@ -31,6 +31,11 @@ const schemas = {
   "user/delete": {
     res: z.object({ ok: z.boolean() }),
   },
+  // DELETE endpoint with body
+  "user/remove": {
+    req: z.object({ userId: z.string().min(1) }),
+    res: z.object({ ok: z.boolean() }),
+  },
 } satisfies SchemaRegistry
 
 const mockFetch = vi.fn()
@@ -229,6 +234,23 @@ describe("createClient", () => {
 
       const call = mockFetch.mock.calls[0]
       expect(call[1].body).toBeUndefined()
+    })
+
+    it("supports validated DELETE body for endpoints with req schema", async () => {
+      mockFetch.mockReturnValue(mockResponse({ ok: true }))
+
+      const { deletty } = createClient(schemas)
+      await deletty("user/remove", {
+        userId: "u-1",
+      })
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/user/remove",
+        expect.objectContaining({
+          method: "DELETE",
+          body: JSON.stringify({ userId: "u-1" }),
+        }),
+      )
     })
   })
 

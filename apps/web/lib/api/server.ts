@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import type { z } from "zod"
-import { apiSchemas, type Endpoint, type Req, type Res } from "./schemas"
+import { apiSchemas, type Endpoint, type Req, type ResPayload } from "./schemas"
 
 /**
  * Helper: turn FormData into a plain object of string | File
@@ -87,20 +87,23 @@ export const isHandleBodyError = (x: unknown): x is NextResponse => x instanceof
  * Creates a typed JSON response that is validated against the
  * apiSchemas[endpoint].res schema *before* sending to the client.
  *
- * The payload must have the same top-level keys as the response schema,
- * but values can be wider types (e.g. DB rows with `Json` where the
- * schema expects `string | null`). Zod validates exact types at runtime.
+ * Automatically injects `ok: true` — callers never need to pass it.
+ *
+ * The payload must have the same top-level keys as the response schema
+ * (minus `ok`), but values can be wider types (e.g. DB rows with `Json`
+ * where the schema expects `string | null`). Zod validates exact types
+ * at runtime.
  *
  * Usage:
- *   return alrighty('automations/create', { ok: true, automation: dbRow })
+ *   return alrighty('automations/create', { automation: dbRow })
  */
-export function alrighty<E extends Endpoint, P extends { [K in keyof Res<E>]: unknown }>(
+export function alrighty<E extends Endpoint>(
   endpoint: E,
-  payload: P,
+  payload: { [K in keyof ResPayload<E>]: unknown },
   init?: ResponseInit,
 ): NextResponse {
   const schema = apiSchemas[endpoint].res
-  const parsed = schema.parse(payload)
+  const parsed = schema.parse({ ok: true, ...payload })
   return NextResponse.json(parsed, init)
 }
 

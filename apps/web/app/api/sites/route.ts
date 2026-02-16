@@ -20,7 +20,7 @@ export const GET = protectedRoute(async ({ user, req }) => {
   const { data: memberships } = await iam.from("org_memberships").select("org_id").eq("user_id", user.id)
 
   if (!memberships || memberships.length === 0) {
-    return alrighty("sites", { ok: true, sites: [] })
+    return alrighty("sites", { sites: [] })
   }
 
   let orgIds = memberships.map(m => m.org_id)
@@ -50,5 +50,5 @@ export const GET = protectedRoute(async ({ user, req }) => {
         org_id: d.org_id as string, // filtered above
       })) || []
 
-  return alrighty("sites", { ok: true, sites })
+  return alrighty("sites", { sites })
 })

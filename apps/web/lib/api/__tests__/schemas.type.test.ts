@@ -29,6 +29,7 @@ describe("API Schema Type System", () => {
         | "auth/all-workspaces"
         | "auth/workspaces"
         | "auth/org-members"
+        | "auth/org-members/create"
         | "auth/org-members/delete"
         | "auth/organizations/update"
         | "user/update"

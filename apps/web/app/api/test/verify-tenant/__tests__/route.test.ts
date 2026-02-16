@@ -1,7 +1,21 @@
 import * as Sentry from "@sentry/nextjs"
 import { TEST_CONFIG } from "@webalive/shared"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ErrorCodes } from "@/lib/error-codes"
+
+// Proxy-based env mock: forwards to process.env so vi.stubEnv() controls values
+const envMock = {
+  env: new Proxy(
+    {},
+    {
+      get(_, prop) {
+        return process.env[prop as string]
+      },
+    },
+  ),
+}
+
+vi.mock("@webalive/env/server", () => envMock)
 
 vi.mock("@/lib/supabase/iam", () => ({
   createIamClient: vi.fn(),
@@ -114,6 +128,23 @@ describe("GET /api/test/verify-tenant", () => {
     vi.clearAllMocks()
     vi.mocked(createIamClient).mockResolvedValue(createMockIamClient() as never)
     vi.mocked(createAppClient).mockResolvedValue(createMockAppClient() as never)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it("returns 404 when not in test env and no valid secret", async () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("STREAM_ENV", "staging")
+
+    const email = `${TEST_CONFIG.WORKER_EMAIL_PREFIX}0@${TEST_CONFIG.EMAIL_DOMAIN}`
+    const res = await GET(createRequest(email))
+    const json = await res.json()
+
+    expect(res.status).toBe(404)
+    expect(json.ok).toBe(false)
+    expect(json.error).toBe(ErrorCodes.UNAUTHORIZED)
   })
 
   it("returns 400 when email is missing", async () => {

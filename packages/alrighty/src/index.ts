@@ -9,5 +9,6 @@ export type {
   ReadEndpoint,
   Req,
   Res,
+  ResPayload,
   SchemaRegistry,
 } from "./types"

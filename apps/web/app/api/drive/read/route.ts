@@ -153,7 +153,6 @@ export async function POST(request: NextRequest) {
       const language = getLanguageFromFilename(filename)
 
       return alrighty("drive/read", {
-        ok: true,
         path: parsed.path,
         filename,
         content,

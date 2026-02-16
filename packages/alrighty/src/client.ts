@@ -16,7 +16,7 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
     pathOverride?: string,
   ): Promise<Res<T, E>> {
     const path = pathOverride ?? `${basePath.replace(/\/$/, "")}/${String(endpoint).replace(/^\//, "")}`
-    const hasBody = method !== "GET" && method !== "DELETE"
+    const hasBody = method !== "GET"
 
     // Validate request body against schema (runs even for undefined to catch missing required fields)
     if (hasBody && schemas[endpoint].req) {
@@ -84,6 +84,78 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
     }
   }
 
+  function deletty<E extends Endpoint<T>>(
+    endpoint: E,
+    init?: Omit<RequestInit, "body" | "method">,
+    pathOverride?: string,
+  ): Promise<Res<T, E>>
+  function deletty<E extends Endpoint<T>>(
+    endpoint: E,
+    body: Req<T, E>,
+    init?: Omit<RequestInit, "body" | "method">,
+    pathOverride?: string,
+  ): Promise<Res<T, E>>
+  function deletty<E extends Endpoint<T>>(
+    endpoint: E,
+    bodyOrInit?: Req<T, E> | Omit<RequestInit, "body" | "method">,
+    initOrPath?: Omit<RequestInit, "body" | "method"> | string,
+    pathOverrideMaybe?: string,
+  ): Promise<Res<T, E>> {
+    let body: unknown = undefined
+    let init: Omit<RequestInit, "body" | "method"> | undefined
+    let pathOverrideResolved: string | undefined
+
+    if (typeof pathOverrideMaybe === "string") {
+      // New form: deletty(endpoint, body, init?, pathOverride)
+      body = bodyOrInit
+      init = initOrPath as Omit<RequestInit, "body" | "method"> | undefined
+      pathOverrideResolved = pathOverrideMaybe
+    } else if (typeof initOrPath === "string") {
+      // Backward compatible form: deletty(endpoint, init?, pathOverride)
+      init = bodyOrInit as Omit<RequestInit, "body" | "method"> | undefined
+      pathOverrideResolved = initOrPath
+    } else if (initOrPath !== undefined) {
+      // New form: deletty(endpoint, body, init)
+      body = bodyOrInit
+      init = initOrPath as Omit<RequestInit, "body" | "method"> | undefined
+    } else if (bodyOrInit === undefined) {
+      init = undefined
+    } else if (schemas[endpoint].req) {
+      // New form: deletty(endpoint, body)
+      body = bodyOrInit
+    } else {
+      // Endpoint has no request schema; treat second arg as RequestInit for compatibility.
+      init = bodyOrInit as Omit<RequestInit, "body" | "method">
+    }
+
+    return api(endpoint, "DELETE", body, init, pathOverrideResolved)
+  }
+
+  function delly<E extends Endpoint<T>>(
+    endpoint: E,
+    init?: Omit<RequestInit, "body" | "method">,
+    pathOverride?: string,
+  ): Promise<Res<T, E>>
+  function delly<E extends Endpoint<T>>(
+    endpoint: E,
+    body: Req<T, E>,
+    init?: Omit<RequestInit, "body" | "method">,
+    pathOverride?: string,
+  ): Promise<Res<T, E>>
+  function delly<E extends Endpoint<T>>(
+    endpoint: E,
+    bodyOrInit?: Req<T, E> | Omit<RequestInit, "body" | "method">,
+    initOrPath?: Omit<RequestInit, "body" | "method"> | string,
+    pathOverrideMaybe?: string,
+  ): Promise<Res<T, E>> {
+    return deletty(
+      endpoint,
+      bodyOrInit as Req<T, E>,
+      initOrPath as Omit<RequestInit, "body" | "method">,
+      pathOverrideMaybe,
+    )
+  }
+
   return {
     getty: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">, pathOverride?: string) =>
       api(endpoint, "GET", undefined, init, pathOverride),
@@ -105,10 +177,8 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
       init?: Omit<RequestInit, "body" | "method">,
       pathOverride?: string,
     ) => api(endpoint, "PATCH", body, init, pathOverride),
-    deletty: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">, pathOverride?: string) =>
-      api(endpoint, "DELETE", undefined, init, pathOverride),
+    deletty,
     /** Alias for deletty */
-    delly: <E extends Endpoint<T>>(endpoint: E, init?: Omit<RequestInit, "body" | "method">, pathOverride?: string) =>
-      api(endpoint, "DELETE", undefined, init, pathOverride),
+    delly,
   }
 }

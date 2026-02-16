@@ -81,8 +81,8 @@ export function shouldRenderMessage(message: UIMessage, isDebugMode: boolean): b
     if (!Array.isArray(items) || items.length === 0) return false
     return items.some((item: { type: string; tool_name?: string }) => {
       if (item.type === "tool_result") {
-        const toolName = item.tool_name || "Tool Result"
-        return isStreamClientVisibleTool(toolName)
+        if (!item.tool_name) return true
+        return isStreamClientVisibleTool(item.tool_name)
       }
       if (item.type === "image") return true
       return false

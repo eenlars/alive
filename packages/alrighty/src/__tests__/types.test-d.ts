@@ -129,6 +129,12 @@ describe("Type Tests", () => {
       // deletty should work on both GET and mutation endpoints
       assertType<Promise<{ id: string; email: string }>>(deletty("user"))
       assertType<Promise<{ ok: boolean; token?: string }>>(deletty("login"))
+      assertType<Promise<{ ok: boolean; token?: string }>>(deletty("login", { email: "", password: "" }))
+    })
+
+    it("deletty validates DELETE body shape when provided", () => {
+      // @ts-expect-error - missing password
+      deletty("login", { email: "" })
     })
   })
 

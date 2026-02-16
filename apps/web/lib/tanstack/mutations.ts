@@ -10,8 +10,8 @@
 
 import { type UseMutationOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 import toast from "react-hot-toast"
-import { type ApiError, delly, patchy, postty } from "@/lib/api/api-client"
-import { type Res, validateRequest } from "@/lib/api/schemas"
+import { ApiError, patchy, postty } from "@/lib/api/api-client"
+import { apiSchemas, type Res, validateRequest } from "@/lib/api/schemas"
 import { queryKeys } from "./queryKeys"
 
 // ============================================
@@ -120,7 +120,46 @@ export function useRemoveOrgMember(
 
   return useMutation({
     mutationFn: async ({ orgId, userId }: RemoveMemberParams) => {
-      return delly("auth/org-members/delete", undefined, `/api/auth/organizations/${orgId}/members/${userId}`)
+      const body = validateRequest("auth/org-members/delete", {
+        orgId,
+        targetUserId: userId,
+      })
+
+      const response = await fetch("/api/auth/org-members", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      let json: unknown
+      try {
+        json = await response.json()
+      } catch {
+        throw new ApiError("Non-JSON response", response.status, "NON_JSON_RESPONSE")
+      }
+
+      if (!response.ok) {
+        const err = json as Record<string, unknown>
+        const nested = err?.error as Record<string, unknown> | string | undefined
+        const message =
+          (typeof err?.message === "string" && err.message ? err.message : undefined) ??
+          (typeof nested === "object" && typeof nested?.message === "string" ? nested.message : undefined) ??
+          (typeof nested === "string" ? nested : undefined) ??
+          `HTTP ${response.status}`
+        const code =
+          (typeof nested === "object" && typeof nested?.code === "string" ? nested.code : undefined) ??
+          (typeof nested === "string" ? nested : undefined) ??
+          (typeof err?.code === "string" ? err.code : undefined) ??
+          "HTTP_ERROR"
+        throw new ApiError(message, response.status, code, json)
+      }
+
+      try {
+        return apiSchemas["auth/org-members/delete"].res.parse(json)
+      } catch {
+        throw new ApiError("Response validation failed", response.status, "VALIDATION_ERROR", json)
+      }
     },
     onSuccess: (_, { orgId }) => {
       // Invalidate member queries for this org

@@ -9,5 +9,16 @@ if (process.env.PLAYWRIGHT_TEST !== "true") {
     sampleRate: 1.0,
     tracesSampleRate: 0.2,
     sendDefaultPii: false,
+
+    beforeSend(event) {
+      if (event.request) {
+        delete event.request.cookies
+        if (event.request.headers) {
+          delete event.request.headers.cookie
+          delete event.request.headers.authorization
+        }
+      }
+      return event
+    },
   })
 }

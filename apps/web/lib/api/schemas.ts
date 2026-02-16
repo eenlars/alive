@@ -1,4 +1,4 @@
-import type { Req as PkgReq, Res as PkgRes } from "@alive-brug/alrighty"
+import type { Req as PkgReq, Res as PkgRes, ResPayload as PkgResPayload } from "@alive-brug/alrighty"
 import { CLAUDE_MODELS, ORG_ROLES } from "@webalive/shared"
 import { z } from "zod"
 import { RESERVED_SLUGS } from "@/features/deployment/types/guards"
@@ -416,14 +416,42 @@ export const apiSchemas = {
   },
 
   /**
-   * DELETE /api/auth/organizations/{orgId}/members/{userId}
-   * Remove member from organization
-   * Note: Uses pathOverride for dynamic route
+   * POST /api/auth/org-members
+   * Add a member to an organization by email
+   */
+  "auth/org-members/create": {
+    req: z
+      .object({
+        orgId: z.string().min(1),
+        email: z.string().trim().toLowerCase().email(),
+        role: z.enum(["member", "admin"]).default("member"),
+      })
+      .brand<"AuthOrgMembersCreateRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      member: z.object({
+        user_id: z.string(),
+        email: z.string(),
+        display_name: z.string().nullable(),
+        role: z.enum(ORG_ROLES),
+      }),
+    }),
+  },
+
+  /**
+   * DELETE /api/auth/org-members
+   * Remove a member from an organization
    */
   "auth/org-members/delete": {
-    req: z.undefined().brand<"AuthOrgMembersDeleteRequest">(),
+    req: z
+      .object({
+        orgId: z.string().min(1),
+        targetUserId: z.string().min(1),
+      })
+      .brand<"AuthOrgMembersDeleteRequest">(),
     res: z.object({
-      ok: z.boolean(),
+      ok: z.literal(true),
+      message: z.string(),
     }),
   },
 
@@ -851,6 +879,8 @@ export const apiSchemas = {
 export type Endpoint = keyof typeof apiSchemas
 export type Req<E extends Endpoint> = PkgReq<typeof apiSchemas, E>
 export type Res<E extends Endpoint> = PkgRes<typeof apiSchemas, E>
+/** What callers pass to alrighty — `ok` is auto-injected */
+export type ResPayload<E extends Endpoint> = PkgResPayload<typeof apiSchemas, E>
 
 // ============================================================================
 // VALIDATION HELPER

@@ -80,7 +80,6 @@ export async function GET(req: NextRequest) {
     const worktrees = await listWorktrees(workspaceResult.workspace)
 
     return alrighty("worktrees", {
-      ok: true,
       worktrees: worktrees.map(item => ({
         slug: item.slug,
         pathRelative: item.pathRelative,
@@ -149,7 +148,6 @@ export async function POST(req: NextRequest) {
     return alrighty(
       "worktrees/create",
       {
-        ok: true,
         slug: result.slug,
         branch: result.branch,
         worktreePath,
@@ -211,7 +209,7 @@ export async function DELETE(req: NextRequest) {
       deleteBranch,
     })
 
-    return alrighty("worktrees/delete", { ok: true })
+    return alrighty("worktrees/delete", {})
   } catch (error) {
     if (error instanceof WorktreeError) {
       const mapped = mapWorktreeError(error, { workspace, slug })
