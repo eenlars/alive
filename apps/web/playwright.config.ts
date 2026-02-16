@@ -37,14 +37,14 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
 
-  // Only start web server for local tests (remote environments use deployed servers)
+  // Only start web server for local tests (remote environments use deployed servers).
   webServer: isRemoteEnv
     ? undefined
     : {
         command: "bash scripts/start-test-server.sh",
         url: APP_BASE_URL,
-        reuseExistingServer: !process.env.CI,
-        timeout: 180000, // Increased timeout for slower starts
+        reuseExistingServer: false,
+        timeout: 600000,
       },
 
   projects: [

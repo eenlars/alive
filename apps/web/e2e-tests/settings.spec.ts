@@ -1,6 +1,7 @@
 import { expect, test } from "./fixtures"
 import { TEST_TIMEOUTS } from "./fixtures/test-data"
-import { gotoChat } from "./helpers/assertions"
+import { gotoChatFast } from "./helpers/assertions"
+import { buildJsonMockResponse } from "./lib/strict-api-guard"
 
 /**
  * Settings overlay E2E tests
@@ -21,20 +22,14 @@ test("can open settings and see General tab", async ({ authenticatedPage, worker
   // For E2E test users, the server throws "Test accounts are not eligible for billing".
   // This mock returns an empty billing state so the provider initializes cleanly.
   await authenticatedPage.route("**/api/flowglad/**", route =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ data: null, error: null }),
-    }),
+    route.fulfill(buildJsonMockResponse({ data: null, error: null })),
   )
 
   // Mock /api/user to return a valid user for the test account.
   // This ensures useAuth() returns user data without hitting the real DB.
-  await authenticatedPage.route("**/api/user", route =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+  await authenticatedPage.route("**/api/user**", route =>
+    route.fulfill(
+      buildJsonMockResponse({
         user: {
           id: workerTenant.userId,
           email: workerTenant.email,
@@ -45,21 +40,15 @@ test("can open settings and see General tab", async ({ authenticatedPage, worker
           enabledModels: [],
         },
       }),
-    }),
+    ),
   )
 
   // Mock /api/tokens to prevent credit-fetching errors
-  await authenticatedPage.route("**/api/tokens", route =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ ok: true, credits: 100, tokens: 100000 }),
-    }),
+  await authenticatedPage.route("**/api/tokens**", route =>
+    route.fulfill(buildJsonMockResponse({ ok: true, credits: 100, tokens: 100000 })),
   )
 
-  // Use gotoChat (not gotoChatFast) for more reliable navigation.
-  // gotoChat waits for full app hydration before checking workspace readiness.
-  await gotoChat(authenticatedPage)
+  await gotoChatFast(authenticatedPage, workerTenant.workspace, workerTenant.orgId)
 
   // Click the settings button
   const settingsButton = authenticatedPage.locator('[data-testid="settings-button"]')

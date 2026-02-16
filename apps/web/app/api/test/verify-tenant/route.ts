@@ -14,6 +14,38 @@ import { ErrorCodes } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
 
+type TenantCheck = "user" | "membership" | "org" | "domain"
+
+interface PostgrestErrorLike {
+  code?: string
+  message?: string
+}
+
+function asPostgrestError(error: unknown): PostgrestErrorLike | null {
+  if (error && typeof error === "object") {
+    return error as PostgrestErrorLike
+  }
+  return null
+}
+
+function isNoRowsError(error: unknown): boolean {
+  return asPostgrestError(error)?.code === "PGRST116"
+}
+
+function createQueryErrorResponse(check: TenantCheck, error: unknown): Response {
+  const dbError = asPostgrestError(error)
+  return Response.json(
+    {
+      ready: false,
+      reason: "query_error",
+      check,
+      code: dbError?.code ?? "unknown",
+      message: dbError?.message ?? "Database query failed",
+    },
+    { status: 503 },
+  )
+}
+
 export async function GET(req: Request) {
   // Environment guard - accessible in test/local environments OR with valid test secret
   const isTestEnv = env.NODE_ENV === "test" || env.STREAM_ENV === "local"
@@ -34,12 +66,16 @@ export async function GET(req: Request) {
     return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400)
   }
 
-  const iam = await createIamClient("service")
-  const app = await createAppClient("service")
-
   try {
+    const iam = await createIamClient("service")
+    const app = await createAppClient("service")
+
     // 1. Check if user exists
-    const { data: user } = await iam.from("users").select("user_id").eq("email", email).single()
+    const { data: user, error: userError } = await iam.from("users").select("user_id").eq("email", email).single()
+
+    if (userError && !isNoRowsError(userError)) {
+      return createQueryErrorResponse("user", userError)
+    }
 
     if (!user) {
       return Response.json({ ready: false, missing: "user" })
@@ -48,11 +84,15 @@ export async function GET(req: Request) {
     // 2. Check if user has at least one org membership
     // Note: Use limit(1) instead of single() because test users may have accumulated
     // multiple memberships from repeated test runs (bootstrap creates new orgs each time)
-    const { data: memberships } = await iam
+    const { data: memberships, error: membershipError } = await iam
       .from("org_memberships")
       .select("org_id")
       .eq("user_id", user.user_id)
       .limit(1)
+
+    if (membershipError) {
+      return createQueryErrorResponse("membership", membershipError)
+    }
 
     const membership = memberships?.[0]
     if (!membership) {
@@ -60,7 +100,15 @@ export async function GET(req: Request) {
     }
 
     // 3. Check if org has credits
-    const { data: org } = await iam.from("orgs").select("credits").eq("org_id", membership.org_id).single()
+    const { data: org, error: orgError } = await iam
+      .from("orgs")
+      .select("credits")
+      .eq("org_id", membership.org_id)
+      .single()
+
+    if (orgError && !isNoRowsError(orgError)) {
+      return createQueryErrorResponse("org", orgError)
+    }
 
     if (!org || org.credits < 0) {
       return Response.json({ ready: false, missing: "org" })
@@ -73,7 +121,15 @@ export async function GET(req: Request) {
       const workspace = `${TEST_CONFIG.WORKSPACE_PREFIX}${workerIndex}.${TEST_CONFIG.EMAIL_DOMAIN}`
       // Use limit(1) instead of single() - we just need to verify at least one domain exists
       // The domain might be associated with any of the user's orgs (from accumulated test runs)
-      const { data: domains } = await app.from("domains").select("hostname").eq("hostname", workspace).limit(1)
+      const { data: domains, error: domainError } = await app
+        .from("domains")
+        .select("hostname")
+        .eq("hostname", workspace)
+        .limit(1)
+
+      if (domainError) {
+        return createQueryErrorResponse("domain", domainError)
+      }
 
       if (!domains || domains.length === 0) {
         return Response.json({ ready: false, missing: "domain" })

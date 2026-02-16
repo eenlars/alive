@@ -19,22 +19,28 @@
 #
 # This script is called by playwright.multi-port.config.ts
 
-set -e
+set -euo pipefail
 
 NUM_WORKERS=${1:-4}
 PORT_BASE=${TEST_WORKER_PORT_BASE:-9100}
 USE_PROD_BUILD=${E2E_USE_PRODUCTION_BUILD:-}
+ENV_FILE_PATH="${ENV_FILE:-.env.staging}"
 PIDS=()
 
 echo "[Multi-Port Servers] Starting $NUM_WORKERS server instances"
 echo "[Multi-Port Servers] Port range: $PORT_BASE - $((PORT_BASE + NUM_WORKERS - 1))"
 
 # Load environment
-if [ -f .env.production ]; then
+if [ -f "$ENV_FILE_PATH" ]; then
   set -a
-  source .env.production
+  source "$ENV_FILE_PATH"
   set +a
-  echo "[Multi-Port Servers] Loaded environment from .env.production"
+  echo "[Multi-Port Servers] Loaded environment from $ENV_FILE_PATH"
+fi
+
+if [ "${TEST_ENV:-}" = "production" ]; then
+  echo "[Multi-Port Servers] Production E2E is disabled. Use staging."
+  exit 1
 fi
 
 # Override JWT secret for E2E tests
@@ -76,7 +82,7 @@ for ((i=0; i<NUM_WORKERS; i++)); do
     bun x --bun next start -p "$PORT" &
   else
     echo "[Multi-Port Servers] Starting dev server on port $PORT (worker $i)"
-    bun x --bun next dev --turbo -p "$PORT" &
+    bun x --bun next dev -p "$PORT" &
   fi
 
   PIDS+=($!)

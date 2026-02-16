@@ -53,7 +53,7 @@ export const TEST_CONFIG = {
   WORKER_EMAIL_PREFIX: "e2e_w", // e2e_w0@alive.local
   WORKSPACE_PREFIX: "e2e-w", // e2e-w0.alive.local
   TEST_PASSWORD: "test-password-123", // Password for all E2E test users
-  JWT_SECRET: "test-jwt-secret-for-e2e-tests", // JWT secret for E2E tests (copy to .env.test from .env.test.example)
+  JWT_SECRET: "test-jwt-secret-for-e2e-tests", // JWT secret used by E2E fixtures/server
   DEFAULT_TEMPLATE_ID: "tmpl_landing", // Default template for deployment tests (must exist in Supabase)
 
   // Worker port configuration (single source of truth)

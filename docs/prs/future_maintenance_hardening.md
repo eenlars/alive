@@ -165,7 +165,7 @@ Validation and rollback (required before merge):
   - Allowlist only source-of-truth files; fail PR if hardcoded values remain in active deploy paths.
 - Rollback procedure:
   - Revert PR 2 commit(s) and redeploy previous scripts.
-  - Restart affected services (`alive-dev`, `alive-staging`, `alive-production`, `alive-broker`).
+  - Restart affected services (`alive-dev`, `alive-staging`, `alive-production`).
   - Confirm `make status` and health checks match pre-change values.
 - Final gate:
   - Run full static checks and deployment smoke checks before merge.
@@ -194,7 +194,6 @@ Systemd migration sequence:
 1. Freeze deployments and capture current status (`make status`, `systemctl list-units | rg "alive|claude-bridge"`).
 2. Install/generate new `alive-*` units and run `systemctl daemon-reload`.
 3. Start new units in order with health checks after each step:
-   - `alive-broker`
    - `alive-dev`, `alive-staging`, `alive-production`
    - reload `caddy`
 4. Validate new units are healthy and serving expected endpoints.
@@ -208,9 +207,8 @@ Path migration verification before deleting legacy paths:
 
 Restart order:
 1. Unit/config generators
-2. `alive-broker`
-3. `alive-dev`, `alive-staging`, `alive-production`
-4. `caddy` reload
+2. `alive-dev`, `alive-staging`, `alive-production`
+3. `caddy` reload
 
 Rollback plan:
 - Re-enable and restart legacy `claude-bridge-*` units.

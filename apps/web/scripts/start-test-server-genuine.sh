@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Test server for GENUINE API integration tests
 # Does NOT set PLAYWRIGHT_TEST=true, allowing real API calls
 
-# Load .env.production file if it exists (contains all secrets)
-if [ -f .env.production ]; then
+ENV_FILE_PATH="${ENV_FILE:-.env.staging}"
+
+# Load selected env file (staging by default).
+if [ -f "$ENV_FILE_PATH" ]; then
   set -a
-  source .env.production
+  source "$ENV_FILE_PATH"
   set +a
-  echo "[Genuine Test Server] Loaded environment from .env.production"
+  echo "[Genuine Test Server] Loaded environment from $ENV_FILE_PATH"
+fi
+
+if [ "${TEST_ENV:-}" = "production" ]; then
+  echo "[Genuine Test Server] Production E2E is disabled. Use staging."
+  exit 1
 fi
 
 export STREAM_ENV=local
@@ -22,4 +30,4 @@ echo "[Genuine Test Server] Starting on port 9548 (genuine API mode)"
 echo "[Genuine Test Server] ⚠️  REAL API CALLS ENABLED - will consume credits/tokens"
 echo "[Genuine Test Server] PLAYWRIGHT_TEST unset - real API calls allowed"
 
-exec bun x --bun next dev --turbo -p 9548
+exec bun x --bun next dev -p 9548

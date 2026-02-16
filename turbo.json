@@ -96,17 +96,6 @@
     "@webalive/mcp-ocr#build": {
       "outputs": []
     },
-    "@webalive/broker#dev": {
-      "cache": false,
-      "persistent": true,
-      "env": ["BROKER_SHARED_SECRET", "BROKER_PORT", "BROKER_HOST"]
-    },
-    "@webalive/broker#start": {
-      "dependsOn": ["@webalive/broker#build"],
-      "cache": false,
-      "persistent": true,
-      "env": ["BROKER_SHARED_SECRET", "BROKER_PORT", "BROKER_HOST"]
-    },
     "@webalive/worker#start": {
       "dependsOn": ["^build"],
       "cache": false,

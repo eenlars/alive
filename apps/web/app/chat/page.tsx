@@ -295,19 +295,20 @@ function ChatPageContent() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch organizations and auto-select if none selected
-  const { organizations, loading: organizationsLoading } = useOrganizations()
+  const { organizations, currentUserId, loading: organizationsLoading } = useOrganizations()
 
   // Sync Dexie session once we have a user + org (required before storing messages)
   useEffect(() => {
-    if (!user?.id) return
+    const resolvedUserId = user?.id ?? currentUserId
+    if (!resolvedUserId) return
 
     const orgId = selectedOrgId || organizations[0]?.org_id
     if (!orgId) return
 
-    if (dexieSession?.userId === user.id && dexieSession?.orgId === orgId) return
+    if (dexieSession?.userId === resolvedUserId && dexieSession?.orgId === orgId) return
 
-    setDexieSession({ userId: user.id, orgId })
-  }, [user?.id, selectedOrgId, organizations, dexieSession, setDexieSession])
+    setDexieSession({ userId: resolvedUserId, orgId })
+  }, [user?.id, currentUserId, selectedOrgId, organizations, dexieSession, setDexieSession])
 
   // Fetch conversations from server when workspace changes
   const { syncFromServer } = useDexieMessageActions()

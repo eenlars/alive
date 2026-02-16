@@ -13,9 +13,6 @@
     "apps/worker": {
       "project": ["src/**/*.ts"]
     },
-    "apps/broker": {
-      "project": ["src/**/*.ts"]
-    },
     "packages/tools": {
       "project": ["src/**/*.{ts,tsx}"]
     },
@@ -102,14 +99,7 @@
     "@xterm/xterm",
     "@types/react"
   ],
-  "ignoreBinaries": [
-    "go",
-    "journalctl",
-    "make",
-    "systemctl",
-    "redis-cli",
-    "dist/server.js"
-  ],
+  "ignoreBinaries": ["go", "journalctl", "make", "systemctl", "redis-cli", "dist/server.js"],
   "ignoreExportsUsedInFile": true,
   "includeEntryExports": false,
   "rules": {
