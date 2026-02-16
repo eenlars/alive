@@ -17,49 +17,53 @@ function getEnvironment(): string {
   return "production"
 }
 
-Sentry.init({
-  dsn: SENTRY_DSN,
-  environment: getEnvironment(),
+const isPlaywrightTest = typeof window !== "undefined" && (window as any).PLAYWRIGHT_TEST === true
 
-  // Send 100% of errors
-  sampleRate: 1.0,
+if (!isPlaywrightTest) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: getEnvironment(),
 
-  // Performance: sample 10% of transactions on client
-  tracesSampleRate: 0.1,
+    // Send 100% of errors
+    sampleRate: 1.0,
 
-  // Session replay for debugging (1% baseline, 100% on error)
-  replaysSessionSampleRate: 0.01,
-  replaysOnErrorSampleRate: 1.0,
+    // Performance: sample 10% of transactions on client
+    tracesSampleRate: 0.1,
 
-  integrations: [Sentry.replayIntegration()],
+    // Session replay for debugging (1% baseline, 100% on error)
+    replaysSessionSampleRate: 0.01,
+    replaysOnErrorSampleRate: 1.0,
 
-  // Don't send PII
-  sendDefaultPii: false,
+    integrations: [Sentry.replayIntegration()],
 
-  // Strip sensitive URL params
-  beforeSend(event) {
-    if (event.request?.url) {
-      try {
-        const url = new URL(event.request.url)
-        for (const key of [
-          "token",
-          "code",
-          "password",
-          "secret",
-          "access_token",
-          "refresh_token",
-          "api_key",
-          "auth_code",
-        ]) {
-          if (url.searchParams.has(key)) {
-            url.searchParams.set(key, "[redacted]")
+    // Don't send PII
+    sendDefaultPii: false,
+
+    // Strip sensitive URL params
+    beforeSend(event) {
+      if (event.request?.url) {
+        try {
+          const url = new URL(event.request.url)
+          for (const key of [
+            "token",
+            "code",
+            "password",
+            "secret",
+            "access_token",
+            "refresh_token",
+            "api_key",
+            "auth_code",
+          ]) {
+            if (url.searchParams.has(key)) {
+              url.searchParams.set(key, "[redacted]")
+            }
           }
+          event.request.url = url.toString()
+        } catch {
+          // URL parsing failed, leave as-is
         }
-        event.request.url = url.toString()
-      } catch {
-        // URL parsing failed, leave as-is
       }
-    }
-    return event
-  },
-})
+      return event
+    },
+  })
+}

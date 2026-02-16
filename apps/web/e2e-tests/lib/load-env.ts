@@ -6,23 +6,28 @@
  *
  * Usage: import "./e2e-tests/lib/load-env" // First import!
  *
- * ENV_FILE selects which environment:
- * - .env.test       → local (default, copy from .env.test.example)
- * - .env.staging    → staging
- * - .env.production → production
+ * E2E is pinned to staging only.
+ * .env.test is intentionally blocked (dead/non-working test DB lane).
  */
 
 import { existsSync } from "node:fs"
 import dotenv from "dotenv"
 
-const DEFAULT_ENV_FILE = ".env.test"
-const FALLBACK_ENV_FILE = ".env.test.example"
-const ENV_FILE = process.env.ENV_FILE || (existsSync(DEFAULT_ENV_FILE) ? DEFAULT_ENV_FILE : FALLBACK_ENV_FILE)
+const DEFAULT_ENV_FILE = ".env.staging"
+const ENV_FILE = (process.env.ENV_FILE || DEFAULT_ENV_FILE).trim()
+
+if (ENV_FILE === ".env.test") {
+  throw new Error(
+    `\n❌ ${ENV_FILE} is disabled for E2E.\n` +
+      "   The local test DB lane is dead/unreachable.\n" +
+      "   Use staging only: ENV_FILE=.env.staging bun run test:e2e\n",
+  )
+}
 
 if (!existsSync(ENV_FILE)) {
   throw new Error(
     `\n❌ Missing env file: ${ENV_FILE}\n` +
-      "   Available: .env.test (local), .env.test.example, .env.staging, .env.production\n" +
+      "   Available: .env.staging\n" +
       "   Usage: ENV_FILE=.env.staging bun run test:e2e\n",
   )
 }
@@ -35,8 +40,14 @@ if (result.error) {
 
 // Verify TEST_ENV was loaded
 if (!process.env.TEST_ENV) {
+  throw new Error(`\n❌ ${ENV_FILE} is missing TEST_ENV\n   The file must declare: TEST_ENV=staging\n`)
+}
+
+if (process.env.TEST_ENV !== "staging") {
   throw new Error(
-    `\n❌ ${ENV_FILE} is missing TEST_ENV\n   Each .env file must declare: TEST_ENV=local|staging|production\n`,
+    `\n❌ Invalid TEST_ENV=${process.env.TEST_ENV} for E2E.\n` +
+      "   E2E is pinned to staging only.\n" +
+      "   Use: ENV_FILE=.env.staging bun run test:e2e\n",
   )
 }
 

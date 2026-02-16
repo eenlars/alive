@@ -1,11 +1,17 @@
-import { test as base, expect } from "@playwright/test"
+import { test as base, expect, type Response } from "@playwright/test"
 import { COOKIE_NAMES, createTestStorageState, DOMAINS, TEST_CONFIG } from "@webalive/shared"
 import jwt from "jsonwebtoken"
 import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
 import type { TestUser } from "./fixtures"
 import { TEST_TIMEOUTS } from "./fixtures/test-data"
-import { gotoChat } from "./helpers/assertions"
+import { gotoChatFast } from "./helpers/assertions"
 import { requireProjectBaseUrl } from "./lib/base-url"
+import {
+  buildJsonMockResponse,
+  E2E_MOCK_HEADER,
+  getStrictApiGuardEnabled,
+  isGuardedApiPath,
+} from "./lib/strict-api-guard"
 
 /**
  * Worktree Switcher E2E Tests
@@ -65,6 +71,28 @@ const test = base.extend<
   },
 
   authenticatedPage: async ({ page, context, workerStorageState, baseURL }, use) => {
+    const strictApiGuardEnabled = getStrictApiGuardEnabled()
+    const strictApiGuardViolations = new Set<string>()
+
+    const responseGuard = (response: Response): void => {
+      if (!strictApiGuardEnabled) return
+
+      try {
+        const responseUrl = response.url()
+        const { pathname } = new URL(responseUrl)
+        if (!isGuardedApiPath(pathname)) return
+
+        const headers = response.headers()
+        if (headers[E2E_MOCK_HEADER] === "1") return
+
+        strictApiGuardViolations.add(`${pathname} -> ${response.status()} (${responseUrl})`)
+      } catch {
+        // Ignore malformed URLs from browser internals
+      }
+    }
+
+    page.on("response", responseGuard)
+
     const resolvedBaseUrl = requireProjectBaseUrl(baseURL)
     const isRemote = resolvedBaseUrl.startsWith("https://")
     const jwtSecret = isRemote ? process.env.JWT_SECRET : TEST_CONFIG.JWT_SECRET
@@ -117,22 +145,19 @@ const test = base.extend<
       ;(window as any).PLAYWRIGHT_TEST = true
     }, storageEntries)
 
-    await page.route("**/api/auth/all-workspaces", async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+    await page.route("**/api/auth/all-workspaces**", async route => {
+      await route.fulfill(
+        buildJsonMockResponse({
+          ok: true,
           workspaces: { [workerStorageState.orgId]: [workerStorageState.workspace] },
         }),
-      })
+      )
     })
 
     // Mock /api/user to return a valid user (prevents auth loading issues)
-    await page.route("**/api/user", route =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+    await page.route("**/api/user**", route =>
+      route.fulfill(
+        buildJsonMockResponse({
           user: {
             id: workerStorageState.userId,
             email: workerStorageState.email,
@@ -143,35 +168,81 @@ const test = base.extend<
             enabledModels: [],
           },
         }),
-      }),
+      ),
     )
+
+    // Mock /api/auth/organizations used during chat bootstrap
+    await page.route("**/api/auth/organizations**", route =>
+      route.fulfill(
+        buildJsonMockResponse({
+          ok: true,
+          organizations: [
+            {
+              org_id: workerStorageState.orgId,
+              name: workerStorageState.orgName,
+              credits: TEST_CONFIG.DEFAULT_CREDITS,
+              workspace_count: 1,
+              role: "owner",
+            },
+          ],
+          current_user_id: workerStorageState.userId,
+        }),
+      ),
+    )
+
+    // Mock /api/auth/workspaces used during chat bootstrap
+    await page.route("**/api/auth/workspaces**", route => {
+      const url = new URL(route.request().url())
+      const orgId = url.searchParams.get("org_id")
+
+      if (orgId && orgId !== workerStorageState.orgId) {
+        return route.fulfill(buildJsonMockResponse({ ok: true, workspaces: [] }))
+      }
+
+      return route.fulfill(
+        buildJsonMockResponse({
+          ok: true,
+          workspaces: [workerStorageState.workspace],
+        }),
+      )
+    })
 
     // Mock Flowglad billing to prevent crashes for test users
-    await page.route("**/api/flowglad/**", route =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ data: null, error: null }),
-      }),
-    )
+    await page.route("**/api/flowglad/**", route => route.fulfill(buildJsonMockResponse({ data: null, error: null })))
 
     // Mock /api/tokens to prevent credit-fetching errors
-    await page.route("**/api/tokens", route =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ ok: true, credits: 100, tokens: 100000 }),
-      }),
+    await page.route("**/api/tokens**", route =>
+      route.fulfill(buildJsonMockResponse({ ok: true, credits: 100, tokens: 100000 })),
     )
 
-    await use(page)
+    let useError: unknown
+    try {
+      await use(page)
+    } catch (error) {
+      useError = error
+    } finally {
+      page.off("response", responseGuard)
+    }
+
+    if (useError) {
+      throw useError
+    }
+
+    if (strictApiGuardViolations.size > 0) {
+      throw new Error(
+        "[E2E Strict API Guard] Guarded API endpoint was served without E2E mock header:\n" +
+          Array.from(strictApiGuardViolations)
+            .map(v => `- ${v}`)
+            .join("\n"),
+      )
+    }
   },
 })
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
-test("worktree switcher button visible when WORKTREES flag enabled", async ({ authenticatedPage }) => {
-  await gotoChat(authenticatedPage)
+test("worktree switcher button visible when WORKTREES flag enabled", async ({ authenticatedPage, workerTenant }) => {
+  await gotoChatFast(authenticatedPage, workerTenant.workspace, workerTenant.orgId)
 
   // The WorktreeSwitcher renders a button with text "base" when no worktree is selected.
   // It only appears when useFeatureFlag("WORKTREES") returns true AND the workspace is not superadmin.

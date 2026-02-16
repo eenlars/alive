@@ -10,10 +10,11 @@ const require = createRequire(import.meta.url)
 const reactDir = dirname(require.resolve("react/package.json"))
 const reactDomDir = dirname(require.resolve("react-dom/package.json"))
 
-// Load .env.test file manually for tests
+// Load .env.staging file manually for tests.
+// .env.test is intentionally not used (dead test DB lane).
 function loadEnvFile() {
   try {
-    const envPath = join(process.cwd(), ".env.test")
+    const envPath = join(process.cwd(), ".env.staging")
     const envContent = readFileSync(envPath, "utf-8")
     const envVars: Record<string, string> = {}
 
@@ -87,6 +88,7 @@ export const baseTestConfig = {
     "**/dist/**",
     "**/e2e-tests/**",
     "**/.next/**",
+    "**/.next-test/**",
     "**/*.spec.{ts,tsx}",
     "**/lib/__tests__/claude-tool-permissions.test.ts",
   ],

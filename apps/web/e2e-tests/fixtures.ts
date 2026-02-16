@@ -6,11 +6,17 @@
  * deterministic hydration and eliminate race conditions.
  */
 
-import { test as base, type Page } from "@playwright/test"
+import { test as base, type Page, type Response } from "@playwright/test"
 import { COOKIE_NAMES, createTestStorageState, DOMAINS, TEST_CONFIG } from "@webalive/shared"
 import jwt from "jsonwebtoken"
 import { DEFAULT_USER_SCOPES } from "@/features/auth/lib/jwt"
 import { requireProjectBaseUrl } from "./lib/base-url"
+import {
+  buildJsonMockResponse,
+  E2E_MOCK_HEADER,
+  getStrictApiGuardEnabled,
+  isGuardedApiPath,
+} from "./lib/strict-api-guard"
 
 export interface TestUser {
   userId: string
@@ -136,6 +142,28 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   // Test-scoped: authenticated page for each test
   // Sets JWT cookie AND localStorage via context-level init script
   authenticatedPage: async ({ page, context, workerStorageState, baseURL }, use) => {
+    const strictApiGuardEnabled = getStrictApiGuardEnabled()
+    const strictApiGuardViolations = new Set<string>()
+
+    const responseGuard = (response: Response): void => {
+      if (!strictApiGuardEnabled) return
+
+      try {
+        const responseUrl = response.url()
+        const { pathname } = new URL(responseUrl)
+        if (!isGuardedApiPath(pathname)) return
+
+        const headers = response.headers()
+        if (headers[E2E_MOCK_HEADER] === "1") return
+
+        strictApiGuardViolations.add(`${pathname} -> ${response.status()} (${responseUrl})`)
+      } catch {
+        // Ignore malformed URLs from browser internals
+      }
+    }
+
+    page.on("response", responseGuard)
+
     const resolvedBaseUrl = requireProjectBaseUrl(baseURL)
 
     // Determine if we're running against a remote environment
@@ -210,19 +238,90 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     // Mock the all-workspaces API to include the test workspace
     // Without this, the workspace store validates against real workspaces on disk
     // and clears our injected test workspace to null
-    await page.route("**/api/auth/all-workspaces", async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+    await page.route("**/api/auth/all-workspaces**", async route => {
+      await route.fulfill(
+        buildJsonMockResponse({
+          ok: true,
           workspaces: {
             [workerStorageState.orgId]: [workerStorageState.workspace],
           },
         }),
-      })
+      )
     })
 
-    await use(page)
+    // Mock /api/user so auth-dependent effects are deterministic under parallel load.
+    await page.route("**/api/user**", route =>
+      route.fulfill(
+        buildJsonMockResponse({
+          user: {
+            id: workerStorageState.userId,
+            email: workerStorageState.email,
+            name: workerStorageState.orgName,
+            isAdmin: false,
+            isSuperadmin: false,
+            canSelectAnyModel: false,
+            enabledModels: [],
+          },
+        }),
+      ),
+    )
+
+    // Mock org/workspace listing endpoints used during chat bootstrap.
+    await page.route("**/api/auth/organizations**", route =>
+      route.fulfill(
+        buildJsonMockResponse({
+          ok: true,
+          organizations: [
+            {
+              org_id: workerStorageState.orgId,
+              name: workerStorageState.orgName,
+              credits: TEST_CONFIG.DEFAULT_CREDITS,
+              workspace_count: 1,
+              role: "owner",
+            },
+          ],
+          current_user_id: workerStorageState.userId,
+        }),
+      ),
+    )
+
+    await page.route("**/api/auth/workspaces**", route => {
+      const url = new URL(route.request().url())
+      const orgId = url.searchParams.get("org_id")
+
+      if (orgId && orgId !== workerStorageState.orgId) {
+        return route.fulfill(buildJsonMockResponse({ ok: true, workspaces: [] }))
+      }
+
+      return route.fulfill(
+        buildJsonMockResponse({
+          ok: true,
+          workspaces: [workerStorageState.workspace],
+        }),
+      )
+    })
+
+    let useError: unknown
+    try {
+      await use(page)
+    } catch (error) {
+      useError = error
+    } finally {
+      page.off("response", responseGuard)
+    }
+
+    if (useError) {
+      throw useError
+    }
+
+    if (strictApiGuardViolations.size > 0) {
+      throw new Error(
+        "[E2E Strict API Guard] Guarded API endpoint was served without E2E mock header:\n" +
+          Array.from(strictApiGuardViolations)
+            .map(v => `- ${v}`)
+            .join("\n"),
+      )
+    }
   },
 })
 

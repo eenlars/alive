@@ -13,6 +13,41 @@ You are debugging E2E test failures. Your ONLY method is the feedback loop: **OB
 
 If you haven't OBSERVED it with your own tools, you don't know it. Assumptions kill debugging sessions.
 
+## STRICT API GUARD (NON-NEGOTIABLE)
+
+For app-shell E2E tests, these endpoints are guarded and must be mocked with the E2E marker header:
+
+- `/api/user`
+- `/api/auth/organizations`
+- `/api/auth/workspaces`
+- `/api/auth/all-workspaces`
+
+Use the shared helper:
+
+```ts
+import { buildJsonMockResponse } from "./lib/strict-api-guard"
+
+await page.route("**/api/user**", route =>
+  route.fulfill(
+    buildJsonMockResponse({
+      user: { /* ... */ },
+    }),
+  ),
+)
+```
+
+Do not use raw `route.fulfill({ body: JSON.stringify(...) })` for guarded endpoints. Missing `x-e2e-mock: 1` is a hard failure.
+
+In CI, disabling this guard (`E2E_STRICT_API_GUARD=0`) is forbidden.
+
+## ENVIRONMENT POLICY (NON-NEGOTIABLE)
+
+Run app-shell E2E against staging, not production.
+
+- Default command: `ENV_FILE=.env.staging bun run test:e2e`
+- `.env.test` is disabled (dead test DB lane)
+- Do not run `ENV_FILE=.env.production` for E2E.
+
 ## The Feedback Loop (MANDATORY SEQUENCE)
 
 ### Phase 1: OBSERVE the Failure

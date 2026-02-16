@@ -5,12 +5,10 @@
  * Env loading happens in load-env.ts (imported first in playwright configs).
  *
  * Environment values:
- * - "local"      → Local test server (PLAYWRIGHT_TEST=true, STREAM_ENV=local)
- * - "staging"    → Staging (staging.test.local)
- * - "production" → Production (test.local)
+ * - "staging"    → Staging environment
  */
 
-export const VALID_ENVS = ["local", "staging", "production"] as const
+export const VALID_ENVS = ["staging"] as const
 export type ValidEnv = (typeof VALID_ENVS)[number]
 
 /** Validate and return TEST_ENV */
@@ -19,7 +17,7 @@ function getTestEnv(): ValidEnv {
 
   if (!env) {
     throw new Error(
-      "TEST_ENV not set. The .env file must contain TEST_ENV=local|staging|production\n" +
+      "TEST_ENV not set. The .env file must contain TEST_ENV=staging\n" +
         "Check that ENV_FILE points to a valid .env file.",
     )
   }
@@ -34,30 +32,14 @@ function getTestEnv(): ValidEnv {
 export const TEST_ENV = getTestEnv()
 
 /**
- * True when running against local test server.
- *
- * Local test server has:
- * - PLAYWRIGHT_TEST=true (blocks real API calls)
- * - STREAM_ENV=local (enables test credentials)
- * - Test database with isolated worker tenants
- *
- * Use this for tests that REQUIRE local server features.
+ * Always false: local test lane is disabled.
  */
-export const isLocalTestServer = TEST_ENV === "local"
+export const isLocalTestServer = false
 
 /**
- * True when running against any remote/deployed environment.
- *
- * Remote environments (staging, production, etc.) do NOT have:
- * - PLAYWRIGHT_TEST=true
- * - STREAM_ENV=local
- * - Test credentials (test@alive.local)
- *
- * This is the inverse of isLocalTestServer - if a new environment
- * is added and TEST_ENV is set to something other than "local",
- * it will be treated as remote (safe default).
+ * Always true: E2E is staging-only.
  */
-export const isRemoteEnv = !isLocalTestServer
+export const isRemoteEnv = true
 
 /**
  * Test timeouts based on environment.
@@ -65,9 +47,9 @@ export const isRemoteEnv = !isLocalTestServer
  */
 export const TIMEOUTS = {
   /** Default test timeout */
-  DEFAULT: isRemoteEnv ? 60_000 : 30_000,
+  DEFAULT: 60_000,
   /** Long-running operations (deployments) */
-  DEPLOYMENT: isRemoteEnv ? 180_000 : 70_000,
+  DEPLOYMENT: 180_000,
   /** Extended operations (concurrent deployments) */
-  EXTENDED: isRemoteEnv ? 300_000 : 120_000,
+  EXTENDED: 300_000,
 } as const

@@ -52,11 +52,8 @@ bun run test:e2e:debug
 Tests can run against staging ([https://staging.terminal.goalive.nl](https://staging.terminal.goalive.nl)):
 
 ```bash
-# Run against staging
-TEST_ENV=staging bun run test:e2e
-
-# With UI mode
-TEST_ENV=staging bun run test:e2e:ui
+# Default test:e2e already targets staging
+bun run test:e2e
 ```
 
 **Note:** Staging tests use real data, not isolated worker tenants.
@@ -149,10 +146,10 @@ To debug issues against staging:
 
 ```bash
 # Run in headed mode to see what's happening
-TEST_ENV=staging bun run test:e2e:headed org-workspace-selection.spec.ts
+bun run test:e2e:headed org-workspace-selection.spec.ts
 
 # Or use debug mode
-TEST_ENV=staging bun run test:e2e:debug org-workspace-selection.spec.ts
+bun run test:e2e:debug org-workspace-selection.spec.ts
 ```
 
 ## How It Works

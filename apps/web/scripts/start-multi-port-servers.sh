@@ -19,22 +19,34 @@
 #
 # This script is called by playwright.multi-port.config.ts
 
-set -e
+set -euo pipefail
 
 NUM_WORKERS=${1:-4}
 PORT_BASE=${TEST_WORKER_PORT_BASE:-9100}
 USE_PROD_BUILD=${E2E_USE_PRODUCTION_BUILD:-}
+ENV_FILE_PATH="${ENV_FILE:-.env.staging}"
+
+if [ "$ENV_FILE_PATH" = ".env.test" ]; then
+  echo "[Multi-Port Servers] ERROR: $ENV_FILE_PATH is disabled for E2E (dead test DB lane)."
+  echo "[Multi-Port Servers] Use ENV_FILE=.env.staging"
+  exit 1
+fi
 PIDS=()
 
 echo "[Multi-Port Servers] Starting $NUM_WORKERS server instances"
 echo "[Multi-Port Servers] Port range: $PORT_BASE - $((PORT_BASE + NUM_WORKERS - 1))"
 
 # Load environment
-if [ -f .env.production ]; then
+if [ -f "$ENV_FILE_PATH" ]; then
   set -a
-  source .env.production
+  source "$ENV_FILE_PATH"
   set +a
-  echo "[Multi-Port Servers] Loaded environment from .env.production"
+  echo "[Multi-Port Servers] Loaded environment from $ENV_FILE_PATH"
+fi
+
+if [ "${TEST_ENV:-}" = "production" ]; then
+  echo "[Multi-Port Servers] Production E2E is disabled. Use staging."
+  exit 1
 fi
 
 # Override JWT secret for E2E tests

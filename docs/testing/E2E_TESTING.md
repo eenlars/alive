@@ -10,45 +10,37 @@ This section explains how E2E tests work across different environments.
 
 | Environment | Target | Workers | Database | Triggered By |
 |-------------|--------|---------|----------|--------------|
-| **Local** | `localhost:9547` | 4 | Test DB | `bun run test:e2e` |
-| **Staging** | `staging.terminal.goalive.nl` | 6 | Production DB | `make staging` |
-| **Production** | `terminal.goalive.nl` | 6 | Production DB | `make wash` |
+| **Staging** | `staging.terminal.goalive.nl` | 4 | Shared remote DB | `bun run test:e2e` |
 
-### Local Development
+### Staging Execution
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     LOCAL DEVELOPMENT                            │
+│                       STAGING EXECUTION                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │   Developer Machine                                             │
-│   ┌─────────────────┐      ┌─────────────────┐                 │
-│   │  Playwright     │ ───► │  Test Server    │ (localhost:9547)│
-│   │  (4 workers)    │      │  (next dev)     │                 │
-│   └─────────────────┘      └─────────────────┘                 │
-│          │                        │                             │
-│          │                        ▼                             │
-│          │                 ┌─────────────────┐                 │
-│          │                 │  .env.test      │ (test secrets)  │
-│          │                 └─────────────────┘                 │
+│   ┌─────────────────┐      ┌──────────────────────────────┐    │
+│   │  Playwright     │ ───► │ staging.terminal.goalive.nl  │    │
+│   │  (4 workers)    │      │ (deployed app)               │    │
+│   └─────────────────┘      └──────────────────────────────┘    │
 │          │                                                      │
 │          ▼                                                      │
-│   Creates test users: e2e_w0@alive.local, e2e_w1@alive.local │
+│     Uses .env.staging + E2E_TEST_SECRET                         │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 **Key points:**
-- Playwright auto-starts a test server on port 9547
-- Uses `.env.test` for configuration
-- Test users created in test database
-- Mocking Claude API is optional (but recommended to avoid costs)
+- E2E is pinned to `.env.staging`
+- `.env.test` lane is disabled
+- Test users are still isolated by worker (`e2e_w0`, `e2e_w1`, ...)
 
-### Staging / Production Deployment
+### Staging Deployment
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    STAGING / PRODUCTION                          │
+│                          STAGING                                │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │   Same Server (YOUR_SERVER_IP)                                   │
@@ -56,22 +48,20 @@ This section explains how E2E tests work across different environments.
 │   │  Playwright     │ ───► │  Deployed App   │                 │
 │   │  (6 workers)    │      │  (systemd)      │                 │
 │   │                 │      │                 │                 │
-│   │  Runs during    │      │  staging:8998   │                 │
-│   │  deployment     │      │  prod:9000      │                 │
+│   │  Runs from      │      │  staging:8998   │                 │
+│   │  test command   │      │                 │                 │
 │   └─────────────────┘      └─────────────────┘                 │
 │          │                        │                             │
 │          │ HTTPS via Caddy        │                             │
 │          ▼                        ▼                             │
 │   ┌─────────────────┐      ┌─────────────────┐                 │
 │   │ staging.terminal│      │  .env.staging   │                 │
-│   │ .goalive.nl     │      │  or             │                 │
-│   │       or        │      │  .env.production│                 │
-│   │ terminal.goalive│      └─────────────────┘                 │
-│   │ .nl             │             │                             │
+│   │ .goalive.nl     │      └─────────────────┘                 │
+│   │                 │             │                             │
 │   └─────────────────┘             │                             │
 │                                   ▼                             │
-│                          Same Supabase DB!                      │
-│                          (real users created)                   │
+│                          Shared remote DB                       │
+│                          (real rows created)                    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -82,24 +72,11 @@ This section explains how E2E tests work across different environments.
 - Uses production Supabase database
 - Test users use `.alive.local` domain (not real TLD) for isolation
 
-### Deployment Flow with E2E Tests
+### E2E Flow
 
-```
-make wash (production deployment)
-    │
-    ├─► 1. Build new version
-    ├─► 2. Deploy to production (port 9000)
-    ├─► 3. Health check passes
-    │
-    ├─► 4. Run E2E tests against https://terminal.goalive.nl
-    │       │
-    │       ├─► global-setup.ts creates test users via API
-    │       ├─► Tests run (login, navigate, verify UI)
-    │       └─► global-teardown.ts cleans up
-    │
-    ├─► 5a. If tests FAIL → rollback to previous build
-    └─► 5b. If tests PASS → deployment complete ✓
-```
+1. Global setup creates worker-isolated test tenants via `/api/test/bootstrap-tenant`
+2. Tests run against staging app endpoints
+3. Global teardown removes `test_run_id` rows
 
 ### Test User Isolation
 
@@ -131,36 +108,27 @@ The `E2E_TEST_SECRET` prevents unauthorized access to test bootstrap endpoints:
 ```
 
 **Configuration:**
-- Local: Set in `.env.test`
 - Staging: Set in `.env.staging`
-- Production: Set in `.env.production`
 
 Without this secret, the `/api/test/bootstrap-tenant` endpoint rejects requests.
 
-### Why Test Against Production?
+### Why Test Against Staging?
 
 | Benefit | Explanation |
 |---------|-------------|
-| **Real environment** | Tests run against actual production config, Caddy, systemd |
+| **Real environment** | Tests run against deployed config, Caddy, systemd |
 | **Catches real issues** | Database migrations, env vars, service configs all tested |
-| **No drift** | No separate test infrastructure that can diverge from prod |
-| **Automatic rollback** | If tests fail, deployment rolls back automatically |
+| **No local drift** | No dead local test DB lane |
+| **Safer than prod** | Production E2E is disabled |
 
 ### Running E2E Tests
 
 ```bash
-# Local development
+# Default
 bun run test:e2e
 
-# Against staging (manual)
-TEST_ENV=staging bun run test:e2e
-
-# Against production (manual)
-TEST_ENV=production bun run test:e2e
-
-# During deployment (automatic)
-make wash        # Production - runs E2E after deploy
-make staging     # Staging - runs E2E after deploy
+# Explicit staging
+ENV_FILE=.env.staging bun run test:e2e
 ```
 
 ---

@@ -8,9 +8,131 @@ import type { FullConfig } from "@playwright/test"
 import { TEST_CONFIG } from "@webalive/shared"
 import { requireProjectBaseUrl } from "./lib/base-url"
 
+const TENANT_VERIFY_TIMEOUT_MS = 30_000
+const TENANT_VERIFY_REQUEST_TIMEOUT_MS = 8_000
+const TENANT_VERIFY_INITIAL_DELAY_MS = 200
+const TENANT_VERIFY_MAX_DELAY_MS = 2_000
+const TENANT_VERIFY_LOG_EVERY_ATTEMPTS = 3
+
 function resolveBaseUrl(config: FullConfig): string {
   const projectBaseUrl = config.projects[0]?.use?.baseURL
   return requireProjectBaseUrl(projectBaseUrl)
+}
+
+interface TenantVerifyResponse {
+  ready?: boolean
+  missing?: string
+  reason?: string
+  check?: string
+  error?: string
+  code?: string
+}
+
+interface TenantStatus {
+  ready: boolean
+  reason: string
+  statusCode?: number
+}
+
+function buildWorkerEmail(workerIndex: number): string {
+  return `${TEST_CONFIG.WORKER_EMAIL_PREFIX}${workerIndex}@${TEST_CONFIG.EMAIL_DOMAIN}`
+}
+
+function buildTestHeaders(includeJsonContentType: boolean): Record<string, string> {
+  const headers: Record<string, string> = {}
+  if (includeJsonContentType) {
+    headers["Content-Type"] = "application/json"
+  }
+
+  const testSecret = process.env.E2E_TEST_SECRET
+  if (testSecret) {
+    headers["x-test-secret"] = testSecret
+  }
+
+  return headers
+}
+
+function getBackoffDelayMs(attempt: number): number {
+  const exponentialDelay = TENANT_VERIFY_INITIAL_DELAY_MS * 2 ** Math.max(0, attempt - 1)
+  return Math.min(exponentialDelay, TENANT_VERIFY_MAX_DELAY_MS)
+}
+
+function normalizeErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`
+  }
+  return String(error)
+}
+
+function formatWorkerStatus(workerIndex: number, status: TenantStatus): string {
+  const statusCode = status.statusCode !== undefined ? ` [${status.statusCode}]` : ""
+  return `w${workerIndex}:${status.reason}${statusCode}`
+}
+
+function compactText(value: string): string {
+  return value.replace(/\s+/g, " ").trim()
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function fetchTenantStatus(
+  baseUrl: string,
+  email: string,
+  headers: Record<string, string>,
+): Promise<TenantStatus> {
+  try {
+    const res = await fetch(`${baseUrl}/api/test/verify-tenant?email=${encodeURIComponent(email)}`, {
+      headers,
+      signal: AbortSignal.timeout(TENANT_VERIFY_REQUEST_TIMEOUT_MS),
+    })
+
+    const contentType = res.headers.get("content-type") || ""
+    if (!contentType.includes("application/json")) {
+      const body = compactText(await res.text()).slice(0, 140)
+      const bodySuffix = body ? ` (${body})` : ""
+      return {
+        ready: false,
+        reason: `non-json:${res.status}${bodySuffix}`,
+        statusCode: res.status,
+      }
+    }
+
+    const data = (await res.json()) as TenantVerifyResponse
+    if (data.ready === true) {
+      return { ready: true, reason: "ready", statusCode: res.status }
+    }
+
+    if (typeof data.missing === "string" && data.missing.length > 0) {
+      return { ready: false, reason: `missing:${data.missing}`, statusCode: res.status }
+    }
+
+    if (typeof data.reason === "string" && data.reason.length > 0) {
+      const checkSuffix = typeof data.check === "string" && data.check.length > 0 ? `:${data.check}` : ""
+      const codeSuffix = typeof data.code === "string" && data.code.length > 0 ? ` (${data.code})` : ""
+      return {
+        ready: false,
+        reason: `${data.reason}${checkSuffix}${codeSuffix}`,
+        statusCode: res.status,
+      }
+    }
+
+    if (typeof data.error === "string" && data.error.length > 0) {
+      return { ready: false, reason: `error:${data.error}`, statusCode: res.status }
+    }
+
+    if (!res.ok) {
+      return { ready: false, reason: `http:${res.status}`, statusCode: res.status }
+    }
+
+    return { ready: false, reason: "not-ready", statusCode: res.status }
+  } catch (error) {
+    return {
+      ready: false,
+      reason: `network:${normalizeErrorMessage(error)}`,
+    }
+  }
 }
 
 /**
@@ -33,50 +155,89 @@ async function warmupServer(baseUrl: string): Promise<void> {
 }
 
 /**
- * Poll for tenant readiness with exponential backoff
- * Replaces arbitrary 2-second delay with explicit ready checks
+ * Warm up verify endpoint before polling.
+ * Next.js dev servers may compile this route lazily, so we trigger that once first.
  */
-async function verifyTenantReadiness(baseUrl: string, workers: number): Promise<void> {
-  const maxAttempts = 20 // 20 attempts at 200ms = 4s max
-  const delayMs = 200
+async function warmupVerifyTenantEndpoint(baseUrl: string, headers: Record<string, string>): Promise<void> {
+  const warmupEmail = buildWorkerEmail(0)
+  const start = Date.now()
+  const status = await fetchTenantStatus(baseUrl, warmupEmail, headers)
+  const elapsedMs = Date.now() - start
 
-  // Get test secret for staging/production E2E tests
-  const testSecret = process.env.E2E_TEST_SECRET
-  const headers: Record<string, string> = {}
-  if (testSecret) {
-    headers["x-test-secret"] = testSecret
+  if (status.ready || status.reason.startsWith("missing:")) {
+    console.log(`   ✓ /api/test/verify-tenant (${elapsedMs}ms)`)
+    return
   }
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  console.log(`   ⚠ /api/test/verify-tenant warmup (${elapsedMs}ms): ${status.reason}`)
+}
+
+/**
+ * Poll for tenant readiness with bounded exponential backoff.
+ * Replaces short fixed waits with explicit readiness checks and diagnostics.
+ */
+async function verifyTenantReadiness(baseUrl: string, workers: number, headers: Record<string, string>): Promise<void> {
+  const startedAt = Date.now()
+  const deadline = startedAt + TENANT_VERIFY_TIMEOUT_MS
+  const workerIndices = Array.from({ length: workers }, (_, idx) => idx)
+  const lastStatuses = new Map<number, TenantStatus>()
+  let attempt = 0
+
+  while (Date.now() < deadline) {
+    attempt += 1
+
     const results = await Promise.all(
-      Array.from({ length: workers }).map(async (_, idx) => {
-        const email = `${TEST_CONFIG.WORKER_EMAIL_PREFIX}${idx}@${TEST_CONFIG.EMAIL_DOMAIN}`
-        try {
-          const res = await fetch(`${baseUrl}/api/test/verify-tenant?email=${encodeURIComponent(email)}`, { headers })
-          const data = await res.json()
-          return data.ready === true
-        } catch {
-          return false
-        }
+      workerIndices.map(async workerIndex => {
+        const email = buildWorkerEmail(workerIndex)
+        const status = await fetchTenantStatus(baseUrl, email, headers)
+        return { workerIndex, status }
       }),
     )
 
-    const allReady = results.every(Boolean)
-    if (allReady) {
-      console.log(`   ✓ All tenants ready (verified in ${attempt * delayMs}ms)`)
+    for (const result of results) {
+      lastStatuses.set(result.workerIndex, result.status)
+    }
+
+    const readyCount = results.filter(result => result.status.ready).length
+    if (readyCount === workers) {
+      const elapsedMs = Date.now() - startedAt
+      console.log(`   ✓ All tenants ready (verified in ${elapsedMs}ms, ${attempt} attempts)`)
       return
     }
 
-    // Log progress every 5 attempts
-    if (attempt % 5 === 0) {
-      const readyCount = results.filter(Boolean).length
-      console.log(`   ⏱ Attempt ${attempt}/${maxAttempts}: ${readyCount}/${workers} tenants ready`)
+    if (attempt === 1 || attempt % TENANT_VERIFY_LOG_EVERY_ATTEMPTS === 0) {
+      const elapsedMs = Date.now() - startedAt
+      const waitingWorkers = results
+        .filter(result => !result.status.ready)
+        .map(result => formatWorkerStatus(result.workerIndex, result.status))
+        .join(", ")
+      console.log(`   ⏱ Attempt ${attempt}: ${readyCount}/${workers} ready after ${elapsedMs}ms`)
+      if (waitingWorkers.length > 0) {
+        console.log(`      waiting: ${waitingWorkers}`)
+      }
     }
 
-    await new Promise(resolve => setTimeout(resolve, delayMs))
+    const remainingMs = deadline - Date.now()
+    if (remainingMs <= 0) {
+      break
+    }
+
+    const delayMs = Math.min(getBackoffDelayMs(attempt), remainingMs)
+    await sleep(delayMs)
   }
 
-  throw new Error(`Tenant verification timeout after ${maxAttempts * delayMs}ms. Database consistency issue detected.`)
+  const elapsedMs = Date.now() - startedAt
+  const summary = workerIndices
+    .map(workerIndex => {
+      const status = lastStatuses.get(workerIndex)
+      if (!status) {
+        return `w${workerIndex}:no-response`
+      }
+      return formatWorkerStatus(workerIndex, status)
+    })
+    .join(", ")
+
+  throw new Error(`Tenant verification timeout after ${elapsedMs}ms. Last status: ${summary}`)
 }
 
 export default async function globalSetup(config: FullConfig) {
@@ -94,22 +255,18 @@ export default async function globalSetup(config: FullConfig) {
   console.log(`📝 [Global Setup] Run ID: ${runId}`)
   console.log(`🔧 [Global Setup] Mode: ${isMultiPort ? "multi-port" : "single-server"}\n`)
 
-  // Get test secret for staging/production E2E tests
-  const testSecret = process.env.E2E_TEST_SECRET
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
-  if (testSecret) {
-    headers["x-test-secret"] = testSecret
-  }
+  const bootstrapHeaders = buildTestHeaders(true)
+  const verifyHeaders = buildTestHeaders(false)
 
   try {
     await Promise.all(
       Array.from({ length: workers }).map(async (_, i) => {
-        const email = `${TEST_CONFIG.WORKER_EMAIL_PREFIX}${i}@${TEST_CONFIG.EMAIL_DOMAIN}`
+        const email = buildWorkerEmail(i)
         const workspace = `${TEST_CONFIG.WORKSPACE_PREFIX}${i}.${TEST_CONFIG.EMAIL_DOMAIN}`
 
         const res = await fetch(`${baseUrl}/api/test/bootstrap-tenant`, {
           method: "POST",
-          headers,
+          headers: bootstrapHeaders,
           body: JSON.stringify({
             runId,
             workerIndex: i,
@@ -141,9 +298,12 @@ export default async function globalSetup(config: FullConfig) {
 
     console.log("\n✅ [Global Setup] All tenants created\n")
 
+    console.log("🔥 Warming tenant verify endpoint...")
+    await warmupVerifyTenantEndpoint(baseUrl, verifyHeaders)
+
     // Poll for tenant readiness instead of fixed delay
     console.log("⏳ Verifying tenant readiness...")
-    await verifyTenantReadiness(baseUrl, workers)
+    await verifyTenantReadiness(baseUrl, workers, verifyHeaders)
     console.log("✅ All tenants verified\n")
 
     // Warm up critical pages before parallel tests start
