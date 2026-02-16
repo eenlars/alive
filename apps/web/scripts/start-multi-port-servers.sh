@@ -25,12 +25,6 @@ NUM_WORKERS=${1:-4}
 PORT_BASE=${TEST_WORKER_PORT_BASE:-9100}
 USE_PROD_BUILD=${E2E_USE_PRODUCTION_BUILD:-}
 ENV_FILE_PATH="${ENV_FILE:-.env.staging}"
-
-if [ "$ENV_FILE_PATH" = ".env.test" ]; then
-  echo "[Multi-Port Servers] ERROR: $ENV_FILE_PATH is disabled for E2E (dead test DB lane)."
-  echo "[Multi-Port Servers] Use ENV_FILE=.env.staging"
-  exit 1
-fi
 PIDS=()
 
 echo "[Multi-Port Servers] Starting $NUM_WORKERS server instances"

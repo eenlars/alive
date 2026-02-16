@@ -6,12 +6,6 @@ set -euo pipefail
 
 ENV_FILE_PATH="${ENV_FILE:-.env.staging}"
 
-if [ "$ENV_FILE_PATH" = ".env.test" ]; then
-  echo "[Genuine Test Server] ERROR: $ENV_FILE_PATH is disabled for E2E (dead test DB lane)."
-  echo "[Genuine Test Server] Use ENV_FILE=.env.staging"
-  exit 1
-fi
-
 # Load selected env file (staging by default).
 if [ -f "$ENV_FILE_PATH" ]; then
   set -a

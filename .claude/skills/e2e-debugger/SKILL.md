@@ -45,7 +45,6 @@ In CI, disabling this guard (`E2E_STRICT_API_GUARD=0`) is forbidden.
 Run app-shell E2E against staging, not production.
 
 - Default command: `ENV_FILE=.env.staging bun run test:e2e`
-- `.env.test` is disabled (dead test DB lane)
 - Do not run `ENV_FILE=.env.production` for E2E.
 
 ## The Feedback Loop (MANDATORY SEQUENCE)

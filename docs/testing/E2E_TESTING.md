@@ -33,7 +33,6 @@ This section explains how E2E tests work across different environments.
 
 **Key points:**
 - E2E is pinned to `.env.staging`
-- `.env.test` lane is disabled
 - Test users are still isolated by worker (`e2e_w0`, `e2e_w1`, ...)
 
 ### Staging Deployment

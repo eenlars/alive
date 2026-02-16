@@ -3,12 +3,6 @@ set -euo pipefail
 
 ENV_FILE_PATH="${ENV_FILE:-.env.staging}"
 
-if [ "$ENV_FILE_PATH" = ".env.test" ]; then
-  echo "[Test Server] ERROR: $ENV_FILE_PATH is disabled for E2E (dead test DB lane)."
-  echo "[Test Server] Use ENV_FILE=.env.staging"
-  exit 1
-fi
-
 # Load selected env file for local test server mode.
 # Playwright already loads env via load-env.ts, but this keeps script usage consistent
 # when run directly.

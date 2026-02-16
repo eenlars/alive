@@ -11,7 +11,6 @@ const reactDir = dirname(require.resolve("react/package.json"))
 const reactDomDir = dirname(require.resolve("react-dom/package.json"))
 
 // Load .env.staging file manually for tests.
-// .env.test is intentionally not used (dead test DB lane).
 function loadEnvFile() {
   try {
     const envPath = join(process.cwd(), ".env.staging")

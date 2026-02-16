@@ -7,7 +7,6 @@
  * Usage: import "./e2e-tests/lib/load-env" // First import!
  *
  * E2E is pinned to staging only.
- * .env.test is intentionally blocked (dead/non-working test DB lane).
  */
 
 import { existsSync } from "node:fs"
@@ -15,14 +14,6 @@ import dotenv from "dotenv"
 
 const DEFAULT_ENV_FILE = ".env.staging"
 const ENV_FILE = (process.env.ENV_FILE || DEFAULT_ENV_FILE).trim()
-
-if (ENV_FILE === ".env.test") {
-  throw new Error(
-    `\n❌ ${ENV_FILE} is disabled for E2E.\n` +
-      "   The local test DB lane is dead/unreachable.\n" +
-      "   Use staging only: ENV_FILE=.env.staging bun run test:e2e\n",
-  )
-}
 
 if (!existsSync(ENV_FILE)) {
   throw new Error(
