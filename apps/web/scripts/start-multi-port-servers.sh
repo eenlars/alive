@@ -82,7 +82,7 @@ for ((i=0; i<NUM_WORKERS; i++)); do
     bun x --bun next start -p "$PORT" &
   else
     echo "[Multi-Port Servers] Starting dev server on port $PORT (worker $i)"
-    bun x --bun next dev --turbo -p "$PORT" &
+    bun x --bun next dev -p "$PORT" &
   fi
 
   PIDS+=($!)

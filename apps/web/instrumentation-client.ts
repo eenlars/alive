@@ -4,6 +4,12 @@ export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
 
 const SENTRY_DSN = "https://84e50be97b3c02134ee7c1e4d60cf8c9@sentry.sonno.tech/2"
 
+declare global {
+  interface Window {
+    PLAYWRIGHT_TEST?: boolean
+  }
+}
+
 /**
  * Derive environment from hostname at runtime.
  * Works on both servers without env vars.
@@ -17,7 +23,7 @@ function getEnvironment(): string {
   return "production"
 }
 
-const isPlaywrightTest = typeof window !== "undefined" && (window as any).PLAYWRIGHT_TEST === true
+const isPlaywrightTest = typeof window !== "undefined" && window.PLAYWRIGHT_TEST === true
 
 if (!isPlaywrightTest) {
   Sentry.init({

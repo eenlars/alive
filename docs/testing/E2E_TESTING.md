@@ -45,7 +45,7 @@ This section explains how E2E tests work across different environments.
 │   Same Server (YOUR_SERVER_IP)                                   │
 │   ┌─────────────────┐      ┌─────────────────┐                 │
 │   │  Playwright     │ ───► │  Deployed App   │                 │
-│   │  (6 workers)    │      │  (systemd)      │                 │
+│   │  (4 workers)    │      │  (systemd)      │                 │
 │   │                 │      │                 │                 │
 │   │  Runs from      │      │  staging:8998   │                 │
 │   │  test command   │      │                 │                 │
@@ -88,7 +88,7 @@ Each Playwright worker gets its own isolated test user:
 // etc.
 ```
 
-This allows 6 workers to run tests in parallel without conflicts.
+This allows 4 workers to run tests in parallel without conflicts.
 
 ### The E2E_TEST_SECRET
 

@@ -13,6 +13,11 @@ if [ -f "$ENV_FILE_PATH" ]; then
   echo "[Test Server] Loaded environment from $ENV_FILE_PATH"
 fi
 
+if [ "${TEST_ENV:-}" = "production" ]; then
+  echo "[Test Server] Production E2E is disabled. Use staging."
+  exit 1
+fi
+
 # CRITICAL: Override JWT_SECRET to match TEST_CONFIG.JWT_SECRET from @webalive/shared
 # This ensures JWTs created by fixtures.ts can be verified by the server
 # Single source of truth: packages/shared/src/constants.ts -> TEST_CONFIG.JWT_SECRET

@@ -208,7 +208,7 @@ Path migration verification before deleting legacy paths:
 Restart order:
 1. Unit/config generators
 2. `alive-dev`, `alive-staging`, `alive-production`
-4. `caddy` reload
+3. `caddy` reload
 
 Rollback plan:
 - Re-enable and restart legacy `claude-bridge-*` units.
