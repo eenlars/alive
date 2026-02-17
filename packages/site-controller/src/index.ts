@@ -37,10 +37,18 @@ export { validateDns } from "./executors/dns.js"
 export { setupFilesystem } from "./executors/filesystem.js"
 export { assignPort } from "./executors/port.js"
 export { regeneratePortMap } from "./executors/port-map.js"
+export { renameSiteOS } from "./executors/rename.js"
 export { startService } from "./executors/service.js"
 export { ensureUser } from "./executors/system.js"
 export { SiteOrchestrator } from "./orchestrator.js"
-export type { DeployConfig, DeployResult, DnsValidationResult, PortAssignment } from "./types.js"
+export type {
+  DeployConfig,
+  DeployResult,
+  DnsValidationResult,
+  PortAssignment,
+  RenameConfig,
+  RenameResult,
+} from "./types.js"
 
 // Backup operations - NOT exported from main index due to Node.js dependencies
 // Import directly: import { backupWebsites } from '@webalive/site-controller/dist/backup'
