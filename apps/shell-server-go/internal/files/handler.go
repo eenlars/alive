@@ -360,11 +360,16 @@ func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := os.Stat(basePath); os.IsNotExist(err) {
-		response.JSON(w, http.StatusNotFound, map[string]any{
-			"error": "Directory not found",
-			"path":  basePath,
-		})
+	if _, err := os.Stat(basePath); err != nil {
+		if os.IsNotExist(err) {
+			response.JSON(w, http.StatusNotFound, map[string]any{
+				"error": "Directory not found",
+				"path":  basePath,
+			})
+			return
+		}
+		filesLog.Error("Failed to stat workspace base %s: %v", basePath, err)
+		response.Error(w, http.StatusInternalServerError, "Failed to access directory")
 		return
 	}
 
@@ -507,8 +512,12 @@ func (h *Handler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err := os.Stat(resolvedPath)
-	if os.IsNotExist(err) {
-		response.Error(w, http.StatusNotFound, "File not found")
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "File not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to access file")
 		return
 	}
 
@@ -564,8 +573,12 @@ func (h *Handler) DeleteFolder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err := os.Stat(resolvedPath)
-	if os.IsNotExist(err) {
-		response.Error(w, http.StatusNotFound, "Path not found")
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "Path not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to stat path")
 		return
 	}
 

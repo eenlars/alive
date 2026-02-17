@@ -19,12 +19,14 @@ func main() {
 	if err != nil {
 		sentryx.CaptureError(err, "failed to locate client assets")
 		fmt.Fprintf(os.Stderr, "failed to locate client assets: %v\n", err)
+		sentryx.Flush(2 * time.Second)
 		os.Exit(1)
 	}
 
 	if err := app.Run(clientFS, ""); err != nil {
 		sentryx.CaptureError(err, "shell-server-go failed")
 		fmt.Fprintf(os.Stderr, "server failed: %v\n", err)
+		sentryx.Flush(2 * time.Second)
 		os.Exit(1)
 	}
 }

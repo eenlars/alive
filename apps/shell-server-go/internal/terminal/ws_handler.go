@@ -3,12 +3,14 @@ package terminal
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"sort"
@@ -207,16 +209,25 @@ func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 				if origin == "" {
 					return true // Allow connections without origin (like wscat)
 				}
+				parsedOrigin, parseErr := url.Parse(origin)
+				if parseErr != nil {
+					return false
+				}
+				originHost := parsedOrigin.Hostname()
 				host := r.Host
-				if strings.Contains(origin, host) {
+				// Strip port from host for comparison
+				if idx := strings.LastIndex(host, ":"); idx != -1 {
+					host = host[:idx]
+				}
+				if originHost == host {
 					return true
 				}
-				if strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1") {
+				if originHost == "localhost" || originHost == "127.0.0.1" {
 					return true
 				}
 				// Allow cross-origin from web app (e.g. app.sonno.tech -> go.sonno.tech).
 				baseDomain := extractBaseDomain(host)
-				if baseDomain != "" && strings.Contains(origin, "."+baseDomain) {
+				if baseDomain != "" && strings.HasSuffix(originHost, "."+baseDomain) {
 					return true
 				}
 				wsLog.Warn("Rejected WebSocket origin: %s (host: %s)", origin, host)
@@ -232,7 +243,7 @@ func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 // Auth is via X-Internal-Secret (shared SHELL_PASSWORD), not browser cookies.
 func (h *WSHandler) CreateInternalLease(w http.ResponseWriter, r *http.Request) {
 	secret := r.Header.Get("X-Internal-Secret")
-	if secret == "" || secret != h.config.ShellPassword {
+	if secret == "" || subtle.ConstantTimeCompare([]byte(secret), []byte(h.config.ShellPassword)) != 1 {
 		response.Error(w, http.StatusUnauthorized, "Invalid internal secret")
 		return
 	}

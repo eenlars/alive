@@ -2,8 +2,15 @@ import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { DOMAINS, SUPERADMIN } from "@webalive/shared"
 import { NextResponse } from "next/server"
+import { z } from "zod"
 import { createErrorResponse, validateRequest } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
+
+const LeaseResponseSchema = z.object({
+  lease: z.string(),
+  workspace: z.string(),
+  expiresAt: z.number(),
+})
 
 const SHELL_SERVER_URL = "http://localhost:3888"
 
@@ -32,6 +39,9 @@ export async function POST(req: Request) {
   }
 
   try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+
     const res = await fetch(`${SHELL_SERVER_URL}/internal/lease`, {
       method: "POST",
       headers: {
@@ -39,7 +49,10 @@ export async function POST(req: Request) {
         "X-Internal-Secret": shellPassword,
       },
       body: JSON.stringify({ workspace: shellWorkspace }),
+      signal: controller.signal,
     })
+
+    clearTimeout(timeout)
 
     if (!res.ok) {
       const text = await res.text()
@@ -47,7 +60,12 @@ export async function POST(req: Request) {
       return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 502, { requestId })
     }
 
-    const data = (await res.json()) as { lease: string; workspace: string; expiresAt: number }
+    const parsed = LeaseResponseSchema.safeParse(await res.json())
+    if (!parsed.success) {
+      console.error(`[Terminal ${requestId}] Unexpected shell server response shape`)
+      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 502, { requestId })
+    }
+    const data = parsed.data
 
     return NextResponse.json({
       ok: true,

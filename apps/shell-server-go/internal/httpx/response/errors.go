@@ -9,7 +9,11 @@ import (
 
 // Error writes a standard JSON error envelope.
 func Error(w http.ResponseWriter, statusCode int, message string) {
-	sentryx.CaptureMessage(sentry.LevelError, "http_error status=%d message=%s", statusCode, message)
+	level := sentry.LevelError
+	if statusCode < 500 {
+		level = sentry.LevelWarning
+	}
+	sentryx.CaptureMessage(level, "http_error status=%d message=%s", statusCode, message)
 	JSON(w, statusCode, map[string]string{"error": message})
 }
 

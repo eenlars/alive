@@ -23,7 +23,7 @@ func (a *ServerApp) Router() (http.Handler, error) {
 	authAPIMiddleware := httpxmiddleware.AuthAPI(a.Sessions)
 
 	mux.HandleFunc("POST /login", a.AuthHandler.Login)
-	mux.HandleFunc("/logout", a.AuthHandler.Logout)
+	mux.HandleFunc("POST /logout", a.AuthHandler.Logout)
 
 	mux.Handle("GET /api/config", authAPIMiddleware(http.HandlerFunc(a.FileHandler.Config)))
 	mux.HandleFunc("/health", a.FileHandler.Health)

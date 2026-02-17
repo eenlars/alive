@@ -9,8 +9,6 @@ import (
 	"github.com/getsentry/sentry-go"
 )
 
-const defaultDSN = "https://84e50be97b3c02134ee7c1e4d60cf8c9@sentry.sonno.tech/2"
-
 var (
 	initOnce sync.Once
 	enabled  bool
@@ -19,10 +17,6 @@ var (
 func Init(service string) {
 	initOnce.Do(func() {
 		dsn := os.Getenv("SENTRY_DSN")
-		if dsn == "" {
-			dsn = defaultDSN
-		}
-
 		if dsn == "" {
 			return
 		}
@@ -33,6 +27,7 @@ func Init(service string) {
 			ServerName:       service,
 			AttachStacktrace: true,
 		}); err != nil {
+			fmt.Fprintf(os.Stderr, "sentryx.Init: failed to initialize Sentry: %v\n", err)
 			return
 		}
 		enabled = true

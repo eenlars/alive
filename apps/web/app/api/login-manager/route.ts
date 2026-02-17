@@ -50,10 +50,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Parse and validate request body
-  const body = await req.json().catch(error => {
-    Sentry.captureException(error)
-    return {}
-  })
+  let body: unknown = {}
+  try {
+    body = await req.json()
+  } catch {
+    // Malformed request body — fall through to schema validation failure
+  }
   const result = ManagerLoginSchema.safeParse(body)
 
   if (!result.success) {

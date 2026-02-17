@@ -22,6 +22,7 @@ export function SandboxTerminal({ workspace }: SandboxTerminalProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   // Track mount generation to prevent stale closures from acting on new connections
   const mountGenRef = useRef(0)
+  const onDataDisposableRef = useRef<{ dispose: () => void } | null>(null)
 
   const connect = useCallback(
     async (term: Terminal, fit: FitAddon, generation: number) => {
@@ -40,7 +41,11 @@ export function SandboxTerminal({ workspace }: SandboxTerminalProps) {
           throw new Error(data.message ?? `Failed to get terminal lease (${res.status})`)
         }
 
-        const { wsUrl } = (await res.json()) as { wsUrl: string }
+        const leaseData: Record<string, unknown> = await res.json()
+        const wsUrl = leaseData.wsUrl
+        if (typeof wsUrl !== "string") {
+          throw new Error("Invalid lease response: missing wsUrl")
+        }
 
         // Guard: if component re-mounted while we were fetching, bail
         if (generation !== mountGenRef.current) return
@@ -65,12 +70,10 @@ export function SandboxTerminal({ workspace }: SandboxTerminalProps) {
           } else {
             // Text frame: JSON control messages
             try {
-              const msg = JSON.parse(event.data as string) as {
-                type: string
-                exitCode?: number
-                message?: string
-              }
-              switch (msg.type) {
+              if (typeof event.data !== "string") return
+              const msg: Record<string, unknown> = JSON.parse(event.data)
+              const msgType = typeof msg.type === "string" ? msg.type : ""
+              switch (msgType) {
                 case "connected":
                   setState("connected")
                   // Re-fit after connected in case container resized during connect
@@ -108,8 +111,11 @@ export function SandboxTerminal({ workspace }: SandboxTerminalProps) {
           setState(prev => (prev === "connected" ? "disconnected" : prev))
         }
 
+        // Clean up previous input listener to prevent accumulation on reconnect
+        onDataDisposableRef.current?.dispose()
+
         // Forward terminal input as binary (efficient, matches shell-server-go protocol)
-        term.onData((data: string) => {
+        onDataDisposableRef.current = term.onData((data: string) => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(new TextEncoder().encode(data))
           }
@@ -198,6 +204,8 @@ export function SandboxTerminal({ workspace }: SandboxTerminalProps) {
         wsRef.current.close()
       }
       wsRef.current = null
+      onDataDisposableRef.current?.dispose()
+      onDataDisposableRef.current = null
       term.dispose()
       termRef.current = null
       fitRef.current = null
@@ -220,7 +228,7 @@ export function SandboxTerminal({ workspace }: SandboxTerminalProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#1a1a1a]">
+    <div className="relative h-full flex flex-col bg-[#1a1a1a]">
       <div ref={containerRef} className="flex-1 px-1 pt-1 min-h-0" />
       {(state === "disconnected" || state === "error") && (
         <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-900 border-t border-neutral-800">

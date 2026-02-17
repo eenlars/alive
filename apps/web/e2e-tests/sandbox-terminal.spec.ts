@@ -75,6 +75,8 @@ test("sandbox terminal view renders xterm container", async ({ authenticatedPage
       const parsed = JSON.parse(raw)
       parsed.state.showSandbox = true
       localStorage.setItem(debugKey, JSON.stringify(parsed))
+    } else {
+      localStorage.setItem(debugKey, JSON.stringify({ state: { showSandbox: true } }))
     }
   })
 

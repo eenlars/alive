@@ -179,7 +179,6 @@ func (l *Logger) log(level Level, msg string, args ...interface{}) {
 	}
 
 	l.mu.Lock()
-	defer l.mu.Unlock()
 
 	// Format message
 	if len(args) > 0 {
@@ -217,12 +216,19 @@ func (l *Logger) log(level Level, msg string, args ...interface{}) {
 
 	fmt.Fprint(l.output, sb.String())
 
+	// Capture Sentry message outside the lock — prepare the string while locked
+	var sentryMsg string
 	if level >= ERROR {
-		msgForSentry := msg
+		sentryMsg = msg
 		if l.component != "" {
-			msgForSentry = fmt.Sprintf("[%s] %s", l.component, msg)
+			sentryMsg = fmt.Sprintf("[%s] %s", l.component, msg)
 		}
-		sentryx.CaptureMessage(sentry.LevelError, msgForSentry)
+	}
+
+	l.mu.Unlock()
+
+	if sentryMsg != "" {
+		sentryx.CaptureMessage(sentry.LevelError, sentryMsg)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -29,7 +30,7 @@ const (
 	portMapRefresh    = 30 * time.Second
 	sessionCookieName = "__alive_preview"
 	sessionMaxAge     = 300 // 5 minutes (matches JWT expiry)
-	defaultSentryDSN  = "https://84e50be97b3c02134ee7c1e4d60cf8c9@sentry.sonno.tech/2"
+	// Sentry DSN is read from SENTRY_DSN env var; no hardcoded fallback.
 )
 
 // portMap caches hostname→port mappings, refreshed periodically from a JSON file
@@ -164,7 +165,11 @@ func main() {
 
 	log.Printf("[preview-proxy] starting on %s (previewBase=%s)", cfg.ListenAddr, cfg.PreviewBase)
 	if err := server.ListenAndServe(); err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			return
+		}
 		captureError(err, "preview-proxy ListenAndServe failed")
+		sentry.Flush(2 * time.Second)
 		log.Fatalf("[preview-proxy] server error: %v", err)
 	}
 }
@@ -261,8 +266,7 @@ func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ct := resp.Header.Get("Content-Type")
 			if strings.Contains(ct, "text/html") {
 				if err := h.injectNavScript(resp); err != nil {
-					captureError(err, "inject nav script failed")
-					return err
+					return fmt.Errorf("inject nav script: %w", err)
 				}
 			}
 			return nil
@@ -498,6 +502,7 @@ func requireEnv(key string) string {
 	v := os.Getenv(key)
 	if v == "" {
 		captureMessage(sentry.LevelFatal, "[preview-proxy] required env var %s is not set", key)
+		sentry.Flush(2 * time.Second)
 		log.Fatalf("[preview-proxy] required env var %s is not set", key)
 	}
 	return v
@@ -512,9 +517,6 @@ func envOrDefault(key, fallback string) string {
 
 func initSentry(service string) {
 	dsn := os.Getenv("SENTRY_DSN")
-	if dsn == "" {
-		dsn = defaultSentryDSN
-	}
 	if dsn == "" {
 		return
 	}
