@@ -48,7 +48,7 @@ const widget = `/**
     var hostname = window.location.hostname
     var siteUrl = encodeURIComponent(window.location.origin)
     var qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=" + siteUrl
-    var editUrl = "https://terminal.goalive.nl/chat?wk=" + encodeURIComponent(hostname)
+    var editUrl = "https://terminal.alive.best/chat?wk=" + encodeURIComponent(hostname)
 
     box = document.createElement("div")
     box.style.cssText = "position:fixed;bottom:36px;right:12px;width:240px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.15);font-family:system-ui,sans-serif;z-index:9998;overflow:hidden;animation:aliveSlideUp 0.2s ease-out"
@@ -60,7 +60,7 @@ const widget = `/**
       '<div style="text-align:center;margin-bottom:12px"><img src="' + qrUrl + '" alt="QR Code" loading="lazy" style="width:100px;height:100px;border-radius:8px;border:1px solid #eee"></div>' +
       '<div style="display:flex;justify-content:center;gap:16px;font-size:12px;font-style:italic">' +
       '<a href="' + editUrl + '" target="_blank" rel="noopener" style="color:#666;text-decoration:underline">' + L.edit + '</a>' +
-      '<a href="https://terminal.goalive.nl/chat" target="_blank" rel="noopener" style="color:#666;text-decoration:underline">' + L.cta + '</a>' +
+      '<a href="https://terminal.alive.best/chat" target="_blank" rel="noopener" style="color:#666;text-decoration:underline">' + L.cta + '</a>' +
       '</div></div>'
 
     document.body.appendChild(box)

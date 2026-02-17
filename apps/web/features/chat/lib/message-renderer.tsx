@@ -23,6 +23,7 @@ import type {
 } from "@/features/chat/lib/streaming/ndjson"
 import type {
   SDKAssistantMessage,
+  SDKMessage,
   SDKResultMessage,
   SDKSystemMessage,
   SDKUserMessage,
@@ -31,8 +32,10 @@ import {
   type AgentManagerContent,
   type AuthStatusContent,
   COMPONENT_TYPE,
+  getAssistantErrorResultMessage,
   getMessageComponentType,
   isErrorResultMessage,
+  isSDKAssistantMessage,
   type ToolProgressContent,
   type UIMessage,
 } from "./message-parser"
@@ -64,6 +67,9 @@ export function shouldRenderMessage(message: UIMessage, isDebugMode: boolean): b
   // (non-empty text blocks or tool_use in debug mode)
   if (componentType === COMPONENT_TYPE.ASSISTANT) {
     const content = message.content as SDKAssistantMessage
+    if (getAssistantErrorResultMessage(content)) {
+      return true
+    }
     if (!content.message?.content) return false
 
     return content.message.content.some(item => {
@@ -105,8 +111,19 @@ export function renderMessage(message: UIMessage, options?: RenderMessageOptions
 
 function renderMessageContent(message: UIMessage, options?: RenderMessageOptions): React.ReactNode {
   // Check for error result messages first (before component type routing)
-  if (message.type === "sdk_message" && isErrorResultMessage(message.content)) {
-    return <ErrorResultMessage content={message.content} />
+  if (message.type === "sdk_message") {
+    if (isErrorResultMessage(message.content)) {
+      return <ErrorResultMessage content={message.content} />
+    }
+
+    // Backward-compatible rendering for stored assistant billing_error messages
+    const sdkContent = message.content as SDKMessage
+    if (isSDKAssistantMessage(sdkContent)) {
+      const assistantErrorResult = getAssistantErrorResultMessage(sdkContent)
+      if (assistantErrorResult) {
+        return <ErrorResultMessage content={assistantErrorResult} />
+      }
+    }
   }
 
   const componentType = getMessageComponentType(message)

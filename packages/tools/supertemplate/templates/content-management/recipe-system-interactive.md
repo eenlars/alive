@@ -15,7 +15,7 @@ requires:
   - TypeScript
   - Vite
   - Node 18+
-previewImage: https://terminal.goalive.nl/_images/t/alive.best/o/2fa4c3e6ac7f134e/v/orig.webp
+previewImage: https://terminal.alive.best/_images/t/alive.best/o/2fa4c3e6ac7f134e/v/orig.webp
 enabled: true
 ---
 

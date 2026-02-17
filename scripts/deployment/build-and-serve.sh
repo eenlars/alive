@@ -353,6 +353,11 @@ fi
 # =============================================================================
 cleanup_old_builds "$BUILDS_DIR" 5
 
+# Age-based retention safety net (default 7 days), keeps current symlink target.
+if ! bun "$PROJECT_ROOT/scripts/deployment/prune-old-builds.ts" --days 7 --env "$ENV"; then
+    log_warn "Age-based build pruning failed (continuing)"
+fi
+
 [ "$ENV" != "production" ] && systemctl reload caddy 2>/dev/null || true
 
 banner_success "✓ Deployed: $ENV"

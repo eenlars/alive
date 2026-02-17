@@ -57,7 +57,7 @@ cd apps/web && bun run test:e2e
 Tests the critical domain → slug conversion logic that was causing bugs:
 
 ```typescript
-// Example: converts "demo.goalive.nl" → "/srv/webalive/sites/demo-goalive-nl/user"
+// Example: converts "demo.alive.best" → "/srv/webalive/sites/demo-goalive-nl/user"
 ```
 
 **Coverage** (14 tests):

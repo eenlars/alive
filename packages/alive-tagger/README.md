@@ -158,7 +158,7 @@ const cleanup = initAliveTagger()
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Alive (terminal.goalive.nl)                                    │
+│  Alive (terminal.alive.best)                                    │
 │  ┌──────────────────────┐  ┌──────────────────────────────────────────┐ │
 │  │  Chat Interface      │  │  Sandbox Component                       │ │
 │  │                      │  │  - Listens for 'alive-element-selected'  │ │

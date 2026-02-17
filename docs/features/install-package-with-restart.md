@@ -84,7 +84,7 @@ The domain is extracted from the `workspaceRoot` parameter:
 
 ```
 /srv/webalive/sites/startup.alive.best/user → startup.alive.best
-/srv/webalive/sites/two.goalive.nl/user/    → two.goalive.nl
+/srv/webalive/sites/two.alive.best/user/    → two.alive.best
 /root/webalive/sites/test/user              → test
 ```
 
@@ -158,10 +158,10 @@ The workspace path extraction logic was tested with 7 test cases:
 
 ```
 ✓ /srv/webalive/sites/startup.alive.best/user → startup.alive.best
-✓ /srv/webalive/sites/two.goalive.nl/user/ → two.goalive.nl
+✓ /srv/webalive/sites/two.alive.best/user/ → two.alive.best
 ✓ /srv/webalive/sites/example.com/user → example.com
 ✓ /root/webalive/sites/test/user → test
-✓ /srv/webalive/sites/staging.goalive.nl/user → staging.goalive.nl
+✓ /srv/webalive/sites/staging.alive.best/user → staging.alive.best
 ✓ /invalid/path → null (handled gracefully)
 ✓ /srv/webalive/sites/example.com/src → null (not a /user path)
 ```

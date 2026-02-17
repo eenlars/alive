@@ -263,13 +263,13 @@ interface DomainStatus {
 ```bash
 # Check permissions (requires manager session cookie)
 curl -b cookies.txt \
-  "https://terminal.goalive.nl/api/manager/permissions?domain=example.com"
+  "https://terminal.alive.best/api/manager/permissions?domain=example.com"
 
 # Fix permissions
 curl -X POST -b cookies.txt \
   -H "Content-Type: application/json" \
   -d '{"domain":"example.com","action":"fix"}' \
-  https://terminal.goalive.nl/api/manager/permissions
+  https://terminal.alive.best/api/manager/permissions
 ```
 
 ## Troubleshooting

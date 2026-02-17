@@ -3,6 +3,20 @@ import type { TabSessionKey } from "@/features/auth/types/session"
 import { CLAUDE_MODELS } from "@/lib/models/claude-models"
 import { type CancelState, createNDJSONStream } from "../ndjson-stream-handler"
 
+const sentryCaptureExceptionMock = vi.hoisted(() => vi.fn())
+
+vi.mock("@sentry/nextjs", () => ({
+  withScope: (
+    callback: (scope: { setLevel: (level: string) => void; setTag: () => void; setContext: () => void }) => void,
+  ) =>
+    callback({
+      setLevel: () => {},
+      setTag: () => {},
+      setContext: () => {},
+    }),
+  captureException: sentryCaptureExceptionMock,
+}))
+
 // Default test model - using Haiku for tests
 const TEST_MODEL = CLAUDE_MODELS.HAIKU_4_5
 
@@ -325,6 +339,66 @@ describe("NDJSON Stream Handler", () => {
           cancelState: createCancelState(),
         })
       }).not.toThrow()
+    })
+
+    it("captures SDK assistant billing_error to Sentry with dedupe per request", async () => {
+      const mockChildStream = new ReadableStream({
+        start(controller) {
+          const billingErrorEvent1 = JSON.stringify({
+            type: "stream_message",
+            messageCount: 1,
+            messageType: "assistant",
+            content: {
+              type: "assistant",
+              error: "billing_error",
+              message: {
+                role: "assistant",
+                content: [{ type: "text", text: "Credit balance is too low" }],
+              },
+            },
+          })
+
+          const billingErrorEvent2 = JSON.stringify({
+            type: "stream_message",
+            messageCount: 2,
+            messageType: "assistant",
+            content: {
+              type: "assistant",
+              error: "billing_error",
+              message: {
+                role: "assistant",
+                content: [{ type: "text", text: "Credit balance is too low (again)" }],
+              },
+            },
+          })
+
+          controller.enqueue(new TextEncoder().encode(`${billingErrorEvent1}\n${billingErrorEvent2}\n`))
+          controller.close()
+        },
+      })
+
+      const stream = createNDJSONStream({
+        childStream: mockChildStream,
+        conversationKey: "test-conv" as TabSessionKey,
+        requestId: "test-billing-sentry",
+        conversationWorkspace: "test-workspace",
+        tokenSource: "workspace",
+        model: TEST_MODEL,
+        cancelState: createCancelState(),
+      })
+
+      const reader = stream.getReader()
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done } = await reader.read()
+        if (done) break
+      }
+
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1)
+      const firstCallError = sentryCaptureExceptionMock.mock.calls[0]?.[0]
+      expect(firstCallError).toBeInstanceOf(Error)
+      expect((firstCallError as Error).message).toContain("type=billing_error")
+      expect((firstCallError as Error).message).toContain("source=assistant_message.error")
     })
   })
 

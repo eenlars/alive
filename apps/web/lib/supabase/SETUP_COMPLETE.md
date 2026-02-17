@@ -1,7 +1,7 @@
 # ✅ Supabase IAM Setup Complete
 
 **Date**: 2025-11-14
-**Environment**: Staging (`dev.terminal.goalive.nl`)
+**Environment**: Staging (`dev.terminal.alive.best`)
 
 ## What Was Done
 

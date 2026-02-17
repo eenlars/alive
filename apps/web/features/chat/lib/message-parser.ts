@@ -112,6 +112,39 @@ export type UIMessage = {
   attachments?: Attachment[]
 }
 
+/**
+ * User-facing fallback message for SDK billing errors.
+ * This avoids surfacing the misleading raw SDK text ("Credit balance is too low"),
+ * which refers to backend Anthropic billing rather than platform credits.
+ */
+const SDK_BILLING_ERROR_MESSAGE =
+  "The AI service is temporarily unavailable due to a backend billing issue. Your platform credits are not affected. Please try again later or contact support."
+
+type AssistantErrorResultMessage = {
+  type: "result"
+  is_error: true
+  result: string
+  error_code: "API_BILLING_ERROR"
+}
+
+/**
+ * Map known SDK assistant errors to app-standard result errors.
+ */
+export function getAssistantErrorResultMessage(
+  assistantMessage: SDKAssistantMessage,
+): AssistantErrorResultMessage | null {
+  if (assistantMessage.error !== "billing_error") {
+    return null
+  }
+
+  return {
+    type: "result",
+    is_error: true,
+    result: `${SDK_BILLING_ERROR_MESSAGE}\n\n_Error Type: billing_error_`,
+    error_code: "API_BILLING_ERROR",
+  }
+}
+
 // Parse stream event into UI message
 // Now conversation-scoped to avoid tool mapping collisions across conversations
 export function parseStreamEvent(
@@ -187,6 +220,19 @@ export function parseStreamEvent(
         type: "auth_status",
         content: authMsg,
         ...baseMessage,
+      }
+    }
+
+    // Map known assistant SDK errors to app-standard result errors
+    if (isSDKAssistantMessage(content)) {
+      const errorResult = getAssistantErrorResultMessage(content)
+      if (errorResult) {
+        return {
+          id: `${event.requestId}-${event.data.messageCount}`,
+          type: "sdk_message",
+          content: errorResult,
+          ...baseMessage,
+        }
       }
     }
 

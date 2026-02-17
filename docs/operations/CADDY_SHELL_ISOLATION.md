@@ -1,8 +1,8 @@
 # Caddy Shell Isolation: Preserving SSE Connections During Deploys
 
 **Created**: 2025-12-07
-**Updated**: 2026-02-04 (consolidated to single shell domain go.goalive.nl)
-**Services**: `nginx`, `caddy`, `caddy-shell`, `go.goalive.nl`
+**Updated**: 2026-02-04 (consolidated to single shell domain go.alive.best)
+**Services**: `nginx`, `caddy`, `caddy-shell`, `go.alive.best`
 
 ## Problem
 
@@ -91,7 +91,7 @@ stream {
     # Everything else -> caddy-main
     map $ssl_preread_server_name $backend {
         # Go Shell domain - route to caddy-shell for SSE isolation
-        go.goalive.nl               caddy_shell;
+        go.alive.best               caddy_shell;
 
         # Default: all other domains go to main Caddy
         default                     caddy_main;
@@ -221,7 +221,7 @@ import /var/lib/alive/generated/Caddyfile.sites
 }
 
 # Go Shell server - handles Claude Code SSE connections
-go.goalive.nl:8443 {
+go.alive.best:8443 {
     reverse_proxy localhost:3888 {
         # Extra safety: delay stream close on the rare manual reload
         stream_close_delay 5m
@@ -294,7 +294,7 @@ systemctl enable nginx caddy caddy-shell
 # 10. Verify
 ss -tlnp | grep -E ':80|:443|:8443|:8444|:8081'
 curl -sI https://app.alive.best | head -3
-curl -sI https://go.goalive.nl | head -3
+curl -sI https://go.alive.best | head -3
 ```
 
 ## Management Commands
@@ -319,7 +319,7 @@ systemctl reload caddy-shell
 systemctl reload nginx
 
 # Test domains
-for d in app.alive.best go.goalive.nl; do
+for d in app.alive.best go.alive.best; do
     echo -n "$d: "; curl -s -o /dev/null -w "%{http_code}\n" https://$d/
 done
 ```
@@ -331,7 +331,7 @@ When adding a new domain to caddy-shell:
 1. Add to nginx SNI map in `/etc/nginx/nginx.conf`:
    ```nginx
    map $ssl_preread_server_name $backend {
-       go.goalive.nl               caddy_shell;
+       go.alive.best               caddy_shell;
        newdomain.example.com       caddy_shell;  # NEW
        default                     caddy_main;
    }
@@ -367,7 +367,7 @@ When adding a new domain to caddy-shell:
 
 1. Check nginx routing:
    ```bash
-   grep go.goalive.nl /var/log/nginx/stream_access.log | tail -5
+   grep go.alive.best /var/log/nginx/stream_access.log | tail -5
    ```
 
 2. Check caddy-shell:
@@ -407,7 +407,7 @@ ls -la /var/lib/caddy/.local/share/caddy/certificates/
 ls -la /var/lib/caddy-shell/certificates/
 
 # Check certificate validity
-openssl x509 -in /var/lib/caddy-shell/certificates/acme-v02.api.letsencrypt.org-directory/go.goalive.nl/go.goalive.nl.crt -text -noout | head -15
+openssl x509 -in /var/lib/caddy-shell/certificates/acme-v02.api.letsencrypt.org-directory/go.alive.best/go.alive.best.crt -text -noout | head -15
 ```
 
 ## Why nginx Instead of Alternatives?

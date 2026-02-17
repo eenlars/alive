@@ -209,7 +209,7 @@ Related: docs/migrations/YYYY-MM-DD-migration-name.md"
    pm2 logs alive-dev --lines 100 | grep -i error
 
    # Test endpoint
-   curl https://dev.terminal.goalive.nl/api/health
+   curl https://dev.terminal.alive.best/api/health
    ```
 
 2. **Run full test suite**
@@ -230,7 +230,7 @@ Related: docs/migrations/YYYY-MM-DD-migration-name.md"
    make staging
 
    # Verify staging health
-   curl https://staging.terminal.goalive.nl/api/health
+   curl https://staging.terminal.alive.best/api/health
    ```
 
 2. **Monitor metrics**

@@ -9,7 +9,7 @@ This repo is deployed on two servers. Check which one you're on:
 | | **Server 1 (alive.best)** | **Server 2 (sonno.tech)** |
 |---|---|---|
 | **IP** | 65.109.137.38 | 95.217.89.48 |
-| **Domains** | `alive.best`, `*.goalive.nl` | `sonno.tech`, `*.sonno.tech` |
+| **Domains** | `alive.best`, `*.alive.best` | `sonno.tech`, `*.sonno.tech` |
 | **Production** | `app.alive.best` (port 9000) | `sonno.tech` (port 9000) |
 | **Staging** | `staging.alive.best` (port 8998) | `staging.sonno.tech` (port 8998) |
 | **Shared services on Server 2** | — | PostHog (`posthog.homecatch.nl`), Sentry (`sentry.sonno.tech`) |
@@ -40,7 +40,7 @@ Use the `/roadmap` skill to manage issues, milestones, and the project board. Th
 6. **CADDYFILE IS LARGE** - The generated sites file at `/root/webalive/alive/ops/caddy/generated/Caddyfile.sites` (synced from `/var/lib/alive/generated/Caddyfile.sites`) is too large to read in one go. Use `Read` with `offset` and `limit` parameters, or use `Grep` to find specific domain configurations.
 7. **OWN YOUR CHANGES** - When deploying or committing, NEVER say "these unrelated changes are not mine" or refuse to include changes in the working directory. If changes exist, they are part of the current work. Take responsibility and include them.
 8. **SEEMINGLY UNRELATED ISSUES ARE OFTEN RELATED** - When you see multiple errors or issues, assume they share a common cause until proven otherwise. Type errors in test files often stem from the same interface change. Build failures across packages usually have one root cause. Don't treat each error as isolated - find the pattern first.
-9. **INVESTIGATE BEFORE FIXING** - When something is "broken", first understand what it IS. Not all `*.goalive.nl` domains are Vite websites. Check nginx config, caddy-shell config, and existing services before creating anything new.
+9. **INVESTIGATE BEFORE FIXING** - When something is "broken", first understand what it IS. Not all `*.alive.best` domains are Vite websites. Check nginx config, caddy-shell config, and existing services before creating anything new.
 10. **DEPLOYMENTS REQUIRE NOHUP** - When deploying staging/production, ALWAYS use `nohup make staging > /tmp/staging-deploy.log 2>&1 &` (never bare `make staging`). If your chat session disconnects or you cancel, bare commands leave orphaned build processes that stack up and crash production. Check `tail -f /tmp/staging-deploy.log` for progress. NEVER run deployment commands multiple times - wait for the first to complete.
 11. **ONE DEPLOYMENT AT A TIME** - Before starting any deployment, check if one is already running: `make deploy-status`. If a deployment is running, WAIT. Do not start another. Stacked deployments cause memory exhaustion and production outages.
 12. **CLEAN BEFORE DEPLOY** - Before ANY deployment, check for orphaned processes: `ps aux | grep -E "make|ship|turbo|next build" | grep -v grep`. If you see old ones, kill them: `pkill -9 -f "ship.sh|build-and-serve|turbo|next build"` and remove stale lock: `rm -f /tmp/alive-deploy.lock`. Only then deploy.
@@ -85,7 +85,7 @@ These domains are **NOT** Vite website templates. Do not deploy them as sites:
 
 | Domain | What it is | Service | Port | Routing |
 |--------|-----------|---------|------|---------|
-| `go.goalive.nl` | Go shell-server | `shell-server-go.service` | 3888 | nginx → caddy-shell (8443) → 3888 |
+| `go.alive.best` | Go shell-server | `shell-server-go.service` | 3888 | nginx → caddy-shell (8443) → 3888 |
 **Nginx SNI routing**: These domains route through `caddy-shell` (not main Caddy) for SSE/WebSocket isolation. Config: `/etc/nginx/nginx.conf` and `/etc/caddy/caddy-shell.Caddyfile`.
 
 ## Architecture Smell Detector
@@ -617,7 +617,7 @@ To deploy individual websites (not the Alive itself), use the API endpoint:
 ```bash
 # Via web UI at /deploy (recommended)
 # Or via API:
-curl -X POST https://terminal.goalive.nl/api/deploy-subdomain \
+curl -X POST https://terminal.alive.best/api/deploy-subdomain \
   -H "Content-Type: application/json" \
   -d '{"domain": "newsite.alive.best", "email": "user@example.com"}'
 ```

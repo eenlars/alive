@@ -13,6 +13,7 @@ Scripts for building, deploying, and managing the three Alive environments (prod
 - `deploy-dev.sh` - Restart dev environment with hot-reload (port 8997)
 - `build-and-serve.sh` - Core build and deployment script (production/staging)
 - `build-atomic.sh` - Atomic build system with zero-downtime deployments
+- `prune-old-builds.ts` - Delete `.builds/{env}/dist.*` older than retention window (default 7 days)
 - `logs-prod.sh` - View production logs
 - `logs-staging.sh` - View staging logs
 - `logs-dev.sh` - View dev logs
@@ -83,6 +84,7 @@ Scripts for system setup, backups, and periodic maintenance tasks.
 
 **Key Scripts:**
 - `setup-auto-cleanup.sh` - Setup automatic cleanup jobs
+- `runtime-status-check.ts` - Runtime status check (disk, Claude runtime write test, API health)
 - `setup-webhook.sh` - Configure GitHub webhooks
 - `backup-current-state.sh` - Backup current deployment state
 - `backfill-created-dates.sh` - Backfill creation dates
@@ -90,6 +92,7 @@ Scripts for system setup, backups, and periodic maintenance tasks.
 
 **Usage:**
 ```bash
+bun scripts/maintenance/runtime-status-check.ts --env production
 bash scripts/maintenance/backup-current-state.sh
 bash scripts/maintenance/setup-webhook.sh
 ```
@@ -123,9 +126,9 @@ Important documentation about scripts and operations.
 
 | Environment | Port | Type | Domain | Build Directory | Command |
 |-------------|------|------|--------|-----------------|---------|
-| **Production** | 9000 | Standalone | terminal.goalive.nl | `.builds/prod/current/` | Restricted - contact devops |
-| **Staging** | 8998 | Standalone | staging.terminal.goalive.nl | `.builds/staging/current/` | `make staging` |
-| **Dev** | 8997 | Hot-reload | dev.terminal.goalive.nl | `node_modules/.bin/next dev` | `make dev` |
+| **Production** | 9000 | Standalone | terminal.alive.best | `.builds/prod/current/` | Restricted - contact devops |
+| **Staging** | 8998 | Standalone | staging.terminal.alive.best | `.builds/staging/current/` | `make staging` |
+| **Dev** | 8997 | Hot-reload | dev.terminal.alive.best | `node_modules/.bin/next dev` | `make dev` |
 
 ### Single Source of Truth
 

@@ -20,7 +20,7 @@ START: User reports bug/error
 │   └─→ NO: Need to gather information
 │
 ├─→ INFORMATION GATHERING:
-│   ├─→ debug_workspace({ workspace: "domain.goalive.nl" })
+│   ├─→ debug_workspace({ workspace: "domain.alive.best" })
 │   │   ├─→ Returns: Recent server logs (last 10 minutes)
 │   │   ├─→ IF errors found: Analyze stack trace, error patterns
 │   │   └─→ IF no errors: Check codebase
@@ -81,7 +81,7 @@ START: User reports bug/error
 
 ### Path 2: Runtime Error (from Logs)
 ```
-1. debug_workspace({ workspace: "domain.goalive.nl" })
+1. debug_workspace({ workspace: "domain.alive.best" })
    → Returns: Recent server logs with errors
 2. Extract error details:
    - File path from stack trace

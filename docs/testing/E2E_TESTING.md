@@ -10,7 +10,7 @@ This section explains how E2E tests work across different environments.
 
 | Environment | Target | Workers | Database | Triggered By |
 |-------------|--------|---------|----------|--------------|
-| **Staging** | `staging.terminal.goalive.nl` | 4 | Shared remote DB | `bun run test:e2e` |
+| **Staging** | `staging.terminal.alive.best` | 4 | Shared remote DB | `bun run test:e2e` |
 
 ### Staging Execution
 
@@ -21,7 +21,7 @@ This section explains how E2E tests work across different environments.
 │                                                                 │
 │   Developer Machine                                             │
 │   ┌─────────────────┐      ┌──────────────────────────────┐    │
-│   │  Playwright     │ ───► │ staging.terminal.goalive.nl  │    │
+│   │  Playwright     │ ───► │ staging.terminal.alive.best  │    │
 │   │  (4 workers)    │      │ (deployed app)               │    │
 │   └─────────────────┘      └──────────────────────────────┘    │
 │          │                                                      │
@@ -55,7 +55,7 @@ This section explains how E2E tests work across different environments.
 │          ▼                        ▼                             │
 │   ┌─────────────────┐      ┌─────────────────┐                 │
 │   │ staging.terminal│      │  .env.staging   │                 │
-│   │ .goalive.nl     │      └─────────────────┘                 │
+│   │ .alive.best     │      └─────────────────┘                 │
 │   │                 │             │                             │
 │   └─────────────────┘             │                             │
 │                                   ▼                             │

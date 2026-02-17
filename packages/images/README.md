@@ -135,14 +135,14 @@ IMAGES_SIGNATURE_SECRET=your-secret-key
 
 Tenant IDs are stored in Supabase `app.domains`:
 ```sql
-SELECT tenant_id FROM app.domains WHERE hostname = 'demo.goalive.nl';
+SELECT tenant_id FROM app.domains WHERE hostname = 'demo.alive.best';
 ```
 
 ## Serving Images
 
 **Via Caddy (recommended):**
 ```
-demo.goalive.nl {
+demo.alive.best {
   route /_images/* {
     root * /srv/webalive/storage
     header Cache-Control "public, max-age=31536000, immutable"

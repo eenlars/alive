@@ -78,6 +78,22 @@ function makeAssistantToolUseMessage(id: string): UIMessage {
   }
 }
 
+function makeAssistantBillingErrorMessage(id: string): UIMessage {
+  return {
+    id,
+    type: "sdk_message",
+    content: {
+      type: "assistant",
+      error: "billing_error",
+      message: {
+        role: "assistant",
+        content: [{ type: "text" as const, text: "Credit balance is too low" }],
+      },
+    },
+    timestamp: new Date(),
+  }
+}
+
 function makeCompleteMessage(id: string): UIMessage {
   return { id, type: "complete", content: { message: "done" }, timestamp: new Date() }
 }
@@ -198,6 +214,11 @@ describe("shouldRenderMessage", () => {
     it("returns true for tool_use in debug mode", () => {
       const msg = makeAssistantToolUseMessage("1")
       expect(shouldRenderMessage(msg, true)).toBe(true)
+    })
+
+    it("returns true for assistant billing_error messages", () => {
+      const msg = makeAssistantBillingErrorMessage("1")
+      expect(shouldRenderMessage(msg, false)).toBe(true)
     })
   })
 

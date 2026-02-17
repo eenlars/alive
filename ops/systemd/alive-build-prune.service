@@ -1,0 +1,15 @@
+[Unit]
+Description=Alive Build Retention Prune (older than 7 days)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__ALIVE_ROOT__
+ExecStart=/usr/bin/env bun __ALIVE_ROOT__/scripts/deployment/prune-old-builds.ts --days 7
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=alive-build-prune
+
+[Install]
+WantedBy=multi-user.target

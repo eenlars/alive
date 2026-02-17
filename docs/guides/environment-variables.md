@@ -74,9 +74,9 @@ JWT_SECRET=local-dev-secret  # Override for local testing only
 
 ```bash
 # Development-specific overrides
-# Port: 8997 | Domain: dev.terminal.goalive.nl
-LINEAR_REDIRECT_URI=https://dev.terminal.goalive.nl/api/auth/linear
-NEXT_PUBLIC_APP_URL=https://dev.terminal.goalive.nl
+# Port: 8997 | Domain: dev.terminal.alive.best
+LINEAR_REDIRECT_URI=https://dev.terminal.alive.best/api/auth/linear
+NEXT_PUBLIC_APP_URL=https://dev.terminal.alive.best
 ```
 
 **When to update:**
@@ -88,9 +88,9 @@ NEXT_PUBLIC_APP_URL=https://dev.terminal.goalive.nl
 
 ```bash
 # Staging-specific overrides
-# Port: 8998 | Domain: staging.terminal.goalive.nl
-LINEAR_REDIRECT_URI=https://staging.terminal.goalive.nl/api/auth/linear
-NEXT_PUBLIC_APP_URL=https://staging.terminal.goalive.nl
+# Port: 8998 | Domain: staging.terminal.alive.best
+LINEAR_REDIRECT_URI=https://staging.terminal.alive.best/api/auth/linear
+NEXT_PUBLIC_APP_URL=https://staging.terminal.alive.best
 E2E_TEST_SECRET=staging-test-secret
 ```
 
@@ -106,8 +106,8 @@ E2E_TEST_SECRET=staging-test-secret
 JWT_SECRET=your-secret-here
 SUPABASE_SERVICE_ROLE_KEY=your-key-here
 LOCKBOX_MASTER_KEY=your-key-here
-LINEAR_REDIRECT_URI=https://terminal.goalive.nl/api/auth/linear
-NEXT_PUBLIC_APP_URL=https://terminal.goalive.nl
+LINEAR_REDIRECT_URI=https://terminal.alive.best/api/auth/linear
+NEXT_PUBLIC_APP_URL=https://terminal.alive.best
 # ... all secrets and production config
 ```
 

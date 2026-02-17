@@ -191,9 +191,9 @@ When adding a new template, you MUST update these files:
 previewImage: "/templates/previews/placeholder.svg"
 ```
 
-2. **Upload to terminal.goalive.nl** (recommended):
+2. **Upload to terminal.alive.best** (recommended):
 ```typescript
-previewImage: "https://terminal.goalive.nl/_images/t/protino.alive.best/o/{hash}/v/orig.webp"
+previewImage: "https://terminal.alive.best/_images/t/protino.alive.best/o/{hash}/v/orig.webp"
 ```
 
 3. **Add to public folder**:

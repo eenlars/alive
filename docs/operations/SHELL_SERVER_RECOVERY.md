@@ -1,7 +1,7 @@
 # Shell Server: How to Never Go Down Again
 
 **Updated**: 2026-02-04
-**Service**: go.goalive.nl
+**Service**: go.alive.best
 
 ## The Actual Solution (Simple)
 
@@ -68,7 +68,7 @@ curl -I http://localhost:3888
 # Should return: HTTP/1.1 200 OK
 
 # 4. Check domain
-curl -I https://go.goalive.nl
+curl -I https://go.alive.best
 # Should return: HTTP/2 200
 ```
 

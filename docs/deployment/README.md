@@ -19,8 +19,8 @@ Environment management and deployment guides.
 
 | Environment | Domain | Port | Command |
 |-------------|--------|------|---------|
-| Dev | `dev.terminal.goalive.nl` | 8997 | `make dev` |
-| Staging | `staging.terminal.goalive.nl` | 8998 | `make staging` |
+| Dev | `dev.terminal.alive.best` | 8997 | `make dev` |
+| Staging | `staging.terminal.alive.best` | 8998 | `make staging` |
 
 ## Dev & Staging Commands
 
