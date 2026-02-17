@@ -56,9 +56,8 @@ const baseEnv = prepareRequestEnv(payload)
 // Add Codex-specific vars
 const codexEnv = {
   ...baseEnv,
-  // Ensure no ANTHROPIC_API_KEY leaks to Codex
-  ANTHROPIC_API_KEY: undefined,
 }
+delete codexEnv.ANTHROPIC_API_KEY
 ```
 
 ## Security: API Key Isolation
@@ -82,7 +81,7 @@ Since we use the `env` override (which replaces process.env), this is naturally 
 
 Codex stores sessions in `$HOME/.codex/sessions/`. With Alive's per-workspace HOME:
 
-```
+```text
 /var/lib/claude-sessions/<workspace-key>/
 ├── .claude/          # Claude sessions (existing)
 └── .codex/

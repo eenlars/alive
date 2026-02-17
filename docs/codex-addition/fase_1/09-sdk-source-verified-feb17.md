@@ -39,7 +39,7 @@ The previous analysis was largely correct. Key confirmations and corrections:
 2. **`CODEX_INTERNAL_ORIGINATOR_OVERRIDE`**: SDK sets this to `"codex_sdk_ts"` — telemetry/tracking, not user-facing
 3. **`baseUrl` option**: Maps to `OPENAI_BASE_URL` env var — enables custom OpenAI-compatible endpoints
 4. **`outputSchemaFile`**: `TurnOptions` has `outputSchema` but exec maps it to a temp file path — structured output works by writing a JSON schema file and passing `--output-schema <path>`
-5. **Platform packages**: `@openai/codex-linux-x64`, `@openai/codex-linux-arm64`, etc. Binary resolution: codexPathOverride → npm package binary → system PATH
+5. **Platform binary resolution**: codexPathOverride → npm package binary → system PATH. Note: the platform-specific npm packages (`@openai/codex-linux-x64`, etc.) referenced in source may not be published yet — the CLI binary should be installed via `@openai/codex` directly.
 
 ### ThreadItem Types — Exact (from items.ts)
 
@@ -67,7 +67,7 @@ type McpToolCallItem = {
   tool: string;
   arguments: unknown;
   result?: {
-    content: McpContentBlock[];  // from @modelcontextprotocol/sdk/types.js
+    content: ContentBlock[];  // ContentBlock from @modelcontextprotocol/sdk/types.js
     structured_content: unknown;
   };
   error?: { message: string };
@@ -75,7 +75,7 @@ type McpToolCallItem = {
 };
 ```
 
-The `McpContentBlock` import from `@modelcontextprotocol/sdk` confirms Codex uses standard MCP content types for tool results.
+The `ContentBlock` import from `@modelcontextprotocol/sdk/types.js` confirms Codex uses standard MCP content types for tool results.
 
 ## Implications for Alive
 

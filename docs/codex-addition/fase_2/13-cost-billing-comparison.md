@@ -44,7 +44,7 @@ ALTER TABLE streams ADD COLUMN provider TEXT DEFAULT 'claude';
 -- Usage is already tracked per-stream, just add provider context
 ```
 
-No per-provider billing system needed for v1 — users bring their own API keys, they pay their provider directly.
+No per-provider billing system needed for v1 — requests use server-managed provider credentials; users pay their provider directly via their account outside Alive.
 
 ## Cost Optimization Notes
 

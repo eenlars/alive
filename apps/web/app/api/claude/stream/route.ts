@@ -191,10 +191,10 @@ export async function POST(req: NextRequest) {
       // Never rely on workspace-local .env files for auth discovery.
       if (!hasOAuthCredentials()) {
         logger.log("No OAuth credentials available")
-        return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {
+        return createErrorResponse(ErrorCodes.OAUTH_CONFIG_ERROR, 503, {
+          provider: "Anthropic",
           workspace: resolvedWorkspaceName,
           requestId,
-          message: "No OAuth credentials available. Run /login to authenticate.",
         })
       }
 
@@ -205,7 +205,7 @@ export async function POST(req: NextRequest) {
         const oauthResult = await getValidAccessToken()
         if (!oauthResult) {
           logger.log("OAuth credentials missing or unreadable")
-          return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 502, {
+          return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 503, {
             workspace: resolvedWorkspaceName,
             requestId,
           })
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
         oauthAccessToken = oauthResult.accessToken
       } catch (refreshError) {
         logger.error("OAuth token refresh failed:", refreshError)
-        return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 502, {
+        return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 503, {
           workspace: resolvedWorkspaceName,
           requestId,
         })
@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
 
     if (!oauthAccessToken) {
       logger.error("OAuth access token resolution failed")
-      return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 502, {
+      return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 503, {
         workspace: resolvedWorkspaceName ?? requestWorkspace ?? host,
         requestId,
       })
