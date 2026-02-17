@@ -56,8 +56,14 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
 
 ## New Open Questions (from 2026-02-17 16:00 research)
 - Does Codex re-read CODEX.md on thread resume? If not, system prompt injection only works for new threads (fase_2/12)
-- Does `--config system_message="..."` work via SDK? Would be cleaner than CODEX.md file manipulation
-- MCP server `env` in Codex config — is it additive (merge) or replacing? Need to verify from Rust source (assumed additive based on TOML semantics)
+- ~~Does `--config system_message="..."` work via SDK? Would be cleaner than CODEX.md file manipulation~~ ✅ LIKELY NOT — `system_message` not in Rust config schema. Use CODEX.md approach (fase_2/16)
+- ~~MCP server `env` in Codex config — is it additive (merge) or replacing?~~ ✅ Likely additive (child process inherits env + additions). Use project-level config.toml for MCP servers instead of SDK config option (fase_2/17)
+
+## New Open Questions (from 2026-02-17 20:00 research)
+- Does Codex's `skipGitRepoCheck` fully bypass git requirement, or just suppress warning? (Alive workspaces may not be git repos)
+- Can `additionalDirectories` include Alive's shared packages dir for cross-workspace imports?
+- How does Codex handle `outputSchema` failures (model doesn't produce valid JSON)? Need error handling strategy.
+- Thread session directory (~/.codex/sessions/) — how to isolate per-workspace to prevent cross-contamination?
 
 
 ## Log
@@ -112,3 +118,17 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
   - Environment isolation deep-dive (fase_2/14) — env replacement semantics, API key isolation, session directory layout
   - Test fixtures and mocks (fase_3/03) — JSONL fixture format, mock provider, CodexExec spy pattern, event mapping test structure
   - 3 new open questions identified (CODEX.md resume behavior, system_message config, MCP env merging)
+- **2026-02-17 20:00** — Sixth research iteration (SDK refresh + implementation depth):
+  - Re-verified all SDK source files against latest main (fase_1/10):
+    - `approvalPolicy` is now a first-class ThreadOption (not just config)
+    - `webSearchMode`, `networkAccessEnabled`, `additionalDirectories` are new SDK options
+    - Image input support via `UserInput` type
+    - `outputSchema` for structured output
+    - `ModelReasoningEffort` enum (minimal → xhigh)
+    - Binary vendored in platform-specific npm packages
+  - Worker entry refactoring walkthrough (fase_2/15) — step-by-step transformation from Claude-specific to provider-agnostic, with code examples for ClaudeProvider, CodexProvider, registry, and worker changes. ~14h estimated.
+  - System message strategy resolved (fase_2/16) — `system_message` NOT a valid Codex config key. Use CODEX.md file injection with HTML comment markers. Encapsulated in provider impl.
+  - MCP server config passing strategy (fase_2/17) — SDK config option unreliable for complex nested TOML. **Use project-level `.codex/config.toml`** written to workspace before session start. More reliable, full MCP spec support (command, args, env).
+  - E2E test scenarios (fase_3/04) — 24 concrete test cases across 6 categories (provider selection, lifecycle, MCP, normalization, billing, security). Fixture-based mock approach.
+  - Resolved 2 open questions, identified 4 new ones
+  - **KEY INSIGHT**: Project-level config.toml is the cleanest way to configure Codex for Alive. Write it per-workspace before session, let Codex read it naturally. No complex CLI flag serialization needed.
