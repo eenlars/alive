@@ -203,12 +203,10 @@ func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 			WriteBufferSize:   1024,
 			EnableCompression: false,
 			CheckOrigin: func(r *http.Request) bool {
-				// In production, validate origin against allowed domains
 				origin := r.Header.Get("Origin")
 				if origin == "" {
 					return true // Allow connections without origin (like wscat)
 				}
-				// Allow same-origin and localhost for development
 				host := r.Host
 				if strings.Contains(origin, host) {
 					return true
@@ -216,7 +214,11 @@ func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 				if strings.Contains(origin, "localhost") || strings.Contains(origin, "127.0.0.1") {
 					return true
 				}
-				// Log rejected origins for debugging
+				// Allow cross-origin from web app (e.g. app.sonno.tech -> go.sonno.tech).
+				baseDomain := extractBaseDomain(host)
+				if baseDomain != "" && strings.Contains(origin, "."+baseDomain) {
+					return true
+				}
 				wsLog.Warn("Rejected WebSocket origin: %s (host: %s)", origin, host)
 				return false
 			},
@@ -224,6 +226,37 @@ func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 		shutdownChan:     make(chan struct{}),
 		shutdownComplete: make(chan struct{}),
 	}
+}
+
+// CreateInternalLease issues a lease for the web app's terminal integration.
+// Auth is via X-Internal-Secret (shared SHELL_PASSWORD), not browser cookies.
+func (h *WSHandler) CreateInternalLease(w http.ResponseWriter, r *http.Request) {
+	secret := r.Header.Get("X-Internal-Secret")
+	if secret == "" || secret != h.config.ShellPassword {
+		response.Error(w, http.StatusUnauthorized, "Invalid internal secret")
+		return
+	}
+
+	var body struct {
+		Workspace string `json:"workspace"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.Error(w, http.StatusBadRequest, "Invalid JSON body")
+		return
+	}
+
+	leaseToken, lease, err := h.createLease(internalLeaseSessionToken, body.Workspace)
+	if err != nil {
+		wsLog.Error("Failed to create internal lease | workspace=%s err=%v", body.Workspace, err)
+		response.Error(w, http.StatusInternalServerError, "Failed to create terminal lease")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"lease":     leaseToken,
+		"workspace": lease.Workspace,
+		"expiresAt": lease.ExpiresAt.UnixMilli(),
+	})
 }
 
 // CreateLease issues a short-lived single-use token for a terminal WebSocket connection.
@@ -262,16 +295,20 @@ func (h *WSHandler) CreateLease(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// internalLeaseSessionToken is the sentinel value used for leases created via
+// the internal API (POST /internal/lease). These leases are consumed without a
+// browser cookie because the web app already validated the user session.
+const internalLeaseSessionToken = "internal"
+
 // Handle handles WebSocket connections
 func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	// Check authentication
-	if !httpxmiddleware.IsAuthenticated(r, h.sessions) {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
+	// Determine session token: cookie-based (shell-server UI) or internal lease.
 	sessionToken := httpxmiddleware.GetSessionToken(r)
 	if sessionToken == "" {
+		// No cookie — only allow if the lease was issued internally.
+		// Use the sentinel so consumeLease matches internal leases.
+		sessionToken = internalLeaseSessionToken
+	} else if !h.sessions.Valid(sessionToken) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -803,6 +840,21 @@ func generateLeaseToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+// extractBaseDomain returns the registrable base domain from a host string.
+// e.g. "go.sonno.tech" → "sonno.tech", "go.alive.best:8443" → "alive.best".
+// Returns "" if the host has fewer than 2 labels.
+func extractBaseDomain(host string) string {
+	// Strip port if present
+	if idx := strings.LastIndex(host, ":"); idx != -1 {
+		host = host[:idx]
+	}
+	parts := strings.Split(host, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[len(parts)-2] + "." + parts[len(parts)-1]
 }
 
 func (h *WSHandler) resolveShellWorkspace(workspaceQuery string) (workspace string, cwd string, runAsOwner bool, err error) {

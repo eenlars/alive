@@ -29,6 +29,7 @@ func (a *ServerApp) Router() (http.Handler, error) {
 
 	mux.HandleFunc("/ws", a.WSHandler.Handle)
 	mux.Handle("POST /api/ws-lease", authAPIMiddleware(http.HandlerFunc(a.WSHandler.CreateLease)))
+	mux.HandleFunc("POST /internal/lease", a.WSHandler.CreateInternalLease)
 
 	mux.Handle("POST /api/check-directory", authAPIMiddleware(http.HandlerFunc(a.FileHandler.CheckDirectory)))
 	mux.Handle("POST /api/create-directory", authAPIMiddleware(http.HandlerFunc(a.FileHandler.CreateDirectory)))

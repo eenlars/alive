@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { buildSessionOrgClaims, SECURITY, STANDALONE } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
@@ -22,7 +23,10 @@ export async function POST(req: NextRequest) {
   const requestId = generateRequestId()
   const origin = req.headers.get("origin")
   const host = req.headers.get("host") || undefined
-  const body = await req.json().catch(() => ({}))
+  const body = await req.json().catch(error => {
+    Sentry.captureException(error)
+    return {}
+  })
   const result = LoginSchema.safeParse(body)
 
   if (!result.success) {

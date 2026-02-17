@@ -10,7 +10,7 @@
 
 import { type UseMutationOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 import toast from "react-hot-toast"
-import { ApiError, delly, patchy, postty } from "@/lib/api/api-client"
+import { type ApiError, delly, patchy, postty } from "@/lib/api/api-client"
 import { type Res, validateRequest } from "@/lib/api/schemas"
 import { queryKeys } from "./queryKeys"
 

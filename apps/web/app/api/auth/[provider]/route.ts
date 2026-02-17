@@ -5,6 +5,7 @@
  * Handles OAuth 2.0 authorization code flow for multiple providers.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { AuthenticationError, createErrorResponse, requireSessionUser } from "@/features/auth/lib/auth"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -144,6 +145,7 @@ export async function GET(
     // Pass baseUrl to derive redirect URI from typed route path
     const config = getOAuthConfig(provider, baseUrl)
     if (!config) {
+      Sentry.captureMessage(`[${provider} OAuth] Missing configuration`, "error")
       console.error(`[${provider} OAuth] Missing configuration`)
       const sanitizedMessage = `${provider} integration is not available. Please contact your administrator.`
       return NextResponse.redirect(
@@ -163,6 +165,7 @@ export async function GET(
     }
 
     // Log unexpected errors (but don't expose details)
+    Sentry.captureException(error)
     console.error("[OAuth] Unexpected error:", error)
     return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500)
   }

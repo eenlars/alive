@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
 import { createWriteStream } from "node:fs"
+import * as Sentry from "@sentry/nextjs"
 import { PATHS } from "@webalive/shared"
 import { z } from "zod"
 import { AuthenticationError, createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
@@ -199,6 +200,7 @@ export async function POST(req: Request): Promise<Response> {
 
         proc.on("error", (err: Error) => {
           console.error(`[Admin Deploy ${requestId}] Process error:`, err.message)
+          Sentry.captureException(err)
           logStream.write(`\n[ERROR] ${err.message}\n`)
           logStream.end()
 
@@ -236,6 +238,7 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     console.error(`[Admin Deploy ${requestId}] Unexpected error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
       exception: error instanceof Error ? error.message : "Unknown error",
       requestId,

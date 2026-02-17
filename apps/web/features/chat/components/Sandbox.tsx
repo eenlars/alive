@@ -7,7 +7,7 @@ import { useWorkspace } from "@/features/workspace/hooks/useWorkspace"
 import { useResizablePanel } from "@/lib/hooks/useResizablePanel"
 import { getPreviewUrl, getSiteUrl } from "@/lib/preview-utils"
 import { useDebugActions, useSandboxWidth } from "@/lib/stores/debug-store"
-import { DrivePanel, PanelViewMenu, SandboxCodePanel } from "./sandbox/index"
+import { DrivePanel, PanelViewMenu, SandboxCodePanel, SandboxTerminal } from "./sandbox/index"
 import { PulsingDot } from "./ui/PulsingDot"
 
 export function Sandbox() {
@@ -356,12 +356,7 @@ export function Sandbox() {
         ) : panel.view === "drive" ? (
           <DrivePanel workspace={workspace} worktree={worktree} />
         ) : panel.view === "terminal" ? (
-          <div className="h-full bg-neutral-50 dark:bg-[#1e1e1e] flex items-center justify-center">
-            <div className="text-center text-neutral-400 dark:text-neutral-500">
-              <Terminal size={48} strokeWidth={1} className="mx-auto mb-4 opacity-50" />
-              <p className="text-sm">Terminal coming soon</p>
-            </div>
-          </div>
+          <SandboxTerminal workspace={workspace} />
         ) : null}
       </div>
     </div>

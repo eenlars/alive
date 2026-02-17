@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createSessionToken, SESSION_SCOPES } from "@/features/auth/lib/jwt"
@@ -49,7 +50,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Parse and validate request body
-  const body = await req.json().catch(() => ({}))
+  const body = await req.json().catch(error => {
+    Sentry.captureException(error)
+    return {}
+  })
   const result = ManagerLoginSchema.safeParse(body)
 
   if (!result.success) {

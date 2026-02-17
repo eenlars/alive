@@ -1,4 +1,5 @@
 import { statSync } from "node:fs"
+import * as Sentry from "@sentry/nextjs"
 import { DEFAULTS, SUPERADMIN, WORKER_POOL } from "@webalive/shared"
 import { getWorkerPool, type WorkerToParentMessage } from "@webalive/worker-pool"
 import { cookies, headers } from "next/headers"
@@ -839,6 +840,7 @@ export async function POST(req: NextRequest) {
     return response
   } catch (outerError) {
     logger.error("Outer catch - request processing failed:", outerError)
+    Sentry.captureException(outerError)
 
     // CRITICAL: Release lock if we acquired it before the error occurred
     // This prevents deadlocks when errors happen during stream setup

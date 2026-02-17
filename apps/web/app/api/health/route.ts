@@ -18,6 +18,7 @@
 
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { env, getRedisUrl } from "@webalive/env/server"
 import { createRedisClient } from "@webalive/redis"
 import { PATHS } from "@webalive/shared"
@@ -145,6 +146,7 @@ async function checkRedis(): Promise<ServiceHealth> {
       error: `Unexpected ping response: ${result}`,
     }
   } catch (error) {
+    Sentry.captureException(error)
     const responseTimeMs = Math.round(performance.now() - start)
     return {
       status: "disconnected",
@@ -212,6 +214,7 @@ async function checkDatabase(): Promise<ServiceHealth> {
       error: errorMsg,
     }
   } catch (error) {
+    Sentry.captureException(error)
     const responseTimeMs = Math.round(performance.now() - start)
     return {
       status: "disconnected",
