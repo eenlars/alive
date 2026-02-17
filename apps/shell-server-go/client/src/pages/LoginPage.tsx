@@ -1,12 +1,11 @@
 import { useState } from "react"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useSearchParams } from "react-router-dom"
 import { useConfigStore } from "../store/config"
 
 export function LoginPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [searchParams] = useSearchParams()
-  const _navigate = useNavigate()
   const fetchConfig = useConfigStore(s => s.fetchConfig)
 
   const errorType = searchParams.get("error")
@@ -45,24 +44,25 @@ export function LoginPage() {
         credentials: "same-origin",
       })
 
-      // If we got redirected to dashboard (success) or back to login (error)
-      // The URL will tell us what happened
-      if (res.url.includes("/dashboard") || res.ok) {
-        // Success - refresh config store to update isAuthenticated
+      // Login endpoint always redirects. Final URL tells us success vs failure.
+      const finalUrl = new URL(res.url, window.location.origin)
+      const isDashboard = finalUrl.pathname === "/dashboard"
+      const error = finalUrl.searchParams.get("error")
+
+      if (isDashboard) {
+        // Success - refresh config store to update isAuthenticated.
         await fetchConfig()
-        // fetchConfig will set isAuthenticated=true, then PublicRoute will redirect
         return
       }
 
-      // Check for error in the final URL
-      const finalUrl = new URL(res.url)
-      const error = finalUrl.searchParams.get("error")
       if (error) {
-        window.location.href = res.url
-      } else {
-        // Fallback - reload to see server response
-        window.location.reload()
+        // Surface server-provided login error instead of silently refreshing.
+        window.location.href = `${finalUrl.pathname}${finalUrl.search}`
+        return
       }
+
+      // Unexpected response shape (e.g. proxy/cache issue): show actionable error.
+      window.location.href = "/?error=network"
     } catch {
       setIsLoading(false)
       window.location.href = "/?error=network"
