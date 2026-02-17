@@ -17,7 +17,7 @@ import {
   unlockConversation,
 } from "@/features/auth/lib/sessionStore"
 import { hasSessionCookie } from "@/features/auth/types/guards"
-import { isInputSafe } from "@/features/chat/lib/formatMessage"
+import { isInputSafeWithDebug } from "@/features/chat/lib/formatMessage"
 import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { ensureWorkspaceSchema } from "@/features/workspace/lib/ensure-workspace-schema"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
@@ -146,11 +146,11 @@ export async function POST(req: NextRequest) {
     // Check input safety (skip for superadmins - they should never be interrupted)
     if (!user.isSuperadmin) {
       logger.log("Checking input safety...")
-      const safetyCheck = await isInputSafe(message)
-      if (safetyCheck === "unsafe") {
-        logger.log("Input flagged as unsafe")
+      const safetyCheck = await isInputSafeWithDebug(message)
+      if (safetyCheck.result === "unsafe") {
+        logger.log(`Input flagged as unsafe. Model response: "${safetyCheck.debug.rawContent?.slice(0, 200)}"`)
         return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-          message: "Your message contains inappropriate content. Please keep it professional and appropriate.",
+          field: "message content",
           requestId,
         })
       }

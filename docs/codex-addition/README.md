@@ -54,6 +54,11 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
 - How to handle `restart_dev_server` tool's need for `systemctl` privileges in standalone MCP server? (sudoers approach proposed in fase_2/11)
 - Should tool functions be refactored to accept context as parameter BEFORE the MCP migration, or during?
 
+## New Open Questions (from 2026-02-17 16:00 research)
+- Does Codex re-read CODEX.md on thread resume? If not, system prompt injection only works for new threads (fase_2/12)
+- Does `--config system_message="..."` work via SDK? Would be cleaner than CODEX.md file manipulation
+- MCP server `env` in Codex config — is it additive (merge) or replacing? Need to verify from Rust source (assumed additive based on TOML semantics)
+
 ## Log
 - **2026-02-17 00:00** — Initial research: current Alive architecture (fase_1/01), Codex SDK analysis (fase_1/02), Emdash reference analysis (fase_1/03)
 - Emdash (YC W26) supports 21 agents via CLI spawning. Simple but no tool control. Their provider registry is clean reference material.
@@ -97,3 +102,12 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
   - **KEY REVISION on MCP lifecycle**: Don't pre-spawn MCP servers. Pass command+env specs to provider SDKs, let them manage subprocess lifecycle. This eliminates the `McpServerManager` class from the plan and simplifies Phase 1 significantly.
   - **VERIFIED**: Claude SDK DOES support `McpStdioServerConfig` (`{ type: "stdio", command: string, args?: string[], env?: Record<string, string> }`). This means both Claude and Codex can use the same stdio MCP server specs. The `createSdkMcpServer` in-process approach was a convenience, not a requirement. MCP refactoring plan is fully viable.
   - All major technical unknowns are now resolved. Remaining questions are implementation details.
+- **2026-02-17 16:00** — Fifth research iteration (source verification + new docs):
+  - **SDK path correction**: SDK moved from `codex-js/codex-sdk/` to `sdk/typescript/` (fase_1/09). All source types re-verified against latest main.
+  - New finding: `CODEX_API_KEY` env var (not `OPENAI_API_KEY`) used by SDK internally
+  - New finding: `baseUrl` option enables OpenAI-compatible endpoints
+  - System prompt injection strategy documented (fase_2/12) — CODEX.md file + prompt prepend for v1, config system_message investigation for v2
+  - Cost & billing comparison (fase_2/13) — token pricing, usage tracking mapping, provider-aware cost display
+  - Environment isolation deep-dive (fase_2/14) — env replacement semantics, API key isolation, session directory layout
+  - Test fixtures and mocks (fase_3/03) — JSONL fixture format, mock provider, CodexExec spy pattern, event mapping test structure
+  - 3 new open questions identified (CODEX.md resume behavior, system_message config, MCP env merging)
