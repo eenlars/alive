@@ -12,6 +12,7 @@ function isValidEnv(value: string): value is BuildEnv {
   return VALID_ENVS.has(value)
 }
 
+
 interface Options {
   root: string
   days: number

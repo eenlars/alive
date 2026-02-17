@@ -59,6 +59,7 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
 - Does `--config system_message="..."` work via SDK? Would be cleaner than CODEX.md file manipulation
 - MCP server `env` in Codex config — is it additive (merge) or replacing? Need to verify from Rust source (assumed additive based on TOML semantics)
 
+
 ## Log
 - **2026-02-17 00:00** — Initial research: current Alive architecture (fase_1/01), Codex SDK analysis (fase_1/02), Emdash reference analysis (fase_1/03)
 - Emdash (YC W26) supports 21 agents via CLI spawning. Simple but no tool control. Their provider registry is clean reference material.
