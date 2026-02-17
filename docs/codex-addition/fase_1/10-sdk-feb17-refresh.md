@@ -12,6 +12,7 @@ Previously only available via `--config`. Now a direct option:
 type ApprovalMode = "never" | "on-request" | "on-failure" | "untrusted";
 ```
 - `"never"` = auto-approve everything (maps to Alive `bypassPermissions: true`)
+- `"on-request"` = model decides when to ask (default)
 - `"on-failure"` = only ask for approval on failed commands
 - `"untrusted"` = ask for everything from untrusted sources
 - For Alive v1: use `"never"` (full auto) since Alive manages permissions via MCP
@@ -52,7 +53,7 @@ Alive can use this for structured extraction tasks (JSON output from agents).
 
 ### 6. `ModelReasoningEffort`
 ```typescript
-type ModelReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh";
+type ModelReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 ```
 Maps well to Alive's potential "thinking level" UI control.
 
@@ -116,7 +117,7 @@ if (this.envOverride) {
 ```
 **CORRECTED from fase_1/07**: When `envOverride` is provided, it REPLACES process.env. When not provided, process.env is copied. The `baseUrl` and `apiKey` are then added on top via `OPENAI_BASE_URL` and `CODEX_API_KEY` env vars.
 
-For Alive: MUST provide `envOverride` with carefully curated env vars to prevent leaking server-side secrets to the Codex subprocess.
+For Alive: MUST provide the `env` constructor option with carefully curated env vars to prevent leaking server-side secrets to the Codex subprocess. The SDK subsequently injects `CODEX_API_KEY` and `OPENAI_BASE_URL` on top of the provided `env` object.
 
 ### Config override serialization
 SDK flattens nested objects into dotted TOML paths:

@@ -52,9 +52,15 @@ If the Rust parser doesn't recognize `system_message`, it would either:
 ### v1: CODEX.md file injection
 Before spawning Codex, write a `CODEX.md` file to the workspace root:
 ```typescript
+import { readFile, writeFile } from 'fs/promises';
+import path from 'path';
+
 async function injectCodexPrompt(workspacePath: string, prompt: string) {
   const codexMdPath = path.join(workspacePath, 'CODEX.md');
-  const existingContent = await readFile(codexMdPath, 'utf-8').catch(() => '');
+  const existingContent = await readFile(codexMdPath, 'utf-8').catch((err) => {
+    if (err.code === 'ENOENT') return '';
+    throw err;
+  });
   const aliveHeader = '<!-- alive-system-prompt -->';
   
   if (existingContent.includes(aliveHeader)) {

@@ -22,7 +22,7 @@
 | B4 | Codex query abort (user cancels) | AbortSignal fires, process killed cleanly |
 | B5 | Codex CLI binary missing | Graceful error: "Codex CLI not found" |
 | B6 | Codex API key invalid | turn.failed with auth error |
-| B7 | Codex rate limited | Retry with backoff (per fase_2/07) |
+| B7 | Codex rate limited | Retry with backoff (per [fase_2/07](../fase_2/07-error-handling-and-recovery.md)) |
 
 ### C. MCP Integration
 
@@ -86,7 +86,7 @@
 
 Use JSONL fixtures from fase_3/03 for mock Codex output. Each fixture represents a complete turn:
 
-```
+```text
 fixtures/
 ├── codex-simple-response.jsonl      # Just agent_message
 ├── codex-command-execution.jsonl    # command_execution + agent_message

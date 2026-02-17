@@ -27,7 +27,7 @@ worker-entry.mjs
 │   ├── "claude" → ClaudeProvider
 │   └── "codex" → CodexProvider
 ├── Calls provider.createSession(config)
-├── Calls provider.run(prompt)
+├── Calls session.run(prompt)
 ├── Iterates over AgentEvent stream
 │   └── Sends IPC: { type: "message", content: <normalized event> }
 └── On completion: { type: "complete", result }
@@ -77,7 +77,7 @@ export class CodexProvider implements AgentProvider {
   
   async createSession(config: ProviderConfig): Promise<AgentSession> {
     const codex = new Codex({
-      apiKey: config.apiKey,
+      apiKey: process.env.OPENAI_API_KEY,
       env: buildCodexEnv(config),
       config: buildCodexConfig(config),
     });
@@ -139,12 +139,20 @@ class CodexSession implements AgentSession {
         if (event.type === 'item.started') {
           return { type: 'message', content: { role: 'assistant', type: 'tool_use', toolName: 'Bash', toolInput: { command: item.command }, toolId: item.id } };
         }
+        if (event.type === 'item.updated') {
+          // In-progress update; aggregated_output/exit_code not yet final — skip
+          return { type: 'message', content: { role: 'assistant', type: 'text', text: '', raw: event } };
+        }
         return { type: 'message', content: { role: 'tool', type: 'tool_result', toolId: item.id, output: item.aggregated_output, isError: item.exit_code !== 0 } };
       case 'file_change':
         return { type: 'message', content: { role: 'assistant', type: 'tool_use', toolName: 'Edit', toolInput: { changes: item.changes }, toolId: item.id } };
       case 'mcp_tool_call':
         if (event.type === 'item.started') {
           return { type: 'message', content: { role: 'assistant', type: 'tool_use', toolName: `mcp__${item.server}__${item.tool}`, toolInput: item.arguments, toolId: item.id } };
+        }
+        if (event.type === 'item.updated') {
+          // In-progress update; result not yet final — skip
+          return { type: 'message', content: { role: 'assistant', type: 'text', text: '', raw: event } };
         }
         return { type: 'message', content: { role: 'tool', type: 'tool_result', toolId: item.id, output: JSON.stringify(item.result), isError: item.status === 'failed' } };
       case 'todo_list':
@@ -194,7 +202,7 @@ export function getProvider(name: string) {
 -     }
 +     const provider = getProvider(msg.provider || 'claude');
 +     const session = await provider.createSession({
-+       apiKey: msg.apiKey,
++       oauthAccessToken: msg.oauthAccessToken,
 +       workspacePath: msg.workspacePath,
 +       sessionId: msg.sessionId,
 +       mcpServers: msg.mcpServers,
