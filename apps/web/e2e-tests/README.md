@@ -49,7 +49,7 @@ bun run test:e2e:debug
 
 ### Staging Environment Tests
 
-Tests can run against staging ([https://staging.terminal.goalive.nl](https://staging.terminal.goalive.nl)):
+Tests can run against staging ([https://staging.terminal.alive.best](https://staging.terminal.alive.best)):
 
 ```bash
 # Default test:e2e already targets staging

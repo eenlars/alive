@@ -34,7 +34,7 @@ export const environments: Record<EnvironmentKey, Environment> = {
     displayName: "Staging",
     prefix: "staging",
 	    port: 8997,
-	    domain: "your-staging-domain.goalive.nl",
+	    domain: "your-staging-domain.alive.best",
 	    processName: "alive-staging",
 	    serverScript: "node_modules/.bin/next",
 	    workspacePath: "/srv/webalive/sites",

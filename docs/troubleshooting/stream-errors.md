@@ -12,7 +12,7 @@ journalctl -u alive-staging | grep "STREAM_ERROR:abc-123"
 journalctl -u alive-staging --since "10 minutes ago" | grep "STREAM_ERROR"
 
 # Query error buffer via API
-curl -s https://terminal.goalive.nl/api/logs/error?category=stream | jq '.errors[:5]'
+curl -s https://terminal.alive.best/api/logs/error?category=stream | jq '.errors[:5]'
 ```
 
 ## Log Format

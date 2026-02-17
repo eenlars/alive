@@ -34,16 +34,12 @@ describe("resolveTemplatePath", () => {
     expect(result.startsWith(TEMPLATES_ROOT)).toBe(true)
   })
 
-  it("handles '..' as the final segment safely", () => {
-    // ".." as last segment would escape TEMPLATES_ROOT when path.resolve'd
-    const result = resolveTemplatePath("/foo/bar/..")
-    // The function extracts ".." as dirName — this stays under TEMPLATES_ROOT as a literal string
-    expect(result).toBe(`${TEMPLATES_ROOT}/..`)
+  it("throws for '..' as the final segment", () => {
+    expect(() => resolveTemplatePath("/foo/bar/..")).toThrow("Invalid template source_path")
   })
 
-  it("handles '.' as input", () => {
-    const result = resolveTemplatePath(".")
-    expect(result).toBe(`${TEMPLATES_ROOT}/.`)
+  it("throws for '.' as input", () => {
+    expect(() => resolveTemplatePath(".")).toThrow("Invalid template source_path")
   })
 
   it("throws for trailing slash (empty last segment)", () => {

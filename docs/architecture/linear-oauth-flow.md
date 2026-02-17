@@ -155,10 +155,10 @@ LINEAR_CLIENT_ID=lin_oauth_XXX
 LINEAR_CLIENT_SECRET=XXX
 
 # Redirect URI (auto-computed if not set)
-LINEAR_REDIRECT_URI=https://terminal.goalive.nl/api/auth/linear
+LINEAR_REDIRECT_URI=https://terminal.alive.best/api/auth/linear
 
 # Or computed from:
-NEXT_PUBLIC_APP_URL=https://terminal.goalive.nl
+NEXT_PUBLIC_APP_URL=https://terminal.alive.best
 
 # Distributed Locking (for multi-instance deployments)
 REDIS_URL=redis://:password@host:6379
@@ -169,9 +169,9 @@ REFRESH_LOCK_STRATEGY=auto  # Options: "memory", "redis", "auto" (default)
 ```
 
 ### Per-Environment Configuration
-- Development: `dev.terminal.goalive.nl`
-- Staging: `staging.terminal.goalive.nl`
-- Production: `terminal.goalive.nl`
+- Development: `dev.terminal.alive.best`
+- Staging: `staging.terminal.alive.best`
+- Production: `terminal.alive.best`
 
 Each environment requires its own redirect URI registered in Linear's OAuth app settings.
 

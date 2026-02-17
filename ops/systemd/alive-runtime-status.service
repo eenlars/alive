@@ -1,0 +1,15 @@
+[Unit]
+Description=Alive Runtime Status Check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__ALIVE_ROOT__
+ExecStart=/usr/bin/env bun __ALIVE_ROOT__/scripts/maintenance/runtime-status-check.ts --env production
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=alive-runtime-status
+
+[Install]
+WantedBy=multi-user.target

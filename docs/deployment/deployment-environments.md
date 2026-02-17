@@ -4,14 +4,14 @@
 
 ⚠️ **Production deployment is restricted.** Contact devops for production deploys.
 
-**Domain:** `terminal.goalive.nl`
+**Domain:** `terminal.alive.best`
 **Port:** `9000`
 **Process:** `alive-production`
 **Mode:** Standalone Next.js server
 
 ## Staging
 
-**Domain:** `staging.terminal.goalive.nl`
+**Domain:** `staging.terminal.alive.best`
 **Port:** `8998`
 **Process:** `alive-staging`
 **Mode:** Standalone Next.js server
@@ -30,7 +30,7 @@ systemctl restart alive-staging      # restart
 
 ## Dev
 
-**Domain:** `dev.terminal.goalive.nl`
+**Domain:** `dev.terminal.alive.best`
 **Port:** `8997`
 **Process:** `alive-dev`
 **Mode:** Dev server with hot reload
@@ -52,9 +52,9 @@ systemctl restart alive-dev     # restart
 ```
 Internet → Caddy (80/443)
   ↓
-terminal.goalive.nl → localhost:9000 (production - restricted)
-staging.terminal.goalive.nl → localhost:8998 (staging - accessible)
-dev.terminal.goalive.nl → localhost:8997 (dev - accessible)
+terminal.alive.best → localhost:9000 (production - restricted)
+staging.terminal.alive.best → localhost:8998 (staging - accessible)
+dev.terminal.alive.best → localhost:8997 (dev - accessible)
 ```
 
 ## Caddy Config
@@ -62,15 +62,15 @@ dev.terminal.goalive.nl → localhost:8997 (dev - accessible)
 **Location:** `/root/alive/ops/caddy/Caddyfile`
 
 ```caddy
-terminal.goalive.nl {
+terminal.alive.best {
     reverse_proxy localhost:9000
 }
 
-staging.terminal.goalive.nl {
+staging.terminal.alive.best {
     reverse_proxy localhost:8998
 }
 
-dev.terminal.goalive.nl {
+dev.terminal.alive.best {
     reverse_proxy localhost:8997
 }
 ```
@@ -100,11 +100,11 @@ Builds isolated in `.builds/v{n}/`, old version remains running until new build 
 
 After deployment:
 
-- [ ] Site responds: `curl -H "Host: staging.terminal.goalive.nl" localhost:8998`
+- [ ] Site responds: `curl -H "Host: staging.terminal.alive.best" localhost:8998`
 - [ ] Systemd shows running: `systemctl status alive-staging`
 - [ ] Logs clean: `journalctl -u alive-staging -n 50 | grep -i error` (no errors)
 - [ ] Caddy active: `systemctl status caddy`
-- [ ] Public domain works: `curl https://terminal.goalive.nl`
+- [ ] Public domain works: `curl https://terminal.alive.best`
 
 ## Troubleshooting
 

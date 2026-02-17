@@ -44,7 +44,7 @@ sudo systemctl start nginx
 ## Shell Domains
 
 Currently routed to caddy-shell:
-- `go.goalive.nl`
+- `go.alive.best`
 
 To add more, edit the `map` block in nginx.conf and reload:
 ```bash

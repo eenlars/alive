@@ -48,6 +48,21 @@ interface ChildEvent {
   sessionId?: string
 }
 
+interface AssistantMessageBlock {
+  type?: unknown
+  text?: unknown
+}
+
+interface AssistantMessageContent {
+  content?: unknown
+}
+
+interface AssistantSDKErrorContent {
+  type?: unknown
+  error?: unknown
+  message?: AssistantMessageContent
+}
+
 /**
  * Shared cancellation state between registry and stream
  */
@@ -169,6 +184,97 @@ async function chargeCreditsForMessage(
 }
 
 /**
+ * Extract a short, human-readable preview from assistant message content.
+ */
+function extractAssistantTextPreview(content: AssistantSDKErrorContent): string | null {
+  const blocks = content.message?.content
+  if (!Array.isArray(blocks)) {
+    return null
+  }
+
+  const previewParts = (blocks as AssistantMessageBlock[])
+    .filter(block => block.type === "text" && typeof block.text === "string")
+    .map(block => block.text as string)
+    .join("\n")
+    .trim()
+
+  if (!previewParts) {
+    return null
+  }
+
+  return previewParts.slice(0, 500)
+}
+
+/**
+ * Capture SDK assistant error telemetry with rich context.
+ * This helps identify whether the error originated from the SDK/Anthropic side
+ * vs our own platform credit logic.
+ */
+function captureAssistantSdkErrorTelemetry(
+  childEvent: ChildEvent,
+  requestId: string,
+  workspace: string,
+  model: ClaudeModel,
+  tokenSource: "workspace" | "user_provided",
+  capturedErrorTypes: Set<string>,
+): void {
+  if (childEvent.type !== BridgeStreamType.MESSAGE || childEvent.messageType !== "assistant") {
+    return
+  }
+  if (!childEvent.content || typeof childEvent.content !== "object") {
+    return
+  }
+
+  const assistantContent = childEvent.content as AssistantSDKErrorContent
+  const sdkErrorType = typeof assistantContent.error === "string" ? assistantContent.error : null
+  if (!sdkErrorType) {
+    return
+  }
+
+  // Avoid duplicate Sentry events for the same SDK error type within one request.
+  if (capturedErrorTypes.has(sdkErrorType)) {
+    return
+  }
+  capturedErrorTypes.add(sdkErrorType)
+
+  const assistantTextPreview = extractAssistantTextPreview(assistantContent)
+  let rawContentPreview = ""
+  try {
+    rawContentPreview = JSON.stringify(assistantContent).slice(0, 2000)
+  } catch {
+    rawContentPreview = "[unserializable_assistant_content]"
+  }
+
+  console.error(
+    `[NDJSON Stream ${requestId}] SDK assistant error '${sdkErrorType}' (workspace=${workspace}, model=${model})`,
+  )
+
+  Sentry.withScope(scope => {
+    scope.setLevel("error")
+    scope.setTag("error_source", "claude_agent_sdk_assistant_message")
+    scope.setTag("sdk_error_type", sdkErrorType)
+    scope.setTag("workspace", workspace)
+    scope.setTag("model", model)
+    scope.setTag("token_source", tokenSource)
+    scope.setContext("sdk_assistant_error", {
+      requestId,
+      workspace,
+      model,
+      tokenSource,
+      source: "assistant_message.error",
+      childEventType: childEvent.type,
+      messageType: childEvent.messageType,
+      messageCount: childEvent.messageCount ?? null,
+      assistantTextPreview: assistantTextPreview ?? "",
+      rawContentPreview,
+    })
+    Sentry.captureException(
+      new Error(`[SDK_ASSISTANT_ERROR] type=${sdkErrorType} source=assistant_message.error requestId=${requestId}`),
+    )
+  })
+}
+
+/**
  * Process a single child event - handle session or message
  * Encapsulates the session/message routing logic to avoid duplication
  *
@@ -184,6 +290,7 @@ async function processChildEvent(
   model: ClaudeModel,
   onSessionIdReceived: ((sessionId: string) => Promise<void>) | undefined,
   controller: ReadableStreamDefaultController<Uint8Array>,
+  capturedAssistantErrorTypes: Set<string>,
   onMessage?: (message: StreamMessage | BridgeErrorMessage) => void,
 ): Promise<{ isComplete: boolean }> {
   // Handle session ID storage (server-side only)
@@ -209,6 +316,8 @@ async function processChildEvent(
   }
 
   // Build message and send to client (includes tabId for routing)
+  captureAssistantSdkErrorTelemetry(childEvent, requestId, workspace, model, tokenSource, capturedAssistantErrorTypes)
+
   const message = buildStreamMessage(childEvent, requestId, tabId)
 
   // Only charge credits if using workspace credits (not user API key)
@@ -391,6 +500,7 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
     async start(controller) {
       const reader = childStream.getReader()
       cancelState.reader = reader // Store for explicit cancellation
+      const capturedAssistantErrorTypes = new Set<string>()
       let buffer = ""
 
       // Inject OAuth warnings at the start of the stream
@@ -463,6 +573,7 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
                 model,
                 onSessionIdReceived,
                 controller,
+                capturedAssistantErrorTypes,
                 onMessage,
               )
 
@@ -501,6 +612,7 @@ export function createNDJSONStream(config: StreamHandlerConfig): ReadableStream<
               model,
               onSessionIdReceived,
               controller,
+              capturedAssistantErrorTypes,
               onMessage,
             )
 

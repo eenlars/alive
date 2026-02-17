@@ -44,7 +44,7 @@ Tenant IDs are derived from workspace paths:
 Images are accessible via `/_images/*` paths:
 
 ```
-https://terminal.goalive.nl/_images/t/larsvandeneeden.com/o/f4b33c6157d6346d/v/w640.webp
+https://terminal.alive.best/_images/t/larsvandeneeden.com/o/f4b33c6157d6346d/v/w640.webp
 https://larsvandeneeden.com/_images/t/larsvandeneeden.com/o/f4b33c6157d6346d/v/thumb.webp
 ```
 
@@ -65,7 +65,7 @@ All domains use `handle_path /_images/*` which strips the `/_images` prefix:
 }
 
 # In /etc/caddy/Caddyfile
-terminal.goalive.nl {
+terminal.alive.best {
     handle_path /_images/* {
         root * /srv/webalive/storage
         header Cache-Control "public, max-age=31536000, immutable"
@@ -125,7 +125,7 @@ The photobook page (`/photobook`) automatically:
 
 ## CloudFlare Considerations
 
-**Issue**: `terminal.goalive.nl` goes through CloudFlare which aggressively caches 404s
+**Issue**: `terminal.alive.best` goes through CloudFlare which aggressively caches 404s
 
 **Solution**:
 - Caddy configuration is correct for all domains

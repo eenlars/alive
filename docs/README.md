@@ -27,6 +27,7 @@
 | [Deployment](./deployment/README.md) | Environment management, deployment procedures |
 | [Integrations](./integrations/README.md) | External service setup (Supabase, OAuth) |
 | [Operations](./operations/README.md) | Infrastructure, shell server, reverse proxy |
+| [Single-Customer Hosting Decision](./guides/single-customer-hosting-decision-2026-02.md) | Hetzner vs Render vs Fly.io for one-site compliant isolation |
 
 ## Business & Strategy
 
@@ -60,4 +61,4 @@ Historical documentation, completed work, and open investigations:
 
 ---
 
-**Last updated**: 2026-02-03 | **Maintainer**: Alive Team
+**Last updated**: 2026-02-16 | **Maintainer**: Alive Team

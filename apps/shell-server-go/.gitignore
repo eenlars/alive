@@ -2,6 +2,7 @@
 dist/
 tmp/
 shell-server
+shell-server-go
 
 # Session and state files
 .sessions.json

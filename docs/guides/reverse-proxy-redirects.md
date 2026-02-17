@@ -5,14 +5,14 @@
 When Next.js runs behind a reverse proxy (Caddy), `req.url` contains `localhost:PORT` instead of the actual public domain. This causes redirects to use localhost URLs instead of the proper domain.
 
 **Example:**
-- User visits: `https://dev.terminal.goalive.nl/api/auth/linear`
+- User visits: `https://dev.terminal.alive.best/api/auth/linear`
 - `req.url` contains: `http://localhost:8997/api/auth/linear`
 - Redirect goes to: `https://localhost:8997/settings` ❌
 
 ## Root Cause
 
 Next.js doesn't automatically rewrite `req.url` based on `X-Forwarded-*` headers for security reasons. When Caddy forwards requests, it sets these headers:
-- `X-Forwarded-Host: dev.terminal.goalive.nl`
+- `X-Forwarded-Host: dev.terminal.alive.best`
 - `X-Forwarded-Proto: https`
 - `Host: localhost:8997`
 
@@ -29,8 +29,8 @@ export async function GET(req: NextRequest) {
   // Get correct URLs from proxy headers (single header parse)
   const { baseUrl, fullUrl } = getRequestUrls(req)
 
-  // baseUrl: "https://dev.terminal.goalive.nl"
-  // fullUrl: "https://dev.terminal.goalive.nl/api/auth/linear?code=..."
+  // baseUrl: "https://dev.terminal.alive.best"
+  // fullUrl: "https://dev.terminal.alive.best/api/auth/linear?code=..."
 
   // Use baseUrl for redirects
   return NextResponse.redirect(
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
 ## Environment Variables
 
 The environment-specific redirect URIs are set in:
-- `.env.development` - Dev environment (dev.terminal.goalive.nl)
+- `.env.development` - Dev environment (dev.terminal.alive.best)
 - `.env.staging` - Staging environment
 - `.env.production` - Production environment
 

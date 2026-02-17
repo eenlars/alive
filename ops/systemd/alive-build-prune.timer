@@ -1,0 +1,11 @@
+[Unit]
+Description=Alive Build Retention Prune Timer (daily)
+Requires=alive-build-prune.service
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

@@ -7,6 +7,9 @@ alrighty_files=()
 for f in "$@"; do
   if [[ "$f" == packages/alrighty/* || "$f" == */packages/alrighty/* ]]; then
     alrighty_files+=("${f#*packages/alrighty/}")
+  elif [[ "$f" == *apps/shell-server-go/* ]]; then
+    # Skip: biome formatting disabled for Go app's client files
+    continue
   else
     root_files+=("$f")
   fi

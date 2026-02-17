@@ -103,7 +103,7 @@ export function ShellPage() {
   const backLabel = config?.allowWorkspaceSelection ? "Dashboard" : "Exit"
 
   const createTab = useCallback(
-    (options?: { initialCommand?: string; name?: string }) => {
+    async (options?: { initialCommand?: string; name?: string }) => {
       if (tabsRef.current.length >= MAX_TABS) {
         alert(`Maximum ${MAX_TABS} tabs allowed`)
         return null
@@ -155,7 +155,36 @@ export function ShellPage() {
       term.open(wrapper)
 
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws?workspace=${workspace}`)
+      let leaseToken = ""
+      try {
+        const body = new URLSearchParams({ workspace })
+        const leaseResponse = await fetch("/api/ws-lease", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          credentials: "same-origin",
+          body: body.toString(),
+        })
+
+        if (!leaseResponse.ok) {
+          throw new Error(`Lease request failed with status ${leaseResponse.status}`)
+        }
+
+        const leasePayload = await leaseResponse.json()
+        if (!leasePayload?.lease || typeof leasePayload.lease !== "string") {
+          throw new Error("Lease response missing token")
+        }
+
+        leaseToken = leasePayload.lease
+      } catch (error) {
+        setIsLoading(false)
+        const message = error instanceof Error ? error.message : String(error)
+      term.write(`\r\n\x1b[31mFailed to create terminal lease: ${message}\x1b[0m\r\n`)
+        term.dispose()
+        wrapper.remove()
+        return null
+      }
+
+      const ws = new WebSocket(`${protocol}//${window.location.host}/ws?lease=${encodeURIComponent(leaseToken)}`)
 
       ws.onopen = () => {
         setIsLoading(false)

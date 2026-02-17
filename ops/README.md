@@ -16,6 +16,10 @@ ops/
 │   ├── README.md               # systemd setup guide
 │   ├── webalive-mode-check.service    # Mode verification service
 │   ├── webalive-mode-check.timer      # Mode verification timer
+│   ├── alive-runtime-status.service   # Runtime health checks
+│   ├── alive-runtime-status.timer     # Runtime checks every 5 min
+│   ├── alive-build-prune.service      # Build retention cleanup
+│   ├── alive-build-prune.timer        # Daily build pruning
 │   └── ...
 ├── scripts/                     # Operational scripts (server mgmt only)
 │   ├── README.md               # Script documentation
@@ -82,6 +86,10 @@ systemd service and timer templates for site management.
 **Files:**
 - `webalive-mode-check.service` - Verifies site modes hourly
 - `webalive-mode-check.timer` - Scheduling for verification
+- `alive-runtime-status.service` - Checks disk/runtime/API health
+- `alive-runtime-status.timer` - Runs health checks every 5 minutes
+- `alive-build-prune.service` - Prunes old build artifacts
+- `alive-build-prune.timer` - Runs pruning daily
 
 **Management:**
 ```bash
@@ -109,13 +117,23 @@ See `/ops/scripts/README.md` for full documentation.
 
 ### First-Time Setup
 ```bash
+# Preferred: repo-driven setup (installs generated + ops timers with correct ALIVE_ROOT)
+bun run setup:server --enable
+
+# Or manual setup:
+
 # Copy scripts to /usr/local/bin
 sudo cp ops/scripts/*.sh /usr/local/bin/
 sudo chmod +x /usr/local/bin/*.sh
 
-# Copy systemd units
-sudo cp ops/systemd/*.service /etc/systemd/system/
-sudo cp ops/systemd/*.timer /etc/systemd/system/
+# Copy generated Alive app services
+sudo cp /var/lib/alive/generated/alive-*.service /etc/systemd/system/
+
+# Install ops timers/services with ALIVE_ROOT placeholder resolved
+ALIVE_ROOT=/root/webalive/alive
+for unit in alive-runtime-status.service alive-runtime-status.timer alive-build-prune.service alive-build-prune.timer webalive-mode-check.service webalive-mode-check.timer; do
+  sed "s#__ALIVE_ROOT__#${ALIVE_ROOT}#g" "ops/systemd/$unit" | sudo tee "/etc/systemd/system/$unit" >/dev/null
+done
 sudo systemctl daemon-reload
 
 # Initialize registry
@@ -125,6 +143,8 @@ sudo cp ops/scripts/site-modes.json.template /var/lib/webalive/site-modes.json
 # Enable and start services
 sudo systemctl enable webalive-mode-check.timer
 sudo systemctl start webalive-mode-check.timer
+sudo systemctl enable --now alive-runtime-status.timer
+sudo systemctl enable --now alive-build-prune.timer
 ```
 
 ### Initialize Monitoring
@@ -168,6 +188,12 @@ journalctl -u 'site@*.service' -n 50 -e
 ```bash
 # Check verification timer
 systemctl status webalive-mode-check.timer
+
+# Check runtime health timer
+systemctl status alive-runtime-status.timer
+
+# Check build prune timer
+systemctl status alive-build-prune.timer
 
 # View verification logs
 tail -f /var/log/webalive-mode-check.log

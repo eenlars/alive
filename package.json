@@ -64,6 +64,8 @@
     "redis:cli": "bun --filter @webalive/redis cli",
     "redis:health": "bun --filter @webalive/redis health",
     "redis:test": "bun --filter @webalive/redis test:integration",
+    "runtime:status": "bun scripts/maintenance/runtime-status-check.ts --env production",
+    "builds:prune": "bun scripts/deployment/prune-old-builds.ts --days 7",
     "see": "journalctl -u alive-production -n 1000 -f",
     "see:dev": "journalctl -u alive-dev -n 1000 -f",
     "shell-server": "cd apps/shell-server-go && make build && systemctl restart shell-server",

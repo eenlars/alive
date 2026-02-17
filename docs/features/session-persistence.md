@@ -60,13 +60,13 @@ localStorage['claude-session-storage'] = {
   sessions: [
     {
       conversationId: "uuid-1",
-      workspace: "demo.goalive.nl",
+      workspace: "demo.alive.best",
       lastActivity: 1699564800000
     },
     // ... up to 10 sessions
   ],
   currentConversationId: "uuid-1",
-  currentWorkspace: "demo.goalive.nl"
+  currentWorkspace: "demo.alive.best"
 }
 ```
 
@@ -160,7 +160,7 @@ Add to store:
 ## Testing
 
 **Manual Test Flow:**
-1. Visit chat page (e.g., `demo.goalive.nl/chat`)
+1. Visit chat page (e.g., `demo.alive.best/chat`)
 2. Send a message → note conversationId in DevTools
 3. Close browser completely
 4. Reopen chat page

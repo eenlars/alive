@@ -1,0 +1,13 @@
+[Unit]
+Description=Alive Runtime Status Check Timer (every 5 minutes)
+Requires=alive-runtime-status.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+RandomizedDelaySec=20s
+
+[Install]
+WantedBy=timers.target

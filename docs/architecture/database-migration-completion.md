@@ -170,7 +170,7 @@ Supabase Database
 ┌─────────────────────────────────────────────────┐
 │ 4. Session Cookie Set                           │
 │    httpOnly, secure, sameSite=none              │
-│    domain: .terminal.goalive.nl                 │
+│    domain: .terminal.alive.best                 │
 │    maxAge: 30 days                              │
 └─────────────────────────────────────────────────┘
 
