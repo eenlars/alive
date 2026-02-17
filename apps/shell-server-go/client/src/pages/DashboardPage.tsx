@@ -2,6 +2,7 @@ import { useConfig } from "../store/config"
 
 export function DashboardPage() {
   const config = useConfig()
+  const defaultWorkspace = encodeURIComponent(config?.defaultWorkspace || "root")
 
   return (
     <div className="m-0 p-5 box-border font-sans bg-shell-bg min-h-screen flex items-center justify-center">
@@ -20,7 +21,7 @@ export function DashboardPage() {
         {/* Options Grid */}
         <div className="bg-shell-surface p-6 rounded-b-lg grid grid-cols-1 md:grid-cols-3 gap-5">
           <a
-            href="/shell?workspace=root"
+            href={`/shell?workspace=${defaultWorkspace}`}
             className="bg-shell-bg border-2 border-shell-border rounded-lg py-8 px-4 text-center cursor-pointer transition-all hover:border-shell-accent hover:bg-[#252525] no-underline block"
           >
             <div className="text-5xl mb-4">🖥️</div>
@@ -29,7 +30,7 @@ export function DashboardPage() {
           </a>
 
           <a
-            href="/upload?workspace=root"
+            href={`/upload?workspace=${defaultWorkspace}`}
             className="bg-shell-bg border-2 border-shell-border rounded-lg py-8 px-4 text-center cursor-pointer transition-all hover:border-shell-accent hover:bg-[#252525] no-underline block"
           >
             <div className="text-5xl mb-4">📦</div>

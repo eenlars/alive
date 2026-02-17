@@ -1,4 +1,4 @@
-package handlers
+package terminal
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,20 +22,16 @@ import (
 	"github.com/gorilla/websocket"
 
 	"shell-server-go/internal/config"
+	httpxmiddleware "shell-server-go/internal/httpx/middleware"
+	"shell-server-go/internal/httpx/response"
 	"shell-server-go/internal/logger"
-	"shell-server-go/internal/middleware"
 	"shell-server-go/internal/session"
+	workspacepkg "shell-server-go/internal/workspace"
 )
 
 const (
 	// MaxConcurrentConnections is the maximum number of simultaneous WebSocket connections
 	MaxConcurrentConnections = 50
-
-	// ConnectionTimeout is the maximum lifetime of a WebSocket connection
-	ConnectionTimeout = 4 * time.Hour
-
-	// IdleTimeout is how long a connection can be idle before being closed
-	IdleTimeout = 30 * time.Minute
 
 	// WriteTimeout is the timeout for writing to WebSocket
 	WriteTimeout = 10 * time.Second
@@ -51,13 +47,9 @@ const (
 
 	// WSLeaseTTL is the validity period for a WebSocket lease token
 	WSLeaseTTL = 90 * time.Second
-)
 
-var (
-	ErrMissingLease       = errors.New("missing lease token")
-	ErrInvalidLease       = errors.New("invalid lease token")
-	ErrExpiredLease       = errors.New("expired lease token")
-	ErrLeaseSessionDenied = errors.New("lease session mismatch")
+	// LatencySampleWindow limits latency sample memory while preserving stable percentiles.
+	LatencySampleWindow = 2048
 )
 
 var wsLog = logger.WithComponent("WS")
@@ -66,7 +58,7 @@ var wsLog = logger.WithComponent("WS")
 type WSHandler struct {
 	config           *config.AppConfig
 	sessions         *session.Store
-	resolver         *PathResolver
+	resolver         *workspacepkg.Resolver
 	leaseMu          sync.Mutex
 	leases           map[string]WSLease
 	upgrader         websocket.Upgrader
@@ -82,6 +74,7 @@ type connInfo struct {
 	pid        int
 	startTime  time.Time
 	cancelFunc context.CancelFunc
+	latency    *wsLatencyTracker
 	writeMu    sync.Mutex // Protects concurrent writes to websocket
 }
 
@@ -93,6 +86,9 @@ type WSMessage struct {
 	Rows     int    `json:"rows,omitempty"`
 	ExitCode int    `json:"exitCode,omitempty"`
 	Message  string `json:"message,omitempty"`
+	P50Ms    int64  `json:"p50Ms,omitempty"`
+	P95Ms    int64  `json:"p95Ms,omitempty"`
+	Samples  int    `json:"samples,omitempty"`
 }
 
 // WSLease is a one-time token that authorizes one WebSocket terminal upgrade.
@@ -104,16 +100,108 @@ type WSLease struct {
 	ExpiresAt    time.Time
 }
 
+type latencySummary struct {
+	Samples int
+	P50     time.Duration
+	P95     time.Duration
+}
+
+type wsLatencyTracker struct {
+	mu      sync.Mutex
+	pending []time.Time
+	samples []time.Duration
+}
+
+func newWSLatencyTracker() *wsLatencyTracker {
+	return &wsLatencyTracker{
+		pending: make([]time.Time, 0, 256),
+		samples: make([]time.Duration, 0, LatencySampleWindow),
+	}
+}
+
+func (t *wsLatencyTracker) noteInput(ts time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.pending) >= LatencySampleWindow {
+		copy(t.pending, t.pending[1:])
+		t.pending = t.pending[:LatencySampleWindow-1]
+	}
+	t.pending = append(t.pending, ts)
+}
+
+func (t *wsLatencyTracker) noteOutput(ts time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.pending) == 0 {
+		return
+	}
+
+	start := t.pending[0]
+	t.pending = t.pending[1:]
+
+	d := ts.Sub(start)
+	if d < 0 || d > 10*time.Second {
+		return
+	}
+
+	if len(t.samples) >= LatencySampleWindow {
+		copy(t.samples, t.samples[1:])
+		t.samples = t.samples[:LatencySampleWindow-1]
+	}
+	t.samples = append(t.samples, d)
+}
+
+func (t *wsLatencyTracker) summary() latencySummary {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if len(t.samples) == 0 {
+		return latencySummary{}
+	}
+
+	sorted := make([]time.Duration, len(t.samples))
+	copy(sorted, t.samples)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+
+	return latencySummary{
+		Samples: len(sorted),
+		P50:     percentileDuration(sorted, 50),
+		P95:     percentileDuration(sorted, 95),
+	}
+}
+
+func percentileDuration(sorted []time.Duration, percentile int) time.Duration {
+	if len(sorted) == 0 {
+		return 0
+	}
+	if percentile <= 0 {
+		return sorted[0]
+	}
+	if percentile >= 100 {
+		return sorted[len(sorted)-1]
+	}
+
+	index := (percentile*(len(sorted)-1) + 50) / 100
+	if index < 0 {
+		index = 0
+	}
+	if index >= len(sorted) {
+		index = len(sorted) - 1
+	}
+	return sorted[index]
+}
+
 // NewWSHandler creates a new WebSocket handler
 func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 	return &WSHandler{
 		config:   cfg,
 		sessions: sessions,
-		resolver: NewPathResolver(cfg),
+		resolver: workspacepkg.NewResolver(cfg),
 		leases:   make(map[string]WSLease),
 		upgrader: websocket.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
+			ReadBufferSize:    1024,
+			WriteBufferSize:   1024,
+			EnableCompression: false,
 			CheckOrigin: func(r *http.Request) bool {
 				// In production, validate origin against allowed domains
 				origin := r.Header.Get("Origin")
@@ -140,34 +228,34 @@ func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 
 // CreateLease issues a short-lived single-use token for a terminal WebSocket connection.
 func (h *WSHandler) CreateLease(w http.ResponseWriter, r *http.Request) {
-	if !ParseFormRequest(w, r) {
+	if !httpxmiddleware.ParseFormRequest(w, r) {
 		return
 	}
 
-	sessionToken := middleware.GetSessionToken(r)
+	sessionToken := httpxmiddleware.GetSessionToken(r)
 	if sessionToken == "" || !h.sessions.Valid(sessionToken) {
-		http.Error(w, `{"error":"Unauthorized"}`, http.StatusUnauthorized)
+		response.Unauthorized(w)
 		return
 	}
 
-	requestedWorkspace := GetWorkspace(r)
+	requestedWorkspace := workspacepkg.WorkspaceFromForm(r, h.sessions)
 
 	leaseToken, lease, err := h.createLease(sessionToken, requestedWorkspace)
 	if err != nil {
-		var pathErr *PathSecurityError
+		var pathErr *workspacepkg.PathSecurityError
 		switch {
 		case errors.As(err, &pathErr):
-			HandlePathSecurityError(w, err)
+			workspacepkg.HandlePathSecurityError(w, err)
 		case os.IsNotExist(err):
-			jsonError(w, "Workspace not found", http.StatusNotFound)
+			response.Error(w, http.StatusNotFound, "Workspace not found")
 		default:
 			wsLog.Error("Failed to create WS lease | workspace=%s err=%v", requestedWorkspace, err)
-			jsonError(w, "Failed to create terminal lease", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "Failed to create terminal lease")
 		}
 		return
 	}
 
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]interface{}{
 		"lease":     leaseToken,
 		"workspace": lease.Workspace,
 		"expiresAt": lease.ExpiresAt.UnixMilli(),
@@ -177,12 +265,12 @@ func (h *WSHandler) CreateLease(w http.ResponseWriter, r *http.Request) {
 // Handle handles WebSocket connections
 func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	// Check authentication
-	if !middleware.IsAuthenticated(r, h.sessions) {
+	if !httpxmiddleware.IsAuthenticated(r, h.sessions) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	sessionToken := middleware.GetSessionToken(r)
+	sessionToken := httpxmiddleware.GetSessionToken(r)
 	if sessionToken == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -204,12 +292,14 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Re-validate workspace boundary (defense-in-depth: lease was created earlier,
-	// workspace could have been replaced with a symlink between lease creation and now)
-	if err := validateSiteWorkspaceBoundary(cwd, h.config.ResolvedSitesPath); err != nil {
-		wsLog.Warn("Workspace boundary re-validation failed: %v", err)
-		http.Error(w, "Invalid workspace", http.StatusForbidden)
-		return
+	// Re-validate workspace boundary (defense-in-depth) for site workspaces.
+	// Root workspace is intentionally outside sitesPath and should not be validated here.
+	if runAsOwner {
+		if err := workspacepkg.ValidateSiteWorkspaceBoundary(cwd, h.config.ResolvedSitesPath); err != nil {
+			wsLog.Warn("Workspace boundary re-validation failed: %v", err)
+			http.Error(w, "Invalid workspace", http.StatusForbidden)
+			return
+		}
 	}
 
 	// Validate workspace directory exists and is a directory
@@ -237,6 +327,10 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ensure proxy chain preserves websocket stream behavior.
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("Cache-Control", "no-cache, no-transform")
+
 	// Upgrade connection
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -244,12 +338,14 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	conn.EnableWriteCompression(false)
+
 	// Track connection
 	atomic.AddInt32(&h.activeConns, 1)
 	defer atomic.AddInt32(&h.activeConns, -1)
 
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), ConnectionTimeout)
+	// Keep terminal session persistent until explicit disconnect/shutdown.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Store connection info
@@ -257,6 +353,7 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		workspace:  workspace,
 		startTime:  time.Now(),
 		cancelFunc: cancel,
+		latency:    newWSLatencyTracker(),
 	}
 	h.connections.Store(conn, info)
 	defer h.connections.Delete(conn)
@@ -279,6 +376,18 @@ func (h *WSHandler) runPTYSession(
 	// Ensure connection is closed when we exit
 	defer func() {
 		conn.Close()
+		summary := info.latency.summary()
+		if summary.Samples > 0 {
+			wsLog.Info(
+				"Connection closed | workspace=%s duration=%v latency_samples=%d latency_p50_ms=%d latency_p95_ms=%d",
+				info.workspace,
+				time.Since(info.startTime),
+				summary.Samples,
+				summary.P50.Milliseconds(),
+				summary.P95.Milliseconds(),
+			)
+			return
+		}
 		wsLog.Info("Connection closed | workspace=%s duration=%v", info.workspace, time.Since(info.startTime))
 	}()
 
@@ -349,7 +458,8 @@ func (h *WSHandler) runPTYSession(
 				return
 			}
 			if n > 0 {
-				if err := h.sendMessage(conn, info, WSMessage{Type: "data", Data: string(buf[:n])}); err != nil {
+				info.latency.noteOutput(time.Now())
+				if err := h.sendBinary(conn, info, buf[:n]); err != nil {
 					wsLog.Debug("WebSocket write failed: %v | pid=%d", err, info.pid)
 					return
 				}
@@ -362,12 +472,24 @@ func (h *WSHandler) runPTYSession(
 		defer close(wsClosed)
 
 		for {
-			_, message, err := conn.ReadMessage()
+			msgType, message, err := conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNormalClosure) {
 					wsLog.Debug("WebSocket read error: %v | pid=%d", err, info.pid)
 				}
 				return
+			}
+
+			if msgType == websocket.BinaryMessage {
+				if len(message) == 0 {
+					continue
+				}
+				if _, err := ptmx.Write(message); err != nil {
+					wsLog.Debug("PTY write failed: %v | pid=%d", err, info.pid)
+					return
+				}
+				info.latency.noteInput(time.Now())
+				continue
 			}
 
 			var msg WSMessage
@@ -382,6 +504,7 @@ func (h *WSHandler) runPTYSession(
 					wsLog.Debug("PTY write failed: %v | pid=%d", err, info.pid)
 					return
 				}
+				info.latency.noteInput(time.Now())
 			case "resize":
 				if msg.Cols > 0 && msg.Rows > 0 {
 					if err := pty.Setsize(ptmx, &pty.Winsize{
@@ -436,9 +559,14 @@ func (h *WSHandler) runPTYSession(
 				exitCode = -1
 			}
 		}
+	case <-wsClosed:
+		wsLog.Debug("WebSocket closed by client | pid=%d workspace=%s", info.pid, info.workspace)
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+		exitCode = -1
 	case <-ctx.Done():
-		wsLog.Info("Connection timeout | pid=%d workspace=%s", info.pid, info.workspace)
-		// Kill the process if context is cancelled
+		// Kill the process if context is cancelled.
 		if cmd.Process != nil {
 			cmd.Process.Kill()
 		}
@@ -484,6 +612,14 @@ func (h *WSHandler) sendMessage(conn *websocket.Conn, info *connInfo, msg WSMess
 	defer info.writeMu.Unlock()
 	conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
 	return conn.WriteMessage(websocket.TextMessage, data)
+}
+
+// sendBinary sends raw PTY bytes with minimal framing overhead (thread-safe).
+func (h *WSHandler) sendBinary(conn *websocket.Conn, info *connInfo, payload []byte) error {
+	info.writeMu.Lock()
+	defer info.writeMu.Unlock()
+	conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
+	return conn.WriteMessage(websocket.BinaryMessage, payload)
 }
 
 // sendPing sends a ping message (thread-safe)
@@ -542,9 +678,12 @@ type ConnectionStats struct {
 
 // ConnectionDetail contains details about a single connection
 type ConnectionDetail struct {
-	Workspace string `json:"workspace"`
-	PID       int    `json:"pid"`
-	Duration  string `json:"duration"`
+	Workspace      string `json:"workspace"`
+	PID            int    `json:"pid"`
+	Duration       string `json:"duration"`
+	LatencySamples int    `json:"latencySamples,omitempty"`
+	KeypressP50Ms  int64  `json:"keypressP50Ms,omitempty"`
+	KeypressP95Ms  int64  `json:"keypressP95Ms,omitempty"`
 }
 
 // GetStats returns connection statistics
@@ -558,10 +697,14 @@ func (h *WSHandler) GetStats(includeDetails bool) ConnectionStats {
 		var details []ConnectionDetail
 		h.connections.Range(func(key, value interface{}) bool {
 			if info, ok := value.(*connInfo); ok {
+				summary := info.latency.summary()
 				details = append(details, ConnectionDetail{
-					Workspace: info.workspace,
-					PID:       info.pid,
-					Duration:  time.Since(info.startTime).Round(time.Second).String(),
+					Workspace:      info.workspace,
+					PID:            info.pid,
+					Duration:       time.Since(info.startTime).Round(time.Second).String(),
+					LatencySamples: summary.Samples,
+					KeypressP50Ms:  summary.P50.Milliseconds(),
+					KeypressP95Ms:  summary.P95.Milliseconds(),
 				})
 			}
 			return true
@@ -584,7 +727,11 @@ func (h *WSHandler) createLease(sessionToken, workspaceQuery string) (string, WS
 		return "", WSLease{}, err
 	}
 	if !dirInfo.IsDir() {
-		return "", WSLease{}, &PathSecurityError{Op: "lease_workspace_not_dir", Path: cwd, Wrapped: ErrInvalidPath}
+		return "", WSLease{}, &workspacepkg.PathSecurityError{
+			Op:      "lease_workspace_not_dir",
+			Path:    cwd,
+			Wrapped: workspacepkg.ErrInvalidPath,
+		}
 	}
 
 	// If this workspace should run as owner, verify we can resolve credentials now.
@@ -677,37 +824,11 @@ func (h *WSHandler) resolveShellWorkspace(workspaceQuery string) (workspace stri
 		return "", "", false, err
 	}
 
-	if err := validateSiteWorkspaceBoundary(cwd, h.config.ResolvedSitesPath); err != nil {
+	if err := workspacepkg.ValidateSiteWorkspaceBoundary(cwd, h.config.ResolvedSitesPath); err != nil {
 		return "", "", false, err
 	}
 
 	return siteWorkspace, cwd, true, nil
-}
-
-func validateSiteWorkspaceBoundary(workspacePath, sitesPath string) error {
-	realSites, err := resolveRealPathOrAbs(sitesPath)
-	if err != nil {
-		return &PathSecurityError{Op: "resolve_sites_root", Path: sitesPath, Wrapped: ErrInvalidPath}
-	}
-
-	realWorkspace, err := resolveRealPathOrAbs(workspacePath)
-	if err != nil {
-		return &PathSecurityError{Op: "resolve_workspace_path", Path: workspacePath, Wrapped: ErrInvalidPath}
-	}
-
-	if !isWithinBase(realWorkspace, realSites) {
-		return &PathSecurityError{Op: "validate_sites_boundary", Path: workspacePath, Wrapped: ErrOutsideBoundary}
-	}
-
-	return nil
-}
-
-func resolveRealPathOrAbs(path string) (string, error) {
-	realPath, err := filepath.EvalSymlinks(path)
-	if err == nil {
-		return realPath, nil
-	}
-	return filepath.Abs(path)
 }
 
 func (h *WSHandler) resolveWorkspaceCredential(cwd string, runAsOwner bool) (*syscall.Credential, error) {

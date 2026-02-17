@@ -28,6 +28,7 @@ type Session struct {
 	CreatedAt  int64  `json:"createdAt"`
 	LastAccess int64  `json:"lastAccess"`
 	ExpiresAt  int64  `json:"expiresAt"`
+	Workspace  string `json:"workspace,omitempty"`
 	UserAgent  string `json:"userAgent,omitempty"`
 	RemoteAddr string `json:"remoteAddr,omitempty"`
 }
@@ -231,6 +232,7 @@ func (s *Store) cleanup() {
 type SessionInfo struct {
 	UserAgent  string
 	RemoteAddr string
+	Workspace  string
 }
 
 // Generate creates a new session token
@@ -256,6 +258,7 @@ func (s *Store) GenerateWithInfo(info SessionInfo) string {
 		CreatedAt:  now,
 		LastAccess: now,
 		ExpiresAt:  now + int64(s.expiration.Milliseconds()),
+		Workspace:  info.Workspace,
 		UserAgent:  info.UserAgent,
 		RemoteAddr: info.RemoteAddr,
 	}
@@ -316,6 +319,30 @@ func (s *Store) Touch(token string, extend bool) bool {
 	}
 
 	return true
+}
+
+// GetWorkspace returns the workspace bound to a session token, if any.
+func (s *Store) GetWorkspace(token string) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, ok := s.sessions[token]
+	if !ok {
+		return "", false
+	}
+
+	now := time.Now().UnixMilli()
+	if session.ExpiresAt <= now {
+		delete(s.sessions, token)
+		go func() {
+			if err := s.save(); err != nil {
+				log.Error("Failed to save after removing expired session: %v", err)
+			}
+		}()
+		return "", false
+	}
+
+	return session.Workspace, true
 }
 
 // Delete removes a session token

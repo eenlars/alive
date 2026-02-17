@@ -39,11 +39,12 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
   // If authenticated, redirect based on config
   if (isAuthenticated) {
+    const targetWorkspace = encodeURIComponent(config?.defaultWorkspace || "root")
     if (config?.allowWorkspaceSelection) {
       return <Navigate to="/dashboard" replace />
     }
-    // No workspace selection - open root workspace explicitly.
-    return <Navigate to="/shell?workspace=root" replace />
+    // No workspace selection - open the session's pinned workspace.
+    return <Navigate to={`/shell?workspace=${targetWorkspace}`} replace />
   }
 
   return <>{children}</>

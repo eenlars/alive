@@ -322,8 +322,20 @@ function renderCaddyShell(cfg: ServerConfig): string {
     .map(d => {
       return [
         `${d}${cfg.shell.listen} {`,
-        `    reverse_proxy ${cfg.shell.upstream} {`,
-        "        stream_close_delay 5m",
+        "    # Keep websocket terminal traffic unbuffered/untransformed through proxy chain.",
+        "    @ws path /ws /ws/*",
+        "    handle @ws {",
+        '        header Cache-Control "no-cache, no-transform"',
+        "        header X-Accel-Buffering no",
+        `        reverse_proxy ${cfg.shell.upstream} {`,
+        "            stream_close_delay 5m",
+        "        }",
+        "    }",
+        "",
+        "    handle {",
+        `        reverse_proxy ${cfg.shell.upstream} {`,
+        "            stream_close_delay 5m",
+        "        }",
         "    }",
         "}",
       ].join("\n")

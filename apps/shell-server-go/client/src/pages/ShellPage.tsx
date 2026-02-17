@@ -72,32 +72,59 @@ interface TerminalTab {
   searchAddon: SearchAddon
   ws: WebSocket
   element: HTMLDivElement
+  latency: TabLatency
+}
+
+interface TabLatency {
+  pending: number[]
+  samples: number[]
+  p50: number
+  p95: number
 }
 
 const MAX_TABS = 10
 const DESKTOP_FONT_SIZE = 14
 const DESKTOP_SCROLLBACK = 10000
+const LATENCY_WINDOW = 300
+const LATENCY_MAX_PENDING = 1024
+
+function percentile(values: number[], p: number): number {
+  if (values.length === 0) return 0
+  if (p <= 0) return values[0]
+  if (p >= 100) return values[values.length - 1]
+  const idx = Math.round((p / 100) * (values.length - 1))
+  return values[Math.max(0, Math.min(values.length - 1, idx))]
+}
 
 export function ShellPage() {
   const [searchParams] = useSearchParams()
-  const workspace = searchParams.get("workspace") || "root"
+  const requestedWorkspace = searchParams.get("workspace") || "root"
   const config = useConfig()
+  const workspace = config?.allowWorkspaceSelection ? requestedWorkspace : (config?.defaultWorkspace ?? requestedWorkspace)
 
   const [tabs, setTabs] = useState<TerminalTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [latencyStats, setLatencyStats] = useState({ p50: 0, p95: 0, samples: 0 })
 
   const shellContainerRef = useRef<HTMLDivElement>(null)
   const tabCounterRef = useRef(0)
   const tabsRef = useRef<TerminalTab[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const activeTabIdRef = useRef<string | null>(null)
+  const textEncoderRef = useRef(new TextEncoder())
+  const textDecoderRef = useRef(new TextDecoder())
 
   // Keep ref in sync
   useEffect(() => {
     tabsRef.current = tabs
   }, [tabs])
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTabId
+  }, [activeTabId])
 
   const backUrl = config?.allowWorkspaceSelection ? "/dashboard" : "/logout"
   const backLabel = config?.allowWorkspaceSelection ? "Dashboard" : "Exit"
@@ -185,23 +212,86 @@ export function ShellPage() {
       }
 
       const ws = new WebSocket(`${protocol}//${window.location.host}/ws?lease=${encodeURIComponent(leaseToken)}`)
+      ws.binaryType = "arraybuffer"
+
+      const latency: TabLatency = { pending: [], samples: [], p50: 0, p95: 0 }
+
+      const refreshLatency = () => {
+        if (latency.samples.length === 0) return
+        const sorted = [...latency.samples].sort((a, b) => a - b)
+        latency.p50 = percentile(sorted, 50)
+        latency.p95 = percentile(sorted, 95)
+        if (activeTabIdRef.current === id) {
+          setLatencyStats({
+            p50: latency.p50,
+            p95: latency.p95,
+            samples: latency.samples.length,
+          })
+        }
+      }
+
+      const noteEcho = () => {
+        if (latency.pending.length === 0) return
+        const startedAt = latency.pending.shift()!
+        const ms = performance.now() - startedAt
+        if (ms < 0 || ms > 10000) return
+        if (latency.samples.length >= LATENCY_WINDOW) {
+          latency.samples.shift()
+        }
+        latency.samples.push(ms)
+        refreshLatency()
+      }
+
+      const sendBinaryInput = (text: string) => {
+        if (ws.readyState !== WebSocket.OPEN) return
+        if (latency.pending.length >= LATENCY_MAX_PENDING) {
+          latency.pending.shift()
+        }
+        latency.pending.push(performance.now())
+        ws.send(textEncoderRef.current.encode(text))
+      }
 
       ws.onopen = () => {
         setIsLoading(false)
         ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }))
         if (options?.initialCommand) {
           setTimeout(() => {
-            ws.send(JSON.stringify({ type: "input", data: `${options.initialCommand}\n` }))
+            sendBinaryInput(`${options.initialCommand}\n`)
           }, 100)
         }
       }
 
-      ws.onmessage = event => {
-        const msg = JSON.parse(event.data)
-        if (msg.type === "data") {
-          term.write(msg.data)
-        } else if (msg.type === "exit") {
-          term.write(`\r\n\r\n[Process exited with code ${msg.exitCode}]\r\n`)
+      ws.onmessage = async event => {
+        if (typeof event.data === "string") {
+          try {
+            const msg = JSON.parse(event.data)
+            if (msg.type === "data" && typeof msg.data === "string") {
+              term.write(msg.data)
+              noteEcho()
+            } else if (msg.type === "exit") {
+              term.write(`\r\n\r\n[Process exited with code ${msg.exitCode}]\r\n`)
+            }
+            return
+          } catch {
+            term.write(event.data)
+            noteEcho()
+            return
+          }
+        }
+
+        let buffer: ArrayBuffer
+        if (event.data instanceof ArrayBuffer) {
+          buffer = event.data
+        } else if (event.data instanceof Blob) {
+          buffer = await event.data.arrayBuffer()
+        } else {
+          return
+        }
+
+        const data = textDecoderRef.current.decode(buffer)
+        if (data.length > 0) {
+          term.write(data)
+          noteEcho()
         }
       }
 
@@ -215,9 +305,7 @@ export function ShellPage() {
       }
 
       term.onData(data => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "input", data }))
-        }
+        sendBinaryInput(data)
       })
 
       term.onScroll(() => {
@@ -241,7 +329,7 @@ export function ShellPage() {
         })
       }
 
-      const tab: TerminalTab = { id, name, terminal: term, fitAddon, searchAddon, ws, element: wrapper }
+      const tab: TerminalTab = { id, name, terminal: term, fitAddon, searchAddon, ws, element: wrapper, latency }
 
       setTabs(prev => [...prev, tab])
       switchToTab(id, [...tabsRef.current, tab])
@@ -281,6 +369,11 @@ export function ShellPage() {
     allTabs.forEach(t => t.element.classList.remove("active"))
     tab.element.classList.add("active")
     setActiveTabId(id)
+    setLatencyStats({
+      p50: tab.latency.p50,
+      p95: tab.latency.p95,
+      samples: tab.latency.samples.length,
+    })
 
     // Expose for mobile toolbar
     ;(window as any).__activeTerminal = tab.terminal
@@ -422,7 +515,7 @@ export function ShellPage() {
   function sendInput(data: string) {
     const tab = tabsRef.current.find(t => t.id === activeTabId)
     if (tab && tab.ws.readyState === WebSocket.OPEN) {
-      tab.ws.send(JSON.stringify({ type: "input", data }))
+      tab.ws.send(textEncoderRef.current.encode(data))
     }
   }
 
@@ -614,8 +707,12 @@ export function ShellPage() {
 
       {/* Desktop keyboard shortcuts hint */}
       {!isMobile && (
-        <div className="fixed bottom-2 right-2 text-[11px] text-[#5c5c5c] z-10 select-none pointer-events-none">
-          Ctrl+Shift+T: New tab | Ctrl+Shift+W: Close | Ctrl+Tab: Switch | Ctrl+F: Search
+        <div className="fixed bottom-2 right-2 text-[11px] text-[#5c5c5c] z-10 select-none pointer-events-none text-right">
+          <div>Ctrl+Shift+T: New tab | Ctrl+Shift+W: Close | Ctrl+Tab: Switch | Ctrl+F: Search</div>
+          <div>
+            Keypress latency p50/p95: {Math.round(latencyStats.p50)}ms / {Math.round(latencyStats.p95)}ms
+            {latencyStats.samples > 0 ? ` (${latencyStats.samples} samples)` : ""}
+          </div>
         </div>
       )}
 

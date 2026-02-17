@@ -8,12 +8,19 @@ import { Message } from "../components/Message"
 import { SiteDropdown } from "../components/SiteDropdown"
 import { UploadControls } from "../components/UploadControls"
 import { useConfigStore } from "../store/config"
+import { useUploadStore } from "../store/upload"
 
 export function UploadPage() {
   const [searchParams] = useSearchParams()
-  const workspace = searchParams.get("workspace") || "root"
+  const requestedWorkspace = searchParams.get("workspace") || "root"
   const [selectedFilePath, setSelectedFilePath] = useState("")
   const config = useConfigStore(s => s.config)
+  const setWorkspace = useUploadStore(s => s.setWorkspace)
+  const workspace = config?.allowWorkspaceSelection ? requestedWorkspace : (config?.defaultWorkspace ?? requestedWorkspace)
+
+  useEffect(() => {
+    setWorkspace(workspace)
+  }, [workspace, setWorkspace])
 
   // Set upload path based on workspace
   useEffect(() => {
@@ -57,7 +64,7 @@ export function UploadPage() {
         <Header />
         <div className="main-content grid-3col">
           <div className="bg-shell-surface p-8 md:p-5 rounded-lg">
-            <SiteDropdown />
+            {config?.allowWorkspaceSelection && <SiteDropdown />}
             <Dropzone />
             <UploadControls onUploadSuccess={handleUploadSuccess} />
             <Message />

@@ -1,4 +1,4 @@
-package handlers
+package templates
 
 import (
 	"bufio"
@@ -14,19 +14,23 @@ import (
 	"strings"
 
 	"shell-server-go/internal/config"
+	"shell-server-go/internal/httpx/response"
 	"shell-server-go/internal/logger"
+	"shell-server-go/internal/session"
+	workspacepkg "shell-server-go/internal/workspace"
 )
 
 var templatesLog = logger.WithComponent("TEMPLATES")
 
-// TemplateHandler handles super template operations
-type TemplateHandler struct {
+// Handler handles super template operations.
+type Handler struct {
 	config        *config.AppConfig
+	sessions      *session.Store
 	templatesPath string
 }
 
-// NewTemplateHandler creates a new template handler
-func NewTemplateHandler(cfg *config.AppConfig) *TemplateHandler {
+// NewHandler creates a new template handler.
+func NewHandler(cfg *config.AppConfig, sessions *session.Store) *Handler {
 	// Templates are in packages/tools/supertemplate/templates relative to alive repo root
 	// Find the path based on common deployment patterns
 	possiblePaths := []string{
@@ -48,8 +52,9 @@ func NewTemplateHandler(cfg *config.AppConfig) *TemplateHandler {
 		templatesLog.Info("Templates directory: %s", templatesPath)
 	}
 
-	return &TemplateHandler{
+	return &Handler{
 		config:        cfg,
+		sessions:      sessions,
 		templatesPath: templatesPath,
 	}
 }
@@ -88,7 +93,11 @@ type TemplateFrontmatter struct {
 }
 
 // ListTemplates handles GET /api/templates - returns all available templates
-func (h *TemplateHandler) ListTemplates(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListTemplates(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseTemplates(w, r) {
+		return
+	}
+
 	if h.templatesPath == "" {
 		jsonResponse(w, map[string]interface{}{
 			"templates": []TemplateListItem{},
@@ -113,7 +122,11 @@ func (h *TemplateHandler) ListTemplates(w http.ResponseWriter, r *http.Request) 
 }
 
 // GetTemplate handles GET /api/templates/{id} - returns a specific template's content
-func (h *TemplateHandler) GetTemplate(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetTemplate(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseTemplates(w, r) {
+		return
+	}
+
 	// Extract template ID from URL path
 	id := r.PathValue("id")
 	if id == "" {
@@ -353,7 +366,7 @@ func validateFrontmatter(fm *TemplateFrontmatter) []ValidationError {
 }
 
 // checkDuplicateName checks if a template with the same name already exists
-func (h *TemplateHandler) checkDuplicateName(name string, excludeID string) bool {
+func (h *Handler) checkDuplicateName(name string, excludeID string) bool {
 	templates, err := h.scanTemplates()
 	if err != nil {
 		return false
@@ -389,7 +402,11 @@ func slugify(s string) string {
 }
 
 // CreateTemplate handles POST /api/templates - creates a new template
-func (h *TemplateHandler) CreateTemplate(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateTemplate(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseTemplates(w, r) {
+		return
+	}
+
 	if h.templatesPath == "" {
 		jsonError(w, "Templates directory not configured", http.StatusInternalServerError)
 		return
@@ -507,7 +524,11 @@ func (h *TemplateHandler) CreateTemplate(w http.ResponseWriter, r *http.Request)
 }
 
 // SaveTemplate handles PUT /api/templates/{id} - saves a template's content
-func (h *TemplateHandler) SaveTemplate(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SaveTemplate(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseTemplates(w, r) {
+		return
+	}
+
 	// Extract template ID from URL path
 	id := r.PathValue("id")
 	if id == "" {
@@ -568,7 +589,7 @@ func (h *TemplateHandler) SaveTemplate(w http.ResponseWriter, r *http.Request) {
 }
 
 // scanTemplates reads all templates from the templates directory
-func (h *TemplateHandler) scanTemplates() ([]TemplateListItem, error) {
+func (h *Handler) scanTemplates() ([]TemplateListItem, error) {
 	var templates []TemplateListItem
 
 	// Read category directories
@@ -665,7 +686,7 @@ func (h *TemplateHandler) scanTemplates() ([]TemplateListItem, error) {
 }
 
 // findTemplate searches for a template file across all category directories
-func (h *TemplateHandler) findTemplate(templateFile string) (string, string, error) {
+func (h *Handler) findTemplate(templateFile string) (string, string, error) {
 	entries, err := os.ReadDir(h.templatesPath)
 	if err != nil {
 		return "", "", err
@@ -684,6 +705,14 @@ func (h *TemplateHandler) findTemplate(templateFile string) (string, string, err
 	}
 
 	return "", "", os.ErrNotExist
+}
+
+func (h *Handler) ensureSessionCanUseTemplates(w http.ResponseWriter, r *http.Request) bool {
+	if scopedWorkspace := workspacepkg.SessionWorkspace(r, h.sessions); scopedWorkspace != "" {
+		jsonError(w, "Templates are unavailable for workspace-scoped sessions", http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 // isValidTemplateID validates a template ID
@@ -807,4 +836,16 @@ func parseInlineArray(s string) []string {
 		}
 	}
 	return result
+}
+
+func jsonResponse(w http.ResponseWriter, data any, statusCodes ...int) {
+	statusCode := http.StatusOK
+	if len(statusCodes) > 0 {
+		statusCode = statusCodes[0]
+	}
+	response.JSON(w, statusCode, data)
+}
+
+func jsonError(w http.ResponseWriter, message string, statusCode int) {
+	response.Error(w, statusCode, message)
 }

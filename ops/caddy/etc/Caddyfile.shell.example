@@ -26,4 +26,8 @@
 }
 
 # Generated shell domains
+# NOTE: generated blocks explicitly route `/ws` with:
+# - Cache-Control: no-cache, no-transform
+# - X-Accel-Buffering: no
+# to avoid proxy buffering/compression on terminal streams.
 import /var/lib/alive/generated/Caddyfile.shell
