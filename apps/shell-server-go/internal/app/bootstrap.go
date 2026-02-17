@@ -13,6 +13,7 @@ import (
 	"shell-server-go/internal/files"
 	"shell-server-go/internal/logger"
 	"shell-server-go/internal/ratelimit"
+	"shell-server-go/internal/sentryx"
 	"shell-server-go/internal/session"
 	"shell-server-go/internal/templates"
 	"shell-server-go/internal/terminal"
@@ -44,6 +45,7 @@ func New(clientFS fs.FS, configPath string) (*ServerApp, error) {
 		MinLevel: logger.INFO,
 		UseColor: true,
 	})
+	sentryx.Init("shell-server-go")
 
 	log := logger.WithComponent("MAIN")
 

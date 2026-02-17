@@ -7,8 +7,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
+
+	"github.com/getsentry/sentry-go"
+	"shell-server-go/internal/sentryx"
 )
 
 const (
@@ -29,7 +33,7 @@ func (a *ServerApp) Run() error {
 	addr := fmt.Sprintf(":%d", a.Config.Port)
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      a.withPanicRecovery(router),
 		ReadTimeout:  ReadTimeout,
 		WriteTimeout: WriteTimeout,
 		IdleTimeout:  IdleTimeout,
@@ -50,6 +54,7 @@ func (a *ServerApp) Run() error {
 	select {
 	case runErr = <-serverErr:
 		a.Logger.Error("Server error: %v", runErr)
+		sentryx.CaptureError(runErr, "server listen error")
 	case sig := <-quit:
 		a.Logger.Info("Received signal %v, initiating graceful shutdown...", sig)
 	}
@@ -63,6 +68,7 @@ func (a *ServerApp) Run() error {
 	a.Logger.Info("Shutting down HTTP server...")
 	if shutdownErr := server.Shutdown(ctx); shutdownErr != nil {
 		a.Logger.Error("Server shutdown error: %v", shutdownErr)
+		sentryx.CaptureError(shutdownErr, "server shutdown error")
 		if runErr == nil {
 			runErr = shutdownErr
 		}
@@ -73,6 +79,25 @@ func (a *ServerApp) Run() error {
 		a.Logger.Info("Server stopped gracefully")
 	}
 	return runErr
+}
+
+func (a *ServerApp) withPanicRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				sentryx.CaptureMessage(
+					sentry.LevelFatal,
+					"http panic method=%s path=%s panic=%v stack=%s",
+					r.Method,
+					r.URL.Path,
+					rec,
+					string(debug.Stack()),
+				)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (a *ServerApp) cleanup() {

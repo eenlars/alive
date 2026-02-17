@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"net/http"
+
+	"shell-server-go/internal/httpx/response"
 	"shell-server-go/internal/session"
 )
 
@@ -27,7 +29,7 @@ func AuthAPI(sessions *session.Store) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie(CookieName)
 			if err != nil || !sessions.Valid(cookie.Value) {
-				http.Error(w, `{"error":"Unauthorized"}`, http.StatusUnauthorized)
+				response.Unauthorized(w)
 				return
 			}
 			next.ServeHTTP(w, r)

@@ -304,7 +304,10 @@ func (h *Handler) handleZipUpload(w http.ResponseWriter, resolvedTarget, targetD
 		destPath := filepath.Join(resolvedTarget, f.Name)
 
 		if f.FileInfo().IsDir() {
-			_ = os.MkdirAll(destPath, 0755)
+			if err := os.MkdirAll(destPath, 0755); err != nil {
+				response.Error(w, http.StatusInternalServerError, "Failed to create directory")
+				return
+			}
 			continue
 		}
 

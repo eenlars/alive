@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	httpxmiddleware "shell-server-go/internal/httpx/middleware"
+	"shell-server-go/internal/httpx/response"
 )
 
 // Router builds the full HTTP routing tree.
@@ -76,7 +77,7 @@ func createSPAHandler(clientFS fs.FS) http.Handler {
 
 		indexFile, err := fs.ReadFile(clientFS, "index.html")
 		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			response.InternalServerError(w)
 			return
 		}
 

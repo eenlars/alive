@@ -9,6 +9,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/getsentry/sentry-go"
+	"shell-server-go/internal/sentryx"
 )
 
 // Level represents log severity
@@ -213,6 +216,14 @@ func (l *Logger) log(level Level, msg string, args ...interface{}) {
 	sb.WriteString("\n")
 
 	fmt.Fprint(l.output, sb.String())
+
+	if level >= ERROR {
+		msgForSentry := msg
+		if l.component != "" {
+			msgForSentry = fmt.Sprintf("[%s] %s", l.component, msg)
+		}
+		sentryx.CaptureMessage(sentry.LevelError, msgForSentry)
+	}
 }
 
 // Debug logs a debug message
@@ -240,6 +251,7 @@ func (l *Logger) ErrorWithStack(msg string, err error) {
 	buf := make([]byte, 4096)
 	n := runtime.Stack(buf, false)
 	l.WithField("error", err.Error()).WithField("stack", string(buf[:n])).Error(msg)
+	sentryx.CaptureError(err, msg)
 }
 
 // Package-level convenience functions

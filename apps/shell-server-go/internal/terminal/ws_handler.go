@@ -309,7 +309,7 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		// Use the sentinel so consumeLease matches internal leases.
 		sessionToken = internalLeaseSessionToken
 	} else if !h.sessions.Valid(sessionToken) {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		response.Error(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
@@ -317,7 +317,7 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	currentConns := atomic.LoadInt32(&h.activeConns)
 	if currentConns >= MaxConcurrentConnections {
 		wsLog.Warn("Connection rejected: max connections reached (%d)", currentConns)
-		http.Error(w, "Too many connections", http.StatusServiceUnavailable)
+		response.Error(w, http.StatusServiceUnavailable, "Too many connections")
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	workspace, cwd, runAsOwner, err := h.consumeLease(sessionToken, leaseToken)
 	if err != nil {
 		wsLog.Warn("Lease rejected: %v", err)
-		http.Error(w, "Invalid or expired lease", http.StatusUnauthorized)
+		response.Error(w, http.StatusUnauthorized, "Invalid or expired lease")
 		return
 	}
 
@@ -334,7 +334,7 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	if runAsOwner {
 		if err := workspacepkg.ValidateSiteWorkspaceBoundary(cwd, h.config.ResolvedSitesPath); err != nil {
 			wsLog.Warn("Workspace boundary re-validation failed: %v", err)
-			http.Error(w, "Invalid workspace", http.StatusForbidden)
+			response.Error(w, http.StatusForbidden, "Invalid workspace")
 			return
 		}
 	}
@@ -343,24 +343,24 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	dirInfo, err := os.Stat(cwd)
 	if os.IsNotExist(err) {
 		wsLog.Error("Workspace directory does not exist: %s", cwd)
-		http.Error(w, "Workspace not found", http.StatusNotFound)
+		response.Error(w, http.StatusNotFound, "Workspace not found")
 		return
 	}
 	if err != nil {
 		wsLog.Error("Failed to stat workspace directory %s: %v", cwd, err)
-		http.Error(w, "Failed to access workspace", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to access workspace")
 		return
 	}
 	if !dirInfo.IsDir() {
 		wsLog.Warn("Workspace path is not a directory: %s", cwd)
-		http.Error(w, "Invalid workspace", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid workspace")
 		return
 	}
 
 	credential, err := h.resolveWorkspaceCredential(cwd, runAsOwner)
 	if err != nil {
 		wsLog.Error("Failed to resolve workspace credential | workspace=%s cwd=%s err=%v", workspace, cwd, err)
-		http.Error(w, "Workspace terminal unavailable", http.StatusForbidden)
+		response.Error(w, http.StatusForbidden, "Workspace terminal unavailable")
 		return
 	}
 
