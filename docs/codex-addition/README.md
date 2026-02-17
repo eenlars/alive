@@ -28,7 +28,7 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
 - ~~How does Codex handle tools/MCP?~~ ✅ Full MCP support — `config.toml` `[mcp_servers]`, stdio + HTTP transports, OAuth, `codex mcp` CLI subcommand
 - ~~How does Codex handle sessions/resume?~~ ✅ Thread-based — `startThread()` / `resumeThread(threadId)`
 - ~~Can both run in the same worker process or need separate workers?~~ ✅ Same worker — Codex SDK spawns CLI as child process, doesn't conflict with Claude in-process
-- ~~How to handle auth (API keys) per provider?~~ ✅ Per-workspace API key in lockbox, passed via IPC payload
+- ~~How to handle auth (API keys) per provider?~~ ✅ Server-only API keys (consistent with current auth model — no user-supplied keys). Codex API key managed server-side, passed via IPC payload
 - ~~How does the frontend switch between providers?~~ ✅ Workspace settings provider selector, per-stream override possible
 
 ## Resolved Questions
@@ -101,7 +101,7 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
   - Monitoring & observability (fase_3/02) — per-provider metrics, structured logging, PostHog events, alerting thresholds
   - **KEY REVISION on MCP lifecycle**: Don't pre-spawn MCP servers. Pass command+env specs to provider SDKs, let them manage subprocess lifecycle. This eliminates the `McpServerManager` class from the plan and simplifies Phase 1 significantly.
   - **VERIFIED**: Claude SDK DOES support `McpStdioServerConfig` (`{ type: "stdio", command: string, args?: string[], env?: Record<string, string> }`). This means both Claude and Codex can use the same stdio MCP server specs. The `createSdkMcpServer` in-process approach was a convenience, not a requirement. MCP refactoring plan is fully viable.
-  - All major technical unknowns are now resolved. Remaining questions are implementation details.
+  - All major technical unknowns are now resolved. Remaining questions are implementation details (auth model alignment with server-only keys, referenced fase_* docs need stakeholder review).
 - **2026-02-17 16:00** — Fifth research iteration (source verification + new docs):
   - **SDK path correction**: SDK moved from `codex-js/codex-sdk/` to `sdk/typescript/` (fase_1/09). All source types re-verified against latest main.
   - New finding: `CODEX_API_KEY` env var (not `OPENAI_API_KEY`) used by SDK internally

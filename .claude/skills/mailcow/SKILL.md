@@ -11,7 +11,7 @@ Access the self-hosted Mailcow email server at `/opt/services/mailcow/`.
 
 - **Hostname:** `mx.alive.best`
 - **Web UI:** `127.0.0.1:8180` (internal only, proxied via Caddy)
-- **API Key:** `304ee3d9b877a5e74c9b7d908feb51900b468fc7d01b514a07ab49b29d7ce908`
+- **API Key:** Stored in `/opt/services/mailcow/.env` as `MAILCOW_API_KEY`
 - **Emails are encrypted at rest** — use `doveadm` to read, NOT raw maildir files
 
 ## Mailboxes
@@ -24,7 +24,7 @@ Access the self-hosted Mailcow email server at `/opt/services/mailcow/`.
 To list all mailboxes:
 ```bash
 curl -s "http://127.0.0.1:8180/api/v1/get/mailbox/all" \
-  -H "X-API-Key: 304ee3d9b877a5e74c9b7d908feb51900b468fc7d01b514a07ab49b29d7ce908" \
+  -H "X-API-Key: $(grep MAILCOW_API_KEY /opt/services/mailcow/.env | cut -d= -f2)" \
   -H "Content-Type: application/json"
 ```
 

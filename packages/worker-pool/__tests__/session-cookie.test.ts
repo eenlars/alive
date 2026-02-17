@@ -377,19 +377,19 @@ describe("Environment Isolation: Behavioral Tests", () => {
   })
 
   it("sets ALIVE_SESSION_COOKIE from payload", () => {
-    prepareRequestEnv({ sessionCookie: "cookie-abc" })
+    prepareRequestEnv({ sessionCookie: "cookie-abc", oauthAccessToken: "token" })
     expect(process.env.ALIVE_SESSION_COOKIE).toBe("cookie-abc")
   })
 
   it("clears ALIVE_SESSION_COOKIE when payload has none", () => {
     process.env.ALIVE_SESSION_COOKIE = "stale-cookie"
-    prepareRequestEnv({})
+    prepareRequestEnv({ oauthAccessToken: "token" })
     expect(process.env.ALIVE_SESSION_COOKIE).toBe("")
   })
 
   it("always clears ANTHROPIC_API_KEY to empty string", () => {
     process.env.ANTHROPIC_API_KEY = "leaked-key-from-previous-request"
-    prepareRequestEnv({ sessionCookie: "x" })
+    prepareRequestEnv({ sessionCookie: "x", oauthAccessToken: "token" })
     // Set to "" (not deleted) so workspace .env files can't override OAuth credentials.
     // The CLI treats "" as unset and falls through to OAuth.
     expect(process.env.ANTHROPIC_API_KEY).toBe("")
@@ -405,7 +405,7 @@ describe("Environment Isolation: Behavioral Tests", () => {
   it("clears stale USER_* env keys from a previous request", () => {
     process.env.USER_OLD_SECRET = "should-be-cleared"
     process.env.USER_ANOTHER = "also-stale"
-    prepareRequestEnv({ userEnvKeys: { FRESH: "new-value" } })
+    prepareRequestEnv({ oauthAccessToken: "token", userEnvKeys: { FRESH: "new-value" } })
     expect(process.env.USER_OLD_SECRET).toBeUndefined()
     expect(process.env.USER_ANOTHER).toBeUndefined()
     expect(process.env.USER_FRESH).toBe("new-value")
@@ -413,15 +413,20 @@ describe("Environment Isolation: Behavioral Tests", () => {
 
   it("clears USER_* keys even when payload has no new keys", () => {
     process.env.USER_LEFTOVER = "stale"
-    prepareRequestEnv({})
+    prepareRequestEnv({ oauthAccessToken: "token" })
     expect(process.env.USER_LEFTOVER).toBeUndefined()
   })
 
   it("rejects invalid USER_* key names", () => {
-    prepareRequestEnv({ userEnvKeys: { valid_KEY: "ok", lower: "bad", "HAS SPACE": "bad" } })
+    prepareRequestEnv({ oauthAccessToken: "token", userEnvKeys: { valid_KEY: "ok", lower: "bad", "HAS SPACE": "bad" } })
     // Only keys that don't match /^[A-Z][A-Z0-9_]*$/ are rejected
     expect(process.env.USER_lower).toBeUndefined()
     expect(process.env["USER_HAS SPACE"]).toBeUndefined()
+  })
+
+  it("throws when oauthAccessToken is missing", () => {
+    // @ts-expect-error — testing runtime guard for missing required field
+    expect(() => prepareRequestEnv({})).toThrow("oauthAccessToken is required")
   })
 
   it("returns correct authSource and userEnvKeyCount", () => {

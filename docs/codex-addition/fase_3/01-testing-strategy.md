@@ -103,10 +103,9 @@ Before any release:
 - [ ] Codex provider handles MCP tool calls
 - [ ] Session resume works for both providers
 - [ ] Abort/cancel works for both providers
-- [ ] Error handling works (bad API key, network error, timeout)
+- [ ] Error handling works (network error, timeout, auth failure)
 - [ ] Frontend renders Codex messages correctly
 - [ ] Provider switch in workspace settings works
-- [ ] API key entry/storage/deletion works
 - [ ] Model selector shows correct models per provider
 
 ## Rollout Strategy

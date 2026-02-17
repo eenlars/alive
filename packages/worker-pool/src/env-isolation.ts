@@ -9,7 +9,7 @@
 /** Subset of the IPC payload that affects process.env */
 export interface EnvPayload {
   sessionCookie?: string
-  oauthAccessToken?: string
+  oauthAccessToken: string
   userEnvKeys?: Record<string, string>
 }
 
@@ -49,7 +49,10 @@ export function prepareRequestEnv(payload: EnvPayload): EnvPrepResult {
   //    files, which would override OAuth with a potentially stale user key.
   //    An empty string is treated as unset by the CLI.
   process.env.ANTHROPIC_API_KEY = ""
-  process.env.CLAUDE_CODE_OAUTH_TOKEN = payload.oauthAccessToken || ""
+  if (!payload.oauthAccessToken) {
+    throw new Error("oauthAccessToken is required — OAuth is the sole auth channel")
+  }
+  process.env.CLAUDE_CODE_OAUTH_TOKEN = payload.oauthAccessToken
 
   // 4. Clear ALL previous USER_* env keys before setting new ones
   for (const key of Object.keys(process.env)) {

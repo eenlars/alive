@@ -172,14 +172,14 @@ const MODELS = {
 ## Files to Change
 
 ### Backend
-- `apps/web/src/app/api/workspaces/[id]/streams/route.ts` — pass provider to worker
+- `apps/web/app/api/workspaces/[id]/streams/route.ts` — pass provider to worker
 - `packages/worker-pool/src/manager.ts` — pass provider in query payload
 - `packages/worker-pool/src/worker-entry.mjs` — use provider registry
 - `packages/database/` — add migration for provider columns
 
 ### Frontend
-- `apps/web/src/components/workspace/settings.tsx` — provider selector
-- `apps/web/src/components/chat/message-list.tsx` — provider badge
-- `apps/web/src/components/chat/input.tsx` — provider indicator
-- `apps/web/src/components/chat/items/` — new renderers for Codex item types
-- `apps/web/src/lib/models.ts` — model catalog per provider
+- `apps/web/components/workspace/settings.tsx` — provider selector
+- `apps/web/components/chat/message-list.tsx` — provider badge
+- `apps/web/components/chat/input.tsx` — provider indicator
+- `apps/web/components/chat/items/` — new renderers for Codex item types
+- `apps/web/lib/models.ts` — model catalog per provider

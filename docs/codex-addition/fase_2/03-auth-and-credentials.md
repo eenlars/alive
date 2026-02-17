@@ -2,23 +2,22 @@
 
 ## Current State: Claude Auth
 
-Alive supports Claude auth via:
-1. **OAuth** — User connects Anthropic account, OAuth tokens stored and refreshed
-2. **API key** — User provides `ANTHROPIC_API_KEY` (set on server or via payload)
-3. **CLAUDE_CONFIG_DIR** — Shared credential directory at `/root/.claude`
+Alive uses **server-only** authentication (no user-supplied API keys):
+1. **OAuth** — Server-managed OAuth tokens, refreshed automatically
+2. **CLAUDE_CONFIG_DIR** — Shared credential directory at `/root/.claude`
 
 Worker receives auth via:
-- `payload.apiKey` — if user provides their own key
-- `process.env.ANTHROPIC_API_KEY` — server-level fallback
+- `payload.oauthAccessToken` — server-managed OAuth token per request
 - `CLAUDE_CONFIG_DIR` — OAuth credentials directory
+- `ANTHROPIC_API_KEY` is explicitly set to `""` to prevent workspace `.env` overrides
 
 ## Codex Auth Options
 
-### Option 1: API Key (recommended for v1)
-- User provides `OPENAI_API_KEY` in workspace settings
-- Stored encrypted in lockbox
-- Passed to worker via `payload.apiKey`
-- Worker sets `OPENAI_API_KEY` env var before spawning Codex
+### Option 1: Server-managed API Key (recommended for v1, consistent with Claude auth model)
+- Server stores `CODEX_API_KEY` (or `OPENAI_API_KEY`) at the server level
+- Passed to worker via IPC payload (same pattern as OAuth token)
+- Worker sets `CODEX_API_KEY` env var before spawning Codex
+- No user-supplied keys — consistent with the removal of user API key support
 
 ```typescript
 // In CodexProvider:

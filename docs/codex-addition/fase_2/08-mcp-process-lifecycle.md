@@ -41,6 +41,7 @@ interface McpServerSpec {
 
 interface McpServerHandle {
   name: string
+  spec: McpServerSpec
   state: "init" | "starting" | "ready" | "crashed" | "failed" | "stopped"
   process: ChildProcess | null
   restartCount: number
@@ -130,7 +131,7 @@ class McpServerManager {
     for (const [name, handle] of this.servers) {
       if (handle.state === "ready" || handle.state === "starting") {
         // Both Claude and Codex accept command+env format
-        configs[name] = { command: handle.command, env: handle.env }
+        configs[name] = { command: handle.spec.command, env: handle.spec.env }
       }
     }
     return configs
