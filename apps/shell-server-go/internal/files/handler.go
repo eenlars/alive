@@ -691,17 +691,25 @@ func (h *Handler) Config(w http.ResponseWriter, r *http.Request) {
 	defaultWorkspace := h.config.DefaultWorkspace
 	allowWorkspaceSelection := h.config.AllowWorkspaceSelection
 	configDirs := dirs
+	shellDefaultPath := h.config.ResolvedDefaultCwd
+	uploadPath := h.config.ResolvedUploadCwd
+	sitesPath := h.config.ResolvedSitesPath
+	workspaceBase := h.config.WorkspaceBase
 	if scopedWorkspace := workspacepkg.SessionWorkspace(r, h.sessions); scopedWorkspace != "" {
 		defaultWorkspace = scopedWorkspace
 		allowWorkspaceSelection = false
 		configDirs = []DirConfig{}
+		shellDefaultPath = ""
+		uploadPath = ""
+		sitesPath = ""
+		workspaceBase = ""
 	}
 
 	cfg := ConfigResponse{
-		ShellDefaultPath:        h.config.ResolvedDefaultCwd,
-		UploadPath:              h.config.ResolvedUploadCwd,
-		SitesPath:               h.config.ResolvedSitesPath,
-		WorkspaceBase:           h.config.WorkspaceBase,
+		ShellDefaultPath:        shellDefaultPath,
+		UploadPath:              uploadPath,
+		SitesPath:               sitesPath,
+		WorkspaceBase:           workspaceBase,
 		DefaultWorkspace:        defaultWorkspace,
 		AllowWorkspaceSelection: allowWorkspaceSelection,
 		EditableDirectories:     configDirs,

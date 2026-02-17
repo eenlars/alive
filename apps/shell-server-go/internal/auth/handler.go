@@ -51,13 +51,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.limiter.Clear()
+
 	scopedWorkspace, err := h.service.ResolveScopedWorkspace(r.FormValue("workspace"))
 	if err != nil {
 		http.Redirect(w, r, "/?error=invalid_workspace", http.StatusSeeOther)
 		return
 	}
-
-	h.limiter.Clear()
 
 	token := h.sessions.GenerateWithInfo(session.SessionInfo{
 		UserAgent:  r.UserAgent(),

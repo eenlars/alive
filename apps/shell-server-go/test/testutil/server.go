@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"context"
 	"crypto/tls"
 	"io"
 	"io/fs"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"shell-server-go/internal/auth"
 	"shell-server-go/internal/config"
@@ -144,6 +146,11 @@ func createTestSPAHandler(clientFS fs.FS) http.Handler {
 
 // Cleanup stops server resources and removes temp artifacts.
 func (ts *TestServer) Cleanup() {
+	if ts.WSHandler != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		ts.WSHandler.Shutdown(ctx)
+	}
 	if ts.Server != nil {
 		ts.Server.Close()
 	}

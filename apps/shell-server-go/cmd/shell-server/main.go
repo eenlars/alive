@@ -23,7 +23,10 @@ func main() {
 }
 
 func resolveClientFS() (fs.FS, error) {
-	cwd, _ := os.Getwd()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("determine working directory: %w", err)
+	}
 	candidates := []string{
 		filepath.Join(cwd, "dist", "client"),
 		filepath.Join(cwd, "..", "..", "dist", "client"),

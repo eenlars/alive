@@ -194,8 +194,12 @@ func (h *Handler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err := os.Stat(resolvedPath)
-	if os.IsNotExist(err) {
-		response.Error(w, http.StatusNotFound, "File not found")
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "File not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to stat file")
 		return
 	}
 
@@ -358,9 +362,12 @@ func (h *Handler) CheckMtimes(w http.ResponseWriter, r *http.Request) {
 		}
 
 		info, err := os.Stat(resolvedPath)
-		if os.IsNotExist(err) {
-			results = append(results, fileResult{Path: file.Path, Changed: true, Mtime: 0, Deleted: true})
-			continue
+		if err != nil {
+			if os.IsNotExist(err) {
+				results = append(results, fileResult{Path: file.Path, Changed: true, Mtime: 0, Deleted: true})
+				continue
+			}
+			continue // skip files we can't stat
 		}
 
 		currentMtime := info.ModTime().UnixMilli()
@@ -415,8 +422,12 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err := os.Stat(resolvedPath)
-	if os.IsNotExist(err) {
-		response.Error(w, http.StatusNotFound, "Path not found")
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "Path not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to stat path")
 		return
 	}
 
@@ -480,8 +491,17 @@ func (h *Handler) Copy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := os.Stat(resolvedSource); os.IsNotExist(err) {
-		response.Error(w, http.StatusNotFound, "Source file not found")
+	srcInfo, err := os.Stat(resolvedSource)
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "Source file not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to stat source")
+		return
+	}
+	if srcInfo.IsDir() {
+		response.Error(w, http.StatusBadRequest, "Cannot copy directories")
 		return
 	}
 	if _, err := os.Stat(resolvedDest); err == nil {

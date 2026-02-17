@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -46,7 +47,10 @@ func New(clientFS fs.FS, configPath string) (*ServerApp, error) {
 
 	log := logger.WithComponent("MAIN")
 
-	cwd, _ := os.Getwd()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("get working directory: %w", err)
+	}
 	resolvedConfigPath, err := resolveConfigPath(cwd, configPath)
 	if err != nil {
 		return nil, err
