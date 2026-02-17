@@ -25,7 +25,7 @@ interface AgentRequest {
   resume?: string
   resumeSessionAt?: string // Resume at specific message UUID (for message deletion)
   systemPrompt?: string | { type: "preset"; preset: "claude_code"; append?: string }
-  apiKey?: string
+  oauthAccessToken: string
   sessionCookie?: string // For authenticated API calls back to Bridge
   oauthTokens?: Record<string, string> // OAuth tokens keyed by provider (stripe, linear, etc.)
   isAdmin?: boolean // Whether the user is an admin (enables Bash tools)
@@ -79,10 +79,10 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
   console.log(`[agent-child] Runner: ${runnerPath}`)
   console.log(`[agent-child] Workspace: ${workspaceRoot}`)
 
-  // Fail explicitly if no API key is available - never silently pass undefined
-  const apiKey = payload.apiKey
-  if (!apiKey) {
-    throw new Error("[agent-child] No API key available. User must provide an API key or have valid OAuth credentials.")
+  // Fail explicitly if no auth source is available.
+  const oauthAccessToken = payload.oauthAccessToken
+  if (!oauthAccessToken) {
+    throw new Error("[agent-child] No OAuth access token available in payload.")
   }
 
   // Derive workspace home for HOME env var
@@ -101,7 +101,9 @@ export function runAgentChild(workspaceRoot: string, payload: AgentRequest): Rea
       TARGET_GID: String(gid),
       TARGET_CWD: workspaceRoot,
       ...(!payload.isSuperadmin && { TARGET_HOME: workspaceHome }),
-      ANTHROPIC_API_KEY: apiKey,
+      // Never allow CLI auth discovery from workspace .env.
+      ANTHROPIC_API_KEY: "",
+      CLAUDE_CODE_OAUTH_TOKEN: oauthAccessToken,
       ...(payload.sessionCookie && { ALIVE_SESSION_COOKIE: payload.sessionCookie }),
     },
     stdio: ["pipe", "pipe", "pipe"],

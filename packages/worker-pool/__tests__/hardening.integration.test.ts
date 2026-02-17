@@ -55,6 +55,7 @@ function buildCredentials(workspaceKey: string): WorkspaceCredentials {
 function createPayload(message: string): AgentRequest {
   return {
     message,
+    oauthAccessToken: "test-oauth-token",
     agentConfig: {
       allowedTools: [],
       disallowedTools: [],

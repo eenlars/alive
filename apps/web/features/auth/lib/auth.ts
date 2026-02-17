@@ -30,7 +30,7 @@ export interface SessionUser {
   id: string
   email: string
   name: string | null
-  /** Whether user can select any model without their own API key */
+  /** Whether user can select any model without workspace-credit restrictions */
   canSelectAnyModel: boolean
   /** Whether user has admin privileges (can toggle feature flags, etc.) */
   isAdmin: boolean
@@ -43,7 +43,7 @@ export interface SessionUser {
 /**
  * Admin emails loaded from ADMIN_EMAILS environment variable.
  * These users can:
- * - Select any model without their own API key
+ * - Select any model without workspace-credit restrictions
  * - Toggle feature flags in Settings
  * Server-side only - never exposed to client code.
  *

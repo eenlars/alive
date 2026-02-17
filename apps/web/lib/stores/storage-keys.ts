@@ -15,7 +15,6 @@ export const TAB_MIGRATION_FLAG_KEY = "claude-tab-migration-v1-done" as const
 
 // LLM store keys
 export const LLM_STORAGE_KEY = "llm-config" as const
-export const API_KEY_STORAGE_KEY = "llm-api-key-obf" as const
 
 // Auth store key
 export const AUTH_STORAGE_KEY = "alive-auth" as const
@@ -38,7 +37,6 @@ export type StorageKey =
   | typeof TAB_VIEW_STORAGE_KEY
   | typeof TAB_LEGACY_STORAGE_KEY
   | typeof LLM_STORAGE_KEY
-  | typeof API_KEY_STORAGE_KEY
   | typeof AUTH_STORAGE_KEY
   | typeof WORKSPACE_STORAGE_KEY
   | typeof DEBUG_STORAGE_KEY

@@ -94,7 +94,7 @@ interface StreamHandlerConfig {
   /**
    * Token source determines credit billing:
    * - "workspace": Charge from workspace credit balance
-   * - "user_provided": User provided their own API key, no charges
+   * - "user_provided": User auth path (OAuth/no-credit), no charges
    */
   tokenSource: "workspace" | "user_provided"
   /**
@@ -132,7 +132,7 @@ interface StreamHandlerConfig {
 
 /**
  * Charge credits for assistant message based on model-specific pricing
- * Only charges when using workspace credits (not user API key)
+ * Only charges when using workspace credits (not user-provided auth path)
  *
  * Pricing (per MTok, 1 USD = 10 credits):
  * - Opus 4.6: $5 input, $25 output
@@ -320,7 +320,7 @@ async function processChildEvent(
 
   const message = buildStreamMessage(childEvent, requestId, tabId)
 
-  // Only charge credits if using workspace credits (not user API key)
+  // Only charge credits if using workspace credits (not user-provided auth path)
   if (tokenSource === "workspace") {
     // Non-blocking credit charge with atomic deduction
     // Note: We don't stop the stream on charge failure because:

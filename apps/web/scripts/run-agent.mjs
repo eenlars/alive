@@ -62,7 +62,7 @@ async function readStdinJson() {
             chownSync(claudeDir, targetUid, targetGid)
           }
         } catch {
-          // Non-fatal: SDK will fall back to ANTHROPIC_API_KEY auth
+          // Non-fatal: session dir may already exist or be managed externally.
           console.error(`[runner] Could not create ${claudeDir}, continuing`)
         }
       }
@@ -97,6 +97,10 @@ async function readStdinJson() {
 
     const request = await readStdinJson()
     console.error(`[runner] Received request: ${request.message?.substring(0, 50)}...`)
+
+    if (!process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+      throw new Error("[runner] Missing CLAUDE_CODE_OAUTH_TOKEN. Legacy runner requires OAuth token auth.")
+    }
 
     // Get OAuth tokens for connected MCP providers
     const oauthTokens = request.oauthTokens || {}
@@ -220,10 +224,18 @@ async function readStdinJson() {
     let queryResult = null
 
     await withSearchToolsConnectedProviders(connectedProviders, async () => {
+      // Bun auto-loads workspace .env files unless disabled. Disable this so
+      // auth never comes from project-local .env state.
+      const isBunRuntime = typeof Bun !== "undefined"
+      const claudeExecutable = isBunRuntime ? "bun" : "node"
+      const claudeExecutableArgs = isBunRuntime ? ["--no-env-file"] : []
+
       const agentQuery = query({
         prompt: request.message,
         options: {
           cwd: process.cwd(),
+          executable: claudeExecutable,
+          executableArgs: claudeExecutableArgs,
           model: request.model,
           maxTurns: request.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
           permissionMode: effectivePermissionMode,

@@ -126,7 +126,6 @@ export async function POST(req: NextRequest) {
       conversationId,
       tabGroupId,
       tabId,
-      apiKey: userApiKey,
       model: userModel,
       projectId,
       userId,
@@ -139,11 +138,6 @@ export async function POST(req: NextRequest) {
     logger.log(
       `Message received (${message.length} chars): ${message.substring(0, 100)}${message.length > 100 ? "..." : ""}`,
     )
-    if (userApiKey) {
-      logger.log("User provided API key (validation already done in schema)")
-    } else {
-      logger.log("No user API key provided")
-    }
     if (userModel) {
       logger.log("Using user-selected model:", userModel)
     }
@@ -172,7 +166,7 @@ export async function POST(req: NextRequest) {
     let cwd: string
     let resolvedWorkspaceName: string | null
     let tokenSource: TokenSource
-    const effectiveApiKey: string | undefined = userApiKey
+    let oauthAccessToken: string | null = null
 
     try {
       // Security: Verify workspace authorization BEFORE resolving paths
@@ -193,54 +187,48 @@ export async function POST(req: NextRequest) {
       // Ensure workspace has required directory structure (.alive/files, etc.)
       await ensureWorkspaceSchema(cwd)
 
-      // Step 1: Get API key for authentication (user-provided OR OAuth)
-      // Workers run as non-root and cannot read /root/.claude/.credentials.json,
-      // so we MUST pass the API key via IPC.
-      if (userApiKey) {
-        logger.log("Using user-provided API key")
-      } else if (hasOAuthCredentials()) {
-        // OAuth: Auto-refresh expired tokens, then let SDK read credentials file
-        // Workers have CLAUDE_CONFIG_DIR=/root/.claude and file has 644 permissions
-        logger.log("Using OAuth credentials (SDK reads from CLAUDE_CONFIG_DIR)")
-        try {
-          const oauthResult = await getValidAccessToken()
-          if (!oauthResult) {
-            logger.log("OAuth credentials missing or unreadable")
-            return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 502, {
-              workspace: resolvedWorkspaceName,
-              requestId,
-            })
-          }
-          if (oauthResult.refreshed) {
-            logger.log("OAuth token was expired and has been refreshed")
-          }
-        } catch (refreshError) {
-          logger.error("OAuth token refresh failed:", refreshError)
+      // Step 1: Resolve authentication from trusted sources only.
+      // Never rely on workspace-local .env files for auth discovery.
+      if (!hasOAuthCredentials()) {
+        logger.log("No OAuth credentials available")
+        return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {
+          workspace: resolvedWorkspaceName,
+          requestId,
+          message: "No OAuth credentials available. Run /login to authenticate.",
+        })
+      }
+
+      // OAuth: refresh if needed, then pass resolved access token explicitly.
+      // Runtime auth must only come from trusted token storage, never request/body keys.
+      logger.log("Using OAuth credentials from secure token store")
+      try {
+        const oauthResult = await getValidAccessToken()
+        if (!oauthResult) {
+          logger.log("OAuth credentials missing or unreadable")
           return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 502, {
             workspace: resolvedWorkspaceName,
             requestId,
           })
         }
-        // effectiveApiKey stays undefined - worker will use OAuth
-      } else {
-        logger.log("No API key or OAuth credentials available")
-        return createErrorResponse(ErrorCodes.INSUFFICIENT_TOKENS, 402, {
+        if (oauthResult.refreshed) {
+          logger.log("OAuth token was expired and has been refreshed")
+        }
+        oauthAccessToken = oauthResult.accessToken
+      } catch (refreshError) {
+        logger.error("OAuth token refresh failed:", refreshError)
+        return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 502, {
           workspace: resolvedWorkspaceName,
           requestId,
-          message: "No API key available. Please provide an API key or run /login",
         })
       }
 
-      // Step 2: Determine billing (workspace credits vs user-provided)
+      // Step 2: Determine billing (workspace credits vs OAuth/no-credit path)
       const orgCredits = (await getOrgCredits(resolvedWorkspaceName)) ?? 0
       const COST_ESTIMATE = 1
 
       if (orgCredits >= COST_ESTIMATE) {
         tokenSource = "workspace"
         logger.log(`Billing: workspace credits (${orgCredits} available)`)
-      } else if (userApiKey) {
-        tokenSource = "user_provided"
-        logger.log(`Billing: user-provided key (workspace has ${orgCredits} credits)`)
       } else {
         // Using OAuth - no credit deduction
         tokenSource = "user_provided"
@@ -255,6 +243,14 @@ export async function POST(req: NextRequest) {
           requestWorkspace,
           error: workspaceError instanceof Error ? workspaceError.message : "Unknown error",
         },
+        requestId,
+      })
+    }
+
+    if (!oauthAccessToken) {
+      logger.error("OAuth access token resolution failed")
+      return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 502, {
+        workspace: resolvedWorkspaceName ?? requestWorkspace ?? host,
         requestId,
       })
     }
@@ -367,10 +363,10 @@ export async function POST(req: NextRequest) {
 
     logger.log("Working directory:", cwd)
 
-    // Force default model for credit users (cost management)
-    // API key users can choose any model
-    // Exception: Admins (set via ADMIN_EMAILS env var) can use any model
-    // Exception: Users with specific enabled_models in their metadata
+    // Force default model for credit users (cost management).
+    // OAuth/no-credit users can choose any model.
+    // Exception: Admins (set via ADMIN_EMAILS env var) can use any model.
+    // Exception: Users with specific enabled_models in their metadata.
     const isUnrestrictedUser = user.isAdmin
     const hasModelAccess = (model: string) => isUnrestrictedUser || user.enabledModels.includes(model)
 
@@ -386,7 +382,7 @@ export async function POST(req: NextRequest) {
         effectiveModel = DEFAULT_MODEL
       }
     } else {
-      // User's choice with API key or unrestricted user
+      // User's choice with OAuth/no-credit path or unrestricted user
       const requestedModel = userModel || env.CLAUDE_MODEL
       effectiveModel = isValidClaudeModel(requestedModel) ? requestedModel : DEFAULT_MODEL
     }
@@ -547,7 +543,7 @@ export async function POST(req: NextRequest) {
                 resume: resumeId,
                 resumeSessionAt: resumeAtMessage,
                 systemPrompt,
-                apiKey: effectiveApiKey || undefined,
+                oauthAccessToken,
                 oauthTokens,
                 userEnvKeys, // User-defined environment keys for MCP servers
                 agentConfig,
@@ -760,7 +756,7 @@ export async function POST(req: NextRequest) {
         resume: existingSessionId || undefined,
         resumeSessionAt: resumeSessionAt || undefined,
         systemPrompt,
-        apiKey: effectiveApiKey || undefined,
+        oauthAccessToken,
         sessionCookie,
         oauthTokens, // OAuth tokens for connected MCP providers (stripe, linear, etc.)
         isAdmin: user.isAdmin, // Enables admin-only tool policy (TaskStop)

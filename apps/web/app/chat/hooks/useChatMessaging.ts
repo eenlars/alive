@@ -23,7 +23,7 @@ import { authStore } from "@/lib/stores/authStore"
 import { isDevelopment } from "@/lib/stores/debug-store"
 import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import { useBuilding, useGoal, useTargetUsers } from "@/lib/stores/goalStore"
-import { useApiKey, useModel } from "@/lib/stores/llmStore"
+import { useModel } from "@/lib/stores/llmStore"
 import { getPlanModeState, usePlanMode } from "@/lib/stores/planModeStore"
 import { clearAbortController, setAbortController, useStreamingActions } from "@/lib/stores/streamingStore"
 import { useActiveTab } from "@/lib/stores/tabStore"
@@ -98,7 +98,6 @@ export function useChatMessaging({
 
   // Store hooks
   const streamingActions = useStreamingActions()
-  const userApiKey = useApiKey()
   const userModel = useModel()
   const planMode = usePlanMode()
   const { addEvent: addDevEvent } = useDevTerminal()
@@ -128,7 +127,6 @@ export function useChatMessaging({
         message,
         tabId: activeTabId,
         tabGroupId,
-        apiKey: userApiKey || undefined,
         model: userModel,
         analyzeImageUrls: analyzeImageUrls?.length ? analyzeImageUrls : undefined,
         // Read plan mode directly from store to avoid stale closure
@@ -139,7 +137,7 @@ export function useChatMessaging({
       }
       return isTerminal ? { ...baseBody, workspace: workspace || undefined } : baseBody
     },
-    [tabId, activeTab?.id, tabGroupId, userApiKey, userModel, planMode, isTerminal, workspace, worktree],
+    [tabId, activeTab?.id, tabGroupId, userModel, planMode, isTerminal, workspace, worktree],
   )
 
   const buildPromptForClaude = useCallback((userMessage: UIMessage): PromptBuildResult => {

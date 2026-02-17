@@ -275,10 +275,8 @@ export class WorkerPoolManager extends EventEmitter {
       throw new Error("Query ownerKey is required")
     }
 
-    const useOAuth = !payload.apiKey
-    if (useOAuth) {
-      await this.ensureOAuthCredentialsFresh(requestId)
-    }
+    const useOAuth = true
+    await this.ensureOAuthCredentialsFresh(requestId)
 
     if (signal?.aborted) {
       console.error(`[pool] Signal already aborted for ${requestId} - returning early`)

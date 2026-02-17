@@ -29,9 +29,9 @@ export {
 } from "./credits/supabase-credits"
 
 /**
- * Source of API key being used for request
+ * Source of auth/billing path used for request
  * - workspace: Using organization credits (charged to org)
- * - user_provided: Using user's own Claude API key (not charged)
+ * - user_provided: Using user's OAuth-backed auth path (not charged)
  */
 export type TokenSource = "workspace" | "user_provided"
 

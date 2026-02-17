@@ -59,7 +59,6 @@ import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSide
 import { isDevelopment, useDebugActions, useDebugVisible, useSandbox, useSSETerminal } from "@/lib/stores/debug-store"
 import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
-import { useApiKey, useModel } from "@/lib/stores/llmStore"
 import { useLastSeenStreamSeq, useStreamingActions } from "@/lib/stores/streamingStore"
 import { useTabActions } from "@/lib/stores/tabStore"
 import { useSelectedOrgId } from "@/lib/stores/workspaceStore"
@@ -252,8 +251,6 @@ function ChatPageContent() {
   const isSuperadminWorkspace = workspace === SUPERADMIN.WORKSPACE_NAME
   const showSandbox = showSandboxRaw // Show for all workspaces
 
-  const _userApiKey = useApiKey()
-  const _userModel = useModel()
   const streamingActions = useStreamingActions()
   const lastSeenStreamSeq = useLastSeenStreamSeq(sessionTabId)
   const { registerElementSelectHandler } = usePanelContext()
