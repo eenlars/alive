@@ -811,31 +811,34 @@ export function useChatMessaging({
       isSubmittingByTab.current.set(targetTabId, true)
       streamingActions.startStream(targetTabId)
 
-      const attachments = chatInputRef.current?.getAttachments() || []
-
-      trackMessageSent({
-        workspace,
-        has_attachments: attachments.length > 0,
-        plan_mode: getPlanModeState().planMode,
-        message_length: messageToSend.length,
-      })
-
-      const userMessage: UIMessage = {
-        id: Date.now().toString(),
-        type: "user",
-        content: messageToSend,
-        timestamp: new Date(),
-        attachments: attachments.length > 0 ? attachments : undefined,
-      }
-      await addMessage(userMessage, targetTabId)
-      setMsg("")
-      chatInputRef.current?.clearAllAttachments()
-      forceScrollToBottom()
-
       try {
+        const attachments = chatInputRef.current?.getAttachments() || []
+
+        trackMessageSent({
+          workspace,
+          has_attachments: attachments.length > 0,
+          plan_mode: getPlanModeState().planMode,
+          message_length: messageToSend.length,
+        })
+
+        const userMessage: UIMessage = {
+          id: Date.now().toString(),
+          type: "user",
+          content: messageToSend,
+          timestamp: new Date(),
+          attachments: attachments.length > 0 ? attachments : undefined,
+        }
+        await addMessage(userMessage, targetTabId)
+        setMsg("")
+        chatInputRef.current?.clearAllAttachments()
+        forceScrollToBottom()
+
         await sendStreaming(userMessage, targetTabId)
       } finally {
-        // Clear submission state for this specific tab
+        // Always clean up streaming and submission state, even if addMessage
+        // or any pre-stream code throws. Without this, the UI gets permanently
+        // stuck in "thinking" state with busy=true.
+        streamingActions.endStream(targetTabId)
         isSubmittingByTab.current.set(targetTabId, false)
       }
     },
