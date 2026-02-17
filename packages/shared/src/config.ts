@@ -541,7 +541,7 @@ export function resolveTemplatePath(dbSourcePath: string): string {
     )
   }
   const dirName = dbSourcePath.split("/").pop()
-  if (!dirName) {
+  if (!dirName || dirName === ".." || dirName === ".") {
     throw new Error(`Invalid template source_path: "${dbSourcePath}" — cannot extract directory name`)
   }
   return `${TEMPLATES_ROOT}/${dirName}`

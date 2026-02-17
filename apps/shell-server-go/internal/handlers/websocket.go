@@ -204,6 +204,14 @@ func (h *WSHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Re-validate workspace boundary (defense-in-depth: lease was created earlier,
+	// workspace could have been replaced with a symlink between lease creation and now)
+	if err := validateSiteWorkspaceBoundary(cwd, h.config.ResolvedSitesPath); err != nil {
+		wsLog.Warn("Workspace boundary re-validation failed: %v", err)
+		http.Error(w, "Invalid workspace", http.StatusForbidden)
+		return
+	}
+
 	// Validate workspace directory exists and is a directory
 	dirInfo, err := os.Stat(cwd)
 	if os.IsNotExist(err) {

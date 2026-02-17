@@ -212,3 +212,4 @@ ops/scripts/site-modes.json
 # SQLite runtime sidecar files (email-bot conversation DB)
 apps/experimental/email-bot/data/*.db-wal
 apps/experimental/email-bot/data/*.db-shm
+docs/codex-addition/_reference/

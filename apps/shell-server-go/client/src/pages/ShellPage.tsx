@@ -177,7 +177,8 @@ export function ShellPage() {
         leaseToken = leasePayload.lease
       } catch (error) {
         setIsLoading(false)
-        term.write(`\r\n\x1b[31mFailed to create terminal lease: ${(error as Error).message}\x1b[0m\r\n`)
+        const message = error instanceof Error ? error.message : String(error)
+      term.write(`\r\n\x1b[31mFailed to create terminal lease: ${message}\x1b[0m\r\n`)
         term.dispose()
         wrapper.remove()
         return null

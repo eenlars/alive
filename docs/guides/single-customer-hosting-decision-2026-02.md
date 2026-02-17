@@ -61,7 +61,7 @@ This gives the clearest isolation story for your use case while staying inexpens
 
 - Hetzner Cloud pricing and plans: https://www.hetzner.com/cloud
 - Hetzner primary IPv4 pricing (`EUR 0.50/mo`): https://docs.hetzner.com/cloud/servers/primary-ips/overview/
-- Hetzner certificates (ISO focus, SOC 2 statement): https://docs.hetzner.com/general/company-and-policy/certificates/
+- Hetzner certificates (ISO 27001:2022): https://www.hetzner.com/unternehmen/zertifizierung/
 - Hetzner data protection / DPA / TOMs context: https://docs.hetzner.com/general/others/data-protection/
 - Render pricing (instance tiers): https://render.com/pricing
 - Render compliance docs: https://render.com/docs/certifications-compliance

@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
     }
 
-    console.log(`[Org Members] User ${user.id} added ${targetUser.user_id} (${email}) to org ${orgId} as ${role}`)
+    console.log(`[Org Members] User ${user.id} added ${targetUser.user_id} to org ${orgId} as ${role}`)
     invalidateUserAuthzCache(targetUser.user_id)
 
     const res = alrighty("auth/org-members/create", {

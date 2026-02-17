@@ -89,7 +89,7 @@ Two spawn modes:
 - Supports keystroke injection for agents that can't take prompt via CLI flag
 
 ### Auth: Simple env var passthrough
-```
+```python
 AGENT_ENV_VARS = [
   'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY',
   'CURSOR_API_KEY', 'GITHUB_TOKEN', ...

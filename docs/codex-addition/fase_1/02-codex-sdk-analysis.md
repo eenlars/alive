@@ -45,7 +45,7 @@ const thread = codex.resumeThread(threadId)
 | **Query pattern** | `query({ prompt, options })` → async iterator | `thread.run(prompt)` or `thread.runStreamed(prompt)` → async iterator |
 | **Session** | Resume via session ID string | Thread object, resume via `resumeThread(id)` |
 | **Streaming** | Direct async iterator of messages | `runStreamed()` returns `{ events }` async generator |
-| **Message format** | `{ type: "system"|"assistant"|"tool_use"|"result", subtype? }` | `{ type: "item.completed"|"turn.completed", item?, usage? }` |
+| **Message format** | `{ type: "system"\|"assistant"\|"tool_use"\|"result", subtype? }` | `{ type: "item.completed"\|"turn.completed", item?, usage? }` |
 | **MCP** | Built-in MCP server support in options | Unknown — needs investigation |
 | **Tools** | `allowedTools`, `disallowedTools`, `canUseTool` callback | Unknown — CLI handles tools internally? |
 | **Permissions** | `permissionMode` ("bypassPermissions", etc.) | `--full-auto`, `--yolo` flags on CLI |
