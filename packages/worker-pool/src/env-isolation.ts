@@ -26,7 +26,8 @@ export interface EnvPrepResult {
  *
  * Invariants enforced:
  *  1. ALIVE_SESSION_COOKIE is always set (or cleared to "")
- *  2. ANTHROPIC_API_KEY is deleted unless the request supplies one
+ *  2. ANTHROPIC_API_KEY is set to "" (not deleted) unless the request supplies one
+ *     — prevents workspace .env files from overriding OAuth credentials
  *  3. All previous USER_* keys are deleted before new ones are applied
  *  4. USER_* key names are validated (uppercase alphanumeric + underscore)
  */
@@ -34,13 +35,17 @@ export function prepareRequestEnv(payload: EnvPayload): EnvPrepResult {
   // 1. Session cookie — always overwrite to prevent cross-user leakage
   process.env.ALIVE_SESSION_COOKIE = payload.sessionCookie || ""
 
-  // 2. API key — set from payload or delete stale value
+  // 2. API key — set from payload or clear for OAuth
+  //    IMPORTANT: Set to "" (not delete) when using OAuth. Deleting allows the
+  //    Claude CLI subprocess to pick up ANTHROPIC_API_KEY from workspace .env
+  //    files, which would override OAuth with a potentially stale user key.
+  //    An empty string is treated as unset by the CLI, so it falls through to OAuth.
   let apiKeySource: "user" | "oauth"
   if (payload.apiKey) {
     process.env.ANTHROPIC_API_KEY = payload.apiKey
     apiKeySource = "user"
   } else {
-    delete process.env.ANTHROPIC_API_KEY
+    process.env.ANTHROPIC_API_KEY = ""
     apiKeySource = "oauth"
   }
 

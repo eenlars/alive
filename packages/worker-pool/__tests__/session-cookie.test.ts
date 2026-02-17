@@ -369,10 +369,12 @@ describe("Environment Isolation: Behavioral Tests", () => {
     expect(process.env.ALIVE_SESSION_COOKIE).toBe("")
   })
 
-  it("deletes ANTHROPIC_API_KEY when request supplies no apiKey", () => {
+  it("clears ANTHROPIC_API_KEY to empty string when request supplies no apiKey", () => {
     process.env.ANTHROPIC_API_KEY = "leaked-key-from-previous-request"
     prepareRequestEnv({ sessionCookie: "x" })
-    expect(process.env.ANTHROPIC_API_KEY).toBeUndefined()
+    // Set to "" (not deleted) so workspace .env files can't override OAuth credentials.
+    // The CLI treats "" as unset and falls through to OAuth.
+    expect(process.env.ANTHROPIC_API_KEY).toBe("")
   })
 
   it("sets ANTHROPIC_API_KEY when request supplies apiKey", () => {
