@@ -92,7 +92,7 @@ vi.mock("@/lib/credits/supabase-credits", () => ({
 }))
 
 vi.mock("@/lib/models/claude-models", () => ({
-  DEFAULT_MODEL: "claude-sonnet-4-5",
+  DEFAULT_MODEL: "claude-sonnet-4-6",
 }))
 
 vi.mock("@/lib/utils", () => ({

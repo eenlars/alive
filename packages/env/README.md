@@ -85,7 +85,7 @@ import { env } from "@webalive/env/server"  // Will fail with node:fs error
 - `LOCAL_TEMPLATE_PATH` - Path to template for local development
 
 **Claude Configuration:**
-- `CLAUDE_MODEL` - Claude model to use (default: `claude-sonnet-4-5-20250929`)
+- `CLAUDE_MODEL` - Claude model to use (default: `claude-sonnet-4-6`)
 - Note: `CLAUDE_MAX_TURNS` is not an env var - use `DEFAULTS.CLAUDE_MAX_TURNS` from `@webalive/shared`
 
 **Integrations:**

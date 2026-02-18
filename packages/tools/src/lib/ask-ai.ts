@@ -15,7 +15,7 @@
  * // With custom model and max turns
  * const response2 = await askAI({
  *   question: "Explain quantum computing",
- *   model: CLAUDE_MODELS.SONNET_4_5,  // "claude-sonnet-4-5"
+ *   model: CLAUDE_MODELS.SONNET_4_6,  // "claude-sonnet-4-6"
  *   maxTurns: 3,
  * })
  * ```

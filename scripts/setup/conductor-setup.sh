@@ -51,7 +51,7 @@ Optional for local dev mode:
   STREAM_ENV=local
   LOCAL_TEMPLATE_PATH=<auto-set-per-workspace>
   ALIVE_PASSCODE=your_passcode
-  CLAUDE_MODEL=claude-sonnet-4-5
+  CLAUDE_MODEL=claude-sonnet-4-6
 EOF
     exit 1
 fi
