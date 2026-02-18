@@ -70,6 +70,4 @@ export function syncDexieTabsToLocalStorage(
       [workspace]: [...existingTabs, ...newTabs],
     },
   }))
-
-  console.log(`[tabSync] Synced ${newTabs.length} tabs from server to localStorage for ${workspace}`)
 }

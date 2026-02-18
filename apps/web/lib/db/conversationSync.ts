@@ -82,13 +82,8 @@ export function forceSyncNow(conversationId: string, userId: string): void {
 // Online/Offline Handling
 // =============================================================================
 
-if (typeof window !== "undefined") {
-  window.addEventListener("online", () => {
-    console.log("[sync] Online - will retry pending syncs on next operation")
-    // Note: We don't auto-retry here because we don't have userId in scope.
-    // The next user action will trigger a sync.
-  })
-}
+// Note: We don't auto-retry on "online" event because we don't have userId in scope.
+// The next user action will trigger a sync.
 
 // =============================================================================
 // Core Sync Operations
@@ -182,7 +177,6 @@ async function handleConflict(db: ReturnType<typeof getMessageDb>, conflict: Con
 async function syncConversations(conversationIds: string[], userId: string): Promise<void> {
   // Skip sync if offline
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    console.log("[sync] Offline - skipping sync")
     return
   }
 
@@ -282,8 +276,6 @@ async function syncBatch(
         nextRetryAt: undefined,
       })
     }
-
-    console.log(`[sync] Batch synced ${result.synced.conversations} conversations`, result.synced)
   } catch (error) {
     // Mark all as failed with backoff
     const now = Date.now()
@@ -355,11 +347,6 @@ async function syncSingle(
       lastSyncAttemptAt: undefined,
       nextRetryAt: undefined,
     })
-
-    console.log(`[sync] Synced conversation ${item.conversationId}`, {
-      tabs: item.payload.pendingTabs.length,
-      messages: item.payload.pendingMessages.length,
-    })
   } catch (error) {
     const conversation = await db.conversations.get(item.conversationId)
     const lastAttempt = conversation?.lastSyncAttemptAt ?? 0
@@ -395,7 +382,6 @@ export async function syncFromServer(
   orgId: string,
 ): Promise<{ conversations: number; tabs: number; isOffline: boolean }> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    console.log("[sync] Offline - using local data only")
     return { conversations: 0, tabs: 0, isOffline: true }
   }
 
@@ -418,7 +404,6 @@ export async function syncFromServer(
 export async function fetchConversations(workspace: string, userId: string, _orgId: string): Promise<void> {
   // Skip fetch if offline
   if (typeof navigator !== "undefined" && !navigator.onLine) {
-    console.log("[sync] Offline - using local data only")
     return
   }
 
@@ -448,7 +433,6 @@ export async function fetchConversations(workspace: string, userId: string, _org
 
       // If local has pending changes, skip server update
       if (local?.pendingSync) {
-        console.log(`[sync] Skipping server update for ${convo.id} - local changes pending`)
         continue
       }
 
@@ -504,11 +488,6 @@ export async function fetchConversations(workspace: string, userId: string, _org
     // Cross-device sync: populate localStorage tabStore with server tabs
     // This enables clicking synced conversations in the sidebar to load correctly
     syncDexieTabsToLocalStorage(workspace, allServerTabs, allConversations)
-
-    console.log(`[sync] Fetched conversations for ${workspace}`, {
-      own: own.length,
-      shared: shared.length,
-    })
   } catch (error) {
     console.error("[sync] Failed to fetch conversations:", error)
   }
@@ -716,10 +695,6 @@ export function subscribeToSharedConversations(
   _userId: string,
   _onMessage: (message: DbMessage) => void,
 ): () => void {
-  console.log(`[sync] Realtime subscriptions not yet implemented for ${workspace}`)
-
   // Return no-op unsubscribe for now
-  return () => {
-    console.log(`[sync] Unsubscribe (no-op) from ${workspace}`)
-  }
+  return () => {}
 }

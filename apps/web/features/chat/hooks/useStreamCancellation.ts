@@ -85,15 +85,10 @@ export function useStreamCancellation({
 
   const stopStreaming = useCallback(() => {
     // Guard against double-clicks (ref for immediate check)
-    if (isStoppingRef.current) {
-      console.log("[useStreamCancellation] Already stopping, ignoring")
-      return
-    }
+    if (isStoppingRef.current) return
     isStoppingRef.current = true
     setIsStopping(true)
     trackStreamStopped({ workspace })
-
-    console.log("[useStreamCancellation] Stopping stream, requestId:", currentRequestIdRef.current)
 
     // Log to dev terminal if callback provided
     onDevEvent?.({
@@ -108,14 +103,6 @@ export function useStreamCancellation({
 
     // Capture requestId BEFORE nulling it
     const requestIdToCancel = currentRequestIdRef.current
-    console.log(
-      "[useStreamCancellation] requestIdToCancel:",
-      requestIdToCancel,
-      "tabId:",
-      tabId,
-      "workspace:",
-      workspace,
-    )
 
     // Helper to reset all states after cancellation completes
     // No delay needed - cancel endpoint now waits for lock release before responding
@@ -125,7 +112,6 @@ export function useStreamCancellation({
       isStoppingRef.current = false
       setIsStopping(false)
       setShowCompletionDots(false)
-      console.log("[useStreamCancellation] Cancellation complete, states reset")
     }
 
     // Capture stack trace for debugging (helps identify where cancel originated)
@@ -137,18 +123,13 @@ export function useStreamCancellation({
       try {
         if (requestIdToCancel) {
           // Primary path: Cancel by requestId
-          console.log("[useStreamCancellation] Sending cancel with requestId:", requestIdToCancel)
-          console.log("[useStreamCancellation] Stack trace:", clientStack)
           const validatedRequest = validateRequest("claude/stream/cancel", {
             requestId: requestIdToCancel,
             clientStack, // Send stack for server-side debugging
           })
-          const response = await postty("claude/stream/cancel", validatedRequest)
-          console.log("[useStreamCancellation] Cancel response:", JSON.stringify(response))
+          await postty("claude/stream/cancel", validatedRequest)
         } else if (tabId.length > 0 && tabGroupId && workspace) {
           // Fallback path: Cancel by tabId (super-early Stop)
-          console.log("[useStreamCancellation] Sending cancel with tabId fallback:", tabId)
-          console.log("[useStreamCancellation] Stack trace:", clientStack)
           const validatedRequest = validateRequest("claude/stream/cancel", {
             tabGroupId,
             tabId,
@@ -156,8 +137,7 @@ export function useStreamCancellation({
             worktree: worktree || undefined,
             clientStack, // Send stack for server-side debugging
           })
-          const response = await postty("claude/stream/cancel", validatedRequest)
-          console.log("[useStreamCancellation] Cancel response (fallback):", JSON.stringify(response))
+          await postty("claude/stream/cancel", validatedRequest)
         } else {
           console.warn("[useStreamCancellation] No requestId or tabId available - relying on abort() only")
         }
