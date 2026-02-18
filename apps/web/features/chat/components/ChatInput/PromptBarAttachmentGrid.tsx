@@ -45,7 +45,7 @@ export function PromptBarAttachmentGrid() {
             <div className="relative">
               {isSkillAttachment(attachment) ? (
                 <div className="size-9 flex items-center justify-center rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-950/30 dark:to-pink-950/30">
-                  {attachment.source === "global" ? (
+                  {attachment.source === "superadmin" ? (
                     <Globe className="size-4 text-purple-600 dark:text-purple-400" />
                   ) : (
                     <Sparkles className="size-4 text-purple-600 dark:text-purple-400" />
@@ -118,7 +118,7 @@ export function PromptBarAttachmentGrid() {
               ) : (
                 <span className="text-[11px] text-black/40 dark:text-white/40">
                   {isSkillAttachment(attachment)
-                    ? attachment.source === "global"
+                    ? attachment.source === "superadmin"
                       ? "Skill"
                       : "Custom Skill"
                     : isUserPromptAttachment(attachment)

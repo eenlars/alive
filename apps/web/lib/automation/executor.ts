@@ -10,7 +10,8 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { buildSessionOrgClaims, CLAUDE_MODELS, getWorkspacePath } from "@webalive/shared"
-import { getSkillById, listGlobalSkills, type SkillListItem } from "@webalive/tools"
+import { PATHS } from "@webalive/shared"
+import { getSkillById, listSuperadminSkills, type SkillListItem } from "@webalive/tools"
 import { createSessionToken } from "@/features/auth/lib/jwt"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { getOrgCredits } from "@/lib/credits/supabase-credits"
@@ -64,7 +65,7 @@ export interface AutomationJobResult {
 async function loadSkillPrompts(skillIds: string[]): Promise<string | null> {
   if (!skillIds || skillIds.length === 0) return null
 
-  const globalSkills = await listGlobalSkills()
+  const globalSkills = await listSuperadminSkills(PATHS.ALIVE_ROOT)
   const loadedSkills: SkillListItem[] = []
 
   for (const skillId of skillIds) {

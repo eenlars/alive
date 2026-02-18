@@ -1,3 +1,4 @@
+import type { SkillSource } from "@webalive/tools"
 import type { ReactNode } from "react"
 import type { FileCategory } from "./types/file-types"
 
@@ -57,8 +58,8 @@ export interface SkillAttachment extends BaseAttachment {
   description: string
   /** Full prompt text to prepend to message */
   prompt: string
-  /** Source: "global" (system), "user" (localStorage), "project" (workspace) */
-  source: "global" | "user" | "project"
+  /** Source: "superadmin" (repo), "user" (localStorage), "project" (workspace) */
+  source: SkillSource
 }
 
 // File uploaded to workspace for SDK Read tool access
@@ -165,18 +166,21 @@ export interface ChatInputConfig {
   worktree?: string | null
 }
 
+/** Callback to add a skill as an attachment */
+export type AddSkillFn = (
+  skillId: string,
+  displayName: string,
+  description: string,
+  prompt: string,
+  source: SkillSource,
+) => void
+
 export interface ChatInputContextValue extends ChatInputState, ChatInputActions {
   config: ChatInputConfig
   /** Register the textarea ref for focus management */
   registerTextareaRef: (ref: HTMLTextAreaElement | null) => void
   /** Add a skill as an attachment (for @mention autocomplete and toolbar) */
-  onAddSkill?: (
-    skillId: string,
-    displayName: string,
-    description: string,
-    prompt: string,
-    source: "global" | "user" | "project",
-  ) => void
+  onAddSkill?: AddSkillFn
 }
 
 export interface ChatInputProps extends ChatInputActions {
@@ -199,13 +203,7 @@ export interface ChatInputHandle {
   /** @deprecated Use addSkill instead */
   addUserPrompt: (promptType: string, data: string, displayName: string, userFacingDescription?: string) => void
   /** Add a skill attachment */
-  addSkill: (
-    skillId: string,
-    displayName: string,
-    description: string,
-    prompt: string,
-    source: "global" | "user" | "project",
-  ) => void
+  addSkill: AddSkillFn
   addFileForAnalysis: (file: File, workspace?: string, worktree?: string | null) => Promise<void>
   getAttachments: () => Attachment[]
   clearLibraryImages: () => void

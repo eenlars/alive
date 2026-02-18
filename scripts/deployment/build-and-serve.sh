@@ -275,17 +275,9 @@ fi
 # =============================================================================
 # Sync Skills
 # =============================================================================
-phase_start "Syncing skills"
-
-SKILLS_SRC="$PROJECT_ROOT/.claude/skills"
-SKILLS_DST="/etc/claude-code/skills"
-
-if [ -d "$SKILLS_SRC" ]; then
-    mkdir -p "$SKILLS_DST"
-    rsync -a --delete "$SKILLS_SRC/" "$SKILLS_DST/" 2>/dev/null || cp -r "$SKILLS_SRC"/* "$SKILLS_DST/"
-    log_step "$(find "$SKILLS_DST" -maxdepth 1 -type d | wc -l) skills synced"
-fi
-phase_end ok "Skills synced"
+phase_start "Skills"
+log_step "Superadmin skills read directly from repo at $PROJECT_ROOT/.claude/skills/"
+phase_end ok "Skills ready"
 
 # =============================================================================
 # Build & Deploy Go Preview Proxy (if configured)

@@ -5,6 +5,7 @@ import { createPreviewUrl, getAttachmentType, validateFile } from "@/features/ch
 import { useImages } from "@/lib/stores/imageStore"
 import { hashFile } from "@/lib/utils/file-hash"
 import type {
+  AddSkillFn,
   Attachment,
   ChatInputConfig,
   FileUploadAttachment,
@@ -330,14 +331,8 @@ export function useAttachments(config: ChatInputConfig) {
     [attachments, config],
   )
 
-  const addSkill = useCallback(
-    (
-      skillId: string,
-      displayName: string,
-      description: string,
-      prompt: string,
-      source: "global" | "user" | "project",
-    ) => {
+  const addSkill: AddSkillFn = useCallback(
+    (skillId, displayName, description, prompt, source) => {
       // Check if same skill already attached
       if (attachments.some(a => isSkillAttachment(a) && a.skillId === skillId)) {
         config.onMessage?.(`"${displayName}" already attached`, "error")

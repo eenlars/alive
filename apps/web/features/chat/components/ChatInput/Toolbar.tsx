@@ -21,19 +21,14 @@ import { useSandbox, useSandboxMinimized } from "@/lib/stores/debug-store"
 import { usePlanMode, usePlanModeActions } from "@/lib/stores/planModeStore"
 import type { Skill } from "@/lib/stores/skillsStore"
 import { useChatInput } from "./ChatInputContext"
+import type { AddSkillFn } from "./types"
 
 interface ToolbarProps {
   fileInputRef: RefObject<HTMLInputElement | null>
   onOpenTemplates?: () => void
   /** @deprecated Use onAddSkill instead */
   onAddUserPrompt?: (promptType: string, data: any, displayName: string, userFacingDescription?: string) => void
-  onAddSkill?: (
-    skillId: string,
-    displayName: string,
-    description: string,
-    prompt: string,
-    source: "global" | "user" | "project",
-  ) => void
+  onAddSkill?: AddSkillFn
 }
 
 export function Toolbar({ fileInputRef, onAddUserPrompt, onAddSkill }: ToolbarProps) {
@@ -156,7 +151,7 @@ export function Toolbar({ fileInputRef, onAddUserPrompt, onAddSkill }: ToolbarPr
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="size-8 flex items-center justify-center rounded-lg bg-purple-500/10 shrink-0">
-                          {skill.source === "global" ? (
+                          {skill.source === "superadmin" ? (
                             <Globe className="size-4 text-purple-600 dark:text-purple-400" />
                           ) : (
                             <User className="size-4 text-purple-600 dark:text-purple-400" />

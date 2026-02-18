@@ -4,17 +4,12 @@ import type { RefObject } from "react"
 import { useCallback, useMemo, useRef, useState } from "react"
 import { useAllSkills } from "@/lib/providers/SkillsStoreProvider"
 import type { Skill } from "@/lib/stores/skillsStore"
+import type { AddSkillFn } from "../types"
 
 interface UseSkillMentionOptions {
   message: string
   setMessage: (msg: string) => void
-  onAddSkill?: (
-    skillId: string,
-    displayName: string,
-    description: string,
-    prompt: string,
-    source: "global" | "user" | "project",
-  ) => void
+  onAddSkill?: AddSkillFn
   textareaRef: RefObject<HTMLTextAreaElement | null>
 }
 

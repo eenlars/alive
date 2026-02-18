@@ -186,9 +186,8 @@ export {
 } from "./tools/sessions/index.js"
 // Skill utilities
 export {
-  GLOBAL_SKILLS_PATH,
   getSkillById,
-  listGlobalSkills,
+  listSuperadminSkills,
   listProjectSkills,
   listSkillsFromDir,
   mergeSkills,
