@@ -21,7 +21,6 @@
  * ```
  */
 
-export type { ToolDisplayConfig } from "./display-config.js"
 // Display configuration (non-React)
 export {
   getDisplayConfig,
@@ -30,6 +29,7 @@ export {
   plural,
   registerDisplayConfig,
   shouldAutoExpand,
+  type ToolDisplayConfig,
   transformData,
   unwrapMcp,
 } from "./display-config.js"
@@ -187,8 +187,8 @@ export {
 // Skill utilities
 export {
   getSkillById,
-  listSuperadminSkills,
   listProjectSkills,
+  listSuperadminSkills,
   listSkillsFromDir,
   mergeSkills,
   type SkillListItem,
