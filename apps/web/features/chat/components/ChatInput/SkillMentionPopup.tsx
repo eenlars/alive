@@ -152,7 +152,7 @@ export function SkillMentionPopup({
                         : "bg-purple-500/[0.08] dark:bg-purple-400/[0.08]"
                     }`}
                   >
-                    {skill.source === "global" ? (
+                    {skill.source === "superadmin" ? (
                       <Globe className="size-4 text-purple-600 dark:text-purple-400" />
                     ) : (
                       <User className="size-4 text-purple-600 dark:text-purple-400" />

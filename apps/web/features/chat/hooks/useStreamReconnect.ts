@@ -104,8 +104,6 @@ export function useStreamReconnect({
         return
       }
 
-      console.log(`[StreamReconnect] Found ${data.messages?.length ?? 0} buffered messages, state: ${data.state}`)
-
       // Process buffered messages
       // CRITICAL: Pass tabId to addMessage for tab isolation
       if (data.messages && data.messages.length > 0) {
@@ -163,7 +161,6 @@ export function useStreamReconnect({
       for (let i = 0; i < maxPolls; i++) {
         // Stop polling if tab becomes hidden again
         if (document.hidden) {
-          console.log("[StreamReconnect] Tab hidden, stopping poll")
           return
         }
 
@@ -249,7 +246,6 @@ export function useStreamReconnect({
 
     // Small delay to let the page settle
     const timeoutId = setTimeout(() => {
-      console.log("[StreamReconnect] Checking for active stream on mount")
       checkForBufferedMessages()
     }, 500)
 
@@ -267,7 +263,6 @@ export function useStreamReconnect({
       } else {
         // Tab became visible - check for buffered messages if we were streaming
         // Also check unconditionally since we might have refreshed the page
-        console.log("[StreamReconnect] Tab visible, checking for buffered messages")
         checkForBufferedMessages()
       }
     }

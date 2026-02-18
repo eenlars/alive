@@ -93,7 +93,7 @@ const useAuthStoreBase = create<AuthStore>()((set, _get) => {
           return state
         }
 
-        console.log("[AuthStore] Session expired:", reason || "401 Unauthorized")
+        console.warn("[AuthStore] Session expired:", reason || "401 Unauthorized")
 
         return {
           status: "session_expired",

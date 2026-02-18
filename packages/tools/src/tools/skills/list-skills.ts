@@ -3,7 +3,7 @@
  * Single source of truth: YAML frontmatter in SKILL.md files.
  *
  * Skills are loaded from:
- * - /etc/claude-code/skills/ (global, system-provided)
+ * - {aliveRoot}/.claude/skills/ (superadmin skills, from repo)
  * - {workspace}/.claude/skills/ (project-specific)
  */
 import { readdir, readFile } from "node:fs/promises"
@@ -13,7 +13,7 @@ import { parseSkillContent, skillIdToDisplayName } from "../../lib/skill-frontma
 /**
  * Skill source types
  */
-export type SkillSource = "global" | "user" | "project"
+export type SkillSource = "superadmin" | "user" | "project"
 
 /**
  * Skill list item structure for UI consumption.
@@ -27,7 +27,7 @@ export interface SkillListItem {
   description: string
   /** Full prompt text (markdown body) */
   prompt: string
-  /** Source: global (system), user (localStorage), or project (workspace) */
+  /** Source: superadmin (repo), user (localStorage), or project (workspace) */
   source: SkillSource
   /** File path (only for filesystem skills) */
   filePath?: string
@@ -41,7 +41,10 @@ export interface SkillListItem {
  * @param source - Source type for these skills
  * @returns Array of available skills with metadata
  */
-export async function listSkillsFromDir(skillsPath: string, source: SkillSource = "global"): Promise<SkillListItem[]> {
+export async function listSkillsFromDir(
+  skillsPath: string,
+  source: SkillSource = "superadmin",
+): Promise<SkillListItem[]> {
   const results: SkillListItem[] = []
 
   try {
@@ -79,19 +82,14 @@ export async function listSkillsFromDir(skillsPath: string, source: SkillSource 
 }
 
 /**
- * Default global skills path
- */
-export const GLOBAL_SKILLS_PATH = "/etc/claude-code/skills"
-
-/**
- * List all global skills (system-provided).
- * Reads from /etc/claude-code/skills/ which is synced during deployment.
+ * List superadmin skills from the repo's .claude/skills/ directory.
  *
- * @param skillsPath - Optional custom path (for testing)
- * @returns Array of global skills
+ * @param aliveRoot - Root directory of the Alive repo
+ * @returns Array of superadmin skills
  */
-export async function listGlobalSkills(skillsPath?: string): Promise<SkillListItem[]> {
-  return listSkillsFromDir(skillsPath ?? GLOBAL_SKILLS_PATH, "global")
+export async function listSuperadminSkills(aliveRoot: string): Promise<SkillListItem[]> {
+  const skillsPath = join(aliveRoot, ".claude", "skills")
+  return listSkillsFromDir(skillsPath, "superadmin")
 }
 
 /**

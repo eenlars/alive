@@ -101,9 +101,7 @@ export function useBrowserCleanup({
         new Blob([JSON.stringify(payload)], { type: "application/json" }),
       )
 
-      if (success) {
-        console.log("[useBrowserCleanup] Cancel beacon sent:", payload)
-      } else {
+      if (!success) {
         console.warn("[useBrowserCleanup] Cancel beacon failed to send")
       }
     }

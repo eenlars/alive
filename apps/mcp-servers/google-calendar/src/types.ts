@@ -4,6 +4,10 @@
 
 import { z } from "zod"
 
+const CalendarDateTimeSchema = z
+  .string()
+  .datetime({ offset: true, local: true, message: "Must be ISO 8601 datetime with Z, offset, or local time" })
+
 // Calendar type
 export interface Calendar {
   id: string
@@ -121,11 +125,11 @@ export const EventDraftSchema = z.object({
   summary: z.string().min(1, "Event title is required"),
   description: z.string().optional(),
   start: z.object({
-    dateTime: z.string().datetime("Start must be ISO 8601 datetime"),
+    dateTime: CalendarDateTimeSchema,
     timeZone: z.string().optional(),
   }),
   end: z.object({
-    dateTime: z.string().datetime("End must be ISO 8601 datetime"),
+    dateTime: CalendarDateTimeSchema,
     timeZone: z.string().optional(),
   }),
   location: z.string().optional(),

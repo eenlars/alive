@@ -93,9 +93,6 @@ dev:
 
 # Restart dev server via systemctl (safe from chat)
 devchat:
-	@echo "$(BLUE)Syncing global skills...$(NC)"
-	@mkdir -p /etc/claude-code/skills
-	@rsync -a --delete .claude/skills/ /etc/claude-code/skills/ 2>/dev/null || cp -r .claude/skills/* /etc/claude-code/skills/
 	@echo "$(BLUE)Restarting dev server...$(NC)"
 	@systemctl restart alive-dev
 	@sleep 2

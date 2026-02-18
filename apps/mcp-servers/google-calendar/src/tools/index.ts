@@ -173,7 +173,8 @@ const allTools = [
           properties: {
             dateTime: {
               type: "string",
-              description: "Start time in ISO 8601 format (e.g., '2024-02-13T15:30:00')",
+              description:
+                "Start time in ISO 8601 format (e.g., '2024-02-13T15:30:00Z', '2024-02-13T15:30:00-05:00', or local '2024-02-13T15:30:00')",
             },
             timeZone: {
               type: "string",
@@ -187,7 +188,7 @@ const allTools = [
           properties: {
             dateTime: {
               type: "string",
-              description: "End time in ISO 8601 format",
+              description: "End time in ISO 8601 format (same accepted formats as start)",
             },
             timeZone: {
               type: "string",

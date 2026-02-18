@@ -281,30 +281,37 @@ export function AutomationsSettings() {
         {/* Right: Edit/Runs panel */}
         {editingJob ? (
           <div className="overflow-hidden flex flex-col border-l border-black/10 dark:border-white/10 pl-6">
-            {/* View mode tabs */}
-            <div className="flex items-center gap-1 px-6 py-4 border-b border-black/10 dark:border-white/10 shrink-0">
-              <button
-                type="button"
-                onClick={() => setViewMode("edit")}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  viewMode === "edit"
-                    ? "bg-black/10 dark:bg-white/10 text-black dark:text-white"
-                    : "text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white"
-                }`}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("runs")}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  viewMode === "runs"
-                    ? "bg-black/10 dark:bg-white/10 text-black dark:text-white"
-                    : "text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white"
-                }`}
-              >
-                Run History
-              </button>
+            {/* Header with view toggle */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06] shrink-0">
+              <h2 className="text-sm font-semibold text-black dark:text-white">
+                {viewMode === "runs" ? "Run History" : editingJob.name}
+              </h2>
+              <div className="flex items-center gap-1 bg-black/[0.04] dark:bg-white/[0.06] rounded-lg p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("edit")}
+                  aria-pressed={viewMode === "edit"}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === "edit"
+                      ? "bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm"
+                      : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+                  }`}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("runs")}
+                  aria-pressed={viewMode === "runs"}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === "runs"
+                      ? "bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm"
+                      : "text-black/50 dark:text-white/50 hover:text-black/70 dark:hover:text-white/70"
+                  }`}
+                >
+                  Runs
+                </button>
+              </div>
             </div>
 
             {/* Content */}

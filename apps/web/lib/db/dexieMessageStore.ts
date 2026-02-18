@@ -573,8 +573,6 @@ export const useDexieMessageStore = create<DexieMessageStore>((set, get) => ({
       }),
     )
 
-    console.log(`[dexie] Soft-deleted ${messagesToDelete.length} messages, will resume at UUID: ${resumeUuid}`)
-
     // Store the resume point for the next API call
     set(state => ({
       resumeSessionAtByTab: { ...state.resumeSessionAtByTab, [tabId]: resumeUuid },

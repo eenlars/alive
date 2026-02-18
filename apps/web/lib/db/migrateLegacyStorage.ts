@@ -161,14 +161,12 @@ export async function migrateLegacyStorage(userId: string, orgId: string): Promi
   // Check if already migrated
   const status = getMigrationStatus()
   if (status && status.version >= CURRENT_MIGRATION_VERSION) {
-    console.log(`[migration] Already migrated (v${status.version})`)
     return false
   }
 
   // Check for legacy data
   const raw = localStorage.getItem(LEGACY_STORAGE_KEY)
   if (!raw) {
-    console.log("[migration] No legacy data found")
     saveMigrationStatus(0, 0)
     return false
   }
@@ -184,12 +182,9 @@ export async function migrateLegacyStorage(userId: string, orgId: string): Promi
 
   // Validate structure
   if (!legacy.state) {
-    console.log("[migration] Legacy data has no state")
     saveMigrationStatus(0, 0)
     return false
   }
-
-  console.log("[migration] Starting localStorage -> Dexie migration...")
 
   const db = getMessageDb(userId)
   let conversationCount = 0
@@ -221,7 +216,6 @@ export async function migrateLegacyStorage(userId: string, orgId: string): Promi
       }),
     )
 
-    console.log(`[migration] Migrated ${conversationCount} conversations, ${messageCount} messages`)
     saveMigrationStatus(conversationCount, messageCount)
 
     return true
@@ -248,7 +242,6 @@ async function migrateConversation(
   // Check if conversation already exists (idempotency)
   const existing = await db.conversations.get(id)
   if (existing) {
-    console.log(`[migration] Conversation ${id} already exists, skipping`)
     return
   }
 
@@ -302,7 +295,6 @@ async function migrateConversation(
 
     // Skip streaming messages (incomplete)
     if (msg.isStreaming) {
-      console.log(`[migration] Skipping streaming message ${msg.id}`)
       continue
     }
 
@@ -348,5 +340,4 @@ export function needsMigration(): boolean {
 export function clearLegacyStorage(): void {
   if (typeof window === "undefined") return
   localStorage.removeItem(LEGACY_STORAGE_KEY)
-  console.log("[migration] Cleared legacy storage")
 }

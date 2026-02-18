@@ -101,7 +101,7 @@ export function createClient<T extends SchemaRegistry>(schemas: T, options: Clie
     initOrPath?: Omit<RequestInit, "body" | "method"> | string,
     pathOverrideMaybe?: string,
   ): Promise<Res<T, E>> {
-    let body: unknown = undefined
+    let body: unknown
     let init: Omit<RequestInit, "body" | "method"> | undefined
     let pathOverrideResolved: string | undefined
 

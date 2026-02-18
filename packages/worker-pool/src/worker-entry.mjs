@@ -16,7 +16,7 @@
  *   WORKER_WORKSPACE_KEY - Workspace identifier
  */
 
-import { chownSync, cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
+import { chownSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
 import { createConnection } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -341,17 +341,8 @@ function dropPrivileges() {
     // CLAUDE_CONFIG_DIR points to /root/.claude/ so all workers share one credentials file.
     // This ensures token refreshes from /login are immediately visible to all workers.
 
-    // Copy global skills from /etc/claude-code/skills/ to user's .claude/skills/
-    const globalSkillsPath = "/etc/claude-code/skills"
-    const userSkillsPath = join(claudeDir, "skills")
-    if (existsSync(globalSkillsPath)) {
-      try {
-        cpSync(globalSkillsPath, userSkillsPath, { recursive: true })
-        console.error(`[worker] Copied global skills to ${userSkillsPath}`)
-      } catch (e) {
-        console.error(`[worker] Failed to copy skills: ${e.message}`)
-      }
-    }
+    // Skills are superadmin-only and read directly from the repo.
+    // Superadmin workers (uid 0) already have access via /root/.claude/skills/.
 
     process.env.HOME = workerHome
     console.error(`[worker] Using stable session home: ${workerHome}`)
@@ -369,17 +360,6 @@ function dropPrivileges() {
     process.env.HOME = tempHome
     console.error(`[worker] Using temp home: ${tempHome}`)
     console.error(`[worker] Using shared credentials from: ${process.env.CLAUDE_CONFIG_DIR}`)
-
-    const globalSkillsPath = "/etc/claude-code/skills"
-    const userSkillsPath = join(claudeDir, "skills")
-    if (existsSync(globalSkillsPath)) {
-      try {
-        cpSync(globalSkillsPath, userSkillsPath, { recursive: true })
-        console.error(`[worker] Copied global skills to ${userSkillsPath}`)
-      } catch (e) {
-        console.error(`[worker] Failed to copy skills: ${e.message}`)
-      }
-    }
   }
 
   // Ensure temp directory is writable by the workspace user

@@ -65,9 +65,7 @@ function mapWorktreeError(error: WorktreeError): { code: ErrorCode; status: numb
  * - Auth layer MUST verify superadmin status before this is called
  * - This function does NOT verify permissions (that's done in verifyWorkspaceAccess)
  */
-export async function getWorkspace({ host, body, requestId }: GetWorkspaceParams): Promise<WorkspaceResult> {
-  console.log(`[Workspace ${requestId}] Resolving workspace for host: ${host}`)
-
+export async function getWorkspace({ host: _, body, requestId }: GetWorkspaceParams): Promise<WorkspaceResult> {
   // Special case: alive workspace
   // SECURITY NOTE: This only resolves the path - auth layer (verifyWorkspaceAccess)
   // MUST verify the user is a superadmin before this function is called.
@@ -83,7 +81,6 @@ export async function getWorkspace({ host, body, requestId }: GetWorkspaceParams
       }
     }
 
-    console.log(`[Workspace ${requestId}] Resolving superadmin Alive workspace path: ${SUPERADMIN.WORKSPACE_PATH}`)
     return {
       success: true,
       workspace: SUPERADMIN.WORKSPACE_PATH,
@@ -142,7 +139,6 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
 
     if (standaloneWorkspaceExists(customWorkspace)) {
       const workspacePath = getStandaloneWorkspacePath(customWorkspace)
-      console.log(`[Workspace ${requestId}] Using standalone workspace: ${workspacePath}`)
       return {
         success: true,
         workspace: workspacePath,
@@ -171,13 +167,11 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
   // Test workspace is created by e2e-tests/genuine-setup.ts
   const testWorkspace = `test.${TEST_CONFIG.EMAIL_DOMAIN}`
   if (env.STREAM_ENV === "local" && (customWorkspace === "test" || customWorkspace === testWorkspace)) {
-    console.log(`[Workspace ${requestId}] Using test workspace in local mode`)
     return await resolveWorktreeIfRequested("/tmp/test-workspace", body, requestId)
   }
 
   // Normalize domain name to handle protocols, www, uppercase, etc.
   const normalizedDomain = normalizeDomain(customWorkspace)
-  console.log(`[Workspace ${requestId}] Normalized workspace: ${customWorkspace} → ${normalizedDomain}`)
 
   // Try to find the workspace directory using both naming conventions:
   // 1. New convention: domain with dots (e.g., "example.com")
@@ -218,9 +212,6 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
     if (existsSync(candidateFullPath)) {
       workspacePath = normalized
       fullPath = candidateFullPath
-      console.log(
-        `[Workspace ${requestId}] Found workspace using ${candidate === normalizedDomain ? "dots (new)" : "hyphens (legacy)"}: ${candidateFullPath}`,
-      )
       break
     }
   }
@@ -247,7 +238,6 @@ async function getTerminalWorkspace(body: WorkspaceRequestBody, requestId: strin
     }
   }
 
-  console.log(`[Workspace ${requestId}] Using custom workspace: ${fullPath}`)
   return await resolveWorktreeIfRequested(fullPath, body, requestId)
 }
 

@@ -60,7 +60,6 @@ const mocks = vi.hoisted(() => {
     useModel: vi.fn(() => "claude-sonnet"),
     usePlanMode: vi.fn(() => false),
     getPlanModeState: vi.fn(() => ({ planMode: false })),
-    isDevelopment: vi.fn(() => false),
     streamingActions,
     useDexieMessageStore,
     handleSessionExpired: vi.fn((..._args: unknown[]) => undefined),
@@ -178,10 +177,6 @@ vi.mock("@/lib/stores/authStore", () => ({
   authStore: {
     handleSessionExpired: mocks.handleSessionExpired,
   },
-}))
-
-vi.mock("@/lib/stores/debug-store", () => ({
-  isDevelopment: () => mocks.isDevelopment(),
 }))
 
 vi.mock("@/lib/stores/featureFlagStore", () => ({

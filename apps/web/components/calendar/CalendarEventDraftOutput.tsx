@@ -11,6 +11,7 @@
 import { useCallback, useState } from "react"
 import toast from "react-hot-toast"
 import { CalendarEventDraftCard } from "./CalendarEventDraftCard"
+import { normalizeDraftDateTimesForApi } from "./dateTime"
 import type { CalendarEventDraftOutputProps, EventDraft } from "./types"
 
 /**
@@ -35,12 +36,14 @@ export function CalendarEventDraftOutput({
     async (eventData: EventDraft) => {
       setIsLoading(true)
       try {
+        const payload = normalizeDraftDateTimesForApi(eventData)
+
         const response = await fetch("/api/google/calendar/create-event", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(eventData),
+          body: JSON.stringify(payload),
         })
 
         if (!response.ok) {
@@ -50,7 +53,7 @@ export function CalendarEventDraftOutput({
 
         const result = await response.json()
 
-        toast.success(`"${eventData.summary}" added to your calendar`)
+        toast.success(`"${payload.summary}" added to your calendar`)
 
         if (onSubmitAnswer) {
           onSubmitAnswer(`Event created successfully: ${result.htmlLink}`)

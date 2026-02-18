@@ -1,37 +1,35 @@
 /**
  * Skills List API
- * Returns available skills from filesystem (SKILL.md files)
+ * Returns superadmin skills from the repo's .claude/skills/ directory.
+ * Superadmin-only endpoint.
  */
 
 import * as Sentry from "@sentry/nextjs"
-import { listGlobalSkills } from "@webalive/tools"
+import { PATHS } from "@webalive/shared"
+import { listSuperadminSkills } from "@webalive/tools"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
+import { protectedRoute } from "@/features/auth/lib/protectedRoute"
 import { ErrorCodes } from "@/lib/error-codes"
 
-/**
- * GET - Get all available global skills
- * Public endpoint - no authentication required
- * Skills are read from /etc/claude-code/skills/ and cached via Next.js
- */
-export async function GET() {
-  try {
-    const skills = await listGlobalSkills()
+export const GET = protectedRoute(
+  async () => {
+    try {
+      const skills = await listSuperadminSkills(PATHS.ALIVE_ROOT)
 
-    return NextResponse.json(
-      { skills },
-      {
-        headers: {
-          // Cache for 5 minutes, revalidate in background
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+      return NextResponse.json(
+        { skills },
+        {
+          headers: {
+            "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+          },
         },
-      },
-    )
-  } catch (error) {
-    console.error("[Skills List API] Error:", error)
-    Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      exception: error instanceof Error ? error.message : String(error),
-    })
-  }
-}
+      )
+    } catch (error) {
+      console.error("[Skills List API] Error:", error)
+      Sentry.captureException(error)
+      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    }
+  },
+  { requireSuperadmin: true },
+)

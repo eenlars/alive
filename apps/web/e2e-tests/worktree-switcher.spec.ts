@@ -131,7 +131,7 @@ const test = base.extend<
       workspace: workerStorageState.workspace,
       orgId: workerStorageState.orgId,
       featureFlags: { WORKTREES: true },
-      debug: { isDebugView: false, showSSETerminal: false, showSandbox: false },
+      debug: { isDebugView: false, showSandbox: false },
     })
 
     await context.addInitScript(entries => {

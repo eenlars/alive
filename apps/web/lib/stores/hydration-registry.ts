@@ -158,8 +158,6 @@ export async function hydrateAll(): Promise<void> {
     metrics.marks.hydrationStart = performance.now()
   }
 
-  console.log(`[HydrationRegistry] Hydrating ${stores.length} stores...`)
-
   // Hydrate all stores in parallel (they're independent after skipHydration)
   const results = await Promise.allSettled(
     stores.map(async store => {
@@ -176,10 +174,7 @@ export async function hydrateAll(): Promise<void> {
 
       try {
         if (!store.hasHydrated()) {
-          console.log(`[HydrationRegistry] Rehydrating ${store.name}`)
           await store.rehydrate()
-        } else {
-          console.log(`[HydrationRegistry] ${store.name} already hydrated`)
         }
 
         if (isE2E) {
@@ -211,9 +206,6 @@ export async function hydrateAll(): Promise<void> {
     metrics.marks.hydrationEnd = performance.now()
     metrics.marks.appReady = performance.now()
     metrics.totalDurationMs = metrics.marks.hydrationEnd - (metrics.marks.hydrationStart || 0)
-    console.log(`[HydrationRegistry] All stores hydrated in ${metrics.totalDurationMs.toFixed(2)}ms`)
-  } else {
-    console.log("[HydrationRegistry] All stores hydrated")
   }
 
   // Set legacy flags for backwards compatibility

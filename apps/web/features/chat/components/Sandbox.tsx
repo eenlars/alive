@@ -7,7 +7,7 @@ import { useWorkspace } from "@/features/workspace/hooks/useWorkspace"
 import { useResizablePanel } from "@/lib/hooks/useResizablePanel"
 import { getPreviewUrl, getSiteUrl } from "@/lib/preview-utils"
 import { useDebugActions, useSandboxWidth } from "@/lib/stores/debug-store"
-import { DrivePanel, PanelViewMenu, SandboxCodePanel, SandboxTerminal } from "./sandbox/index"
+import { DrivePanel, PanelViewMenu, SandboxCodePanel, SandboxEventsPanel, SandboxTerminal } from "./sandbox/index"
 import { PulsingDot } from "./ui/PulsingDot"
 
 export function Sandbox() {
@@ -295,6 +295,7 @@ export function Sandbox() {
               <span className="text-[13px] text-neutral-500 dark:text-neutral-500">Terminal</span>
             </div>
           )}
+          {panel.view === "events" && <span className="text-[13px] text-neutral-500 truncate">SSE Events</span>}
         </div>
 
         {/* View switcher */}
@@ -357,6 +358,8 @@ export function Sandbox() {
           <DrivePanel workspace={workspace} worktree={worktree} />
         ) : panel.view === "terminal" ? (
           <SandboxTerminal workspace={workspace} />
+        ) : panel.view === "events" ? (
+          <SandboxEventsPanel />
         ) : null}
       </div>
     </div>

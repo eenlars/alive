@@ -76,7 +76,6 @@ export function HydrationManager(): null {
 
     // Check if already hydrated (e.g., hot reload)
     if (isAllHydrated()) {
-      console.log("[HydrationManager] Already hydrated, skipping")
       setAppHydrated(true)
       return
     }

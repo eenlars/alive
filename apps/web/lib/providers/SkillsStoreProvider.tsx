@@ -19,7 +19,7 @@ export function SkillsStoreProvider({ children, initialState }: SkillsStoreProvi
 
   if (!storeRef.current) {
     storeRef.current = createSkillsStore({
-      globalSkills: [],
+      superadminSkills: [],
       userSkills: [],
       isLoading: false,
       error: null,
@@ -28,9 +28,9 @@ export function SkillsStoreProvider({ children, initialState }: SkillsStoreProvi
     } as SkillsState)
   }
 
-  // Auto-fetch global skills on mount
+  // Auto-fetch superadmin skills on mount (will silently return empty for non-superadmins)
   useEffect(() => {
-    storeRef.current?.getState().actions.loadGlobalSkills()
+    storeRef.current?.getState().actions.loadSuperadminSkills()
   }, [])
 
   return <SkillsStoreContext.Provider value={storeRef.current}>{children}</SkillsStoreContext.Provider>
@@ -46,14 +46,14 @@ export function useSkillsStore<T>(selector: (store: SkillsStore) => T): T {
 // Atomic selector hooks (follow Zustand best practices)
 // ============================================================================
 
-/** All skills merged (global + user, with user overrides) */
+/** All skills merged (superadmin + user, with user overrides) */
 export const useAllSkills = (): Skill[] => {
-  const globalSkills = useSkillsStore(s => s.globalSkills)
+  const superadminSkills = useSkillsStore(s => s.superadminSkills)
   const userSkills = useSkillsStore(s => s.userSkills)
 
-  // Merge: user skills override global skills with same id
+  // Merge: user skills override superadmin skills with same id
   const skillMap = new Map<string, Skill>()
-  for (const skill of globalSkills) {
+  for (const skill of superadminSkills) {
     skillMap.set(skill.id, skill)
   }
   for (const skill of userSkills) {
@@ -63,8 +63,8 @@ export const useAllSkills = (): Skill[] => {
   return Array.from(skillMap.values()).sort((a, b) => a.displayName.localeCompare(b.displayName))
 }
 
-/** Global skills only */
-export const useGlobalSkills = () => useSkillsStore(s => s.globalSkills)
+/** Superadmin skills only (empty for non-superadmins) */
+export const useSuperadminSkills = () => useSkillsStore(s => s.superadminSkills)
 
 /** User skills only */
 export const useUserSkills = () => useSkillsStore(s => s.userSkills)
@@ -77,37 +77,3 @@ export const useSkillsError = () => useSkillsStore(s => s.error)
 
 /** All actions (stable reference - won't cause re-renders) */
 export const useSkillsActions = () => useSkillsStore(s => s.actions)
-
-// ============================================================================
-// Legacy compatibility exports
-// ============================================================================
-
-/**
- * @deprecated Use useSkillsActions instead
- * Provides backward compatibility for existing code
- */
-export const useUserPromptsActions = () => {
-  const actions = useSkillsActions()
-  return {
-    addPrompt: (_promptType: string, data: string, displayName: string, userFacingDescription?: string) => {
-      actions.addUserSkill({
-        displayName,
-        description: userFacingDescription || displayName,
-        prompt: data,
-      })
-    },
-    updatePrompt: (id: string, data: string, displayName: string, userFacingDescription?: string) => {
-      actions.updateUserSkill(id, {
-        displayName,
-        description: userFacingDescription,
-        prompt: data,
-      })
-    },
-    removePrompt: (id: string) => {
-      actions.removeUserSkill(id)
-    },
-    reset: () => {
-      actions.resetUserSkills()
-    },
-  }
-}

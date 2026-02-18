@@ -33,8 +33,8 @@ const GeneralSettings = lazy(() =>
 const GoalSettings = lazy(() =>
   import("@/components/settings/tabs/GoalSettings").then(m => ({ default: m.GoalSettings })),
 )
-const UserPromptsSettings = lazy(() =>
-  import("@/components/settings/tabs/UserPromptsSettings").then(m => ({ default: m.UserPromptsSettings })),
+const SkillsSettings = lazy(() =>
+  import("@/components/settings/tabs/SkillsSettings").then(m => ({ default: m.SkillsSettings })),
 )
 const WorkspaceSettings = lazy(() =>
   import("@/components/settings/tabs/WorkspaceSettings").then(m => ({ default: m.WorkspaceSettings })),
@@ -302,7 +302,7 @@ export function SettingsPageClient({ onClose, initialTab }: SettingsPageClientPr
           >
             {activeTab === "general" && <GeneralSettings />}
             {activeTab === "goal" && <GoalSettings />}
-            {activeTab === "skills" && <UserPromptsSettings />}
+            {activeTab === "skills" && <SkillsSettings />}
             {activeTab === "organization" && <WorkspaceSettings />}
             {activeTab === "websites" && <WebsitesSettings />}
             {activeTab === "automations" && <AutomationsSettings />}

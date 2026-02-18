@@ -110,7 +110,6 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
           set(state => {
             // Only auto-select if no org currently selected and we have orgs
             if (!state.selectedOrgId && organizations.length > 0) {
-              console.log("[WorkspaceStore] Auto-selecting first organization:", organizations[0].name)
               return { selectedOrgId: organizations[0].org_id }
             }
             return state
@@ -133,7 +132,6 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
           if (state.recentWorkspaces.length > 0) {
             const sorted = [...state.recentWorkspaces].sort((a, b) => b.lastAccessed - a.lastAccessed)
             const mostRecent = sorted[0]
-            console.log("[WorkspaceStore] Auto-selecting most recent workspace:", mostRecent.domain)
             set({
               currentWorkspace: mostRecent.domain,
               selectedOrgId: mostRecent.orgId,
@@ -159,18 +157,12 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
 
             // Check if selected org is still valid
             if (state.selectedOrgId && !validOrgIds.has(state.selectedOrgId)) {
-              console.log("[WorkspaceStore] Clearing invalid selectedOrgId:", state.selectedOrgId)
               updates.selectedOrgId = null
             }
 
             // Filter out recent workspaces for orgs user is no longer member of
             const filteredRecent = state.recentWorkspaces.filter(workspace => validOrgIds.has(workspace.orgId))
             if (filteredRecent.length !== state.recentWorkspaces.length) {
-              console.log(
-                "[WorkspaceStore] Cleaned up stale recent workspaces:",
-                state.recentWorkspaces.length - filteredRecent.length,
-                "removed",
-              )
               updates.recentWorkspaces = filteredRecent
             }
 
@@ -193,18 +185,12 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
 
             // Clear current workspace if not available on this server
             if (state.currentWorkspace && !availableSet.has(state.currentWorkspace)) {
-              console.log("[WorkspaceStore] Clearing unavailable workspace:", state.currentWorkspace)
               updates.currentWorkspace = null
             }
 
             // Filter recent workspaces to only include available ones
             const filteredRecent = state.recentWorkspaces.filter(w => availableSet.has(w.domain))
             if (filteredRecent.length !== state.recentWorkspaces.length) {
-              console.log(
-                "[WorkspaceStore] Cleaned up unavailable recent workspaces:",
-                state.recentWorkspaces.length - filteredRecent.length,
-                "removed",
-              )
               updates.recentWorkspaces = filteredRecent
             }
 
@@ -307,12 +293,10 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
           currentWorktreeByWorkspace: state.currentWorktreeByWorkspace ?? {},
         }
       },
-      onRehydrateStorage: () => (state, error) => {
+      onRehydrateStorage: () => (_state, error) => {
         // Called when rehydrate() completes
         if (error) {
           console.error("[WorkspaceStore] Hydration error:", error)
-        } else {
-          console.log("[WorkspaceStore] Hydration complete, workspace:", state?.currentWorkspace)
         }
         // Note: App-wide hydration is tracked by HydrationManager via useAppHydrated()
       },

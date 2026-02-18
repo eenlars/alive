@@ -28,6 +28,7 @@ const isPlaywrightTest = typeof window !== "undefined" && window.PLAYWRIGHT_TEST
 if (!isPlaywrightTest) {
   Sentry.init({
     dsn: SENTRY_DSN,
+    tunnel: "/api/monitoring",
     environment: getEnvironment(),
 
     // Send 100% of errors

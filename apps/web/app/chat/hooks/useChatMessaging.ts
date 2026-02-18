@@ -20,7 +20,6 @@ import type { StructuredError } from "@/lib/error-codes"
 import { ErrorCodes, getErrorHelp, getErrorMessage } from "@/lib/error-codes"
 import { HttpError } from "@/lib/errors"
 import { authStore } from "@/lib/stores/authStore"
-import { isDevelopment } from "@/lib/stores/debug-store"
 import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import { useBuilding, useGoal, useTargetUsers } from "@/lib/stores/goalStore"
 import { useModel } from "@/lib/stores/llmStore"
@@ -441,19 +440,17 @@ export function useChatMessaging({
           )
         }, PRE_RESPONSE_TIMEOUT_MS)
 
-        if (isDevelopment()) {
-          const requestEvent = {
-            type: ClientRequest.MESSAGE,
-            requestId: targetTabId,
-            timestamp: new Date().toISOString(),
-            data: { endpoint: "/api/claude/stream", method: "POST", body: requestBody },
-          }
-          addDevEvent({
-            eventName: ClientRequest.MESSAGE,
-            event: requestEvent,
-            rawSSE: `${JSON.stringify(requestEvent)}\n`,
-          })
+        const requestEvent = {
+          type: ClientRequest.MESSAGE,
+          requestId: targetTabId,
+          timestamp: new Date().toISOString(),
+          data: { endpoint: "/api/claude/stream", method: "POST", body: requestBody },
         }
+        addDevEvent({
+          eventName: ClientRequest.MESSAGE,
+          event: requestEvent,
+          rawSSE: `${JSON.stringify(requestEvent)}\n`,
+        })
 
         const response = await retryAsync(
           async () => {
@@ -606,9 +603,7 @@ export function useChatMessaging({
                   continue
                 }
 
-                if (isDevelopment()) {
-                  addDevEvent({ eventName: eventData.type, event: eventData, rawSSE: line })
-                }
+                addDevEvent({ eventName: eventData.type, event: eventData, rawSSE: line })
 
                 markStreamAlive()
                 streamingActions.recordMessageReceived(targetTabId)

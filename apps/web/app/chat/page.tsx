@@ -15,7 +15,6 @@ import { ChatDropOverlay } from "@/features/chat/components/ChatDropOverlay"
 import { ChatInput } from "@/features/chat/components/ChatInput"
 import type { ChatInputHandle } from "@/features/chat/components/ChatInput/types"
 import { ConversationSidebar } from "@/features/chat/components/ConversationSidebar"
-import { DevTerminal } from "@/features/chat/components/DevTerminal"
 import { CollapsibleToolGroup } from "@/features/chat/components/message-renderers/CollapsibleToolGroup"
 import { MessageWrapper } from "@/features/chat/components/message-renderers/MessageWrapper"
 import { PendingToolsIndicator } from "@/features/chat/components/PendingToolsIndicator"
@@ -56,7 +55,7 @@ import { useOrganizations } from "@/lib/hooks/useOrganizations"
 import { validateOAuthToastParams } from "@/lib/integrations/toast-validation"
 import { useIsSessionExpired } from "@/lib/stores/authStore"
 import { useSidebarActions, useSidebarOpen } from "@/lib/stores/conversationSidebarStore"
-import { isDevelopment, useDebugActions, useDebugVisible, useSandbox, useSSETerminal } from "@/lib/stores/debug-store"
+import { useDebugVisible, useSandbox } from "@/lib/stores/debug-store"
 import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import { useAppHydrated } from "@/lib/stores/HydrationBoundary"
 import { useLastSeenStreamSeq, useStreamingActions } from "@/lib/stores/streamingStore"
@@ -82,9 +81,6 @@ import {
   useTabIsolatedMessages,
   useTabsManagement,
 } from "./hooks"
-
-// Build version for deployment verification
-const BUILD_VERSION = "2025-11-12-direct-execution"
 
 function ChatPageContent() {
   const [msg, setMsg] = useState("")
@@ -133,8 +129,6 @@ function ChatPageContent() {
   const showTabs = true
   const chatInputRef = useRef<ChatInputHandle | null>(null)
   const photoButtonRef = useRef<HTMLButtonElement>(null)
-  const { setSSETerminal, setSSETerminalMinimized } = useDebugActions()
-  const showSSETerminal = useSSETerminal()
   const showSandboxRaw = useSandbox()
   const isDebugMode = useDebugVisible()
   const { addEvent: addDevEvent } = useDevTerminal()
@@ -366,20 +360,18 @@ function ChatPageContent() {
     abortControllerRef,
     currentRequestIdRef,
     isSubmittingByTabRef,
-    onDevEvent: isDevelopment()
-      ? event => {
-          addDevEvent({
-            eventName: ClientRequest.INTERRUPT,
-            event: {
-              type: ClientRequest.INTERRUPT,
-              requestId: currentRequestIdRef.current ?? "unknown",
-              timestamp: new Date().toISOString(),
-              data: event.data,
-            },
-            rawSSE: JSON.stringify(event),
-          })
-        }
-      : undefined,
+    onDevEvent: event => {
+      addDevEvent({
+        eventName: ClientRequest.INTERRUPT,
+        event: {
+          type: ClientRequest.INTERRUPT,
+          requestId: currentRequestIdRef.current ?? "unknown",
+          timestamp: new Date().toISOString(),
+          data: event.data,
+        },
+        rawSSE: JSON.stringify(event),
+      })
+    },
   })
 
   // Stream reconnection - recovers buffered messages when tab becomes visible
@@ -472,15 +464,6 @@ function ChatPageContent() {
 
   // Image upload handler
   const handleAttachmentUpload = useImageUpload({ workspace: workspace ?? undefined, worktree, isTerminal })
-
-  // Show SSE terminal minimized on staging
-  useEffect(() => {
-    console.log(`%c[Chat] BUILD VERSION: ${BUILD_VERSION}`, "color: #00ff00; font-weight: bold; font-size: 14px")
-    if (isDevelopment()) {
-      setSSETerminal(true)
-      setSSETerminalMinimized(true)
-    }
-  }, [setSSETerminal, setSSETerminalMinimized])
 
   // Calculate total domain count from organizations
   const totalDomainCount = organizations.reduce((sum, org) => sum + (org.workspace_count || 0), 0)
@@ -938,7 +921,6 @@ function ChatPageContent() {
         </AnimatePresence>
       )}
 
-      {showSSETerminal && <DevTerminal />}
       {modals.feedback && (
         <FeedbackModal
           onClose={modals.closeFeedback}
