@@ -2,19 +2,13 @@
 
 import { useState } from "react"
 import { PromptEditorModal } from "@/components/modals/PromptEditorModal"
-import {
-  useSkillsActions,
-  useSkillsLoading,
-  useSuperadminSkills,
-  useUserSkills,
-} from "@/lib/providers/SkillsStoreProvider"
+import { useSkillsActions, useSuperadminSkills, useUserSkills } from "@/lib/providers/SkillsStoreProvider"
 import { sectionDivider, smallButton, text } from "../styles"
 import { SettingsTabLayout } from "./SettingsTabLayout"
 
 export function SkillsSettings() {
   const superadminSkills = useSuperadminSkills()
   const userSkills = useUserSkills()
-  const isLoading = useSkillsLoading()
   const { addUserSkill, updateUserSkill, removeUserSkill } = useSkillsActions()
 
   const [editorState, setEditorState] = useState<{
@@ -96,15 +90,14 @@ export function SkillsSettings() {
           )}
         </div>
 
-        {/* Global Skills Section */}
-        <div className={sectionDivider}>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={text.label}>Superadmin Skills</span>
-            {isLoading && <span className={text.muted}>Loading...</span>}
-          </div>
-          <p className={`${text.description} mb-3`}>Skills from the repo, only visible to superadmins</p>
+        {/* Superadmin Skills Section - only visible when user has superadmin access */}
+        {superadminSkills.length > 0 && (
+          <div className={sectionDivider}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className={text.label}>Superadmin Skills</span>
+            </div>
+            <p className={`${text.description} mb-3`}>Skills from the repo, only visible to superadmins</p>
 
-          {superadminSkills.length > 0 ? (
             <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
               {superadminSkills.map(skill => (
                 <div key={skill.id} className="flex items-center justify-between gap-4 py-2.5">
@@ -117,10 +110,8 @@ export function SkillsSettings() {
                 </div>
               ))}
             </div>
-          ) : (
-            !isLoading && <p className={`${text.muted} py-3`}>No superadmin skills found.</p>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Skill Editor Modal */}
         {editorState && (

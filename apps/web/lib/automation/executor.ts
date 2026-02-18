@@ -9,8 +9,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
-import { buildSessionOrgClaims, CLAUDE_MODELS, getWorkspacePath } from "@webalive/shared"
-import { PATHS } from "@webalive/shared"
+import { buildSessionOrgClaims, CLAUDE_MODELS, getWorkspacePath, PATHS } from "@webalive/shared"
 import { getSkillById, listSuperadminSkills, type SkillListItem } from "@webalive/tools"
 import { createSessionToken } from "@/features/auth/lib/jwt"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
