@@ -205,29 +205,13 @@ func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 			WriteBufferSize:   1024,
 			EnableCompression: false,
 			CheckOrigin: func(r *http.Request) bool {
-				origin := r.Header.Get("Origin")
-				if origin == "" {
-					return true // Allow connections without origin (like wscat)
-				}
-				parsedOrigin, parseErr := url.Parse(origin)
-				if parseErr != nil {
-					return false
-				}
-				originHost := parsedOrigin.Hostname()
 				host := r.Host
 				// Strip port from host for comparison
 				if idx := strings.LastIndex(host, ":"); idx != -1 {
 					host = host[:idx]
 				}
-				if originHost == host {
-					return true
-				}
-				if originHost == "localhost" || originHost == "127.0.0.1" {
-					return true
-				}
-				// Allow cross-origin from web app (e.g. app.sonno.tech -> go.sonno.tech).
-				baseDomain := extractBaseDomain(host)
-				if baseDomain != "" && strings.HasSuffix(originHost, "."+baseDomain) {
+				origin := r.Header.Get("Origin")
+				if isAllowedWebSocketOrigin(origin, host) {
 					return true
 				}
 				wsLog.Warn("Rejected WebSocket origin: %s (host: %s)", origin, host)
@@ -237,6 +221,30 @@ func NewWSHandler(cfg *config.AppConfig, sessions *session.Store) *WSHandler {
 		shutdownChan:     make(chan struct{}),
 		shutdownComplete: make(chan struct{}),
 	}
+}
+
+func isAllowedWebSocketOrigin(origin string, host string) bool {
+	if origin == "" {
+		return true // Allow connections without origin (like wscat)
+	}
+
+	parsedOrigin, parseErr := url.Parse(origin)
+	if parseErr != nil {
+		return false
+	}
+
+	originHost := parsedOrigin.Hostname()
+	if originHost == host {
+		return true
+	}
+	if originHost == "localhost" || originHost == "127.0.0.1" {
+		return true
+	}
+
+	// Allow cross-origin from web app (e.g. app.sonno.tech -> go.sonno.tech),
+	// and apex app origin (e.g. sonno.tech -> go.sonno.tech).
+	baseDomain := extractBaseDomain(host)
+	return baseDomain != "" && (originHost == baseDomain || strings.HasSuffix(originHost, "."+baseDomain))
 }
 
 // CreateInternalLease issues a lease for the web app's terminal integration.
@@ -439,28 +447,22 @@ func (h *WSHandler) runPTYSession(
 		wsLog.Info("Connection closed | workspace=%s duration=%v", info.workspace, time.Since(info.startTime))
 	}()
 
-	// Start shell
+	// Start shell. Site workspaces run as owner in restricted mode so users
+	// cannot cd out of the workspace boundary in interactive sessions.
 	shell := "/bin/bash"
-	cmd := exec.CommandContext(ctx, shell)
+	var cmd *exec.Cmd
+	if runAsOwner {
+		cmd = exec.CommandContext(ctx, shell, "--noprofile", "--norc", "--restricted")
+	} else {
+		cmd = exec.CommandContext(ctx, shell)
+	}
 	cmd.Dir = cwd
 	if credential != nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{Credential: credential}
 	}
 
-	// Set environment with TERM=xterm-256color for color support
-	env := os.Environ()
-	filteredEnv := make([]string, 0, len(env)+2)
-	for _, e := range env {
-		if !strings.HasPrefix(e, "TERM=") && !(runAsOwner && strings.HasPrefix(e, "HOME=")) {
-			filteredEnv = append(filteredEnv, e)
-		}
-	}
-	filteredEnv = append(filteredEnv, "TERM=xterm-256color")
-	if runAsOwner {
-		// Keep shell history/config local to the workspace user directory.
-		filteredEnv = append(filteredEnv, "HOME="+cwd)
-	}
-	cmd.Env = filteredEnv
+	// Set environment with TERM color support and defensive filtering.
+	cmd.Env = buildTerminalEnv(os.Environ(), cwd, runAsOwner)
 
 	// Start PTY
 	ptmx, err := pty.Start(cmd)
@@ -648,6 +650,47 @@ func (h *WSHandler) runPTYSession(
 	case <-wsClosed:
 	case <-time.After(time.Second):
 	}
+}
+
+func buildTerminalEnv(baseEnv []string, cwd string, runAsOwner bool) []string {
+	filteredEnv := make([]string, 0, len(baseEnv)+4)
+	for _, e := range baseEnv {
+		switch {
+		case strings.HasPrefix(e, "TERM="):
+			continue
+		case strings.HasPrefix(e, "HOME="):
+			if runAsOwner {
+				continue
+			}
+		case strings.HasPrefix(e, "PATH="):
+			if runAsOwner {
+				continue
+			}
+		case runAsOwner && strings.HasPrefix(e, "BASH_ENV="):
+			continue
+		case runAsOwner && strings.HasPrefix(e, "ENV="):
+			continue
+		case runAsOwner && strings.HasPrefix(e, "PROMPT_COMMAND="):
+			continue
+		case runAsOwner && strings.HasPrefix(e, "CDPATH="):
+			continue
+		case runAsOwner && strings.HasPrefix(e, "GLOBIGNORE="):
+			continue
+		case runAsOwner && strings.HasPrefix(e, "SHELLOPTS="):
+			continue
+		}
+		filteredEnv = append(filteredEnv, e)
+	}
+
+	filteredEnv = append(filteredEnv, "TERM=xterm-256color")
+	if runAsOwner {
+		// Keep shell history/config local to the workspace user directory.
+		filteredEnv = append(filteredEnv, "HOME="+cwd)
+		// Controlled PATH for workspace-scoped shells.
+		filteredEnv = append(filteredEnv, "PATH=/usr/local/bin:/usr/bin:/bin")
+	}
+
+	return filteredEnv
 }
 
 // sendMessage sends a WebSocket message with proper error handling (thread-safe)
