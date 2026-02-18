@@ -3,9 +3,9 @@
 import { useState } from "react"
 import { PromptEditorModal } from "@/components/modals/PromptEditorModal"
 import {
-  useSuperadminSkills,
   useSkillsActions,
   useSkillsLoading,
+  useSuperadminSkills,
   useUserSkills,
 } from "@/lib/providers/SkillsStoreProvider"
 import { sectionDivider, smallButton, text } from "../styles"
@@ -55,34 +55,8 @@ export function SkillsSettings() {
   return (
     <SettingsTabLayout title="Skills" description="Global skills from the system and your custom skills">
       <div className="space-y-2">
-        {/* Global Skills Section */}
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={text.label}>Superadmin Skills</span>
-            {isLoading && <span className={text.muted}>Loading...</span>}
-          </div>
-          <p className={`${text.description} mb-3`}>Skills from the repo, only visible to superadmins</p>
-
-          {superadminSkills.length > 0 ? (
-            <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
-              {superadminSkills.map(skill => (
-                <div key={skill.id} className="flex items-center justify-between gap-4 py-2.5">
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-black/80 dark:text-white/80">{skill.displayName}</span>
-                    {skill.description && skill.description !== skill.displayName && (
-                      <span className="ml-2 text-xs text-black/40 dark:text-white/40">{skill.description}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            !isLoading && <p className={`${text.muted} py-3`}>No superadmin skills found.</p>
-          )}
-        </div>
-
         {/* User Skills Section */}
-        <div className={sectionDivider}>
+        <div>
           <div className="flex items-center justify-between mb-1">
             <span className={text.label}>Custom Skills</span>
             <button type="button" onClick={() => handleOpenEditor("add")} className={smallButton}>
@@ -119,6 +93,32 @@ export function SkillsSettings() {
             </div>
           ) : (
             <p className={`${text.muted} py-3`}>No custom skills yet. Click &quot;+ Add Skill&quot; to create one.</p>
+          )}
+        </div>
+
+        {/* Global Skills Section */}
+        <div className={sectionDivider}>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={text.label}>Superadmin Skills</span>
+            {isLoading && <span className={text.muted}>Loading...</span>}
+          </div>
+          <p className={`${text.description} mb-3`}>Skills from the repo, only visible to superadmins</p>
+
+          {superadminSkills.length > 0 ? (
+            <div className="divide-y divide-black/[0.06] dark:divide-white/[0.06]">
+              {superadminSkills.map(skill => (
+                <div key={skill.id} className="flex items-center justify-between gap-4 py-2.5">
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-black/80 dark:text-white/80">{skill.displayName}</span>
+                    {skill.description && skill.description !== skill.displayName && (
+                      <span className="ml-2 text-xs text-black/40 dark:text-white/40">{skill.description}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            !isLoading && <p className={`${text.muted} py-3`}>No superadmin skills found.</p>
           )}
         </div>
 
