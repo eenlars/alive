@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     const parsed = LeaseResponseSchema.safeParse(await res.json())
     if (!parsed.success) {
       console.error(`[Terminal ${requestId}] Unexpected shell server response shape`)
+      Sentry.captureMessage(`[Terminal ${requestId}] Unexpected shell server response shape`, "error")
       return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 502, { requestId })
     }
     const data = parsed.data
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       lease: data.lease,
-      wsUrl: `wss://${shellHost}/ws?lease=${data.lease}`,
+      wsUrl: `wss://${shellHost}/ws?lease=${encodeURIComponent(data.lease)}`,
       workspace: data.workspace,
       expiresAt: data.expiresAt,
     })

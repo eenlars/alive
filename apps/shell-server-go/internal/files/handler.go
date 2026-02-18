@@ -263,6 +263,11 @@ func (h *Handler) handleZipUpload(w http.ResponseWriter, resolvedTarget, targetD
 				response.Error(w, http.StatusBadRequest, "Malicious ZIP detected (suspicious compression ratio)")
 				return
 			}
+		} else if f.UncompressedSize64 > 0 {
+			// CompressedSize64 == 0 with non-zero uncompressed size is suspicious
+			filesLog.Warn("ZIP rejected: zero compressed size with %d uncompressed bytes for %s", f.UncompressedSize64, f.Name)
+			response.Error(w, http.StatusBadRequest, "Malicious ZIP detected (suspicious compression ratio)")
+			return
 		}
 
 		totalUncompressedSize += f.UncompressedSize64

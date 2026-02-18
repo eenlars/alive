@@ -552,6 +552,10 @@ func captureMessage(level sentry.Level, message string, args ...any) {
 }
 
 func writeHTTPError(w http.ResponseWriter, statusCode int, body string, context string) {
-	captureMessage(sentry.LevelError, "http_error status=%d context=%s message=%s", statusCode, context, body)
+	level := sentry.LevelError
+	if statusCode < 500 {
+		level = sentry.LevelWarning
+	}
+	captureMessage(level, "http_error status=%d context=%s message=%s", statusCode, context, body)
 	http.Error(w, body, statusCode)
 }

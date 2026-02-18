@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { buildSessionOrgClaims, SECURITY, STANDALONE } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
