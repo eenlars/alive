@@ -23,7 +23,7 @@ interface AutomationSidePanelProps {
 
 export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave, saving }: AutomationSidePanelProps) {
   const isEditing = !!editingJob
-  const triggerType: TriggerType = (editingJob?.trigger_type as TriggerType) ?? "cron"
+  const triggerType: TriggerType = editingJob?.trigger_type ?? "cron"
   const hasSchedule = isScheduleTrigger(triggerType)
 
   // Tab

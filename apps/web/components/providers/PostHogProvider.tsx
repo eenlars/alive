@@ -30,7 +30,7 @@ function initPostHog() {
 
   posthog.init(posthogKey, {
     api_host: posthogHost,
-    ui_host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com",
+    ui_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     // Use latest defaults for all features including error tracking
     defaults: "2025-05-24",
     // Enable exception autocapture - this automatically captures:

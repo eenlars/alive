@@ -86,7 +86,10 @@ export function SandboxEventsPanel() {
           </button>
           <button
             type="button"
-            onClick={clearEvents}
+            onClick={() => {
+              clearEvents()
+              setCollapsedMessages(new Set())
+            }}
             className="text-green-600 hover:text-green-400 transition-colors text-[10px] px-2 py-0.5 border border-green-700/30 rounded"
           >
             clear

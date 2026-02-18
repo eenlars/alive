@@ -87,11 +87,8 @@ function SkillRow({
   onToggle: (id: string) => void
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onToggle(skill.id)}
-      className="w-full px-3 py-2 text-left text-sm hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
-    >
+    <label className="w-full px-3 py-2 text-left text-sm hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors cursor-pointer">
+      <input type="checkbox" checked={selected} onChange={() => onToggle(skill.id)} className="sr-only" />
       <div
         className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
           selected ? "bg-black dark:bg-white border-black dark:border-white" : "border-black/20 dark:border-white/20"
@@ -109,7 +106,7 @@ function SkillRow({
           <p className="text-[11px] text-black/40 dark:text-white/40 truncate">{skill.description}</p>
         )}
       </div>
-    </button>
+    </label>
   )
 }
 

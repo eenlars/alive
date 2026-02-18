@@ -33,11 +33,16 @@ export async function POST(request: Request) {
 
   const upstreamUrl = `https://${SENTRY_HOST}/api/${projectId}/envelope/`
 
-  const response = await fetch(upstreamUrl, {
-    method: "POST",
-    body: envelope,
-    headers: { "Content-Type": "application/x-sentry-envelope" },
-  })
+  try {
+    const response = await fetch(upstreamUrl, {
+      method: "POST",
+      body: envelope,
+      headers: { "Content-Type": "application/x-sentry-envelope" },
+      signal: AbortSignal.timeout(5_000),
+    })
 
-  return new Response(response.body, { status: response.status })
+    return new Response(response.body, { status: response.status })
+  } catch {
+    return new Response("Upstream timeout", { status: 504 })
+  }
 }

@@ -15,7 +15,6 @@
  * - Conflict resolution: Server wins for initial load, local wins during session
  */
 
-import { COOKIE_NAMES } from "@webalive/shared"
 import { useWorkspaceStoreBase } from "./workspaceStore"
 
 // =============================================================================
@@ -51,16 +50,6 @@ let isSyncing = false
 let _lastSyncedAt: number | null = null
 
 // =============================================================================
-// Helpers
-// =============================================================================
-
-/** Check if user has an auth session cookie (client-side) */
-function hasAuthCookie(): boolean {
-  if (typeof document === "undefined") return false
-  return document.cookie.split(";").some(c => c.trim().startsWith(`${COOKIE_NAMES.SESSION}=`))
-}
-
-// =============================================================================
 // Fetch from Server
 // =============================================================================
 
@@ -77,7 +66,6 @@ function hasAuthCookie(): boolean {
 export async function syncFromServer(): Promise<boolean> {
   if (typeof window === "undefined") return false
   if (isSyncing) return false
-  if (!hasAuthCookie()) return false
 
   try {
     isSyncing = true
@@ -172,7 +160,6 @@ export function queueSyncToServer(): void {
 async function syncToServer(): Promise<void> {
   if (typeof window === "undefined") return
   if (isSyncing) return
-  if (!hasAuthCookie()) return
 
   try {
     isSyncing = true

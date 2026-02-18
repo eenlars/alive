@@ -290,6 +290,7 @@ export function AutomationsSettings() {
                 <button
                   type="button"
                   onClick={() => setViewMode("edit")}
+                  aria-pressed={viewMode === "edit"}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                     viewMode === "edit"
                       ? "bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm"
@@ -301,6 +302,7 @@ export function AutomationsSettings() {
                 <button
                   type="button"
                   onClick={() => setViewMode("runs")}
+                  aria-pressed={viewMode === "runs"}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                     viewMode === "runs"
                       ? "bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm"

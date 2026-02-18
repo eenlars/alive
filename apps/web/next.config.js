@@ -52,7 +52,7 @@ const nextConfig = {
   // Proxy analytics/monitoring through our domain to bypass ad blockers
   async rewrites() {
     const rewrites = []
-    const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST
+    const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST?.replace(/\/$/, "")
     if (posthogHost) {
       rewrites.push(
         { source: "/ingest/static/:path*", destination: `${posthogHost}/static/:path*` },
