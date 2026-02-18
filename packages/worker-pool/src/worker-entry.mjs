@@ -16,7 +16,7 @@
  *   WORKER_WORKSPACE_KEY - Workspace identifier
  */
 
-import { chownSync, cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
+import { chownSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
 import { createConnection } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
