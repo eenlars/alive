@@ -75,7 +75,7 @@ console.error(JSON.stringify({
 ### Critical (immediate notification)
 
 - **Provider down**: 5+ consecutive errors within 5 minutes for same provider
-- **Auth failures**: Any auth error (user's key might be revoked)
+- **Auth failures**: Any auth error (server key rotation failure or upstream auth outage)
 - **MCP server permanent failure**: Server failed and couldn't restart
 
 ### Warning (daily digest)

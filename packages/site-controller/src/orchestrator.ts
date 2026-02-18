@@ -12,9 +12,10 @@ import { configureCaddy, teardown } from "./executors/caddy.js"
 import { validateDns } from "./executors/dns.js"
 import { setupFilesystem } from "./executors/filesystem.js"
 import { assignPort } from "./executors/port.js"
+import { renameSiteOS } from "./executors/rename.js"
 import { startService } from "./executors/service.js"
 import { ensureUser } from "./executors/system.js"
-import type { DeployConfig, DeployResult } from "./types.js"
+import type { DeployConfig, DeployResult, RenameConfig, RenameResult } from "./types.js"
 
 /**
  * Site deployment orchestrator
@@ -335,5 +336,61 @@ WantedBy=multi-user.target
     })
 
     console.log(`\n=== Teardown complete: ${domain} ===\n`)
+  }
+
+  /**
+   * Rename a site (change its domain).
+   *
+   * Handles: OS resources (user, dir, symlink, systemd, env file),
+   * database hostname update, Caddy/port-map regeneration, and service restart.
+   *
+   * Does NOT modify files inside the site — consolidated sites derive
+   * their domain from process.env.DOMAIN at runtime.
+   */
+  static async rename(config: RenameConfig): Promise<RenameResult> {
+    const { oldDomain, newDomain } = config
+    const oldSlug = oldDomain.replace(/\./g, "-")
+    const newSlug = newDomain.replace(/\./g, "-")
+
+    // Validate new domain format
+    if (!/^[a-z0-9.-]+$/i.test(newDomain)) {
+      throw DeploymentError.invalidDomain(newDomain)
+    }
+    if (newDomain.includes("..") || newDomain.startsWith("/")) {
+      throw DeploymentError.pathTraversal(newDomain)
+    }
+
+    console.log(`\n=== Renaming site: ${oldDomain} → ${newDomain} ===\n`)
+
+    // Phase 1: OS-level rename (user, dir, symlink, systemd, env)
+    console.log("[Phase 1/3] Renaming OS resources...")
+    await renameSiteOS({ oldDomain, newDomain, oldSlug, newSlug })
+    console.log("  OS resources renamed\n")
+
+    // Phase 2: Start the new service
+    console.log("[Phase 2/3] Starting new service...")
+    const newService = getServiceName(newSlug)
+    execFileSync("systemctl", ["start", newService], { stdio: "pipe" })
+    console.log(`  Service started: ${newService}\n`)
+
+    // Phase 3: Verify the service is running
+    console.log("[Phase 3/3] Verifying service health...")
+    try {
+      execFileSync("systemctl", ["is-active", "--quiet", newService], { stdio: "pipe" })
+      console.log("  Service is active\n")
+    } catch {
+      throw DeploymentError.serviceFailed(`New service ${newService} failed to start after rename`)
+    }
+
+    console.log(`=== Rename successful: ${oldDomain} → ${newDomain} ===\n`)
+
+    return {
+      oldDomain,
+      newDomain,
+      oldSlug,
+      newSlug,
+      serviceName: newService,
+      success: true,
+    }
   }
 }

@@ -101,7 +101,7 @@ Codex sessions contain conversation history. For active workspaces, this can gro
 
 **Cleanup:** Add a periodic job to delete Codex sessions older than 30 days:
 ```bash
-find /var/lib/claude-sessions/*/codex/sessions/ -maxdepth 1 -mtime +30 -exec rm -rf {} +
+find /var/lib/claude-sessions/*/.codex/sessions/ -maxdepth 1 -mtime +30 -exec rm -rf {} +
 ```
 
 (Should also be done for Claude sessions — both grow unbounded.)

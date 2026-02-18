@@ -134,7 +134,7 @@ function getPreviewUrl(workspace: string): string {
 
 **Domain conversion examples:**
 - `protino.alive.best` → `protino-alive-best.preview.terminal.alive.best`
-- `demo.alive.best` → `demo-goalive-nl.preview.terminal.alive.best`
+- `demo.alive.best` → `demo-alive-best.preview.terminal.alive.best`
 - `kranazilie.nl` → `kranazilie-nl.preview.terminal.alive.best`
 
 ## Security Model

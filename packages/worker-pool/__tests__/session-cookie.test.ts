@@ -32,7 +32,7 @@ type AgentRequestFields = keyof AgentRequest
 type AgentConfigFields = keyof AgentConfig
 
 // Fields that MUST be in AgentRequest (excluding optional fields that may not appear in code)
-const REQUIRED_PAYLOAD_FIELDS: AgentRequestFields[] = ["message", "agentConfig", "sessionCookie"]
+const REQUIRED_PAYLOAD_FIELDS: AgentRequestFields[] = ["message", "agentConfig", "sessionCookie", "oauthAccessToken"]
 
 // Fields that MUST be in AgentConfig
 const REQUIRED_AGENT_CONFIG_FIELDS: AgentConfigFields[] = [
@@ -65,6 +65,12 @@ describe("Session Cookie: Static Analysis of Production Code", () => {
 
     // Verify it's in the worker pool path, not just legacy
     const workerPoolPayloadRegex = /pool\.query\([\s\S]*?payload:\s*\{[\s\S]*?sessionCookie/
+    expect(workerPoolPayloadRegex.test(routeCode)).toBe(true)
+  })
+
+  it("route.ts MUST include oauthAccessToken in worker pool payload", () => {
+    const routeCode = readFileSync(ROUTE_PATH, "utf-8")
+    const workerPoolPayloadRegex = /pool\.query\([\s\S]*?payload:\s*\{[\s\S]*?oauthAccessToken/
     expect(workerPoolPayloadRegex.test(routeCode)).toBe(true)
   })
 
@@ -117,6 +123,17 @@ describe("Session Cookie: Static Analysis of Production Code", () => {
 
     // Env must be prepared BEFORE query is called
     expect(envPrepIndex).toBeLessThan(queryCallIndex)
+  })
+
+  /**
+   * SECURITY: Bun auto-loads .env files by default.
+   * Worker query path must disable this to prevent workspace .env auth leakage.
+   */
+  it("worker-entry.mjs MUST disable Bun .env auto-loading for SDK subprocess", () => {
+    const workerCode = readFileSync(WORKER_ENTRY_PATH, "utf-8")
+
+    expect(workerCode).toContain('"--no-env-file"')
+    expect(workerCode).toContain("executableArgs: claudeExecutableArgs")
   })
 
   /**
@@ -332,6 +349,7 @@ describe("Environment Isolation: Behavioral Tests", () => {
     savedEnv = {
       ALIVE_SESSION_COOKIE: process.env.ALIVE_SESSION_COOKIE,
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+      CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN,
     }
     // Also snapshot any existing USER_* keys
     for (const key of Object.keys(process.env)) {
@@ -359,31 +377,35 @@ describe("Environment Isolation: Behavioral Tests", () => {
   })
 
   it("sets ALIVE_SESSION_COOKIE from payload", () => {
-    prepareRequestEnv({ sessionCookie: "cookie-abc" })
+    prepareRequestEnv({ sessionCookie: "cookie-abc", oauthAccessToken: "token" })
     expect(process.env.ALIVE_SESSION_COOKIE).toBe("cookie-abc")
   })
 
   it("clears ALIVE_SESSION_COOKIE when payload has none", () => {
     process.env.ALIVE_SESSION_COOKIE = "stale-cookie"
-    prepareRequestEnv({})
+    prepareRequestEnv({ oauthAccessToken: "token" })
     expect(process.env.ALIVE_SESSION_COOKIE).toBe("")
   })
 
-  it("deletes ANTHROPIC_API_KEY when request supplies no apiKey", () => {
+  it("always clears ANTHROPIC_API_KEY to empty string", () => {
     process.env.ANTHROPIC_API_KEY = "leaked-key-from-previous-request"
-    prepareRequestEnv({ sessionCookie: "x" })
-    expect(process.env.ANTHROPIC_API_KEY).toBeUndefined()
+    prepareRequestEnv({ sessionCookie: "x", oauthAccessToken: "token" })
+    // Set to "" (not deleted) so workspace .env files can't override OAuth credentials.
+    // The CLI treats "" as unset and falls through to OAuth.
+    expect(process.env.ANTHROPIC_API_KEY).toBe("")
   })
 
-  it("sets ANTHROPIC_API_KEY when request supplies apiKey", () => {
-    prepareRequestEnv({ apiKey: "user-key-123" })
-    expect(process.env.ANTHROPIC_API_KEY).toBe("user-key-123")
+  it("sets CLAUDE_CODE_OAUTH_TOKEN when request supplies oauthAccessToken", () => {
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = "stale-oauth-token"
+    prepareRequestEnv({ oauthAccessToken: "oauth-jwt-123" })
+    expect(process.env.ANTHROPIC_API_KEY).toBe("")
+    expect(process.env.CLAUDE_CODE_OAUTH_TOKEN).toBe("oauth-jwt-123")
   })
 
   it("clears stale USER_* env keys from a previous request", () => {
     process.env.USER_OLD_SECRET = "should-be-cleared"
     process.env.USER_ANOTHER = "also-stale"
-    prepareRequestEnv({ userEnvKeys: { FRESH: "new-value" } })
+    prepareRequestEnv({ oauthAccessToken: "token", userEnvKeys: { FRESH: "new-value" } })
     expect(process.env.USER_OLD_SECRET).toBeUndefined()
     expect(process.env.USER_ANOTHER).toBeUndefined()
     expect(process.env.USER_FRESH).toBe("new-value")
@@ -391,23 +413,25 @@ describe("Environment Isolation: Behavioral Tests", () => {
 
   it("clears USER_* keys even when payload has no new keys", () => {
     process.env.USER_LEFTOVER = "stale"
-    prepareRequestEnv({})
+    prepareRequestEnv({ oauthAccessToken: "token" })
     expect(process.env.USER_LEFTOVER).toBeUndefined()
   })
 
   it("rejects invalid USER_* key names", () => {
-    prepareRequestEnv({ userEnvKeys: { valid_KEY: "ok", lower: "bad", "HAS SPACE": "bad" } })
+    prepareRequestEnv({ oauthAccessToken: "token", userEnvKeys: { valid_KEY: "ok", lower: "bad", "HAS SPACE": "bad" } })
     // Only keys that don't match /^[A-Z][A-Z0-9_]*$/ are rejected
     expect(process.env.USER_lower).toBeUndefined()
     expect(process.env["USER_HAS SPACE"]).toBeUndefined()
   })
 
-  it("returns correct apiKeySource and userEnvKeyCount", () => {
-    const result1 = prepareRequestEnv({ apiKey: "k" })
-    expect(result1.apiKeySource).toBe("user")
+  it("throws when oauthAccessToken is missing", () => {
+    // @ts-expect-error — testing runtime guard for missing required field
+    expect(() => prepareRequestEnv({})).toThrow("oauthAccessToken is required")
+  })
 
-    const result2 = prepareRequestEnv({ userEnvKeys: { A: "1", B: "2" } })
-    expect(result2.apiKeySource).toBe("oauth")
-    expect(result2.userEnvKeyCount).toBe(2)
+  it("returns correct authSource and userEnvKeyCount", () => {
+    const result = prepareRequestEnv({ oauthAccessToken: "oauth-jwt-123", userEnvKeys: { A: "1", B: "2" } })
+    expect(result.authSource).toBe("oauth")
+    expect(result.userEnvKeyCount).toBe(2)
   })
 })

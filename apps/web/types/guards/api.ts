@@ -11,21 +11,6 @@ import { OptionalWorktreeSchema } from "./worktree-schemas"
  */
 
 /**
- * Validate API key format
- * Valid Anthropic keys start with "sk-ant-" and are reasonably long
- */
-function isValidApiKeyFormat(key: string): boolean {
-  if (!key) return false
-  // Must start with sk-ant- prefix
-  if (!key.startsWith("sk-ant-")) return false
-  // Must be at least sk-ant-X (7 + 1 = 8 chars)
-  if (key.length < 20) return false
-  // Must not contain spaces or newlines
-  if (/\s/.test(key)) return false
-  return true
-}
-
-/**
  * Zod schema for Claude API request body
  * IMPORTANT: All fields used by backend must be defined here
  */
@@ -38,13 +23,6 @@ export const BodySchema = z.object({
   conversationId: z.string().uuid().optional(), // Optional grouping layer (future: git branches)
   tabGroupId: z.string().uuid(), // Tab group ID - groups tabs in sidebar, part of lock key
   tabId: z.string().uuid(), // Tab ID - primary session key (maps to Claude SDK session)
-  apiKey: z
-    .string()
-    .refine(
-      key => !key || isValidApiKeyFormat(key),
-      "Invalid API key format. Must start with 'sk-ant-' and be at least 20 characters.",
-    )
-    .optional(),
   model: z.string().optional(),
   // Optional fields for system prompt context
   projectId: z.string().optional(),

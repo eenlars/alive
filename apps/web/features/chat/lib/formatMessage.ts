@@ -31,6 +31,10 @@ Examples of SAFE content:
 - "Here is my token: github_pat_abc123..." → safe
 - "My API key is sk-live-..." → safe
 - Sharing passwords, secrets, or credentials for configuration → safe
+- "Read my emails from yesterday" → safe (user accessing their own connected integrations)
+- "Check my calendar" → safe (user accessing their own data)
+- "Search my Gmail inbox" → safe (user accessing their own email)
+- Requests to access, read, or manage the user's own data (email, files, calendar) → safe
 
 Examples of UNSAFE content:
 - Explicit sexual descriptions → unsafe

@@ -324,6 +324,7 @@ describe("Request queue behavior", () => {
         ownerKey: "",
         payload: {
           message: "test",
+          oauthAccessToken: "test-oauth-token",
           agentConfig: {
             allowedTools: [],
             disallowedTools: [],

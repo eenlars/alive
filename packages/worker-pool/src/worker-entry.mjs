@@ -546,8 +546,11 @@ async function handleQuery(ipc, requestId, payload) {
   if (payload.resume !== undefined && typeof payload.resume !== "string") {
     validationErrors.push("resume must be a string")
   }
-  if (payload.apiKey !== undefined && typeof payload.apiKey !== "string") {
-    validationErrors.push("apiKey must be a string")
+  if (payload.apiKey !== undefined) {
+    validationErrors.push("apiKey is not supported; use oauthAccessToken")
+  }
+  if (typeof payload.oauthAccessToken !== "string" || payload.oauthAccessToken.length === 0) {
+    validationErrors.push("oauthAccessToken is required and must be a non-empty string")
   }
 
   // Optional numeric field (validate type and bounds if present)
@@ -599,11 +602,7 @@ async function handleQuery(ipc, requestId, payload) {
     // SECURITY: Isolate process.env between requests to prevent credential leakage.
     // See src/env-isolation.ts for the full contract.
     const envResult = prepareRequestEnv(payload)
-    const apiKeyMsg =
-      envResult.apiKeySource === "user"
-        ? "user-provided API key from payload"
-        : "OAuth credentials from CLAUDE_CONFIG_DIR"
-    console.error(`[worker] Using ${apiKeyMsg}`)
+    console.error(`[worker] Using ${envResult.authSource} access token from payload`)
     if (envResult.userEnvKeyCount > 0) {
       console.error(`[worker] Set ${envResult.userEnvKeyCount} user environment key(s)`)
     }
@@ -722,10 +721,18 @@ async function handleQuery(ipc, requestId, payload) {
     }
 
     await withSearchToolsConnectedProviders(connectedProviders, async () => {
+      // Bun auto-loads workspace .env files unless disabled. We must disable that
+      // to ensure auth never comes from project-local .env state.
+      const isBunRuntime = typeof Bun !== "undefined"
+      const claudeExecutable = isBunRuntime ? "bun" : "node"
+      const claudeExecutableArgs = isBunRuntime ? ["--no-env-file"] : []
+
       const agentQuery = query({
         prompt: payload.message,
         options: {
           cwd: process.cwd(),
+          executable: claudeExecutable,
+          executableArgs: claudeExecutableArgs,
           model: payload.model,
           maxTurns: payload.maxTurns || DEFAULTS.CLAUDE_MAX_TURNS,
           permissionMode,

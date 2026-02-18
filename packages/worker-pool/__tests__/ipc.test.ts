@@ -19,6 +19,7 @@ function createTestAgentConfig(): AgentConfig {
 function createTestPayload(): AgentRequest {
   return {
     message: "test",
+    oauthAccessToken: "test-oauth-token",
     agentConfig: createTestAgentConfig(),
   }
 }

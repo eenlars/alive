@@ -5,8 +5,13 @@ import path from "node:path"
 
 type BuildEnv = "production" | "staging"
 
-const VALID_ENVS: ReadonlySet<BuildEnv> = new Set<BuildEnv>(["production", "staging"])
+const VALID_ENVS: ReadonlySet<string> = new Set(["production", "staging"])
 const DEFAULT_DAYS = 7
+
+function isValidEnv(value: string): value is BuildEnv {
+  return VALID_ENVS.has(value)
+}
+
 
 interface Options {
   root: string
@@ -29,20 +34,21 @@ Options:
 }
 
 function parseTimestampFromBuildName(name: string): number | null {
-  const match = /^dist\.(\d{8})-(\d{6})$/.exec(name)
+  // server-setup.ts creates builds as ISO timestamps: "2026-02-17T13-33-23"
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})$/.exec(name)
   if (!match) {
     return null
   }
 
-  const [, datePart, timePart] = match
-  const year = Number(datePart.slice(0, 4))
-  const month = Number(datePart.slice(4, 6)) - 1
-  const day = Number(datePart.slice(6, 8))
-  const hour = Number(timePart.slice(0, 2))
-  const minute = Number(timePart.slice(2, 4))
-  const second = Number(timePart.slice(4, 6))
-
-  const timestamp = new Date(year, month, day, hour, minute, second).getTime()
+  const [, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr] = match
+  const timestamp = Date.UTC(
+    Number(yearStr),
+    Number(monthStr) - 1,
+    Number(dayStr),
+    Number(hourStr),
+    Number(minuteStr),
+    Number(secondStr),
+  )
   return Number.isFinite(timestamp) ? timestamp : null
 }
 
@@ -81,11 +87,11 @@ function parseArgs(argv: string[]): Options {
     }
 
     if (arg === "--env") {
-      const value = argv[++i] as BuildEnv | undefined
+      const value = argv[++i]
       if (!value) {
         throw new Error("--env requires a value")
       }
-      if (!VALID_ENVS.has(value)) {
+      if (!isValidEnv(value)) {
         throw new Error(`Invalid --env '${value}'. Valid values: production, staging`)
       }
       parsedEnvs.push(value)
@@ -143,7 +149,9 @@ function pruneEnvironmentBuilds(options: Options, env: BuildEnv, cutoffTs: numbe
   let deleted = 0
 
   for (const entry of entries) {
-    if (!entry.startsWith("dist.")) {
+    // Build dirs are ISO timestamps: "2026-02-17T13-33-23" (from server-setup.ts)
+    // Skip non-build entries (e.g. "current" symlink)
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$/.test(entry)) {
       continue
     }
 

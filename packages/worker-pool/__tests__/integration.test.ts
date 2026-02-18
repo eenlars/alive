@@ -30,6 +30,7 @@ function createTestAgentConfig(): AgentConfig {
 function createTestPayload(overrides: Partial<AgentRequest> = {}): AgentRequest {
   return {
     message: "test message",
+    oauthAccessToken: "test-oauth-token",
     agentConfig: createTestAgentConfig(),
     ...overrides,
   }

@@ -152,6 +152,7 @@ export interface ExecutionParams {
 interface WorkerPoolParams extends ExecutionParams {
   workspace: string
   userId: string
+  oauthAccessToken: string
   /** Session cookie for authenticating API callbacks (e.g. restart_dev_server) */
   sessionCookie?: string
 }
@@ -168,6 +169,7 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
     timeoutSeconds,
     extraTools,
     responseToolName,
+    oauthAccessToken,
     sessionCookie,
   } = params
 
@@ -211,6 +213,7 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
         model: selectedModel,
         maxTurns: DEFAULTS.CLAUDE_MAX_TURNS,
         systemPrompt,
+        oauthAccessToken,
         oauthTokens: {},
         userEnvKeys: {},
         agentConfig,

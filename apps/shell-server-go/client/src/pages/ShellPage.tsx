@@ -423,9 +423,13 @@ export function ShellPage() {
 
   // Create initial tab
   useEffect(() => {
-    createTab()
+    let mounted = true
+    createTab().then(() => {
+      if (!mounted) return
+    })
 
     return () => {
+      mounted = false
       tabsRef.current.forEach(tab => tab.ws.close())
     }
   }, [])

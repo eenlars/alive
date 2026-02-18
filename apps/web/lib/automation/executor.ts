@@ -117,6 +117,7 @@ interface ExecutionContext {
   cwd: string
   workspace: string
   userId: string
+  oauthAccessToken: string
   fullPrompt: string
   selectedModel: string
   systemPrompt: string
@@ -290,6 +291,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       cwd,
       workspace,
       userId: params.userId,
+      oauthAccessToken: oauthResult.accessToken,
       fullPrompt,
       selectedModel: model || CLAUDE_MODELS.OPUS_4_6,
       systemPrompt,

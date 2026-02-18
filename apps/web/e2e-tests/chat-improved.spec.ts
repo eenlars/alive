@@ -49,3 +49,19 @@ test("can send multiple messages", async ({ authenticatedPage, workerTenant }) =
   await chat.expectMessage(TEST_MESSAGES.question)
   await chat.expectMessage("Response received")
 })
+
+test("can send a message that reads a file", async ({ authenticatedPage, workerTenant }) => {
+  const readPath = "/workspace/README.md"
+  const readContent = "# Alive\nSending messages must always work."
+  const readResponse = "I read /workspace/README.md. First line: # Alive"
+
+  await authenticatedPage.route("**/api/claude/stream", handlers.fileRead(readPath, readContent, readResponse))
+
+  const chat = new ChatPage(authenticatedPage)
+  await chat.gotoFast(workerTenant.workspace, workerTenant.orgId)
+
+  const prompt = "Read README.md and tell me the first line."
+  await chat.sendMessage(prompt)
+  await chat.expectMessage(prompt)
+  await chat.expectMessage(readResponse)
+})

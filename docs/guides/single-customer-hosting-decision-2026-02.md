@@ -26,13 +26,13 @@ This gives the clearest isolation story for your use case while staying inexpens
 | Hetzner `CCX13` + IPv4 | ~`EUR 12.99` (`12.49 + 0.50`) | Strong: dedicated-vCPU VM per customer | ISO/IEC 27001 + DPA/TOMs; SOC 2 is not their focus | Medium | **Best default** |
 | Hetzner `CX23` + IPv4 | ~`EUR 3.99` (`3.49 + 0.50`) | VM isolation, but shared CPU resources | Same as above | Medium | Budget option; weaker performance isolation |
 | Render Web Service (`Starter`) | `USD 7` compute + workspace plan | PaaS isolation, not host-dedicated | SOC 2 Type 2 + ISO 27001; HIPAA-enabled workspaces | Low | Easiest PaaS, but weaker "dedicated box" story |
-| Fly Machines (`shared-cpu-1x`) | ~`USD 1.94-2.47` (region-dependent) + storage/network | Strong app isolation (microVM model), shared infra | SOC2 Type2 report + BAA + DPA | Medium | Good fallback if you want platform automation + compliance docs |
+| Fly Machines (`shared-cpu-1x`) | ~`USD 1.94-2.47` (region-dependent) + storage/network | Strong app isolation (microVM model), shared infra | SOC 2 Type 2 report + BAA + DPA | Medium | Good fallback if you want platform automation + compliance docs |
 
 ## Compliance Notes
 
 - **Hetzner**: Provides ISO/IEC 27001 certificate, DPA flow, TOMs documentation, and explicitly emphasizes ISO focus over SOC 2.
 - **Render**: Documents SOC 2 Type 2 and ISO 27001, with HIPAA-enabled workspace support.
-- **Fly.io**: Publishes SOC2 Type2 report availability and offers BAA and DPA flows.
+- **Fly.io**: Publishes SOC 2 Type 2 report availability and offers BAA and DPA flows.
 
 ## Why Hetzner `CCX13` Is the Default Here
 

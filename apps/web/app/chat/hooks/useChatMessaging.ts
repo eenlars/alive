@@ -23,10 +23,44 @@ import { authStore } from "@/lib/stores/authStore"
 import { isDevelopment } from "@/lib/stores/debug-store"
 import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
 import { useBuilding, useGoal, useTargetUsers } from "@/lib/stores/goalStore"
-import { useApiKey, useModel } from "@/lib/stores/llmStore"
+import { useModel } from "@/lib/stores/llmStore"
 import { getPlanModeState, usePlanMode } from "@/lib/stores/planModeStore"
 import { clearAbortController, setAbortController, useStreamingActions } from "@/lib/stores/streamingStore"
 import { useActiveTab } from "@/lib/stores/tabStore"
+
+/**
+ * Human-readable fallback messages for HTTP status codes.
+ * Used when the server's structured JSON error body is unavailable
+ * (e.g. CDN/proxy replaced the response, or body parsing failed).
+ */
+function httpStatusMessage(status: number): string {
+  switch (status) {
+    case 401:
+      return "Your session has expired. Please refresh the page and log in again."
+    case 402:
+      return "You don't have enough credits. Please contact support to add more."
+    case 403:
+      return "Access denied. Please check your permissions."
+    case 404:
+      return "Workspace not found. Please check that your site is set up correctly."
+    case 409:
+      return "A request is already in progress. Please wait for it to finish."
+    case 429:
+      return "Too many requests. Please wait a moment and try again."
+    case 500:
+      return "Server error. Please try again in a moment."
+    case 502:
+      return "Server temporarily unavailable. Please try again in a moment."
+    case 503:
+      return "Service temporarily unavailable. The server may need to reconnect to Claude. Please try again."
+    case 504:
+      return "Request timed out. Please try again."
+    default:
+      return status >= 500
+        ? "Server error. Please try again in a moment."
+        : `Request failed (${status}). Please try again.`
+  }
+}
 
 interface UseChatMessagingOptions {
   workspace: string | null
@@ -98,7 +132,6 @@ export function useChatMessaging({
 
   // Store hooks
   const streamingActions = useStreamingActions()
-  const userApiKey = useApiKey()
   const userModel = useModel()
   const planMode = usePlanMode()
   const { addEvent: addDevEvent } = useDevTerminal()
@@ -128,7 +161,6 @@ export function useChatMessaging({
         message,
         tabId: activeTabId,
         tabGroupId,
-        apiKey: userApiKey || undefined,
         model: userModel,
         analyzeImageUrls: analyzeImageUrls?.length ? analyzeImageUrls : undefined,
         // Read plan mode directly from store to avoid stale closure
@@ -139,7 +171,7 @@ export function useChatMessaging({
       }
       return isTerminal ? { ...baseBody, workspace: workspace || undefined } : baseBody
     },
-    [tabId, activeTab?.id, tabGroupId, userApiKey, userModel, planMode, isTerminal, workspace, worktree],
+    [tabId, activeTab?.id, tabGroupId, userModel, planMode, isTerminal, workspace, worktree],
   )
 
   const buildPromptForClaude = useCallback((userMessage: UIMessage): PromptBuildResult => {
@@ -444,7 +476,9 @@ export function useChatMessaging({
                   toast.error(userMessage, { duration: 4000, position: "top-center" })
                 }
               } else {
-                userMessage = `HTTP ${res.status}: ${res.statusText}`
+                // Friendly fallback messages when structured error JSON is unavailable
+                // (e.g. proxy/CDN replaces body, or HTTP/2 has empty statusText)
+                userMessage = httpStatusMessage(res.status)
               }
               throw new HttpError(userMessage, res.status, res.statusText, errorData?.error)
             }
@@ -813,31 +847,34 @@ export function useChatMessaging({
       isSubmittingByTab.current.set(targetTabId, true)
       streamingActions.startStream(targetTabId)
 
-      const attachments = chatInputRef.current?.getAttachments() || []
-
-      trackMessageSent({
-        workspace,
-        has_attachments: attachments.length > 0,
-        plan_mode: getPlanModeState().planMode,
-        message_length: messageToSend.length,
-      })
-
-      const userMessage: UIMessage = {
-        id: Date.now().toString(),
-        type: "user",
-        content: messageToSend,
-        timestamp: new Date(),
-        attachments: attachments.length > 0 ? attachments : undefined,
-      }
-      await addMessage(userMessage, targetTabId)
-      setMsg("")
-      chatInputRef.current?.clearAllAttachments()
-      forceScrollToBottom()
-
       try {
+        const attachments = chatInputRef.current?.getAttachments() || []
+
+        trackMessageSent({
+          workspace,
+          has_attachments: attachments.length > 0,
+          plan_mode: getPlanModeState().planMode,
+          message_length: messageToSend.length,
+        })
+
+        const userMessage: UIMessage = {
+          id: Date.now().toString(),
+          type: "user",
+          content: messageToSend,
+          timestamp: new Date(),
+          attachments: attachments.length > 0 ? attachments : undefined,
+        }
+        await addMessage(userMessage, targetTabId)
+        setMsg("")
+        chatInputRef.current?.clearAllAttachments()
+        forceScrollToBottom()
+
         await sendStreaming(userMessage, targetTabId)
       } finally {
-        // Clear submission state for this specific tab
+        // Always clean up streaming and submission state, even if addMessage
+        // or any pre-stream code throws. Without this, the UI gets permanently
+        // stuck in "thinking" state with busy=true.
+        streamingActions.endStream(targetTabId)
         isSubmittingByTab.current.set(targetTabId, false)
       }
     },

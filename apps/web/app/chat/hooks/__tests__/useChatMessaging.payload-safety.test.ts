@@ -57,7 +57,6 @@ const mocks = vi.hoisted(() => {
     useGoal: vi.fn(() => null),
     useBuilding: vi.fn(() => null),
     useTargetUsers: vi.fn(() => null),
-    useApiKey: vi.fn(() => null),
     useModel: vi.fn(() => "claude-sonnet"),
     usePlanMode: vi.fn(() => false),
     getPlanModeState: vi.fn(() => ({ planMode: false })),
@@ -196,7 +195,6 @@ vi.mock("@/lib/stores/goalStore", () => ({
 }))
 
 vi.mock("@/lib/stores/llmStore", () => ({
-  useApiKey: () => mocks.useApiKey(),
   useModel: () => mocks.useModel(),
 }))
 

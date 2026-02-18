@@ -194,8 +194,11 @@ export interface AgentRequest {
   resume?: string
   /** Resume at a specific message UUID (for message deletion/editing) */
   resumeSessionAt?: string
-  /** User's API key (if they have their own) */
-  apiKey?: string
+  /**
+   * OAuth access token resolved by the parent process from secure credentials.
+   * This is passed explicitly so auth never depends on workspace-local .env files.
+   */
+  oauthAccessToken: string
   oauthTokens?: Record<string, string | undefined>
   /**
    * User-defined environment keys (custom API keys stored in lockbox).

@@ -247,6 +247,9 @@ export function ErrorResultMessage({ content }: ErrorResultMessageProps) {
     if (errorMessage.includes("HTTP 500")) {
       return "Server error. Please try again in a moment."
     }
+    if (errorMessage.includes("HTTP 502")) {
+      return "Server temporarily unavailable. Please try again in a moment."
+    }
     if (errorMessage.includes("HTTP 503")) {
       return "Service temporarily unavailable. Please try again in a moment."
     }
