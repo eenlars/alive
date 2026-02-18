@@ -21,7 +21,7 @@ export const GET = protectedRoute(
         { skills },
         {
           headers: {
-            "Cache-Control": "private, s-maxage=300, stale-while-revalidate=600",
+            "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
           },
         },
       )

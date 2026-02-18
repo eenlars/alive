@@ -96,7 +96,7 @@ export const createSkillsStore = (initState: SkillsState = defaultInitState) => 
             // Don't refetch if we fetched recently (5 minutes)
             const state = get()
             const now = Date.now()
-            if (state.lastFetched && now - state.lastFetched < 5 * 60 * 1000 && state.superadminSkills.length > 0) {
+            if (state.lastFetched && now - state.lastFetched < 5 * 60 * 1000) {
               return
             }
 

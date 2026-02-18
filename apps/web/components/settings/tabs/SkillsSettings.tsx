@@ -76,7 +76,11 @@ export function SkillsSettings() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => removeUserSkill(skill.id)}
+                      onClick={() => {
+                        if (window.confirm(`Delete "${skill.displayName}"?`)) {
+                          removeUserSkill(skill.id)
+                        }
+                      }}
                       className="px-2.5 py-1 text-xs text-red-500/60 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/[0.06] dark:hover:bg-red-500/[0.06] rounded-lg transition-all"
                     >
                       Delete
