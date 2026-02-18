@@ -59,7 +59,6 @@ export function ToolsTab({ skills, onSkillsChange }: ToolsTabProps) {
         {open && available.length > 0 && (
           <div
             id="skills-listbox"
-            role="group"
             className="max-h-48 overflow-auto rounded-xl bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08]"
           >
             {available.map(skill => (
