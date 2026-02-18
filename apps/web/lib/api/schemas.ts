@@ -529,6 +529,26 @@ export const apiSchemas = {
   },
 
   /**
+   * POST /api/rename-site
+   * Rename a site's domain. Superadmin only.
+   */
+  "rename-site": {
+    req: z
+      .object({
+        oldDomain: z.string().min(1, "Old domain is required"),
+        newDomain: z.string().min(1, "New domain is required"),
+      })
+      .strict()
+      .brand<"RenameSiteRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      message: z.string(),
+      oldDomain: z.string(),
+      newDomain: z.string(),
+    }),
+  },
+
+  /**
    * POST /api/import-repo
    * Import a GitHub repository as a new site
    * Requires authenticated session with GitHub integration connected

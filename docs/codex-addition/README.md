@@ -63,7 +63,13 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
 - Does Codex's `skipGitRepoCheck` fully bypass git requirement, or just suppress warning? (Alive workspaces may not be git repos)
 - Can `additionalDirectories` include Alive's shared packages dir for cross-workspace imports?
 - How does Codex handle `outputSchema` failures (model doesn't produce valid JSON)? Need error handling strategy.
-- Thread session directory (~/.codex/sessions/) — how to isolate per-workspace to prevent cross-contamination?
+- ~~Thread session directory (~/.codex/sessions/) — how to isolate per-workspace to prevent cross-contamination?~~ ✅ Override HOME env var per workspace (fase_2/20)
+
+## New Open Questions (from 2026-02-18 04:00 research)
+- Does `config.system_message` actually work as a Codex config key? (fase_1/11 — needs runtime test)
+- How does Codex handle abort mid-MCP-call? Does the MCP server subprocess get cleaned up? (fase_2/18)
+- Is `maxTurns` really needed, or can Alive rely on timeout + token budget instead? (fase_2/21)
+- Should Codex's `sandboxMode` and `modelReasoningEffort` be exposed in Alive workspace settings? (fase_2/21)
 
 
 ## Log
@@ -132,3 +138,13 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
   - E2E test scenarios (fase_3/04) — 24 concrete test cases across 6 categories (provider selection, lifecycle, MCP, normalization, billing, security). Fixture-based mock approach.
   - Resolved 2 open questions, identified 4 new ones
   - **KEY INSIGHT**: Project-level config.toml is the cleanest way to configure Codex for Alive. Write it per-workspace before session, let Codex read it naturally. No complex CLI flag serialization needed.
+- **2026-02-18 04:00** — Seventh research iteration (gap analysis + consolidation):
+  - Re-verified SDK source against latest main. Found `CodexOptions.config` field that flattens to `--config key=value` CLI args (fase_1/11). **This potentially enables system_message via SDK** — contradicts fase_2/16 conclusion. Needs runtime testing to confirm.
+  - Cancellation & abort flow documented (fase_2/18) — Claude uses `abort()`, Codex uses `AbortSignal`. Unified `AgentSession.abort()` interface designed.
+  - Image input support documented (fase_2/19) — Codex uses local file paths, Claude uses base64. Marked as v2 feature, but types designed to accommodate from v1.
+  - Session resume architecture (fase_2/20) — Claude uses session directories, Codex uses thread IDs. Unified resume model with per-workspace isolation strategy (env-based HOME override for Codex).
+  - Concrete API mapping (fase_2/21) — side-by-side comparison of actual `query()` call in worker-entry.mjs vs equivalent Codex `Thread.runStreamed()`. Full parameter mapping table. Identified 3 Claude features missing in Codex (maxTurns, canUseTool, allowedTools) and 6 Codex features missing in Claude (sandboxMode, reasoningEffort, webSearch, outputSchema, additionalDirectories, networkAccess).
+  - New Codex item types for frontend (fase_2/22) — TodoListItem, ReasoningItem, ErrorItem renderers needed. Full item type mapping table for frontend.
+  - **Consolidated implementation checklist** (fase_2/23) — 6 phases, ~46h total. Phase 1 (MCP refactoring) remains the single blocker. All other phases can partially overlap.
+  - Remaining open questions from 20:00 session still stand (skipGitRepoCheck behavior, additionalDirectories, outputSchema error handling, session directory isolation). All addressed in new docs.
+  - **Plan is now comprehensive enough to begin implementation.** All technical unknowns are documented with proposed solutions. Next iteration should focus on any remaining Codex Rust config schema verification.

@@ -59,3 +59,26 @@ export interface PortAssignment {
   /** Whether this is a new assignment */
   isNew: boolean
 }
+
+/**
+ * Configuration for renaming a site
+ */
+export interface RenameConfig {
+  /** Current domain (e.g., old.alive.best) */
+  oldDomain: string
+  /** New domain (e.g., new.alive.best) */
+  newDomain: string
+}
+
+/**
+ * Result of a rename operation
+ */
+export interface RenameResult {
+  oldDomain: string
+  newDomain: string
+  oldSlug: string
+  newSlug: string
+  serviceName: string
+  success: boolean
+  error?: string
+}
