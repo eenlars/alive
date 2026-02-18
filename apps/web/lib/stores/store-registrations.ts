@@ -114,8 +114,6 @@ function registerAllStores(): void {
     hasHydrated: () => useOnboardingStore.persist.hasHydrated(),
     priority: 105,
   })
-
-  console.log("[StoreRegistrations] All 9 stores registered for coordinated hydration")
 }
 
 // Auto-register when this module is imported

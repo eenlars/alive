@@ -1,6 +1,6 @@
 "use client"
 
-import { Code, FolderOpen, Globe, Terminal } from "lucide-react"
+import { Activity, Code, FolderOpen, Globe, Terminal } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { trackSandboxModeChanged } from "@/lib/analytics/events"
 import { useFeatureFlag } from "@/lib/stores/featureFlagStore"
@@ -12,11 +12,12 @@ interface PanelViewMenuProps {
   isSuperadmin?: boolean
 }
 
-const VIEW_OPTIONS: { view: PanelView; label: string; icon: typeof Globe }[] = [
+const VIEW_OPTIONS: { view: PanelView; label: string; icon: typeof Globe; superadminOnly?: boolean }[] = [
   { view: "site", label: "Preview", icon: Globe },
   { view: "code", label: "Code", icon: Code },
   { view: "drive", label: "Drive", icon: FolderOpen },
   { view: "terminal", label: "Terminal", icon: Terminal },
+  { view: "events", label: "Events", icon: Activity, superadminOnly: true },
 ]
 
 // Check if we're on mobile (client-side only)
@@ -43,6 +44,7 @@ export function PanelViewMenu({ currentView, onViewChange, isSuperadmin }: Panel
   const availableViews = VIEW_OPTIONS.filter(o => {
     if (isSuperadmin && (o.view === "site" || o.view === "drive")) return false
     if (o.view === "drive" && !driveEnabled) return false
+    if (o.superadminOnly && !isSuperadmin) return false
     return true
   })
 

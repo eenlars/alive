@@ -47,6 +47,21 @@ const nextConfig = {
   distDir: process.env.PLAYWRIGHT_TEST ? ".next-test" : ".next",
   output: "standalone",
   devIndicators: false,
+  // Required for PostHog proxy rewrites to work correctly
+  skipTrailingSlashRedirect: true,
+  // Proxy analytics/monitoring through our domain to bypass ad blockers
+  async rewrites() {
+    const rewrites = []
+    const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST
+    if (posthogHost) {
+      rewrites.push(
+        { source: "/ingest/static/:path*", destination: `${posthogHost}/static/:path*` },
+        { source: "/ingest/:path*", destination: `${posthogHost}/:path*` },
+      )
+    }
+    // Sentry uses a tunnel API route (not a rewrite) — see app/api/monitoring/route.ts
+    return rewrites
+  },
   // Skip type checking during build (run separately with tsc)
   typescript: {
     ignoreBuildErrors: process.env.SKIP_TYPE_CHECK === "true",

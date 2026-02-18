@@ -112,10 +112,6 @@ export function AutomationRunsView({ job }: AutomationRunsViewProps) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06] shrink-0">
-        <h2 className="text-sm font-semibold text-black dark:text-white">Run History</h2>
-        <p className="text-xs text-black/50 dark:text-white/50 mt-0.5">{job.name}</p>
-      </div>
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="space-y-2">
           {runs.map(run => (

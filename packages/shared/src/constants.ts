@@ -397,7 +397,7 @@ export const STORE_STORAGE_KEYS = {
   /** Tab view store (sessionStorage) - per-browser-tab UI state */
   TAB_VIEW: "claude-tab-view",
   LLM: "alive-llm-settings-v2",
-  DEBUG: "alive-debug-view-v6",
+  DEBUG: "alive-debug-view-v7",
   FEATURE_FLAG: "feature-flag-overrides-v1",
   SESSION: "claude-session-storage",
   GOAL: "goal-storage",
@@ -439,7 +439,6 @@ export interface TestStorageStateOptions {
   /** Optional debug settings override */
   debug?: {
     isDebugView?: boolean
-    showSSETerminal?: boolean
     showSandbox?: boolean
   }
 }
@@ -472,8 +471,6 @@ export function createTestStorageState(options: TestStorageStateOptions): Storag
     value: JSON.stringify({
       state: {
         isDebugView: options.debug?.isDebugView ?? false,
-        showSSETerminal: options.debug?.showSSETerminal ?? false,
-        isSSETerminalMinimized: false,
         showSandbox: options.debug?.showSandbox ?? false,
         isSandboxMinimized: false,
         sandboxWidth: null,

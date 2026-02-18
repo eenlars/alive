@@ -216,7 +216,6 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       featureFlags: {},
       debug: {
         isDebugView: false,
-        showSSETerminal: false,
         showSandbox: false,
       },
     })

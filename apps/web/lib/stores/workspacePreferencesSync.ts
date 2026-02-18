@@ -15,6 +15,7 @@
  * - Conflict resolution: Server wins for initial load, local wins during session
  */
 
+import { COOKIE_NAMES } from "@webalive/shared"
 import { useWorkspaceStoreBase } from "./workspaceStore"
 
 // =============================================================================
@@ -50,6 +51,16 @@ let isSyncing = false
 let _lastSyncedAt: number | null = null
 
 // =============================================================================
+// Helpers
+// =============================================================================
+
+/** Check if user has an auth session cookie (client-side) */
+function hasAuthCookie(): boolean {
+  if (typeof document === "undefined") return false
+  return document.cookie.split(";").some(c => c.trim().startsWith(`${COOKIE_NAMES.SESSION}=`))
+}
+
+// =============================================================================
 // Fetch from Server
 // =============================================================================
 
@@ -66,6 +77,7 @@ let _lastSyncedAt: number | null = null
 export async function syncFromServer(): Promise<boolean> {
   if (typeof window === "undefined") return false
   if (isSyncing) return false
+  if (!hasAuthCookie()) return false
 
   try {
     isSyncing = true
@@ -75,10 +87,7 @@ export async function syncFromServer(): Promise<boolean> {
     })
 
     if (!response.ok) {
-      if (response.status === 401) {
-        // Not logged in - skip sync
-        return false
-      }
+      if (response.status === 401) return false
       console.error("[workspace-sync] Failed to fetch preferences:", response.status)
       return false
     }
@@ -88,7 +97,6 @@ export async function syncFromServer(): Promise<boolean> {
 
     // If server has no data, nothing to sync
     if (!server.updatedAt) {
-      console.log("[workspace-sync] No server preferences found")
       // Upload local state to server if we have any
       if (store.currentWorkspace || store.recentWorkspaces.length > 0) {
         void syncToServer()
@@ -101,7 +109,6 @@ export async function syncFromServer(): Promise<boolean> {
 
     // If we synced recently and have local changes, don't overwrite
     if (localSyncTime && Date.now() - localSyncTime < 60000) {
-      console.log("[workspace-sync] Recent local changes - skipping server merge")
       return false
     }
 
@@ -112,14 +119,12 @@ export async function syncFromServer(): Promise<boolean> {
     if (!store.currentWorkspace && server.currentWorkspace) {
       useWorkspaceStoreBase.setState({ currentWorkspace: server.currentWorkspace })
       didUpdate = true
-      console.log("[workspace-sync] Restored workspace from server:", server.currentWorkspace)
     }
 
     // Selected org: use server if local is null
     if (!store.selectedOrgId && server.selectedOrgId) {
       useWorkspaceStoreBase.setState({ selectedOrgId: server.selectedOrgId })
       didUpdate = true
-      console.log("[workspace-sync] Restored org from server:", server.selectedOrgId)
     }
 
     // Recent workspaces: merge and dedupe
@@ -128,7 +133,6 @@ export async function syncFromServer(): Promise<boolean> {
       if (merged.length !== store.recentWorkspaces.length) {
         useWorkspaceStoreBase.setState({ recentWorkspaces: merged })
         didUpdate = true
-        console.log("[workspace-sync] Merged recent workspaces:", merged.length)
       }
     }
 
@@ -168,6 +172,7 @@ export function queueSyncToServer(): void {
 async function syncToServer(): Promise<void> {
   if (typeof window === "undefined") return
   if (isSyncing) return
+  if (!hasAuthCookie()) return
 
   try {
     isSyncing = true
@@ -190,7 +195,6 @@ async function syncToServer(): Promise<void> {
     }
 
     setLastSyncTime(Date.now())
-    console.log("[workspace-sync] Synced to server")
   } catch (error) {
     console.error("[workspace-sync] Error syncing preferences:", error)
   } finally {

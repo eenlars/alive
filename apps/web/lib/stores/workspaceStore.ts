@@ -307,12 +307,10 @@ const useWorkspaceStoreBase = create<WorkspaceStore>()(
           currentWorktreeByWorkspace: state.currentWorktreeByWorkspace ?? {},
         }
       },
-      onRehydrateStorage: () => (state, error) => {
+      onRehydrateStorage: () => (_state, error) => {
         // Called when rehydrate() completes
         if (error) {
           console.error("[WorkspaceStore] Hydration error:", error)
-        } else {
-          console.log("[WorkspaceStore] Hydration complete, workspace:", state?.currentWorkspace)
         }
         // Note: App-wide hydration is tracked by HydrationManager via useAppHydrated()
       },

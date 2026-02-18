@@ -127,7 +127,7 @@ export const STORE_STORAGE_KEYS = {
   MESSAGE: "claude-messages-v4",
   TAB: "claude-tabs-v1",
   LLM: "alive-llm-settings-v2",
-  DEBUG: "alive-debug-view-v6",
+  DEBUG: "alive-debug-view-v7",
   FEATURE_FLAG: "feature-flag-overrides-v1",
   SESSION: "claude-session-storage",
   GOAL: "goal-storage",

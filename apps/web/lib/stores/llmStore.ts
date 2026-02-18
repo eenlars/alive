@@ -64,7 +64,6 @@ const useLLMStoreBase = create<LLMStore>()(
 
         // Atomic state update via setState (not mutation)
         useLLMStoreBase.setState({ model })
-        console.log("[LLMStore] Hydration complete")
       },
     },
   ),
