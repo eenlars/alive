@@ -66,10 +66,16 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
 - ~~Thread session directory (~/.codex/sessions/) — how to isolate per-workspace to prevent cross-contamination?~~ ✅ Override HOME env var per workspace (fase_2/20)
 
 ## New Open Questions (from 2026-02-18 04:00 research)
-- Does `config.system_message` actually work as a Codex config key? (fase_1/11 — needs runtime test)
+- ~~Does `config.system_message` actually work as a Codex config key?~~ ✅ NO — `system_message` doesn't exist. Use `developer_instructions` instead (fase_1/13)
 - How does Codex handle abort mid-MCP-call? Does the MCP server subprocess get cleaned up? (fase_2/18)
 - Is `maxTurns` really needed, or can Alive rely on timeout + token budget instead? (fase_2/21)
 - Should Codex's `sandboxMode` and `modelReasoningEffort` be exposed in Alive workspace settings? (fase_2/21)
+
+## New Open Questions (from 2026-02-18 16:00 research)
+- Does Codex's Linux seccomp sandbox conflict with Node.js MCP servers? (fase_2/26 — use `danger-full-access` for v1)
+- Does `developer_instructions` actually work via `--config` CLI flag? (fase_3/05 — runtime test needed, BLOCKER)
+- How does `env_vars` passthrough interact with `env` replacement in MCP server config?
+- Can `CODEX_HOME` be set to a per-workspace path without breaking Codex binary resolution?
 
 
 ## Log
@@ -148,3 +154,15 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
   - **Consolidated implementation checklist** (fase_2/23) — 6 phases, ~46h total. Phase 1 (MCP refactoring) remains the single blocker. All other phases can partially overlap.
   - Remaining open questions from 20:00 session still stand (skipGitRepoCheck behavior, additionalDirectories, outputSchema error handling, session directory isolation). All addressed in new docs.
   - **Plan is now comprehensive enough to begin implementation.** All technical unknowns are documented with proposed solutions. Next iteration should focus on any remaining Codex Rust config schema verification.
+- **2026-02-18 16:00** — Eighth research iteration (Rust config source audit + critical corrections):
+  - **CRITICAL CORRECTION**: `system_message` is NOT a valid Codex config key. The Rust `Config` struct uses `developer_instructions`, `base_instructions`, and `user_instructions` (fase_1/13). Previous docs (fase_2/16, fase_2/24) were wrong.
+  - Full Codex Rust config struct audited — discovered `ephemeral`, `model_context_window`, `agent_max_threads`, `memories`, `model_providers` fields.
+  - Complete `McpServerConfig` schema documented — supports `command`, `args`, `env`, `env_vars`, `cwd`, `enabled_tools`, `disabled_tools`, `required`, timeouts, OAuth scopes. Much richer than previously assumed.
+  - `McpServerTransportConfig` has two variants: Stdio (command-based) and StreamableHttp (URL-based with auth headers).
+  - `ApprovalMode` expanded: `"never"` | `"on-request"` | `"on-failure"` | `"untrusted"` — `"on-failure"` is interesting for future semi-auto mode.
+  - Network proxy system documented (fase_2/26) — Codex has domain allowlists, SOCKS proxy, etc. Potential conflicts with Alive's container networking. Recommendation: use `danger-full-access` for v1.
+  - Revised CodexProvider implementation (fase_2/27) — incorporates all corrections, complete event normalization code.
+  - MCP config definitive approach (fase_2/25) — project-level `.codex/config.toml` with `CODEX_HOME` isolation.
+  - Runtime verification test suite (fase_3/05) — 7 specific tests that must pass before implementation. Tests 1-2 are BLOCKERS.
+  - **New docs**: fase_1/13, fase_2/25, fase_2/26, fase_2/27, fase_3/05
+  - **KEY INSIGHT**: The `developer_instructions` config key is the cleanest system prompt mechanism — injected as a separate developer message, coexists with user's own CODEX.md (`user_instructions`). This is actually BETTER than the file-based approach.
