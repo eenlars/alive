@@ -10,7 +10,7 @@
  */
 export const CLAUDE_MODELS = {
   OPUS_4_6: "claude-opus-4-6",
-  SONNET_4_5: "claude-sonnet-4-5",
+  SONNET_4_6: "claude-sonnet-4-6",
   HAIKU_4_5: "claude-haiku-4-5",
 } as const
 
@@ -19,7 +19,7 @@ export type ClaudeModel = (typeof CLAUDE_MODELS)[keyof typeof CLAUDE_MODELS]
 /**
  * Default model used for credit users and as initial state
  */
-export const DEFAULT_CLAUDE_MODEL: ClaudeModel = CLAUDE_MODELS.SONNET_4_5
+export const DEFAULT_CLAUDE_MODEL: ClaudeModel = CLAUDE_MODELS.SONNET_4_6
 
 /**
  * Set of valid model strings for runtime validation
@@ -40,8 +40,8 @@ export function getModelDisplayName(model: ClaudeModel): string {
   switch (model) {
     case CLAUDE_MODELS.OPUS_4_6:
       return "Claude Opus 4.6"
-    case CLAUDE_MODELS.SONNET_4_5:
-      return "Claude Sonnet 4.5"
+    case CLAUDE_MODELS.SONNET_4_6:
+      return "Claude Sonnet 4.6"
     case CLAUDE_MODELS.HAIKU_4_5:
       return "Claude Haiku 4.5"
     default:

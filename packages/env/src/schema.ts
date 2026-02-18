@@ -72,7 +72,7 @@ export const serverSchema = {
   HOSTED_ENV: z.string().optional(),
 
   // Claude configuration
-  CLAUDE_MODEL: z.string().default("claude-sonnet-4-5-20250929"),
+  CLAUDE_MODEL: z.string().default("claude-sonnet-4-6"),
   // Note: CLAUDE_MAX_TURNS is not an env var - use DEFAULTS.CLAUDE_MAX_TURNS from @webalive/shared
 
   // Optional integrations

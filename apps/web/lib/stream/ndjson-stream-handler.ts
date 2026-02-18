@@ -136,7 +136,7 @@ interface StreamHandlerConfig {
  *
  * Pricing (per MTok, 1 USD = 10 credits):
  * - Opus 4.6: $5 input, $25 output
- * - Sonnet 4.5: $3/$6 input (≤200K/>200K), $15/$22.50 output
+ * - Sonnet 4.6: $3/$6 input (≤200K/>200K), $15/$22.50 output
  * - Haiku 4.5: $1 input, $5 output
  *
  * ATOMIC OPERATION: Uses Supabase RPC to atomically deduct credits.
