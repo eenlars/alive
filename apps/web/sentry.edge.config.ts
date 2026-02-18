@@ -11,6 +11,10 @@ if (process.env.PLAYWRIGHT_TEST !== "true") {
     sendDefaultPii: false,
 
     beforeSend(event) {
+      if (event.environment === "local") {
+        return null
+      }
+
       if (event.request) {
         delete event.request.cookies
         if (event.request.headers) {

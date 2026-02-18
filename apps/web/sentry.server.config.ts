@@ -17,8 +17,12 @@ if (process.env.PLAYWRIGHT_TEST !== "true") {
     // Don't send PII
     sendDefaultPii: false,
 
-    // Strip sensitive data from breadcrumbs/events
+    // Don't send events from local dev
     beforeSend(event) {
+      if (event.environment === "local") {
+        return null
+      }
+
       // Strip cookies
       if (event.request) {
         delete event.request.cookies

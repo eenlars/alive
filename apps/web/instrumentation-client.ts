@@ -45,8 +45,13 @@ if (!isPlaywrightTest) {
     // Don't send PII
     sendDefaultPii: false,
 
-    // Strip sensitive URL params
+    // Don't send events from local dev
     beforeSend(event) {
+      if (event.environment === "local") {
+        return null
+      }
+
+      // Strip sensitive URL params
       if (event.request?.url) {
         try {
           const url = new URL(event.request.url)
