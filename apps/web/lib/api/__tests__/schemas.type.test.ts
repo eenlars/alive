@@ -48,6 +48,7 @@ describe("API Schema Type System", () => {
         | "drive/list"
         | "drive/read"
         | "drive/delete"
+        | "rename-site"
       >()
     })
 

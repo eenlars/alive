@@ -5,7 +5,7 @@ Transform `worker-entry.mjs` from Claude-specific to provider-agnostic.
 
 ## Current Flow (Claude-only)
 
-```
+```text
 worker-entry.mjs
 ├── Receives IPC: { type: "query", prompt, sessionId, workspacePath, ... }
 ├── Creates Claude session via claude-agent-sdk
@@ -20,7 +20,7 @@ worker-entry.mjs
 
 ## Target Flow (multi-provider)
 
-```
+```text
 worker-entry.mjs
 ├── Receives IPC: { type: "query", prompt, provider, ... }
 ├── Resolves provider from registry
@@ -82,7 +82,9 @@ export class CodexProvider implements AgentProvider {
       config: buildCodexConfig(config),
     });
     
-    const thread = config.sessionId 
+    // threadOptions: { model, instructions, tools, etc. } — built from ProviderConfig
+    const threadOptions = buildThreadOptions(config);
+    const thread = config.sessionId
       ? codex.resumeThread(config.sessionId, threadOptions)
       : codex.startThread(threadOptions);
     
@@ -222,7 +224,7 @@ Add `provider` field to query IPC message:
 ```typescript
 interface QueryMessage {
   type: 'query';
-  provider: 'claude' | 'codex';  // NEW
+  provider?: 'claude' | 'codex';  // NEW — defaults to 'claude'
   prompt: string;
   sessionId?: string;
   workspacePath: string;

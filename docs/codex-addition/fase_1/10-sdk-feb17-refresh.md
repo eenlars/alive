@@ -137,6 +137,7 @@ new Codex({
 })
 ```
 **OPEN QUESTION**: Does `system_message` work as a config key? Need to verify against Rust config parser.
+**OPEN QUESTION**: Does passing `mcp_servers` via `config` create new server entries via dotted `--config` flags, or does it only override fields on pre-existing entries? Verify whether a full server definition (command, args, env) can be supplied this way at runtime.
 
 ## MCP Server Mode (codex-rs/mcp-server)
 
