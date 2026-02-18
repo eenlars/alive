@@ -188,8 +188,8 @@ export {
 export {
   getSkillById,
   listProjectSkills,
-  listSuperadminSkills,
   listSkillsFromDir,
+  listSuperadminSkills,
   mergeSkills,
   type SkillListItem,
   type SkillSource,
