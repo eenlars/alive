@@ -10,6 +10,7 @@
 import { AlertTriangle, Calendar, Check, Loader2, Users, X } from "lucide-react"
 import { type KeyboardEvent, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { toApiDateTime, toDateTimeLocalValue } from "./dateTime"
 import type { EventDraft } from "./types"
 
 interface CalendarEventDraftCardProps {
@@ -217,11 +218,11 @@ export function CalendarEventDraftCard({
               Start
               <input
                 type="datetime-local"
-                value={draft.start.dateTime.slice(0, 16)}
+                value={toDateTimeLocalValue(draft.start.dateTime)}
                 onChange={e =>
                   handleDraftChange({
                     ...draft,
-                    start: { ...draft.start, dateTime: `${e.target.value}:00` },
+                    start: { ...draft.start, dateTime: toApiDateTime(e.target.value) },
                   })
                 }
                 className="w-full px-2 py-1.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
@@ -234,11 +235,11 @@ export function CalendarEventDraftCard({
               End
               <input
                 type="datetime-local"
-                value={draft.end.dateTime.slice(0, 16)}
+                value={toDateTimeLocalValue(draft.end.dateTime)}
                 onChange={e =>
                   handleDraftChange({
                     ...draft,
-                    end: { ...draft.end, dateTime: `${e.target.value}:00` },
+                    end: { ...draft.end, dateTime: toApiDateTime(e.target.value) },
                   })
                 }
                 className="w-full px-2 py-1.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"

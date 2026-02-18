@@ -66,8 +66,9 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
       if (editingJob.trigger_type === "one-time" && editingJob.run_at) {
         setIsOneTime(true)
         const d = new Date(editingJob.run_at)
-        setOneTimeDate(d.toISOString().split("T")[0])
-        setOneTimeTime(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`)
+        const pad = (n: number) => String(n).padStart(2, "0")
+        setOneTimeDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`)
+        setOneTimeTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)
         setCronSchedule("")
       } else {
         setIsOneTime(false)
