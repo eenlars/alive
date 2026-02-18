@@ -51,6 +51,7 @@ export function SandboxEventsPanel() {
         .filter(devEvent => devEvent.eventName !== BridgeStreamType.PING)
         .map(devEvent => {
           try {
+            JSON.stringify(devEvent.event)
             return devEvent.event
           } catch {
             return devEvent.rawSSE

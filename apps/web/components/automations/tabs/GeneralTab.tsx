@@ -1,4 +1,5 @@
-import { CLAUDE_MODELS, type ClaudeModel, getModelDisplayName } from "@webalive/shared"
+import type { ClaudeModel } from "@webalive/shared"
+import { CLAUDE_MODELS, getModelDisplayName, isValidClaudeModel } from "@webalive/shared"
 import { useState } from "react"
 import type { Site } from "@/lib/hooks/useSettingsQueries"
 
@@ -22,8 +23,8 @@ interface GeneralTabProps {
   onSiteSelect: (id: string, hostname: string) => void
   onSiteSearchChange: (v: string) => void
   sites: Site[]
-  model: string
-  onModelChange: (v: string) => void
+  model: ClaudeModel | ""
+  onModelChange: (v: ClaudeModel | "") => void
   timeoutSeconds: string
   onTimeoutChange: (v: string) => void
 }
@@ -65,6 +66,10 @@ export function GeneralTab({
           <input
             id="auto-site"
             type="text"
+            role="combobox"
+            aria-expanded={siteDropdownOpen && filteredSites.length > 0}
+            aria-controls="auto-site-listbox"
+            aria-autocomplete="list"
             value={siteSearch}
             onChange={e => {
               onSiteSearchChange(e.target.value)
@@ -78,11 +83,17 @@ export function GeneralTab({
             className={inputClass}
           />
           {siteDropdownOpen && filteredSites.length > 0 && (
-            <div className="absolute z-20 top-full left-0 right-0 mt-1.5 max-h-48 overflow-auto rounded-2xl bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08] shadow-xl ring-1 ring-black/[0.04] dark:ring-white/[0.04] animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div
+              id="auto-site-listbox"
+              role="listbox"
+              className="absolute z-20 top-full left-0 right-0 mt-1.5 max-h-48 overflow-auto rounded-2xl bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08] shadow-xl ring-1 ring-black/[0.04] dark:ring-white/[0.04] animate-in fade-in slide-in-from-bottom-2 duration-150"
+            >
               {filteredSites.slice(0, 8).map(site => (
                 <button
                   key={site.id}
                   type="button"
+                  role="option"
+                  aria-selected={siteId === site.id}
                   onMouseDown={e => {
                     e.preventDefault()
                     onSiteSelect(site.id, site.hostname)
@@ -106,7 +117,10 @@ export function GeneralTab({
           <select
             id="auto-model"
             value={model}
-            onChange={e => onModelChange(e.target.value)}
+            onChange={e => {
+              const v = e.target.value
+              onModelChange(isValidClaudeModel(v) ? v : "")
+            }}
             className={`${inputClass} cursor-pointer appearance-none`}
             style={selectChevron}
           >

@@ -14,6 +14,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { verifySessionToken } from "@/features/auth/lib/jwt"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
+import { createErrorResponse } from "@/features/auth/lib/auth"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 

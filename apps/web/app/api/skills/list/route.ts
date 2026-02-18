@@ -8,7 +8,9 @@ import * as Sentry from "@sentry/nextjs"
 import { PATHS } from "@webalive/shared"
 import { listSuperadminSkills } from "@webalive/tools"
 import { NextResponse } from "next/server"
+import { createErrorResponse } from "@/features/auth/lib/auth"
 import { protectedRoute } from "@/features/auth/lib/protectedRoute"
+import { ErrorCodes } from "@/lib/error-codes"
 
 export const GET = protectedRoute(
   async () => {
@@ -26,7 +28,7 @@ export const GET = protectedRoute(
     } catch (error) {
       console.error("[Skills List API] Error:", error)
       Sentry.captureException(error)
-      return NextResponse.json({ error: "Failed to load skills" }, { status: 500 })
+      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
     }
   },
   { requireSuperadmin: true },

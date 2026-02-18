@@ -1,6 +1,7 @@
 "use client"
 
 import type { ClaudeModel } from "@webalive/shared"
+import { isValidClaudeModel } from "@webalive/shared"
 import { useEffect, useState } from "react"
 import { isScheduleTrigger, type TriggerType } from "@/lib/api/schemas"
 import type { AutomationJob, Site } from "@/lib/hooks/useSettingsQueries"
@@ -34,7 +35,7 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
   const [prompt, setPrompt] = useState("")
   const [siteId, setSiteId] = useState("")
   const [siteSearch, setSiteSearch] = useState("")
-  const [model, setModel] = useState("")
+  const [model, setModel] = useState<ClaudeModel | "">("")
   const [timeoutSeconds, setTimeoutSeconds] = useState("")
 
   // Trigger
@@ -59,7 +60,7 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
       setSiteSearch(sites.find(s => s.id === editingJob.site_id)?.hostname || "")
       setTimezone(editingJob.cron_timezone || "Europe/Amsterdam")
       setTimeoutSeconds(editingJob.action_timeout_seconds ? String(editingJob.action_timeout_seconds) : "")
-      setModel(editingJob.action_model || "")
+      setModel(isValidClaudeModel(editingJob.action_model) ? editingJob.action_model : "")
       setSkills(editingJob.skills ?? [])
 
       if (editingJob.trigger_type === "one-time" && editingJob.run_at) {
@@ -115,7 +116,7 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
       action_source: "",
       action_target_page: "",
       action_timeout_seconds: timeoutSeconds ? Number(timeoutSeconds) : null,
-      action_model: (model || null) as ClaudeModel | null,
+      action_model: model || null,
       skills,
       is_active: true,
     })
@@ -126,11 +127,17 @@ export function AutomationSidePanel({ isOpen, onClose, sites, editingJob, onSave
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
         {/* Tab bar */}
         <div className="px-4 pt-3 pb-0 shrink-0">
-          <div className="flex items-center gap-1 bg-black/[0.04] dark:bg-white/[0.06] rounded-lg p-0.5">
+          <div
+            role="tablist"
+            aria-label="Edit sections"
+            className="flex items-center gap-1 bg-black/[0.04] dark:bg-white/[0.06] rounded-lg p-0.5"
+          >
             {EDIT_TABS.map(tab => (
               <button
                 key={tab.id}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   activeTab === tab.id

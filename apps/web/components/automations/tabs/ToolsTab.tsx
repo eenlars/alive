@@ -11,10 +11,10 @@ interface ToolsTabProps {
 export function ToolsTab({ skills, onSkillsChange }: ToolsTabProps) {
   const [open, setOpen] = useState(false)
 
-  const { data } = useQuery<{ skills: SkillItem[] }>({
+  const { data, isLoading, isError } = useQuery<{ skills: SkillItem[] }>({
     queryKey: ["skills", "list"],
     queryFn: async () => {
-      const res = await fetch("/api/skills/list")
+      const res = await fetch("/api/skills/list", { credentials: "include" })
       if (!res.ok) throw new Error("Failed to fetch skills")
       return res.json()
     },
@@ -39,6 +39,8 @@ export function ToolsTab({ skills, onSkillsChange }: ToolsTabProps) {
         <button
           type="button"
           onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          aria-controls="skills-listbox"
           className="w-full h-9 px-3 rounded-lg text-sm bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white flex items-center justify-between hover:bg-black/[0.07] dark:hover:bg-white/[0.09] transition-colors"
         >
           <span className="text-black/50 dark:text-white/50">
@@ -51,8 +53,15 @@ export function ToolsTab({ skills, onSkillsChange }: ToolsTabProps) {
         </button>
 
         {/* Dropdown list */}
+        {isLoading && <p className="text-xs text-black/40 dark:text-white/40 px-1">Loading skills...</p>}
+        {isError && <p className="text-xs text-red-500 px-1">Failed to load skills</p>}
+
         {open && available.length > 0 && (
-          <div className="max-h-48 overflow-auto rounded-xl bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08]">
+          <div
+            id="skills-listbox"
+            role="listbox"
+            className="max-h-48 overflow-auto rounded-xl bg-white dark:bg-neutral-900 border border-black/[0.08] dark:border-white/[0.08]"
+          >
             {available.map(skill => (
               <SkillRow key={skill.id} skill={skill} selected={skills.includes(skill.id)} onToggle={toggle} />
             ))}
