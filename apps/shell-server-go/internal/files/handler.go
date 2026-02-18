@@ -1,8 +1,7 @@
-package handlers
+package files
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,38 +13,32 @@ import (
 	"time"
 
 	"shell-server-go/internal/config"
+	httpxmiddleware "shell-server-go/internal/httpx/middleware"
+	"shell-server-go/internal/httpx/response"
 	"shell-server-go/internal/logger"
-)
-
-// File operation constants
-const (
-	// MaxZipEntries is the maximum number of files in a ZIP archive
-	MaxZipEntries = 10000
-	// MaxZipTotalSize is the maximum total uncompressed size of a ZIP archive (500MB)
-	MaxZipTotalSize = 500 << 20
-	// MaxZipCompressionRatio is the maximum compression ratio to prevent zip bombs
-	MaxZipCompressionRatio = 100
-	// MaxEditFileSize is the maximum file size for editing (2MB)
-	MaxEditFileSize = 2 << 20
+	"shell-server-go/internal/session"
+	workspacepkg "shell-server-go/internal/workspace"
 )
 
 var filesLog = logger.WithComponent("FILES")
 
-// FileHandler handles file operations
-type FileHandler struct {
+// Handler handles file operations.
+type Handler struct {
 	config   *config.AppConfig
-	resolver *PathResolver
+	sessions *session.Store
+	resolver *workspacepkg.Resolver
 }
 
-// NewFileHandler creates a new file handler
-func NewFileHandler(cfg *config.AppConfig) *FileHandler {
-	return &FileHandler{
+// NewHandler creates a new file handler.
+func NewHandler(cfg *config.AppConfig, sessions *session.Store) *Handler {
+	return &Handler{
 		config:   cfg,
-		resolver: NewPathResolver(cfg),
+		sessions: sessions,
+		resolver: workspacepkg.NewResolver(cfg),
 	}
 }
 
-// TreeNode represents a file tree node
+// TreeNode represents a file tree node.
 type TreeNode struct {
 	Text     string     `json:"text"`
 	Icon     string     `json:"icon"`
@@ -54,30 +47,30 @@ type TreeNode struct {
 	Children []TreeNode `json:"children,omitempty"`
 }
 
-// NodeState represents node state in tree
+// NodeState represents node state in tree.
 type NodeState struct {
 	Opened bool `json:"opened"`
 }
 
-// NodeData represents node data
+// NodeData represents node data.
 type NodeData struct {
 	Path string `json:"path"`
 	Type string `json:"type"`
 }
 
-// CheckDirectory handles POST /api/check-directory
-func (h *FileHandler) CheckDirectory(w http.ResponseWriter, r *http.Request) {
-	if !ParseFormRequest(w, r) {
+// CheckDirectory handles POST /api/check-directory.
+func (h *Handler) CheckDirectory(w http.ResponseWriter, r *http.Request) {
+	if !httpxmiddleware.ParseFormRequest(w, r) {
 		return
 	}
 
-	workspace := GetWorkspace(r)
+	workspaceID := workspacepkg.WorkspaceFromForm(r, h.sessions)
 	targetDir := r.FormValue("targetDir")
 	if targetDir == "" {
 		targetDir = "./"
 	}
 
-	_, resolvedTarget, err := h.resolver.ResolveForWorkspace(workspace, targetDir)
+	_, resolvedTarget, err := h.resolver.ResolveForWorkspace(workspaceID, targetDir)
 	if err != nil {
 		h.handlePathError(w, err)
 		return
@@ -86,36 +79,35 @@ func (h *FileHandler) CheckDirectory(w http.ResponseWriter, r *http.Request) {
 	_, statErr := os.Stat(resolvedTarget)
 	exists := statErr == nil
 
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"exists":  exists,
 		"path":    resolvedTarget,
 		"message": fmt.Sprintf("Directory %s: %s", map[bool]string{true: "exists", false: "does not exist"}[exists], targetDir),
 	})
 }
 
-// CreateDirectory handles POST /api/create-directory
-func (h *FileHandler) CreateDirectory(w http.ResponseWriter, r *http.Request) {
-	if !ParseFormRequest(w, r) {
+// CreateDirectory handles POST /api/create-directory.
+func (h *Handler) CreateDirectory(w http.ResponseWriter, r *http.Request) {
+	if !httpxmiddleware.ParseFormRequest(w, r) {
 		return
 	}
 
-	workspace := GetWorkspace(r)
+	workspaceID := workspacepkg.WorkspaceFromForm(r, h.sessions)
 	targetDir := r.FormValue("targetDir")
 	if targetDir == "" {
-		jsonError(w, "No directory path provided", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No directory path provided")
 		return
 	}
 
-	_, resolvedTarget, err := h.resolver.ResolveForWorkspace(workspace, targetDir)
+	_, resolvedTarget, err := h.resolver.ResolveForWorkspace(workspaceID, targetDir)
 	if err != nil {
 		h.handlePathError(w, err)
 		return
 	}
 
-	// Check if already exists
 	if info, err := os.Stat(resolvedTarget); err == nil {
 		if info.IsDir() {
-			jsonResponse(w, map[string]interface{}{
+			response.JSON(w, http.StatusOK, map[string]any{
 				"success": true,
 				"message": fmt.Sprintf("Directory already exists: %s", targetDir),
 				"path":    resolvedTarget,
@@ -123,19 +115,18 @@ func (h *FileHandler) CreateDirectory(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		jsonError(w, "A file with that name already exists", http.StatusConflict)
+		response.Error(w, http.StatusConflict, "A file with that name already exists")
 		return
 	}
 
-	// Create the directory
 	if err := os.MkdirAll(resolvedTarget, 0755); err != nil {
 		filesLog.Error("Failed to create directory %s: %v", resolvedTarget, err)
-		jsonError(w, "Failed to create directory", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to create directory")
 		return
 	}
 
 	filesLog.Info("Created directory: %s", resolvedTarget)
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"message": fmt.Sprintf("Created directory: %s", targetDir),
 		"path":    resolvedTarget,
@@ -143,25 +134,22 @@ func (h *FileHandler) CreateDirectory(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Upload handles POST /api/upload
-// Supports both ZIP files (extracted) and regular files (saved with optional custom name)
-func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
-	// Parse multipart form
-	if !ParseFormRequestWithSize(w, r, DefaultMaxUploadSize) {
+// Upload handles POST /api/upload.
+func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
+	if !httpxmiddleware.ParseFormRequestWithSize(w, r, httpxmiddleware.DefaultMaxUploadSize) {
 		return
 	}
 
-	workspace := GetWorkspace(r)
+	workspaceID := workspacepkg.WorkspaceFromForm(r, h.sessions)
 	targetDir := r.FormValue("targetDir")
 	if targetDir == "" {
 		targetDir = "./"
 	}
-	// Optional custom filename for non-ZIP files
 	customName := r.FormValue("name")
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		jsonError(w, "No file provided", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No file provided")
 		return
 	}
 	defer file.Close()
@@ -169,17 +157,16 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	originalFilename := header.Filename
 	isZipFile := strings.HasSuffix(strings.ToLower(originalFilename), ".zip")
 
-	basePath, resolvedTarget, err := h.resolver.ResolveForWorkspace(workspace, targetDir)
+	basePath, resolvedTarget, err := h.resolver.ResolveForWorkspace(workspaceID, targetDir)
 	if err != nil {
 		h.handlePathError(w, err)
 		return
 	}
 
-	// Save to temp file
 	tempExt := filepath.Ext(originalFilename)
 	tempFile, err := os.CreateTemp("", "upload-*"+tempExt)
 	if err != nil {
-		jsonError(w, "Failed to create temp file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to create temp file")
 		return
 	}
 	tempPath := tempFile.Name()
@@ -187,66 +174,57 @@ func (h *FileHandler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := io.Copy(tempFile, file); err != nil {
 		tempFile.Close()
-		jsonError(w, "Failed to save file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to save file")
 		return
 	}
 	tempFile.Close()
 
-	// Handle non-ZIP files: save directly
 	if !isZipFile {
 		h.handleRegularUpload(w, basePath, resolvedTarget, targetDir, tempPath, originalFilename, customName)
 		return
 	}
 
-	// Handle ZIP files: extract contents
-	h.handleZipUpload(w, basePath, resolvedTarget, targetDir, tempPath)
+	h.handleZipUpload(w, resolvedTarget, targetDir, tempPath)
 }
 
-// handleRegularUpload handles uploading a single non-ZIP file
-func (h *FileHandler) handleRegularUpload(w http.ResponseWriter, basePath, resolvedTarget, targetDir, tempPath, originalFilename, customName string) {
-	// Determine filename
+func (h *Handler) handleRegularUpload(w http.ResponseWriter, basePath, resolvedTarget, targetDir, tempPath, originalFilename, customName string) {
 	destFilename := originalFilename
 	if customName != "" {
 		destFilename = customName
 	}
 
-	// Validate filename
-	if !IsValidFilename(destFilename) {
-		jsonError(w, "Invalid filename", http.StatusBadRequest)
+	if !workspacepkg.IsValidFilename(destFilename) {
+		response.Error(w, http.StatusBadRequest, "Invalid filename")
 		return
 	}
 
-	// Resolve destination path safely
 	destPath, err := h.resolver.ResolveSafePath(basePath, filepath.Join(targetDir, destFilename))
 	if err != nil {
 		h.handlePathError(w, err)
 		return
 	}
 
-	// Check if file already exists
 	if _, err := os.Stat(destPath); err == nil {
-		jsonResponse(w, map[string]interface{}{
+		response.JSON(w, http.StatusConflict, map[string]any{
 			"error":         "File already exists",
 			"existingItems": []string{destFilename},
 			"targetDir":     resolvedTarget,
 			"hint":          "Delete existing file first or use a different name",
-		}, http.StatusConflict)
+		})
 		return
 	}
 
-	// Create target directory
 	if err := os.MkdirAll(resolvedTarget, 0755); err != nil {
-		jsonError(w, "Failed to create directory", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to create directory")
 		return
 	}
 
-	// Copy file to destination
 	if err := copyFile(tempPath, destPath); err != nil {
-		jsonError(w, "Failed to save file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to save file")
 		return
 	}
 
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"success":     true,
 		"message":     fmt.Sprintf("Uploaded %s to %s", destFilename, targetDir),
 		"extractedTo": resolvedTarget,
@@ -255,47 +233,47 @@ func (h *FileHandler) handleRegularUpload(w http.ResponseWriter, basePath, resol
 	})
 }
 
-// handleZipUpload handles extracting a ZIP file
-func (h *FileHandler) handleZipUpload(w http.ResponseWriter, basePath, resolvedTarget, targetDir, tempPath string) {
+func (h *Handler) handleZipUpload(w http.ResponseWriter, resolvedTarget, targetDir, tempPath string) {
 	zipReader, err := zip.OpenReader(tempPath)
 	if err != nil {
-		jsonError(w, "Invalid ZIP file", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid ZIP file")
 		return
 	}
 	defer zipReader.Close()
 
-	// Validate ZIP: check entry count, total size, and collect root items
 	if len(zipReader.File) > MaxZipEntries {
 		filesLog.Warn("ZIP rejected: too many entries (%d > %d)", len(zipReader.File), MaxZipEntries)
-		jsonError(w, fmt.Sprintf("ZIP has too many files (max %d)", MaxZipEntries), http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, fmt.Sprintf("ZIP has too many files (max %d)", MaxZipEntries))
 		return
 	}
 
 	var totalUncompressedSize uint64
 	rootItems := make(map[string]struct{})
 	for _, f := range zipReader.File {
-		// Check for path traversal in archive using our resolver
-		_, err := h.resolver.ResolveSafePath(resolvedTarget, f.Name)
-		if err != nil {
+		if _, err := h.resolver.ResolveSafePath(resolvedTarget, f.Name); err != nil {
 			filesLog.Warn("ZIP rejected: path security issue in archive: %s: %v", f.Name, err)
-			jsonError(w, "Malicious ZIP detected (path traversal in archive)", http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, "Malicious ZIP detected (path traversal in archive)")
 			return
 		}
 
-		// Check compression ratio for zip bomb detection
 		if f.CompressedSize64 > 0 {
 			ratio := f.UncompressedSize64 / f.CompressedSize64
 			if ratio > MaxZipCompressionRatio {
 				filesLog.Warn("ZIP rejected: suspicious compression ratio (%d:1) for %s", ratio, f.Name)
-				jsonError(w, "Malicious ZIP detected (suspicious compression ratio)", http.StatusBadRequest)
+				response.Error(w, http.StatusBadRequest, "Malicious ZIP detected (suspicious compression ratio)")
 				return
 			}
+		} else if f.UncompressedSize64 > 0 {
+			// CompressedSize64 == 0 with non-zero uncompressed size is suspicious
+			filesLog.Warn("ZIP rejected: zero compressed size with %d uncompressed bytes for %s", f.UncompressedSize64, f.Name)
+			response.Error(w, http.StatusBadRequest, "Malicious ZIP detected (suspicious compression ratio)")
+			return
 		}
 
 		totalUncompressedSize += f.UncompressedSize64
 		if totalUncompressedSize > MaxZipTotalSize {
 			filesLog.Warn("ZIP rejected: total size exceeds limit (%d > %d)", totalUncompressedSize, MaxZipTotalSize)
-			jsonError(w, fmt.Sprintf("ZIP uncompressed size too large (max %dMB)", MaxZipTotalSize>>20), http.StatusBadRequest)
+			response.Error(w, http.StatusBadRequest, fmt.Sprintf("ZIP uncompressed size too large (max %dMB)", MaxZipTotalSize>>20))
 			return
 		}
 
@@ -305,7 +283,6 @@ func (h *FileHandler) handleZipUpload(w http.ResponseWriter, basePath, resolvedT
 		}
 	}
 
-	// Check for conflicts
 	var existingItems []string
 	for item := range rootItems {
 		itemPath := filepath.Join(resolvedTarget, item)
@@ -313,47 +290,47 @@ func (h *FileHandler) handleZipUpload(w http.ResponseWriter, basePath, resolvedT
 			existingItems = append(existingItems, item)
 		}
 	}
-
 	if len(existingItems) > 0 {
-		jsonResponse(w, map[string]interface{}{
+		response.JSON(w, http.StatusConflict, map[string]any{
 			"error":         "Cannot extract - items already exist in target",
 			"existingItems": existingItems,
 			"targetDir":     resolvedTarget,
 			"hint":          "Delete existing items first or remove them from ZIP",
-		}, http.StatusConflict)
+		})
 		return
 	}
 
-	// Create target directory
 	if err := os.MkdirAll(resolvedTarget, 0755); err != nil {
-		jsonError(w, "Failed to create directory", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to create directory")
 		return
 	}
 
-	// Extract files
 	for _, f := range zipReader.File {
 		destPath := filepath.Join(resolvedTarget, f.Name)
 
 		if f.FileInfo().IsDir() {
-			os.MkdirAll(destPath, 0755)
+			if err := os.MkdirAll(destPath, 0755); err != nil {
+				response.Error(w, http.StatusInternalServerError, "Failed to create directory")
+				return
+			}
 			continue
 		}
 
 		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-			jsonError(w, "Failed to create directory", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "Failed to create directory")
 			return
 		}
 
 		srcFile, err := f.Open()
 		if err != nil {
-			jsonError(w, "Failed to extract file", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "Failed to extract file")
 			return
 		}
 
 		destFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
 			srcFile.Close()
-			jsonError(w, "Failed to write file", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "Failed to write file")
 			return
 		}
 
@@ -361,12 +338,12 @@ func (h *FileHandler) handleZipUpload(w http.ResponseWriter, basePath, resolvedT
 		srcFile.Close()
 		destFile.Close()
 		if err != nil {
-			jsonError(w, "Failed to extract file", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "Failed to extract file")
 			return
 		}
 	}
 
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"success":     true,
 		"message":     fmt.Sprintf("Extracted %d files to %s", len(zipReader.File), targetDir),
 		"extractedTo": resolvedTarget,
@@ -374,30 +351,35 @@ func (h *FileHandler) handleZipUpload(w http.ResponseWriter, basePath, resolvedT
 	})
 }
 
-// ListFiles handles POST /api/list-files
-func (h *FileHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
-	if !ParseFormRequest(w, r) {
+// ListFiles handles POST /api/list-files.
+func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
+	if !httpxmiddleware.ParseFormRequest(w, r) {
 		return
 	}
 
-	workspace := GetWorkspace(r)
+	workspaceID := workspacepkg.WorkspaceFromForm(r, h.sessions)
 
-	basePath, err := h.resolver.ResolveWorkspaceBase(workspace)
+	basePath, err := h.resolver.ResolveWorkspaceBase(workspaceID)
 	if err != nil {
 		h.handlePathError(w, err)
 		return
 	}
 
-	if _, err := os.Stat(basePath); os.IsNotExist(err) {
-		jsonResponse(w, map[string]interface{}{
-			"error": "Directory not found",
-			"path":  basePath,
-		}, http.StatusNotFound)
+	if _, err := os.Stat(basePath); err != nil {
+		if os.IsNotExist(err) {
+			response.JSON(w, http.StatusNotFound, map[string]any{
+				"error": "Directory not found",
+				"path":  basePath,
+			})
+			return
+		}
+		filesLog.Error("Failed to stat workspace base %s: %v", basePath, err)
+		response.Error(w, http.StatusInternalServerError, "Failed to access directory")
 		return
 	}
 
-	tree := buildTree(basePath, "", 0, 4, DefaultExcludedDirs)
-	jsonResponse(w, map[string]interface{}{
+	tree := buildTree(basePath, "", 0, 4, workspacepkg.DefaultExcludedDirs)
+	response.JSON(w, http.StatusOK, map[string]any{
 		"path": basePath,
 		"tree": tree,
 	})
@@ -413,13 +395,13 @@ func buildTree(dirPath, relativePath string, depth, maxDepth int, excludeDirs ma
 		return nil
 	}
 
-	// Filter and sort entries
 	var filtered []os.DirEntry
 	for _, e := range entries {
 		if !excludeDirs[e.Name()] {
 			filtered = append(filtered, e)
 		}
 	}
+
 	sort.Slice(filtered, func(i, j int) bool {
 		iDir := filtered[i].IsDir()
 		jDir := filtered[j].IsDir()
@@ -448,33 +430,34 @@ func buildTree(dirPath, relativePath string, depth, maxDepth int, excludeDirs ma
 			}
 			node.Children = buildTree(subPath, entryRelPath, depth+1, maxDepth, excludeDirs)
 			nodes = append(nodes, node)
-		} else {
-			nodes = append(nodes, TreeNode{
-				Text: entry.Name(),
-				Icon: "jstree-file",
-				Data: NodeData{Path: entryRelPath, Type: "file"},
-			})
+			continue
 		}
+
+		nodes = append(nodes, TreeNode{
+			Text: entry.Name(),
+			Icon: "jstree-file",
+			Data: NodeData{Path: entryRelPath, Type: "file"},
+		})
 	}
+
 	return nodes
 }
 
-// DownloadFile handles GET /api/download-file?workspace=X&path=Y
-// Streams the file with Content-Disposition header for download
-func (h *FileHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
-	workspace := r.URL.Query().Get("workspace")
+// DownloadFile handles GET /api/download-file?workspace=X&path=Y.
+func (h *Handler) DownloadFile(w http.ResponseWriter, r *http.Request) {
+	workspaceID := workspacepkg.WorkspaceFromQuery(r, h.sessions)
 	filePath := r.URL.Query().Get("path")
 
-	if workspace == "" {
-		jsonError(w, "No workspace provided", http.StatusBadRequest)
+	if workspaceID == "" {
+		response.Error(w, http.StatusBadRequest, "No workspace provided")
 		return
 	}
 	if filePath == "" {
-		jsonError(w, "No file path provided", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No file path provided")
 		return
 	}
 
-	_, resolvedPath, err := h.resolver.ResolveForWorkspace(workspace, filePath)
+	_, resolvedPath, err := h.resolver.ResolveForWorkspace(workspaceID, filePath)
 	if err != nil {
 		filesLog.Warn("Download path resolution failed for %s: %v", filePath, err)
 		h.handlePathError(w, err)
@@ -483,54 +466,50 @@ func (h *FileHandler) DownloadFile(w http.ResponseWriter, r *http.Request) {
 
 	info, err := os.Stat(resolvedPath)
 	if os.IsNotExist(err) {
-		jsonError(w, "File not found", http.StatusNotFound)
+		response.Error(w, http.StatusNotFound, "File not found")
 		return
 	}
 	if err != nil {
-		jsonError(w, "Failed to access file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to access file")
 		return
 	}
 	if info.IsDir() {
-		jsonError(w, "Cannot download a directory", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Cannot download a directory")
 		return
 	}
 
-	// Open the file
 	file, err := os.Open(resolvedPath)
 	if err != nil {
 		filesLog.Error("Failed to open file for download %s: %v", resolvedPath, err)
-		jsonError(w, "Failed to open file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to open file")
 		return
 	}
 	defer file.Close()
 
-	// Set headers for download
 	filename := filepath.Base(filePath)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
 
-	// Stream the file
 	if _, err := io.Copy(w, file); err != nil {
 		filesLog.Error("Failed to stream file %s: %v", resolvedPath, err)
-		// Can't send error response as headers already sent
 	}
 }
 
-// ReadFile handles POST /api/read-file
-func (h *FileHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
-	if !ParseFormRequest(w, r) {
+// ReadFile handles POST /api/read-file.
+func (h *Handler) ReadFile(w http.ResponseWriter, r *http.Request) {
+	if !httpxmiddleware.ParseFormRequest(w, r) {
 		return
 	}
 
-	workspace := GetWorkspace(r)
+	workspaceID := workspacepkg.WorkspaceFromForm(r, h.sessions)
 	filePath := r.FormValue("path")
 	if filePath == "" {
-		jsonError(w, "No file path provided", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No file path provided")
 		return
 	}
 
-	_, resolvedPath, err := h.resolver.ResolveForWorkspace(workspace, filePath)
+	_, resolvedPath, err := h.resolver.ResolveForWorkspace(workspaceID, filePath)
 	if err != nil {
 		filesLog.Warn("Path resolution failed for %s: %v", filePath, err)
 		h.handlePathError(w, err)
@@ -538,38 +517,40 @@ func (h *FileHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err := os.Stat(resolvedPath)
-	if os.IsNotExist(err) {
-		jsonError(w, "File not found", http.StatusNotFound)
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "File not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to access file")
 		return
 	}
 
-	// Size limit
 	if info.Size() > MaxPreviewSize {
-		jsonResponse(w, map[string]interface{}{
+		response.JSON(w, http.StatusRequestEntityTooLarge, map[string]any{
 			"error": "File too large for preview (max 1MB)",
 			"size":  info.Size(),
-		}, http.StatusRequestEntityTooLarge)
+		})
 		return
 	}
 
-	// Check binary file type
 	if IsBinaryFile(filePath) {
-		jsonResponse(w, map[string]interface{}{
+		response.JSON(w, http.StatusUnsupportedMediaType, map[string]any{
 			"error":     "Binary file cannot be previewed",
 			"binary":    true,
 			"extension": strings.ToLower(filepath.Ext(filePath)),
-		}, http.StatusUnsupportedMediaType)
+		})
 		return
 	}
 
 	content, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		jsonError(w, "Failed to read file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to read file")
 		return
 	}
 
 	filename := filepath.Base(filePath)
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"content":  string(content),
 		"path":     resolvedPath,
 		"filename": filename,
@@ -577,44 +558,46 @@ func (h *FileHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DeleteFolder handles POST /api/delete-folder
-func (h *FileHandler) DeleteFolder(w http.ResponseWriter, r *http.Request) {
-	if !ParseFormRequest(w, r) {
+// DeleteFolder handles POST /api/delete-folder.
+func (h *Handler) DeleteFolder(w http.ResponseWriter, r *http.Request) {
+	if !httpxmiddleware.ParseFormRequest(w, r) {
 		return
 	}
 
-	workspace := GetWorkspace(r)
+	workspaceID := workspacepkg.WorkspaceFromForm(r, h.sessions)
 	folderPath := r.FormValue("path")
 	if folderPath == "" {
-		jsonError(w, "No folder path provided", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No folder path provided")
 		return
 	}
 
-	// Use centralized validation for deletion
-	_, resolvedPath, err := h.resolver.ValidateForDeletion(workspace, folderPath)
+	_, resolvedPath, err := h.resolver.ValidateForDeletion(workspaceID, folderPath)
 	if err != nil {
 		h.handlePathError(w, err)
 		return
 	}
 
 	info, err := os.Stat(resolvedPath)
-	if os.IsNotExist(err) {
-		jsonError(w, "Path not found", http.StatusNotFound)
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "Path not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to stat path")
 		return
 	}
 
-	isDirectory := info.IsDir()
 	typeStr := "file"
-	if isDirectory {
+	if info.IsDir() {
 		typeStr = "directory"
 	}
 
 	if err := os.RemoveAll(resolvedPath); err != nil {
-		jsonError(w, "Failed to delete", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to delete")
 		return
 	}
 
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"success":     true,
 		"message":     fmt.Sprintf("Deleted %s: %s", typeStr, folderPath),
 		"deletedPath": resolvedPath,
@@ -622,12 +605,37 @@ func (h *FileHandler) DeleteFolder(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ListSites handles GET /api/sites
-func (h *FileHandler) ListSites(w http.ResponseWriter, r *http.Request) {
+// ListSites handles GET /api/sites.
+func (h *Handler) ListSites(w http.ResponseWriter, r *http.Request) {
 	sitesPath := h.resolver.GetSitesPath()
+
+	if scopedWorkspace := workspacepkg.SessionWorkspace(r, h.sessions); scopedWorkspace != "" {
+		if strings.HasPrefix(scopedWorkspace, "site:") {
+			site := strings.TrimPrefix(scopedWorkspace, "site:")
+			userDir := filepath.Join(sitesPath, site, "user")
+
+			sites := make([]string, 0, 1)
+			if info, err := os.Stat(userDir); err == nil && info.IsDir() {
+				sites = append(sites, site)
+			}
+
+			response.JSON(w, http.StatusOK, map[string]any{
+				"sites":     sites,
+				"sitesPath": "",
+			})
+			return
+		}
+
+		response.JSON(w, http.StatusOK, map[string]any{
+			"sites":     []string{},
+			"sitesPath": "",
+		})
+		return
+	}
+
 	entries, err := os.ReadDir(sitesPath)
 	if err != nil {
-		jsonError(w, "Failed to list sites", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to list sites")
 		return
 	}
 
@@ -642,13 +650,13 @@ func (h *FileHandler) ListSites(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sort.Strings(sites)
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"sites":     sites,
 		"sitesPath": sitesPath,
 	})
 }
 
-// ServerStats holds server statistics for health checks
+// ServerStats holds server statistics for health checks.
 type ServerStats struct {
 	Status      string `json:"status"`
 	Uptime      string `json:"uptime"`
@@ -659,8 +667,8 @@ type ServerStats struct {
 
 var serverStartTime = time.Now()
 
-// Health handles GET /health
-func (h *FileHandler) Health(w http.ResponseWriter, r *http.Request) {
+// Health handles GET /health.
+func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
@@ -672,33 +680,28 @@ func (h *FileHandler) Health(w http.ResponseWriter, r *http.Request) {
 		Environment: h.config.Env,
 	}
 
-	jsonResponse(w, stats)
+	response.JSON(w, http.StatusOK, stats)
 }
 
-// handlePathError converts path security errors to appropriate HTTP responses
-func (h *FileHandler) handlePathError(w http.ResponseWriter, err error) {
-	HandlePathSecurityError(w, err)
-}
-
-// ConfigResponse represents the client configuration response
+// ConfigResponse represents the client configuration response.
 type ConfigResponse struct {
 	ShellDefaultPath        string      `json:"shellDefaultPath"`
 	UploadPath              string      `json:"uploadPath"`
 	SitesPath               string      `json:"sitesPath"`
 	WorkspaceBase           string      `json:"workspaceBase"`
+	DefaultWorkspace        string      `json:"defaultWorkspace"`
 	AllowWorkspaceSelection bool        `json:"allowWorkspaceSelection"`
 	EditableDirectories     []DirConfig `json:"editableDirectories"`
 }
 
-// DirConfig represents a directory config for editable directories
+// DirConfig represents a directory config for editable directories.
 type DirConfig struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 }
 
-// Config handles GET /api/config - returns client configuration
-func (h *FileHandler) Config(w http.ResponseWriter, r *http.Request) {
-	// Build editable directories list (only include those that exist)
+// Config handles GET /api/config.
+func (h *Handler) Config(w http.ResponseWriter, r *http.Request) {
 	var dirs []DirConfig
 	for _, dir := range h.config.EditableDirectories {
 		if _, err := os.Stat(dir.Path); err == nil {
@@ -706,35 +709,40 @@ func (h *FileHandler) Config(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	config := ConfigResponse{
-		ShellDefaultPath:        h.config.ResolvedDefaultCwd,
-		UploadPath:              h.config.ResolvedUploadCwd,
-		SitesPath:               h.config.ResolvedSitesPath,
-		WorkspaceBase:           h.config.WorkspaceBase,
-		AllowWorkspaceSelection: h.config.AllowWorkspaceSelection,
-		EditableDirectories:     dirs,
+	defaultWorkspace := h.config.DefaultWorkspace
+	allowWorkspaceSelection := h.config.AllowWorkspaceSelection
+	configDirs := dirs
+	shellDefaultPath := h.config.ResolvedDefaultCwd
+	uploadPath := h.config.ResolvedUploadCwd
+	sitesPath := h.config.ResolvedSitesPath
+	workspaceBase := h.config.WorkspaceBase
+	if scopedWorkspace := workspacepkg.SessionWorkspace(r, h.sessions); scopedWorkspace != "" {
+		defaultWorkspace = scopedWorkspace
+		allowWorkspaceSelection = false
+		configDirs = []DirConfig{}
+		shellDefaultPath = ""
+		uploadPath = ""
+		sitesPath = ""
+		workspaceBase = ""
 	}
 
-	jsonResponse(w, config)
-}
-
-// Helper functions
-func jsonResponse(w http.ResponseWriter, data interface{}, statusCodes ...int) {
-	statusCode := http.StatusOK
-	if len(statusCodes) > 0 {
-		statusCode = statusCodes[0]
+	cfg := ConfigResponse{
+		ShellDefaultPath:        shellDefaultPath,
+		UploadPath:              uploadPath,
+		SitesPath:               sitesPath,
+		WorkspaceBase:           workspaceBase,
+		DefaultWorkspace:        defaultWorkspace,
+		AllowWorkspaceSelection: allowWorkspaceSelection,
+		EditableDirectories:     configDirs,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(data)
+	response.JSON(w, http.StatusOK, cfg)
 }
 
-func jsonError(w http.ResponseWriter, message string, statusCode int) {
-	jsonResponse(w, map[string]string{"error": message}, statusCode)
+func (h *Handler) handlePathError(w http.ResponseWriter, err error) {
+	workspacepkg.HandlePathSecurityError(w, err)
 }
 
-// copyFile copies a file from src to dst
 func copyFile(src, dst string) error {
 	srcFile, err := os.Open(src)
 	if err != nil {

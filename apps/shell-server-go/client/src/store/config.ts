@@ -5,6 +5,7 @@ export interface AppConfig {
   uploadPath: string
   sitesPath: string
   workspaceBase: string
+  defaultWorkspace: string
   allowWorkspaceSelection: boolean
   editableDirectories: { id: string; label: string }[]
 }
@@ -34,7 +35,10 @@ export const useConfigStore = create<ConfigState>((set, _get) => ({
       if (!res.ok) {
         throw new Error("Failed to fetch config")
       }
-      const data = await res.json()
+      const data = (await res.json()) as AppConfig
+      if (!data.defaultWorkspace) {
+        data.defaultWorkspace = "root"
+      }
       set({ config: data, isAuthenticated: true, isLoading: false })
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false })

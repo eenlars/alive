@@ -14,6 +14,7 @@
  *
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { createDedupeCache } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import { createErrorResponse } from "@/features/auth/lib/auth"
@@ -93,6 +94,10 @@ export async function POST(req: Request) {
     console.error("[Referral] Both credit awards failed - keeping referral pending:", {
       referralId: pendingReferral.referral_id,
     })
+    Sentry.captureMessage(
+      `[Referral] Both credit awards failed - referral ${pendingReferral.referral_id} kept pending`,
+      "error",
+    )
     return createErrorResponse(ErrorCodes.REFERRAL_CREDIT_FAILED, 500)
   }
 
@@ -113,6 +118,7 @@ export async function POST(req: Request) {
       referrerResult,
       referredResult,
     })
+    Sentry.captureException(updateError)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 

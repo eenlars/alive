@@ -7,6 +7,7 @@
  * Uses the engine module for claim/execute/finish lifecycle.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { claimJob, extractSummary, type FinishHooks, finishJob } from "@webalive/automation-engine"
 import type { AppDatabase } from "@webalive/database"
 import { AutomationTriggerRequestSchema, type AutomationTriggerResponse, getServerId } from "@webalive/shared"
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
 
   if (!expectedSecret) {
     console.error("[internal/automation/trigger] JWT_SECRET not configured")
+    Sentry.captureMessage("[internal/automation/trigger] JWT_SECRET not configured", "error")
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 
@@ -125,6 +127,7 @@ export async function POST(req: NextRequest) {
       response: result.response?.substring(0, 2000),
     })
   } catch (error) {
+    Sentry.captureException(error)
     const durationMs = Date.now() - new Date(ctx.claimedAt).getTime()
 
     await finishJob(ctx, {

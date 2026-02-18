@@ -13,6 +13,7 @@
  *
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { REFERRAL } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
@@ -116,6 +117,7 @@ export async function POST(req: Request) {
 
     if (pendingInsertError) {
       console.error("Failed to create pending referral:", pendingInsertError)
+      Sentry.captureException(pendingInsertError)
       return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
     }
 
@@ -142,6 +144,7 @@ export async function POST(req: Request) {
 
   if (insertError) {
     console.error("Failed to create referral:", insertError)
+    Sentry.captureException(insertError)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 

@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs"
+import * as Sentry from "@sentry/nextjs"
 import { COOKIE_NAMES, PATHS } from "@webalive/shared"
 import { DeploymentError } from "@webalive/site-controller"
 import { cookies } from "next/headers"
@@ -168,6 +169,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (tokenError) {
+      Sentry.captureException(tokenError)
       console.error("[Deploy-Subdomain] JWT regeneration failed (deployment succeeded):", tokenError)
     }
 
@@ -195,6 +197,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.error("[Deploy-Subdomain] Unexpected error:", error)
+    Sentry.captureException(error)
 
     // Determine appropriate status code based on error type
     let status = 500

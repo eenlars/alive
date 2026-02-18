@@ -22,19 +22,23 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"shell-server-go/internal/auth"
 	"shell-server-go/internal/config"
-	"shell-server-go/internal/handlers"
+	"shell-server-go/internal/editor"
+	"shell-server-go/internal/files"
 	"shell-server-go/internal/logger"
 	"shell-server-go/internal/middleware"
 	"shell-server-go/internal/ratelimit"
 	"shell-server-go/internal/session"
+	"shell-server-go/internal/templates"
+	"shell-server-go/internal/terminal"
 )
 
 // testServer holds the test server and dependencies
 type testServer struct {
 	server       *httptest.Server
 	sessions     *session.Store
-	wsHandler    *handlers.WSHandler
+	wsHandler    *terminal.WSHandler
 	config       *config.AppConfig
 	tempDir      string
 	sessionsFile string
@@ -90,9 +94,11 @@ func setupTestServer(t *testing.T) *testServer {
 	limiter := ratelimit.NewLimiter(rateLimitFile)
 
 	// Create handlers
-	authHandler := handlers.NewAuthHandler(cfg, sessions, limiter)
-	fileHandler := handlers.NewFileHandler(cfg)
-	wsHandler := handlers.NewWSHandler(cfg, sessions)
+	authHandler := auth.NewHandler(cfg, sessions, limiter)
+	fileHandler := files.NewHandler(cfg, sessions)
+	editorHandler := editor.NewHandler(cfg, sessions)
+	wsHandler := terminal.NewWSHandler(cfg, sessions)
+	templateHandler := templates.NewHandler(cfg, sessions)
 
 	// Create in-memory client filesystem for SPA (minimal for tests)
 	clientFS := fstest.MapFS{
@@ -118,9 +124,28 @@ func setupTestServer(t *testing.T) *testServer {
 	mux.Handle("POST /api/ws-lease", authAPIMiddleware(http.HandlerFunc(wsHandler.CreateLease)))
 
 	// File APIs
+	mux.Handle("POST /api/list-files", authAPIMiddleware(http.HandlerFunc(fileHandler.ListFiles)))
+	mux.Handle("POST /api/check-directory", authAPIMiddleware(http.HandlerFunc(fileHandler.CheckDirectory)))
+	mux.Handle("POST /api/create-directory", authAPIMiddleware(http.HandlerFunc(fileHandler.CreateDirectory)))
 	mux.Handle("POST /api/upload", authAPIMiddleware(http.HandlerFunc(fileHandler.Upload)))
 	mux.Handle("POST /api/read-file", authAPIMiddleware(http.HandlerFunc(fileHandler.ReadFile)))
+	mux.Handle("GET /api/download-file", authAPIMiddleware(http.HandlerFunc(fileHandler.DownloadFile)))
 	mux.Handle("POST /api/delete-folder", authAPIMiddleware(http.HandlerFunc(fileHandler.DeleteFolder)))
+	mux.Handle("GET /api/sites", authAPIMiddleware(http.HandlerFunc(fileHandler.ListSites)))
+
+	// Editor APIs
+	mux.Handle("POST /api/edit/list-files", authAPIMiddleware(http.HandlerFunc(editorHandler.ListFiles)))
+	mux.Handle("POST /api/edit/read-file", authAPIMiddleware(http.HandlerFunc(editorHandler.ReadFile)))
+	mux.Handle("POST /api/edit/write-file", authAPIMiddleware(http.HandlerFunc(editorHandler.WriteFile)))
+	mux.Handle("POST /api/edit/check-mtimes", authAPIMiddleware(http.HandlerFunc(editorHandler.CheckMtimes)))
+	mux.Handle("POST /api/edit/delete", authAPIMiddleware(http.HandlerFunc(editorHandler.Delete)))
+	mux.Handle("POST /api/edit/copy", authAPIMiddleware(http.HandlerFunc(editorHandler.Copy)))
+
+	// Templates APIs
+	mux.Handle("GET /api/templates", authAPIMiddleware(http.HandlerFunc(templateHandler.ListTemplates)))
+	mux.Handle("POST /api/templates", authAPIMiddleware(http.HandlerFunc(templateHandler.CreateTemplate)))
+	mux.Handle("GET /api/templates/{id}", authAPIMiddleware(http.HandlerFunc(templateHandler.GetTemplate)))
+	mux.Handle("PUT /api/templates/{id}", authAPIMiddleware(http.HandlerFunc(templateHandler.SaveTemplate)))
 
 	// SPA handler
 	spaHandler := createTestSPAHandler(clientFS)
@@ -161,6 +186,10 @@ func (ts *testServer) cleanup() {
 
 // login authenticates and returns a cookie jar with session
 func (ts *testServer) login(t *testing.T) *cookiejar.Jar {
+	return ts.loginWithWorkspace(t, "")
+}
+
+func (ts *testServer) loginWithWorkspace(t *testing.T, workspace string) *cookiejar.Jar {
 	t.Helper()
 
 	jar, _ := cookiejar.New(nil)
@@ -177,9 +206,13 @@ func (ts *testServer) login(t *testing.T) *cookiejar.Jar {
 		},
 	}
 
-	// Login
-	form := strings.NewReader("password=" + ts.config.ShellPassword)
-	resp, err := client.Post(ts.server.URL+"/login", "application/x-www-form-urlencoded", form)
+	values := url.Values{}
+	values.Set("password", ts.config.ShellPassword)
+	if strings.TrimSpace(workspace) != "" {
+		values.Set("workspace", workspace)
+	}
+
+	resp, err := client.Post(ts.server.URL+"/login", "application/x-www-form-urlencoded", strings.NewReader(values.Encode()))
 	if err != nil {
 		t.Fatalf("Login request failed: %v", err)
 	}
@@ -253,9 +286,12 @@ func TestE2E_WebSocketTerminalSession(t *testing.T) {
 
 	// Step 3: Expect "connected" message
 	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	_, msg, err := conn.ReadMessage()
+	msgType, msg, err := conn.ReadMessage()
 	if err != nil {
 		t.Fatalf("Failed to read connected message: %v", err)
+	}
+	if msgType != websocket.TextMessage {
+		t.Fatalf("Expected connected control frame as text, got frame type %d", msgType)
 	}
 
 	var connectedMsg map[string]interface{}
@@ -274,10 +310,7 @@ func TestE2E_WebSocketTerminalSession(t *testing.T) {
 
 	// Step 4: Send a command and wait for output
 	testCommand := "echo HELLO_E2E_TEST\n"
-	inputMsg := map[string]string{"type": "input", "data": testCommand}
-	inputBytes, _ := json.Marshal(inputMsg)
-
-	if err := conn.WriteMessage(websocket.TextMessage, inputBytes); err != nil {
+	if err := conn.WriteMessage(websocket.BinaryMessage, []byte(testCommand)); err != nil {
 		t.Fatalf("Failed to send command: %v", err)
 	}
 
@@ -288,17 +321,25 @@ func TestE2E_WebSocketTerminalSession(t *testing.T) {
 
 	for time.Now().Before(deadline) {
 		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		_, msg, err := conn.ReadMessage()
+		msgType, msg, err := conn.ReadMessage()
 		if err != nil {
 			// Timeout is OK, we might have all output
 			break
+		}
+
+		if msgType == websocket.BinaryMessage {
+			allOutput.Write(msg)
+			if strings.Contains(allOutput.String(), "HELLO_E2E_TEST") {
+				foundOutput = true
+				break
+			}
+			continue
 		}
 
 		var dataMsg map[string]interface{}
 		if err := json.Unmarshal(msg, &dataMsg); err != nil {
 			continue
 		}
-
 		if dataMsg["type"] == "data" {
 			if data, ok := dataMsg["data"].(string); ok {
 				allOutput.WriteString(data)
@@ -324,9 +365,7 @@ func TestE2E_WebSocketTerminalSession(t *testing.T) {
 	t.Log("Resize message sent successfully")
 
 	// Step 6: Send exit and verify clean disconnect
-	exitMsg := map[string]string{"type": "input", "data": "exit\n"}
-	exitBytes, _ := json.Marshal(exitMsg)
-	if err := conn.WriteMessage(websocket.TextMessage, exitBytes); err != nil {
+	if err := conn.WriteMessage(websocket.BinaryMessage, []byte("exit\n")); err != nil {
 		t.Fatalf("Failed to send exit: %v", err)
 	}
 
@@ -334,9 +373,12 @@ func TestE2E_WebSocketTerminalSession(t *testing.T) {
 	exitReceived := false
 	for i := 0; i < 10; i++ {
 		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-		_, msg, err := conn.ReadMessage()
+		msgType, msg, err := conn.ReadMessage()
 		if err != nil {
 			break
+		}
+		if msgType == websocket.BinaryMessage {
+			continue
 		}
 		var exitRespMsg map[string]interface{}
 		if err := json.Unmarshal(msg, &exitRespMsg); err != nil {
@@ -406,9 +448,12 @@ func TestE2E_WebSocketWorkspaceSecurity(t *testing.T) {
 			defer conn.Close()
 
 			conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-			_, firstMsg, err := conn.ReadMessage()
+			msgType, firstMsg, err := conn.ReadMessage()
 			if err != nil {
 				t.Fatalf("Failed to read first WS message for %s: %v", ws, err)
+			}
+			if msgType != websocket.TextMessage {
+				t.Fatalf("Expected first WS control frame as text for %s, got type=%d", ws, msgType)
 			}
 			var first map[string]interface{}
 			if err := json.Unmarshal(firstMsg, &first); err != nil {
@@ -423,9 +468,7 @@ func TestE2E_WebSocketWorkspaceSecurity(t *testing.T) {
 				t.Fatalf("Did not receive connected event for workspace %s", ws)
 			}
 
-			pwdMsg := map[string]string{"type": "input", "data": "pwd\n"}
-			pwdBytes, _ := json.Marshal(pwdMsg)
-			if err := conn.WriteMessage(websocket.TextMessage, pwdBytes); err != nil {
+			if err := conn.WriteMessage(websocket.BinaryMessage, []byte("pwd\n")); err != nil {
 				t.Fatalf("Failed to send pwd command: %v", err)
 			}
 
@@ -435,9 +478,17 @@ func TestE2E_WebSocketWorkspaceSecurity(t *testing.T) {
 
 			for time.Now().Before(deadline) {
 				conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-				_, msg, err := conn.ReadMessage()
+				msgType, msg, err := conn.ReadMessage()
 				if err != nil {
 					break
+				}
+				if msgType == websocket.BinaryMessage {
+					output.Write(msg)
+					if strings.Contains(output.String(), siteUserDir) {
+						foundUserDir = true
+						break
+					}
+					continue
 				}
 				var wsMsg map[string]interface{}
 				if err := json.Unmarshal(msg, &wsMsg); err != nil {
@@ -458,9 +509,7 @@ func TestE2E_WebSocketWorkspaceSecurity(t *testing.T) {
 				t.Fatalf("Expected terminal to run in %s, got output: %q", siteUserDir, output.String())
 			}
 
-			exitMsg := map[string]string{"type": "input", "data": "exit\n"}
-			exitBytes, _ := json.Marshal(exitMsg)
-			_ = conn.WriteMessage(websocket.TextMessage, exitBytes)
+			_ = conn.WriteMessage(websocket.BinaryMessage, []byte("exit\n"))
 		})
 	}
 
@@ -494,7 +543,345 @@ func TestE2E_WebSocketWorkspaceSecurity(t *testing.T) {
 }
 
 // ==============================================================================
-// TEST 3: File Operations with Security E2E
+// TEST 3: Session-Scoped Workspace Enforcement
+// ==============================================================================
+// This test validates that a login-scoped workspace cannot be overridden:
+// 1. Login pins session to a specific site workspace
+// 2. WS lease ignores conflicting workspace request values
+// 3. File API workspace params are overridden by the pinned workspace
+// 4. Site listing is restricted to the pinned site
+// ==============================================================================
+
+func TestE2E_SessionScopedWorkspaceEnforcement(t *testing.T) {
+	ts := setupTestServer(t)
+	defer ts.cleanup()
+
+	siteUserDir := filepath.Join(ts.config.ResolvedSitesPath, "example.com", "user")
+	if err := os.MkdirAll(siteUserDir, 0755); err != nil {
+		t.Fatalf("Failed to create pinned site directory: %v", err)
+	}
+	otherSiteUserDir := filepath.Join(ts.config.ResolvedSitesPath, "other.com", "user")
+	if err := os.MkdirAll(otherSiteUserDir, 0755); err != nil {
+		t.Fatalf("Failed to create secondary site directory: %v", err)
+	}
+
+	jar := ts.loginWithWorkspace(t, "site:example.com")
+	client := createTLSClient(jar)
+
+	t.Run("config reflects pinned workspace", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", ts.server.URL+"/api/config", nil)
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Config request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("Expected 200 from /api/config, got %d: %s", resp.StatusCode, string(body))
+		}
+
+		var payload struct {
+			DefaultWorkspace        string `json:"defaultWorkspace"`
+			AllowWorkspaceSelection bool   `json:"allowWorkspaceSelection"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			t.Fatalf("Decode /api/config response: %v", err)
+		}
+
+		if payload.DefaultWorkspace != "site:example.com" {
+			t.Fatalf("Expected defaultWorkspace site:example.com, got %q", payload.DefaultWorkspace)
+		}
+		if payload.AllowWorkspaceSelection {
+			t.Fatalf("Expected allowWorkspaceSelection=false for pinned session")
+		}
+	})
+
+	t.Run("ws lease ignores conflicting workspace request", func(t *testing.T) {
+		body := strings.NewReader("workspace=" + url.QueryEscape("site:other.com"))
+		req, _ := http.NewRequest("POST", ts.server.URL+"/api/ws-lease", body)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("WS lease request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			responseBody, _ := io.ReadAll(resp.Body)
+			t.Fatalf("Expected 200 from /api/ws-lease, got %d: %s", resp.StatusCode, string(responseBody))
+		}
+
+		var payload struct {
+			Lease     string `json:"lease"`
+			Workspace string `json:"workspace"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			t.Fatalf("Decode /api/ws-lease response: %v", err)
+		}
+		if payload.Lease == "" {
+			t.Fatalf("Expected lease token in response")
+		}
+		if payload.Workspace != "site:example.com" {
+			t.Fatalf("Expected pinned workspace in lease response, got %q", payload.Workspace)
+		}
+	})
+
+	t.Run("file listing uses pinned workspace regardless of request workspace", func(t *testing.T) {
+		form := strings.NewReader("workspace=root")
+		req, _ := http.NewRequest("POST", ts.server.URL+"/api/list-files", form)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("List files request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("Expected 200 from /api/list-files, got %d: %s", resp.StatusCode, string(body))
+		}
+
+		var payload struct {
+			Path string `json:"path"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			t.Fatalf("Decode /api/list-files response: %v", err)
+		}
+		if payload.Path != siteUserDir {
+			t.Fatalf("Expected pinned path %q, got %q", siteUserDir, payload.Path)
+		}
+	})
+
+	t.Run("upload uses pinned workspace regardless of request workspace", func(t *testing.T) {
+		var formBuf bytes.Buffer
+		formWriter := multipart.NewWriter(&formBuf)
+		formWriter.WriteField("workspace", "root")
+		formWriter.WriteField("targetDir", "scoped-upload")
+
+		part, err := formWriter.CreateFormFile("file", "scoped.txt")
+		if err != nil {
+			t.Fatalf("Failed to create upload part: %v", err)
+		}
+		part.Write([]byte("scoped upload content"))
+		formWriter.Close()
+
+		req, _ := http.NewRequest("POST", ts.server.URL+"/api/upload", &formBuf)
+		req.Header.Set("Content-Type", formWriter.FormDataContentType())
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Upload request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("Expected 200 from /api/upload, got %d: %s", resp.StatusCode, string(body))
+		}
+
+		pinnedPath := filepath.Join(siteUserDir, "scoped-upload", "scoped.txt")
+		content, err := os.ReadFile(pinnedPath)
+		if err != nil {
+			t.Fatalf("Expected uploaded file in pinned workspace %q: %v", pinnedPath, err)
+		}
+		if string(content) != "scoped upload content" {
+			t.Fatalf("Unexpected uploaded file content in pinned workspace: %q", string(content))
+		}
+
+		outsidePath := filepath.Join(ts.config.ResolvedUploadCwd, "scoped-upload", "scoped.txt")
+		if _, err := os.Stat(outsidePath); !os.IsNotExist(err) {
+			t.Fatalf("Upload escaped pinned workspace, found unexpected file at %q", outsidePath)
+		}
+	})
+
+	t.Run("read-file ignores conflicting workspace parameter", func(t *testing.T) {
+		relativePath := filepath.Join("scoped-read", "file.txt")
+		pinnedReadPath := filepath.Join(siteUserDir, relativePath)
+		outsideReadPath := filepath.Join(ts.config.ResolvedUploadCwd, relativePath)
+
+		if err := os.MkdirAll(filepath.Dir(pinnedReadPath), 0755); err != nil {
+			t.Fatalf("Failed to create pinned read directory: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(outsideReadPath), 0755); err != nil {
+			t.Fatalf("Failed to create outside read directory: %v", err)
+		}
+
+		if err := os.WriteFile(pinnedReadPath, []byte("pinned-read"), 0644); err != nil {
+			t.Fatalf("Failed to write pinned read file: %v", err)
+		}
+		if err := os.WriteFile(outsideReadPath, []byte("outside-read"), 0644); err != nil {
+			t.Fatalf("Failed to write outside read file: %v", err)
+		}
+
+		form := strings.NewReader("workspace=root&path=" + url.QueryEscape(filepath.ToSlash(relativePath)))
+		req, _ := http.NewRequest("POST", ts.server.URL+"/api/read-file", form)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Read request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("Expected 200 from /api/read-file, got %d: %s", resp.StatusCode, string(body))
+		}
+
+		var payload struct {
+			Content string `json:"content"`
+			Path    string `json:"path"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			t.Fatalf("Decode /api/read-file response: %v", err)
+		}
+		if payload.Content != "pinned-read" {
+			t.Fatalf("Expected pinned file content, got %q", payload.Content)
+		}
+		if payload.Path != pinnedReadPath {
+			t.Fatalf("Expected pinned path %q, got %q", pinnedReadPath, payload.Path)
+		}
+	})
+
+	t.Run("download-file ignores conflicting workspace parameter", func(t *testing.T) {
+		relativePath := filepath.Join("scoped-download", "file.txt")
+		pinnedDownloadPath := filepath.Join(siteUserDir, relativePath)
+		outsideDownloadPath := filepath.Join(ts.config.ResolvedUploadCwd, relativePath)
+
+		if err := os.MkdirAll(filepath.Dir(pinnedDownloadPath), 0755); err != nil {
+			t.Fatalf("Failed to create pinned download directory: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(outsideDownloadPath), 0755); err != nil {
+			t.Fatalf("Failed to create outside download directory: %v", err)
+		}
+
+		if err := os.WriteFile(pinnedDownloadPath, []byte("pinned-download"), 0644); err != nil {
+			t.Fatalf("Failed to write pinned download file: %v", err)
+		}
+		if err := os.WriteFile(outsideDownloadPath, []byte("outside-download"), 0644); err != nil {
+			t.Fatalf("Failed to write outside download file: %v", err)
+		}
+
+		downloadURL := fmt.Sprintf("%s/api/download-file?workspace=%s&path=%s", ts.server.URL, url.QueryEscape("root"), url.QueryEscape(filepath.ToSlash(relativePath)))
+		req, _ := http.NewRequest("GET", downloadURL, nil)
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Download request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("Expected 200 from /api/download-file, got %d: %s", resp.StatusCode, string(body))
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to read download response: %v", err)
+		}
+		if string(body) != "pinned-download" {
+			t.Fatalf("Expected pinned download content, got %q", string(body))
+		}
+	})
+
+	t.Run("delete-folder ignores conflicting workspace parameter", func(t *testing.T) {
+		relativeDir := filepath.Join("scoped-delete")
+		pinnedDeleteDir := filepath.Join(siteUserDir, relativeDir)
+		outsideDeleteDir := filepath.Join(ts.config.ResolvedUploadCwd, relativeDir)
+
+		if err := os.MkdirAll(pinnedDeleteDir, 0755); err != nil {
+			t.Fatalf("Failed to create pinned delete directory: %v", err)
+		}
+		if err := os.MkdirAll(outsideDeleteDir, 0755); err != nil {
+			t.Fatalf("Failed to create outside delete directory: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(pinnedDeleteDir, "keep-check.txt"), []byte("delete-me"), 0644); err != nil {
+			t.Fatalf("Failed to write pinned delete file: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(outsideDeleteDir, "outside.txt"), []byte("must-stay"), 0644); err != nil {
+			t.Fatalf("Failed to write outside delete file: %v", err)
+		}
+
+		form := strings.NewReader("workspace=root&path=" + url.QueryEscape(filepath.ToSlash(relativeDir)))
+		req, _ := http.NewRequest("POST", ts.server.URL+"/api/delete-folder", form)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Delete request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("Expected 200 from /api/delete-folder, got %d: %s", resp.StatusCode, string(body))
+		}
+
+		if _, err := os.Stat(pinnedDeleteDir); !os.IsNotExist(err) {
+			t.Fatalf("Expected pinned directory %q to be deleted", pinnedDeleteDir)
+		}
+		if _, err := os.Stat(outsideDeleteDir); err != nil {
+			t.Fatalf("Outside directory should not be deleted, stat error: %v", err)
+		}
+	})
+
+	t.Run("editor and template endpoints are forbidden for scoped sessions", func(t *testing.T) {
+		editBody := strings.NewReader(`{"directory":"docs"}`)
+		editReq, _ := http.NewRequest("POST", ts.server.URL+"/api/edit/list-files", editBody)
+		editReq.Header.Set("Content-Type", "application/json")
+		editResp, err := client.Do(editReq)
+		if err != nil {
+			t.Fatalf("Editor request failed: %v", err)
+		}
+		defer editResp.Body.Close()
+		if editResp.StatusCode != http.StatusForbidden {
+			body, _ := io.ReadAll(editResp.Body)
+			t.Fatalf("Expected 403 from /api/edit/list-files, got %d: %s", editResp.StatusCode, string(body))
+		}
+
+		templateReq, _ := http.NewRequest("GET", ts.server.URL+"/api/templates", nil)
+		templateResp, err := client.Do(templateReq)
+		if err != nil {
+			t.Fatalf("Templates request failed: %v", err)
+		}
+		defer templateResp.Body.Close()
+		if templateResp.StatusCode != http.StatusForbidden {
+			body, _ := io.ReadAll(templateResp.Body)
+			t.Fatalf("Expected 403 from /api/templates, got %d: %s", templateResp.StatusCode, string(body))
+		}
+	})
+
+	t.Run("sites listing is restricted to pinned site", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", ts.server.URL+"/api/sites", nil)
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("List sites request failed: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("Expected 200 from /api/sites, got %d: %s", resp.StatusCode, string(body))
+		}
+
+		var payload struct {
+			Sites     []string `json:"sites"`
+			SitesPath string   `json:"sitesPath"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			t.Fatalf("Decode /api/sites response: %v", err)
+		}
+		if len(payload.Sites) != 1 || payload.Sites[0] != "example.com" {
+			t.Fatalf("Expected only [example.com], got %#v", payload.Sites)
+		}
+		if payload.SitesPath != "" {
+			t.Fatalf("Expected sitesPath to be hidden for scoped session, got %q", payload.SitesPath)
+		}
+	})
+}
+
+// ==============================================================================
+// TEST 4: File Operations with Security E2E
 // ==============================================================================
 // This test validates file operations and security:
 // 1. Authentication required (401 without session)

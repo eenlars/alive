@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -20,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -28,6 +30,7 @@ const (
 	portMapRefresh    = 30 * time.Second
 	sessionCookieName = "__alive_preview"
 	sessionMaxAge     = 300 // 5 minutes (matches JWT expiry)
+	// Sentry DSN is read from SENTRY_DSN env var; no hardcoded fallback.
 )
 
 // portMap caches hostname→port mappings, refreshed periodically from a JSON file
@@ -53,11 +56,13 @@ func newPortMap(filePath string) *portMap {
 func (pm *portMap) reload() {
 	data, err := os.ReadFile(pm.filePath)
 	if err != nil {
+		captureError(err, "port map read failed: %s", pm.filePath)
 		log.Printf("[port-map] failed to read %s: %v", pm.filePath, err)
 		return
 	}
 	var ports map[string]int
 	if err := json.Unmarshal(data, &ports); err != nil {
+		captureError(err, "port map parse failed: %s", pm.filePath)
 		log.Printf("[port-map] failed to parse %s: %v", pm.filePath, err)
 		return
 	}
@@ -125,6 +130,9 @@ func loadConfig() config {
 // Run `bun run generate` to regenerate after changing PREVIEW_MESSAGES constants.
 
 func main() {
+	initSentry("preview-proxy")
+	defer sentry.Flush(2 * time.Second)
+
 	cfg := loadConfig()
 	ports := newPortMap(cfg.PortMapPath)
 
@@ -157,6 +165,11 @@ func main() {
 
 	log.Printf("[preview-proxy] starting on %s (previewBase=%s)", cfg.ListenAddr, cfg.PreviewBase)
 	if err := server.ListenAndServe(); err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			return
+		}
+		captureError(err, "preview-proxy ListenAndServe failed")
+		sentry.Flush(2 * time.Second)
 		log.Fatalf("[preview-proxy] server error: %v", err)
 	}
 }
@@ -195,7 +208,7 @@ func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hasValidCookie := !hasValidToken && h.verifySessionCookie(r, hostname)
 
 	if !hasValidToken && !hasValidCookie {
-		http.Error(w, "Missing or invalid preview_token", http.StatusUnauthorized)
+		writeHTTPError(w, http.StatusUnauthorized, "Missing or invalid preview_token", "preview auth failed")
 		return
 	}
 
@@ -214,7 +227,7 @@ func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Look up port
 	port, ok := h.ports.lookup(hostname)
 	if !ok {
-		http.Error(w, "Site not found", http.StatusNotFound)
+		writeHTTPError(w, http.StatusNotFound, "Site not found", "site port lookup failed")
 		return
 	}
 
@@ -252,9 +265,15 @@ func (h *previewHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// Inject navigation script into HTML responses
 			ct := resp.Header.Get("Content-Type")
 			if strings.Contains(ct, "text/html") {
-				return h.injectNavScript(resp)
+				if err := h.injectNavScript(resp); err != nil {
+					return fmt.Errorf("inject nav script: %w", err)
+				}
 			}
 			return nil
+		},
+		ErrorHandler: func(rw http.ResponseWriter, req *http.Request, err error) {
+			captureError(err, "reverse proxy error method=%s path=%s host=%s", req.Method, req.URL.Path, req.Host)
+			writeHTTPError(rw, http.StatusBadGateway, "Bad gateway", "reverse proxy error")
 		},
 	}
 
@@ -288,14 +307,14 @@ func (h *previewHandler) serveImage(w http.ResponseWriter, r *http.Request) {
 	// Strip /_images/ prefix to get the storage-relative path
 	relPath := strings.TrimPrefix(r.URL.Path, "/_images/")
 	if relPath == "" {
-		http.Error(w, "Not found", http.StatusNotFound)
+		writeHTTPError(w, http.StatusNotFound, "Not found", "missing image path")
 		return
 	}
 
 	// Prevent path traversal
 	cleanPath := filepath.Clean(relPath)
 	if strings.HasPrefix(cleanPath, "..") || filepath.IsAbs(cleanPath) {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
+		writeHTTPError(w, http.StatusBadRequest, "Invalid path", "path traversal in image request")
 		return
 	}
 
@@ -304,7 +323,7 @@ func (h *previewHandler) serveImage(w http.ResponseWriter, r *http.Request) {
 	// Verify the resolved path is still within storage root
 	absPath, err := filepath.Abs(fullPath)
 	if err != nil || !strings.HasPrefix(absPath, h.cfg.ImagesStorage) {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
+		writeHTTPError(w, http.StatusBadRequest, "Invalid path", "invalid absolute image path")
 		return
 	}
 
@@ -482,6 +501,8 @@ func (h *previewHandler) serveNotFound(w http.ResponseWriter, host string) {
 func requireEnv(key string) string {
 	v := os.Getenv(key)
 	if v == "" {
+		captureMessage(sentry.LevelFatal, "[preview-proxy] required env var %s is not set", key)
+		sentry.Flush(2 * time.Second)
 		log.Fatalf("[preview-proxy] required env var %s is not set", key)
 	}
 	return v
@@ -492,4 +513,49 @@ func envOrDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func initSentry(service string) {
+	dsn := os.Getenv("SENTRY_DSN")
+	if dsn == "" {
+		return
+	}
+
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn:              dsn,
+		Environment:      envOrDefault("STREAM_ENV", "unknown"),
+		ServerName:       service,
+		AttachStacktrace: true,
+	}); err != nil {
+		log.Printf("[preview-proxy] sentry init failed: %v", err)
+	}
+}
+
+func captureError(err error, message string, args ...any) {
+	if err == nil {
+		return
+	}
+	msg := fmt.Sprintf(message, args...)
+	sentry.WithScope(func(scope *sentry.Scope) {
+		scope.SetLevel(sentry.LevelError)
+		scope.SetTag("log_message", msg)
+		sentry.CaptureException(err)
+	})
+}
+
+func captureMessage(level sentry.Level, message string, args ...any) {
+	msg := fmt.Sprintf(message, args...)
+	sentry.WithScope(func(scope *sentry.Scope) {
+		scope.SetLevel(level)
+		sentry.CaptureMessage(msg)
+	})
+}
+
+func writeHTTPError(w http.ResponseWriter, statusCode int, body string, context string) {
+	level := sentry.LevelError
+	if statusCode < 500 {
+		level = sentry.LevelWarning
+	}
+	captureMessage(level, "http_error status=%d context=%s message=%s", statusCode, context, body)
+	http.Error(w, body, statusCode)
 }

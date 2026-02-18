@@ -248,6 +248,9 @@ export const DOMAINS = {
 
   /** Cookie domain for cross-subdomain sharing (leading dot allows *.DOMAIN) */
   COOKIE_DOMAIN,
+
+  /** Shell server host (e.g. "go.sonno.tech") from server-config.json shell.domains[0] */
+  SHELL_HOST: serverConfig.shell?.domains?.[0] ?? "",
 } as const
 
 // =============================================================================

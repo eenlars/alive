@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
 import { getGroqClient } from "@/lib/clients/groq"
 
@@ -30,6 +31,7 @@ export async function GET() {
       latency: groqLatency,
     })
   } catch (error: any) {
+    Sentry.captureException(error)
     const groqLatency = Date.now() - groqStart
     results.push({
       service: "Groq API",

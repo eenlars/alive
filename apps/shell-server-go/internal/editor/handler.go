@@ -1,4 +1,4 @@
-package handlers
+package editor
 
 import (
 	"encoding/base64"
@@ -12,38 +12,43 @@ import (
 	"strings"
 
 	"shell-server-go/internal/config"
+	"shell-server-go/internal/httpx/response"
+	"shell-server-go/internal/session"
+	workspacepkg "shell-server-go/internal/workspace"
 )
 
-// EditorHandler handles editor API endpoints
-type EditorHandler struct {
+const MaxEditFileSize = 2 << 20
+
+// Handler handles editor API endpoints.
+type Handler struct {
 	config   *config.AppConfig
-	resolver *PathResolver
+	sessions *session.Store
+	resolver *workspacepkg.Resolver
 }
 
-// NewEditorHandler creates a new editor handler
-func NewEditorHandler(cfg *config.AppConfig) *EditorHandler {
-	return &EditorHandler{
+// NewHandler creates a new editor handler.
+func NewHandler(cfg *config.AppConfig, sessions *session.Store) *Handler {
+	return &Handler{
 		config:   cfg,
-		resolver: NewPathResolver(cfg),
+		sessions: sessions,
+		resolver: workspacepkg.NewResolver(cfg),
 	}
 }
 
-// EditTreeNode represents a file tree node for the editor
-type EditTreeNode struct {
-	Name     string         `json:"name"`
-	Path     string         `json:"path"`
-	Type     string         `json:"type"`
-	Children []EditTreeNode `json:"children,omitempty"`
+// TreeNode represents a file tree node for the editor.
+type TreeNode struct {
+	Name     string     `json:"name"`
+	Path     string     `json:"path"`
+	Type     string     `json:"type"`
+	Children []TreeNode `json:"children,omitempty"`
 }
 
-// Image file extensions that can be displayed
 var imageExtensions = map[string]bool{
 	".png": true, ".jpg": true, ".jpeg": true, ".gif": true,
 	".ico": true, ".webp": true, ".bmp": true, ".svg": true,
 }
 
-// Binary file extensions that cannot be edited
-var editorBinaryExtensions = map[string]bool{
+var binaryExtensions = map[string]bool{
 	".pdf": true, ".zip": true, ".tar": true, ".gz": true, ".rar": true,
 	".7z": true, ".mp3": true, ".mp4": true, ".wav": true, ".avi": true,
 	".mov": true, ".mkv": true, ".exe": true, ".dll": true, ".so": true,
@@ -51,7 +56,6 @@ var editorBinaryExtensions = map[string]bool{
 	".eot": true, ".otf": true, ".node": true, ".wasm": true,
 }
 
-// getMimeType returns the MIME type for an image extension
 func getMimeType(ext string) string {
 	switch ext {
 	case ".svg":
@@ -65,44 +69,47 @@ func getMimeType(ext string) string {
 	}
 }
 
-// ListFiles handles POST /api/edit/list-files
-func (h *EditorHandler) ListFiles(w http.ResponseWriter, r *http.Request) {
+// ListFiles handles POST /api/edit/list-files.
+func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseEditor(w, r) {
+		return
+	}
+
 	var body struct {
 		Directory string `json:"directory"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid request", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
-
 	if body.Directory == "" {
-		jsonError(w, "No directory specified", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No directory specified")
 		return
 	}
 
 	editableDir := h.config.GetEditableDirectory(body.Directory)
 	if editableDir == nil {
-		jsonError(w, "Invalid directory", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid directory")
 		return
 	}
 
 	if _, err := os.Stat(editableDir.Path); os.IsNotExist(err) {
-		jsonResponse(w, map[string]interface{}{
+		response.JSON(w, http.StatusNotFound, map[string]any{
 			"error": "Directory not found",
 			"path":  editableDir.Path,
-		}, http.StatusNotFound)
+		})
 		return
 	}
 
-	tree := buildEditTree(editableDir.Path, "", 0, 5)
-	jsonResponse(w, map[string]interface{}{
+	tree := buildTree(editableDir.Path, "", 0, 5)
+	response.JSON(w, http.StatusOK, map[string]any{
 		"path":  editableDir.Path,
 		"label": editableDir.Label,
 		"tree":  tree,
 	})
 }
 
-func buildEditTree(dirPath, relativePath string, depth, maxDepth int) []EditTreeNode {
+func buildTree(dirPath, relativePath string, depth, maxDepth int) []TreeNode {
 	if depth >= maxDepth {
 		return nil
 	}
@@ -114,7 +121,7 @@ func buildEditTree(dirPath, relativePath string, depth, maxDepth int) []EditTree
 
 	var filtered []os.DirEntry
 	for _, e := range entries {
-		if !DefaultExcludedDirs[e.Name()] && !strings.HasPrefix(e.Name(), ".") {
+		if !workspacepkg.DefaultExcludedDirs[e.Name()] && !strings.HasPrefix(e.Name(), ".") {
 			filtered = append(filtered, e)
 		}
 	}
@@ -128,7 +135,7 @@ func buildEditTree(dirPath, relativePath string, depth, maxDepth int) []EditTree
 		return filtered[i].Name() < filtered[j].Name()
 	})
 
-	var nodes []EditTreeNode
+	var nodes []TreeNode
 	for _, entry := range filtered {
 		entryRelPath := entry.Name()
 		if relativePath != "" {
@@ -136,52 +143,50 @@ func buildEditTree(dirPath, relativePath string, depth, maxDepth int) []EditTree
 		}
 
 		if entry.IsDir() {
-			subPath := filepath.Join(dirPath, entry.Name())
-			node := EditTreeNode{
+			nodes = append(nodes, TreeNode{
 				Name:     entry.Name(),
 				Path:     entryRelPath,
 				Type:     "directory",
-				Children: buildEditTree(subPath, entryRelPath, depth+1, maxDepth),
-			}
-			nodes = append(nodes, node)
-		} else {
-			nodes = append(nodes, EditTreeNode{
-				Name: entry.Name(),
-				Path: entryRelPath,
-				Type: "file",
+				Children: buildTree(filepath.Join(dirPath, entry.Name()), entryRelPath, depth+1, maxDepth),
 			})
+			continue
 		}
+
+		nodes = append(nodes, TreeNode{Name: entry.Name(), Path: entryRelPath, Type: "file"})
 	}
+
 	return nodes
 }
 
-// ReadFile handles POST /api/edit/read-file
-func (h *EditorHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
+// ReadFile handles POST /api/edit/read-file.
+func (h *Handler) ReadFile(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseEditor(w, r) {
+		return
+	}
+
 	var body struct {
 		Directory string `json:"directory"`
 		Path      string `json:"path"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid request", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
-
 	if body.Directory == "" {
-		jsonError(w, "No directory specified", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No directory specified")
 		return
 	}
 	if body.Path == "" {
-		jsonError(w, "No file path provided", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No file path provided")
 		return
 	}
 
 	editableDir := h.config.GetEditableDirectory(body.Directory)
 	if editableDir == nil {
-		jsonError(w, "Invalid directory", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid directory")
 		return
 	}
 
-	// Use centralized path resolution
 	resolvedPath, err := h.resolver.ResolveSafePath(editableDir.Path, body.Path)
 	if err != nil {
 		h.handlePathError(w, err)
@@ -189,35 +194,34 @@ func (h *EditorHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err := os.Stat(resolvedPath)
-	if os.IsNotExist(err) {
-		jsonError(w, "File not found", http.StatusNotFound)
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "File not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to stat file")
 		return
 	}
 
-	// Size limit 2MB
 	if info.Size() > MaxEditFileSize {
-		jsonResponse(w, map[string]interface{}{
+		response.JSON(w, http.StatusRequestEntityTooLarge, map[string]any{
 			"error": "File too large for editing (max 2MB)",
 			"size":  info.Size(),
-		}, http.StatusRequestEntityTooLarge)
+		})
 		return
 	}
 
 	ext := strings.ToLower(filepath.Ext(body.Path))
-
-	// Handle images
 	if imageExtensions[ext] {
 		data, err := os.ReadFile(resolvedPath)
 		if err != nil {
-			jsonError(w, "Failed to read file", http.StatusInternalServerError)
+			response.Error(w, http.StatusInternalServerError, "Failed to read file")
 			return
 		}
-
-		mimeType := getMimeType(ext)
 		base64Data := base64.StdEncoding.EncodeToString(data)
-		jsonResponse(w, map[string]interface{}{
+		response.JSON(w, http.StatusOK, map[string]any{
 			"image":    true,
-			"dataUrl":  fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data),
+			"dataUrl":  fmt.Sprintf("data:%s;base64,%s", getMimeType(ext), base64Data),
 			"path":     resolvedPath,
 			"filename": filepath.Base(body.Path),
 			"size":     info.Size(),
@@ -226,23 +230,22 @@ func (h *EditorHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check binary
-	if editorBinaryExtensions[ext] {
-		jsonResponse(w, map[string]interface{}{
+	if binaryExtensions[ext] {
+		response.JSON(w, http.StatusUnsupportedMediaType, map[string]any{
 			"error":     "Binary file cannot be edited",
 			"binary":    true,
 			"extension": ext,
-		}, http.StatusUnsupportedMediaType)
+		})
 		return
 	}
 
 	content, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		jsonError(w, "Failed to read file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to read file")
 		return
 	}
 
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"content":  string(content),
 		"path":     resolvedPath,
 		"filename": filepath.Base(body.Path),
@@ -251,67 +254,63 @@ func (h *EditorHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// WriteFile handles POST /api/edit/write-file
-func (h *EditorHandler) WriteFile(w http.ResponseWriter, r *http.Request) {
+// WriteFile handles POST /api/edit/write-file.
+func (h *Handler) WriteFile(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseEditor(w, r) {
+		return
+	}
+
 	var body struct {
 		Directory string `json:"directory"`
 		Path      string `json:"path"`
 		Content   string `json:"content"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid request", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
-
 	if body.Directory == "" {
-		jsonError(w, "No directory specified", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No directory specified")
 		return
 	}
 	if body.Path == "" {
-		jsonError(w, "No file path provided", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No file path provided")
 		return
 	}
 
 	editableDir := h.config.GetEditableDirectory(body.Directory)
 	if editableDir == nil {
-		jsonError(w, "Invalid directory", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid directory")
 		return
 	}
 
-	// Use centralized path resolution
 	resolvedPath, err := h.resolver.ResolveSafePath(editableDir.Path, body.Path)
 	if err != nil {
 		h.handlePathError(w, err)
 		return
 	}
 
-	// Size limit 2MB
 	contentSize := len([]byte(body.Content))
 	if contentSize > MaxEditFileSize {
-		jsonResponse(w, map[string]interface{}{
+		response.JSON(w, http.StatusRequestEntityTooLarge, map[string]any{
 			"error": "Content too large (max 2MB)",
 			"size":  contentSize,
-		}, http.StatusRequestEntityTooLarge)
+		})
 		return
 	}
 
-	// Ensure parent directory exists
-	parentDir := filepath.Dir(resolvedPath)
-	if err := os.MkdirAll(parentDir, 0755); err != nil {
-		jsonError(w, "Failed to create directory", http.StatusInternalServerError)
+	if err := os.MkdirAll(filepath.Dir(resolvedPath), 0755); err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to create directory")
 		return
 	}
 
-	// Write file with 644 permissions
 	if err := os.WriteFile(resolvedPath, []byte(body.Content), 0644); err != nil {
-		jsonError(w, "Failed to write file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to write file")
 		return
 	}
 
-	// Get new mtime
 	info, _ := os.Stat(resolvedPath)
-
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"message": fmt.Sprintf("Saved %s", body.Path),
 		"path":    resolvedPath,
@@ -320,8 +319,12 @@ func (h *EditorHandler) WriteFile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// CheckMtimes handles POST /api/edit/check-mtimes
-func (h *EditorHandler) CheckMtimes(w http.ResponseWriter, r *http.Request) {
+// CheckMtimes handles POST /api/edit/check-mtimes.
+func (h *Handler) CheckMtimes(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseEditor(w, r) {
+		return
+	}
+
 	var body struct {
 		Directory string `json:"directory"`
 		Files     []struct {
@@ -330,122 +333,115 @@ func (h *EditorHandler) CheckMtimes(w http.ResponseWriter, r *http.Request) {
 		} `json:"files"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid request", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
-
 	if body.Directory == "" {
-		jsonError(w, "No directory specified", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No directory specified")
 		return
 	}
 
 	editableDir := h.config.GetEditableDirectory(body.Directory)
 	if editableDir == nil {
-		jsonError(w, "Invalid directory", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid directory")
 		return
 	}
 
-	type FileResult struct {
+	type fileResult struct {
 		Path    string `json:"path"`
 		Changed bool   `json:"changed"`
 		Mtime   int64  `json:"mtime"`
 		Deleted bool   `json:"deleted,omitempty"`
 	}
 
-	var results []FileResult
+	var results []fileResult
 	for _, file := range body.Files {
-		// Use centralized path resolution
 		resolvedPath, err := h.resolver.ResolveSafePath(editableDir.Path, file.Path)
 		if err != nil {
-			// Skip files with invalid paths (security check failed)
 			continue
 		}
 
 		info, err := os.Stat(resolvedPath)
-		if os.IsNotExist(err) {
-			results = append(results, FileResult{
-				Path:    file.Path,
-				Changed: true,
-				Mtime:   0,
-				Deleted: true,
-			})
-			continue
+		if err != nil {
+			if os.IsNotExist(err) {
+				results = append(results, fileResult{Path: file.Path, Changed: true, Mtime: 0, Deleted: true})
+				continue
+			}
+			continue // skip files we can't stat
 		}
 
 		currentMtime := info.ModTime().UnixMilli()
-		results = append(results, FileResult{
-			Path:    file.Path,
-			Changed: currentMtime != file.Mtime,
-			Mtime:   currentMtime,
-		})
+		results = append(results, fileResult{Path: file.Path, Changed: currentMtime != file.Mtime, Mtime: currentMtime})
 	}
 
-	jsonResponse(w, map[string]interface{}{"results": results})
+	response.JSON(w, http.StatusOK, map[string]any{"results": results})
 }
 
-// Delete handles POST /api/edit/delete
-func (h *EditorHandler) Delete(w http.ResponseWriter, r *http.Request) {
+// Delete handles POST /api/edit/delete.
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseEditor(w, r) {
+		return
+	}
+
 	var body struct {
 		Directory string `json:"directory"`
 		Path      string `json:"path"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid request", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
-
 	if body.Directory == "" {
-		jsonError(w, "No directory specified", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No directory specified")
 		return
 	}
 	if body.Path == "" {
-		jsonError(w, "No path provided", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No path provided")
 		return
 	}
-
-	// Prevent root deletion
 	if body.Path == "/" || body.Path == "." {
-		jsonError(w, "Cannot delete root directory", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Cannot delete root directory")
 		return
 	}
 
 	editableDir := h.config.GetEditableDirectory(body.Directory)
 	if editableDir == nil {
-		jsonError(w, "Invalid directory", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid directory")
 		return
 	}
 
-	// Use centralized path resolution
 	resolvedPath, err := h.resolver.ResolveSafePath(editableDir.Path, body.Path)
 	if err != nil {
 		h.handlePathError(w, err)
 		return
 	}
 
-	// Additional check: cannot delete the editable directory root
 	if err := h.resolver.ValidateNotRoot(editableDir.Path, resolvedPath); err != nil {
 		h.handlePathError(w, err)
 		return
 	}
 
 	info, err := os.Stat(resolvedPath)
-	if os.IsNotExist(err) {
-		jsonError(w, "Path not found", http.StatusNotFound)
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "Path not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to stat path")
 		return
 	}
 
-	isDirectory := info.IsDir()
 	typeStr := "file"
-	if isDirectory {
+	if info.IsDir() {
 		typeStr = "directory"
 	}
 
 	if err := os.RemoveAll(resolvedPath); err != nil {
-		jsonError(w, "Failed to delete", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to delete")
 		return
 	}
 
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"success":     true,
 		"message":     fmt.Sprintf("Deleted %s: %s", typeStr, body.Path),
 		"deletedPath": body.Path,
@@ -453,84 +449,91 @@ func (h *EditorHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Copy handles POST /api/edit/copy
-func (h *EditorHandler) Copy(w http.ResponseWriter, r *http.Request) {
+// Copy handles POST /api/edit/copy.
+func (h *Handler) Copy(w http.ResponseWriter, r *http.Request) {
+	if !h.ensureSessionCanUseEditor(w, r) {
+		return
+	}
+
 	var body struct {
 		Directory   string `json:"directory"`
 		Source      string `json:"source"`
 		Destination string `json:"destination"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		jsonError(w, "Invalid request", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
-
 	if body.Directory == "" {
-		jsonError(w, "No directory specified", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "No directory specified")
 		return
 	}
 	if body.Source == "" || body.Destination == "" {
-		jsonError(w, "Source and destination paths required", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Source and destination paths required")
 		return
 	}
 
 	editableDir := h.config.GetEditableDirectory(body.Directory)
 	if editableDir == nil {
-		jsonError(w, "Invalid directory", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid directory")
 		return
 	}
 
-	// Use centralized path resolution for both paths
 	resolvedSource, err := h.resolver.ResolveSafePath(editableDir.Path, body.Source)
 	if err != nil {
-		jsonError(w, "Invalid source path", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid source path")
 		return
 	}
 
 	resolvedDest, err := h.resolver.ResolveSafePath(editableDir.Path, body.Destination)
 	if err != nil {
-		jsonError(w, "Invalid destination path", http.StatusBadRequest)
+		response.Error(w, http.StatusBadRequest, "Invalid destination path")
 		return
 	}
 
-	if _, err := os.Stat(resolvedSource); os.IsNotExist(err) {
-		jsonError(w, "Source file not found", http.StatusNotFound)
+	srcInfo, err := os.Stat(resolvedSource)
+	if err != nil {
+		if os.IsNotExist(err) {
+			response.Error(w, http.StatusNotFound, "Source file not found")
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Failed to stat source")
 		return
 	}
-
+	if srcInfo.IsDir() {
+		response.Error(w, http.StatusBadRequest, "Cannot copy directories")
+		return
+	}
 	if _, err := os.Stat(resolvedDest); err == nil {
-		jsonError(w, "Destination already exists", http.StatusConflict)
+		response.Error(w, http.StatusConflict, "Destination already exists")
 		return
 	}
 
-	// Ensure parent directory exists
-	parentDir := filepath.Dir(resolvedDest)
-	if err := os.MkdirAll(parentDir, 0755); err != nil {
-		jsonError(w, "Failed to create directory", http.StatusInternalServerError)
+	if err := os.MkdirAll(filepath.Dir(resolvedDest), 0755); err != nil {
+		response.Error(w, http.StatusInternalServerError, "Failed to create directory")
 		return
 	}
 
-	// Copy file
 	srcFile, err := os.Open(resolvedSource)
 	if err != nil {
-		jsonError(w, "Failed to open source file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to open source file")
 		return
 	}
 	defer srcFile.Close()
 
 	dstFile, err := os.Create(resolvedDest)
 	if err != nil {
-		jsonError(w, "Failed to create destination file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to create destination file")
 		return
 	}
 	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		jsonError(w, "Failed to copy file", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Failed to copy file")
 		return
 	}
 
-	jsonResponse(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"success":    true,
 		"message":    fmt.Sprintf("Copied to %s", body.Destination),
 		"sourcePath": body.Source,
@@ -538,7 +541,14 @@ func (h *EditorHandler) Copy(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handlePathError converts path security errors to appropriate HTTP responses
-func (h *EditorHandler) handlePathError(w http.ResponseWriter, err error) {
-	HandlePathSecurityError(w, err)
+func (h *Handler) handlePathError(w http.ResponseWriter, err error) {
+	workspacepkg.HandlePathSecurityError(w, err)
+}
+
+func (h *Handler) ensureSessionCanUseEditor(w http.ResponseWriter, r *http.Request) bool {
+	if scopedWorkspace := workspacepkg.SessionWorkspace(r, h.sessions); scopedWorkspace != "" {
+		response.Error(w, http.StatusForbidden, "Editor is unavailable for workspace-scoped sessions")
+		return false
+	}
+	return true
 }

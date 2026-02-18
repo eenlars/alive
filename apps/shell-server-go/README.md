@@ -11,6 +11,19 @@ A Go-based shell server that provides the same functionality as the TypeScript s
 - **Rate Limiting**: Global rate limiting with lockout protection
 - **Multi-workspace**: Support for site workspaces and custom directories
 
+## Package Layout
+
+- `cmd/shell-server` - standalone binary entrypoint
+- `internal/app` - bootstrap, route wiring, lifecycle shutdown
+- `internal/auth` - login/logout + scoped workspace validation
+- `internal/terminal` - lease + websocket + PTY session handling
+- `internal/workspace` - path/boundary/session workspace policy (single source of truth)
+- `internal/files` - file APIs (upload, list, read, delete, sites/config)
+- `internal/editor` - editor APIs with scoped-session policy
+- `internal/templates` - template APIs with scoped-session policy
+- `internal/httpx` - request parsing and JSON response helpers
+- `test/e2e` and `internal/*/*_test.go` - end-to-end and package-level tests
+
 ## Requirements
 
 - Go 1.22+
@@ -97,7 +110,8 @@ The server uses the same `config.json` format as the TypeScript version:
 - `POST /api/edit/copy` - Copy file
 
 ### WebSocket
-- `GET /ws?workspace=<name>` - Terminal WebSocket connection
+- `POST /api/ws-lease` - Mint short-lived WS lease (authenticated)
+- `GET /ws?lease=<token>` - Terminal WebSocket connection
 
 ### Health
 - `GET /health` - Health check endpoint
@@ -118,16 +132,24 @@ bun run build
 
 ## WebSocket Protocol
 
-The terminal uses JSON messages over WebSocket:
+The terminal uses a mixed protocol for lower latency and lower overhead:
+
+- **Binary frames** for terminal data path:
+  - Client -> Server: raw PTY input bytes (keystrokes/paste)
+  - Server -> Client: raw PTY output bytes
+- **JSON text frames** for control path:
+  - Client -> Server: `resize`, optional legacy `input`
+  - Server -> Client: `connected`, `exit`, `error`, `pong`
 
 ```typescript
-// Client -> Server
-{ "type": "input", "data": "ls -la\n" }
+// Client -> Server (binary frame)
+Uint8Array.from([0x6c, 0x73, 0x0a]) // "ls\n"
+
+// Client -> Server (text control frame)
 { "type": "resize", "cols": 120, "rows": 40 }
 
-// Server -> Client
+// Server -> Client (text control frame)
 { "type": "connected" }
-{ "type": "data", "data": "terminal output here" }
 { "type": "exit", "exitCode": 0 }
 { "type": "error", "message": "Failed to start shell" }
 ```

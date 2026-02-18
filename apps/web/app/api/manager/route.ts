@@ -1,5 +1,6 @@
 import { exec } from "node:child_process"
 import { promisify } from "node:util"
+import * as Sentry from "@sentry/nextjs"
 import { DOMAINS, PATHS } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { requireManagerAuth } from "@/features/manager/lib/api-helpers"
@@ -157,7 +158,8 @@ export async function POST(req: NextRequest) {
     }
 
     return createCorsSuccessResponse(origin, { requestId })
-  } catch (_error) {
+  } catch (error) {
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INVALID_JSON, 400, { requestId })
   }
 }
@@ -184,6 +186,7 @@ export async function DELETE(req: NextRequest) {
       const { stdout, stderr } = await execAsync(`${PATHS.ALIVE_ROOT}/scripts/sites/delete-site.sh ${domain} --force`)
       return createCorsSuccessResponse(origin, { output: stdout, error: stderr || null, requestId })
     } catch (error) {
+      Sentry.captureException(error)
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
         requestId,
         details: {
@@ -191,7 +194,8 @@ export async function DELETE(req: NextRequest) {
         },
       })
     }
-  } catch (_error) {
+  } catch (error) {
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INVALID_JSON, 400, { requestId })
   }
 }

@@ -1,4 +1,5 @@
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
@@ -94,6 +95,7 @@ export async function GET(req: NextRequest) {
     }
 
     console.error(`[Worktrees ${requestId}] GET error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       requestId,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -161,6 +163,7 @@ export async function POST(req: NextRequest) {
     }
 
     console.error(`[Worktrees ${requestId}] POST error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       requestId,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -217,6 +220,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     console.error(`[Worktrees ${requestId}] DELETE error:`, error)
+    Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
       requestId,
       error: error instanceof Error ? error.message : "Unknown error",

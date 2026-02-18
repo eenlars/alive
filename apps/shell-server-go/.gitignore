@@ -1,8 +1,8 @@
 # Binaries and build output
 dist/
 tmp/
-shell-server
-shell-server-go
+/shell-server
+/shell-server-go
 
 # Session and state files
 .sessions.json

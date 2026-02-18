@@ -3,3 +3,4 @@ export { PanelViewMenu } from "./PanelViewMenu"
 export { SandboxCodePanel } from "./SandboxCodePanel"
 /** @deprecated Use PanelViewMenu instead */
 export { SandboxModeMenu } from "./SandboxModeMenu"
+export { SandboxTerminal } from "./SandboxTerminal"

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { SECURITY, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
@@ -89,7 +90,8 @@ export async function GET(req: NextRequest) {
     return createCorsSuccessResponse(origin, {
       workspaces,
     })
-  } catch (_error) {
+  } catch (error) {
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
   }
 }
