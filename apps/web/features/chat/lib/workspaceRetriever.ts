@@ -65,7 +65,7 @@ function mapWorktreeError(error: WorktreeError): { code: ErrorCode; status: numb
  * - Auth layer MUST verify superadmin status before this is called
  * - This function does NOT verify permissions (that's done in verifyWorkspaceAccess)
  */
-export async function getWorkspace({ host, body, requestId }: GetWorkspaceParams): Promise<WorkspaceResult> {
+export async function getWorkspace({ host: _, body, requestId }: GetWorkspaceParams): Promise<WorkspaceResult> {
   // Special case: alive workspace
   // SECURITY NOTE: This only resolves the path - auth layer (verifyWorkspaceAccess)
   // MUST verify the user is a superadmin before this function is called.

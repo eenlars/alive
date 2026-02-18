@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createSessionToken, SESSION_SCOPES } from "@/features/auth/lib/jwt"

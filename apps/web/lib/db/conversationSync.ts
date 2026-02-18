@@ -690,7 +690,7 @@ export async function deleteConversation(conversationId: string, userId: string)
  * TODO: Implement with Supabase Realtime when needed.
  */
 export function subscribeToSharedConversations(
-  workspace: string,
+  _workspace: string,
   _orgId: string,
   _userId: string,
   _onMessage: (message: DbMessage) => void,
