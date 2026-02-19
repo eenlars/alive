@@ -69,10 +69,10 @@ vi.mock("@webalive/shared", async importOriginal => {
       ...actual.SUPERADMIN,
       EMAILS: ["admin@example.com"],
       WORKSPACE_NAME: "alive",
-      WORKSPACE_PATH: "/root/webalive/alive",
+      WORKSPACE_PATH: actual.SUPERADMIN.WORKSPACE_PATH,
     },
     getWorkspacePath: vi.fn((ws: string) =>
-      ws === "alive" ? "/root/webalive/alive" : `/srv/webalive/sites/${ws}/user`,
+      ws === "alive" ? actual.SUPERADMIN.WORKSPACE_PATH : `/srv/webalive/sites/${ws}/user`,
     ),
   }
 })

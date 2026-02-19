@@ -1,7 +1,7 @@
 # Superadmin Automations For Alive Workspace (Issue #177) - Draft Checklist
 
 ## Goal
-Enable superadmin-only automations that run in `/root/alive` with superadmin tool policy, while preserving current site automation behavior.
+Enable superadmin-only automations that run in the alive repo (resolved from `serverConfig.paths.aliveRoot`) with superadmin tool policy, while preserving current site automation behavior.
 
 ## Chosen Strategy
 Keep the existing `automation_jobs.site_id` model and add a reserved/synthetic `alive` domain target for system-workspace jobs.
@@ -69,6 +69,6 @@ Keep the existing `automation_jobs.site_id` model and add a reserved/synthetic `
 ## Done Criteria
 - Superadmins can create/run alive automations from settings.
 - Non-superadmins cannot access alive automation path.
-- Alive jobs execute in `/root/alive` with superadmin tool policy.
+- Alive jobs execute in the alive repo (`SUPERADMIN.WORKSPACE_PATH` from server config) with superadmin tool policy.
 - Site automation behavior remains unchanged.
 - Regression tests enforce the above contracts.
