@@ -609,9 +609,15 @@ export async function POST(req: NextRequest) {
               return [baseMessage, stderr, ...diagnosticHints].filter(Boolean).join(" ")
             }
 
-            const logStaleSessionRetry = (attempted: boolean, outcome: "success" | "failed" | "not_attempted") => {
+            interface RetryObservability {
+              retry_attempted: boolean
+              retry_reason: "stale_session" | "stale_message" | "not_applicable"
+              retry_outcome: "success" | "failed" | "not_attempted"
+            }
+
+            const logRetryContract = (fields: RetryObservability) => {
               logger.log(
-                `[SESSION RETRY] retry_attempted=${attempted} retry_reason=stale_session retry_outcome=${outcome}`,
+                `[SESSION RETRY] retry_attempted=${fields.retry_attempted} retry_reason=${fields.retry_reason} retry_outcome=${fields.retry_outcome}`,
               )
             }
 
@@ -632,6 +638,7 @@ export async function POST(req: NextRequest) {
               try {
                 // Retry with session but WITHOUT resumeSessionAt - start from session beginning
                 await runQuery(existingSessionId, undefined)
+                logRetryContract({ retry_attempted: true, retry_reason: "stale_message", retry_outcome: "success" })
                 controller.close()
                 return
               } catch (retryErr) {
@@ -649,22 +656,28 @@ export async function POST(req: NextRequest) {
                     try {
                       await sessionStore.delete(sessionKey)
                     } catch (deleteError) {
+                      logRetryContract({
+                        retry_attempted: true,
+                        retry_reason: "stale_message",
+                        retry_outcome: "failed",
+                      })
                       logger.error("[SESSION RECOVERY] Failed to clear stale session:", deleteError)
                       controller.error(deleteError)
                       return
                     }
                     await runQuery(undefined, undefined)
-                    logStaleSessionRetry(true, "success")
+                    logRetryContract({ retry_attempted: true, retry_reason: "stale_message", retry_outcome: "success" })
                     controller.close()
                     return
                   } catch (finalErr) {
-                    logStaleSessionRetry(true, "failed")
+                    logRetryContract({ retry_attempted: true, retry_reason: "stale_message", retry_outcome: "failed" })
                     logger.error("[SESSION RECOVERY] Final retry failed:", finalErr)
                     controller.error(finalErr)
                     return
                   }
                 }
 
+                logRetryContract({ retry_attempted: true, retry_reason: "stale_message", retry_outcome: "failed" })
                 logger.error("[MESSAGE RECOVERY] Retry without message failed:", retryErr)
                 controller.error(retryErr)
                 return
@@ -678,6 +691,11 @@ export async function POST(req: NextRequest) {
             const isToolConcurrency = combinedMessage.includes("tool use concurrency")
 
             if (isToolConcurrency && existingSessionId && sessionKey) {
+              logRetryContract({
+                retry_attempted: false,
+                retry_reason: "not_applicable",
+                retry_outcome: "not_attempted",
+              })
               logger.log(
                 `[SESSION CORRUPT] Tool use concurrency error on session "${existingSessionId}", clearing session and notifying frontend`,
               )
@@ -709,6 +727,7 @@ export async function POST(req: NextRequest) {
                 try {
                   await sessionStore.delete(sessionKey)
                 } catch (deleteError) {
+                  logRetryContract({ retry_attempted: true, retry_reason: "stale_session", retry_outcome: "failed" })
                   logger.error("[SESSION RECOVERY] Failed to clear stale session:", deleteError)
                   controller.error(deleteError)
                   return
@@ -717,18 +736,18 @@ export async function POST(req: NextRequest) {
 
                 // Retry without resume - start fresh conversation
                 await runQuery(undefined, undefined)
-                logStaleSessionRetry(true, "success")
+                logRetryContract({ retry_attempted: true, retry_reason: "stale_session", retry_outcome: "success" })
                 controller.close()
                 return
               } catch (retryErr) {
-                logStaleSessionRetry(true, "failed")
+                logRetryContract({ retry_attempted: true, retry_reason: "stale_session", retry_outcome: "failed" })
                 logger.error("[SESSION RECOVERY] Retry failed:", retryErr)
                 controller.error(retryErr)
                 return
               }
             }
 
-            logStaleSessionRetry(false, "not_attempted")
+            logRetryContract({ retry_attempted: false, retry_reason: "not_applicable", retry_outcome: "not_attempted" })
             logger.error("Worker pool query failed:", err)
             controller.error(err)
           }

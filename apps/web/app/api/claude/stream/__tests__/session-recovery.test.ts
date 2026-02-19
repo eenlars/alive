@@ -34,6 +34,12 @@ interface MockWorkerPool {
   query: Mock<(opts: unknown) => Promise<{ success: boolean }>>
 }
 
+interface RetryObservability {
+  retry_attempted: boolean
+  retry_reason: "stale_session" | "stale_message" | "not_applicable"
+  retry_outcome: "success" | "failed" | "not_attempted"
+}
+
 describe("Session Recovery - No conversation found", () => {
   let mockSessionStore: MockSessionStore
   let mockWorkerPool: MockWorkerPool
@@ -69,7 +75,9 @@ describe("Session Recovery - No conversation found", () => {
   async function runQueryWithSessionRecovery(
     existingSessionId: string | null,
     sessionKey: string,
-  ): Promise<{ success: boolean; retried: boolean; error?: string }> {
+  ): Promise<{ success: boolean; retried: boolean; retryContract: RetryObservability | null; error?: string }> {
+    let retryContract: RetryObservability | null = null
+
     const runQuery = async (resumeId: string | undefined) => {
       queryCallCount++
       lastQueryPayload = {
@@ -86,7 +94,7 @@ describe("Session Recovery - No conversation found", () => {
 
     try {
       await runQuery(existingSessionId || undefined)
-      return { success: true, retried: false }
+      return { success: true, retried: false, retryContract: null }
     } catch (err) {
       // This is the exact logic from route.ts
       // The error may come as "Claude Code process exited with code 1" with the actual
@@ -101,23 +109,54 @@ describe("Session Recovery - No conversation found", () => {
       if (isSessionNotFound && existingSessionId && sessionKey) {
         try {
           // Clear stale session from store
-          await mockSessionStore.delete(sessionKey)
+          try {
+            await mockSessionStore.delete(sessionKey)
+          } catch (deleteErr) {
+            retryContract = {
+              retry_attempted: true,
+              retry_reason: "stale_session",
+              retry_outcome: "failed",
+            }
+            return {
+              success: false,
+              retried: true,
+              retryContract,
+              error: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
+            }
+          }
 
           // Retry without resume - start fresh conversation
           await runQuery(undefined)
-          return { success: true, retried: true }
+          retryContract = {
+            retry_attempted: true,
+            retry_reason: "stale_session",
+            retry_outcome: "success",
+          }
+          return { success: true, retried: true, retryContract }
         } catch (retryErr) {
+          retryContract = {
+            retry_attempted: true,
+            retry_reason: "stale_session",
+            retry_outcome: "failed",
+          }
           return {
             success: false,
             retried: true,
+            retryContract,
             error: retryErr instanceof Error ? retryErr.message : String(retryErr),
           }
         }
       }
 
+      retryContract = {
+        retry_attempted: false,
+        retry_reason: "not_applicable",
+        retry_outcome: "not_attempted",
+      }
       return {
         success: false,
         retried: false,
+        retryContract,
         error: errorMessage,
       }
     }
@@ -139,6 +178,11 @@ describe("Session Recovery - No conversation found", () => {
       // Should have retried
       expect(result.success).toBe(true)
       expect(result.retried).toBe(true)
+      expect(result.retryContract).toEqual({
+        retry_attempted: true,
+        retry_reason: "stale_session",
+        retry_outcome: "success",
+      })
 
       // Should have called query twice
       expect(queryCallCount).toBe(2)
@@ -213,7 +257,31 @@ describe("Session Recovery - No conversation found", () => {
       expect(result.success).toBe(false)
       expect(result.retried).toBe(true)
       expect(result.error).toBe("API rate limit exceeded")
+      expect(result.retryContract).toEqual({
+        retry_attempted: true,
+        retry_reason: "stale_session",
+        retry_outcome: "failed",
+      })
       expect(queryCallCount).toBe(2)
+    })
+
+    it("should emit stale_session failed contract when clearing stale session fails", async () => {
+      const existingSessionId = "stale-session-abc123"
+      const sessionKey = "user::workspace::tab"
+
+      mockWorkerPool.query.mockRejectedValueOnce(new Error("No conversation found"))
+      mockSessionStore.delete.mockRejectedValueOnce(new Error("delete failed"))
+
+      const result = await runQueryWithSessionRecovery(existingSessionId, sessionKey)
+
+      expect(result.success).toBe(false)
+      expect(result.retried).toBe(true)
+      expect(result.error).toBe("delete failed")
+      expect(result.retryContract).toEqual({
+        retry_attempted: true,
+        retry_reason: "stale_session",
+        retry_outcome: "failed",
+      })
     })
   })
 
@@ -242,6 +310,11 @@ describe("Session Recovery - No conversation found", () => {
       expect(result.success).toBe(false)
       expect(result.retried).toBe(false)
       expect(result.error).toBe("API key invalid")
+      expect(result.retryContract).toEqual({
+        retry_attempted: false,
+        retry_reason: "not_applicable",
+        retry_outcome: "not_attempted",
+      })
       expect(queryCallCount).toBe(1)
       expect(mockSessionStore.delete).not.toHaveBeenCalled()
     })
@@ -328,9 +401,16 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
     existingSessionId: string | null,
     sessionKey: string,
     resumeSessionAt: string | undefined,
-  ): Promise<{ success: boolean; retriedWithoutMessage: boolean; retriedWithoutSession: boolean; error?: string }> {
+  ): Promise<{
+    success: boolean
+    retriedWithoutMessage: boolean
+    retriedWithoutSession: boolean
+    retryContract: RetryObservability | null
+    error?: string
+  }> {
     let _retriedWithoutMessage = false
     let _retriedWithoutSession = false
+    let retryContract: RetryObservability | null = null
 
     const runQuery = async (resumeId: string | undefined, resumeAtMessage: string | undefined) => {
       queryCallCount++
@@ -348,7 +428,7 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
 
     try {
       await runQuery(existingSessionId || undefined, resumeSessionAt)
-      return { success: true, retriedWithoutMessage: false, retriedWithoutSession: false }
+      return { success: true, retriedWithoutMessage: false, retriedWithoutSession: false, retryContract: null }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       const stderrMessage = (err as { stderr?: string })?.stderr || ""
@@ -362,7 +442,12 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
         try {
           // Retry with session but WITHOUT resumeSessionAt - start from session beginning
           await runQuery(existingSessionId, undefined)
-          return { success: true, retriedWithoutMessage: true, retriedWithoutSession: false }
+          retryContract = {
+            retry_attempted: true,
+            retry_reason: "stale_message",
+            retry_outcome: "success",
+          }
+          return { success: true, retriedWithoutMessage: true, retriedWithoutSession: false, retryContract }
         } catch (retryErr) {
           // If that also fails, check if it's a session not found error
           const retryErrorMessage = retryErr instanceof Error ? retryErr.message : String(retryErr)
@@ -375,23 +460,55 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
           if (isSessionNotFound) {
             _retriedWithoutSession = true
             try {
-              await mockSessionStore.delete(sessionKey)
+              try {
+                await mockSessionStore.delete(sessionKey)
+              } catch (deleteErr) {
+                retryContract = {
+                  retry_attempted: true,
+                  retry_reason: "stale_message",
+                  retry_outcome: "failed",
+                }
+                return {
+                  success: false,
+                  retriedWithoutMessage: true,
+                  retriedWithoutSession: true,
+                  retryContract,
+                  error: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
+                }
+              }
               await runQuery(undefined, undefined)
-              return { success: true, retriedWithoutMessage: true, retriedWithoutSession: true }
+              retryContract = {
+                retry_attempted: true,
+                retry_reason: "stale_message",
+                retry_outcome: "success",
+              }
+              return { success: true, retriedWithoutMessage: true, retriedWithoutSession: true, retryContract }
             } catch (finalErr) {
+              retryContract = {
+                retry_attempted: true,
+                retry_reason: "stale_message",
+                retry_outcome: "failed",
+              }
               return {
                 success: false,
                 retriedWithoutMessage: true,
                 retriedWithoutSession: true,
+                retryContract,
                 error: finalErr instanceof Error ? finalErr.message : String(finalErr),
               }
             }
           }
 
+          retryContract = {
+            retry_attempted: true,
+            retry_reason: "stale_message",
+            retry_outcome: "failed",
+          }
           return {
             success: false,
             retriedWithoutMessage: true,
             retriedWithoutSession: false,
+            retryContract,
             error: retryErrorMessage,
           }
         }
@@ -405,23 +522,55 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
       if (isSessionNotFound && existingSessionId && sessionKey) {
         _retriedWithoutSession = true
         try {
-          await mockSessionStore.delete(sessionKey)
+          try {
+            await mockSessionStore.delete(sessionKey)
+          } catch (deleteErr) {
+            retryContract = {
+              retry_attempted: true,
+              retry_reason: "stale_session",
+              retry_outcome: "failed",
+            }
+            return {
+              success: false,
+              retriedWithoutMessage: false,
+              retriedWithoutSession: true,
+              retryContract,
+              error: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
+            }
+          }
           await runQuery(undefined, undefined)
-          return { success: true, retriedWithoutMessage: false, retriedWithoutSession: true }
+          retryContract = {
+            retry_attempted: true,
+            retry_reason: "stale_session",
+            retry_outcome: "success",
+          }
+          return { success: true, retriedWithoutMessage: false, retriedWithoutSession: true, retryContract }
         } catch (retryErr) {
+          retryContract = {
+            retry_attempted: true,
+            retry_reason: "stale_session",
+            retry_outcome: "failed",
+          }
           return {
             success: false,
             retriedWithoutMessage: false,
             retriedWithoutSession: true,
+            retryContract,
             error: retryErr instanceof Error ? retryErr.message : String(retryErr),
           }
         }
       }
 
+      retryContract = {
+        retry_attempted: false,
+        retry_reason: "not_applicable",
+        retry_outcome: "not_attempted",
+      }
       return {
         success: false,
         retriedWithoutMessage: false,
         retriedWithoutSession: false,
+        retryContract,
         error: errorMessage,
       }
     }
@@ -446,6 +595,11 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
       expect(result.success).toBe(true)
       expect(result.retriedWithoutMessage).toBe(true)
       expect(result.retriedWithoutSession).toBe(false)
+      expect(result.retryContract).toEqual({
+        retry_attempted: true,
+        retry_reason: "stale_message",
+        retry_outcome: "success",
+      })
       expect(queryCallCount).toBe(2)
 
       // Session should NOT be deleted - only the resumeSessionAt is cleared
@@ -499,6 +653,11 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
       expect(result.success).toBe(true)
       expect(result.retriedWithoutMessage).toBe(true)
       expect(result.retriedWithoutSession).toBe(true)
+      expect(result.retryContract).toEqual({
+        retry_attempted: true,
+        retry_reason: "stale_message",
+        retry_outcome: "success",
+      })
       expect(queryCallCount).toBe(3)
 
       // Session should be deleted in the final fallback
@@ -525,7 +684,38 @@ describe("Session Recovery - resumeSessionAt message not found", () => {
       // Should fail without retry since there's no resumeSessionAt to clear
       expect(result.success).toBe(false)
       expect(result.retriedWithoutMessage).toBe(false)
+      expect(result.retryContract).toEqual({
+        retry_attempted: false,
+        retry_reason: "not_applicable",
+        retry_outcome: "not_attempted",
+      })
       expect(queryCallCount).toBe(1)
+    })
+
+    it("should emit stale_message failed contract when session clear fails during cascade recovery", async () => {
+      const existingSessionId = "stale-session-abc123"
+      const sessionKey = "user::workspace::tab"
+      const staleMessageId = "stale-message-id"
+
+      const messageNotFoundError = Object.assign(new Error("Claude Code process exited with code 1"), {
+        stderr: `No message found with message.uuid of: ${staleMessageId}\n`,
+      })
+      const sessionNotFoundError = new Error("No conversation found with session ID stale-session-abc123")
+
+      mockWorkerPool.query.mockRejectedValueOnce(messageNotFoundError).mockRejectedValueOnce(sessionNotFoundError)
+      mockSessionStore.delete.mockRejectedValueOnce(new Error("delete failed"))
+
+      const result = await runQueryWithMessageRecovery(existingSessionId, sessionKey, staleMessageId)
+
+      expect(result.success).toBe(false)
+      expect(result.retriedWithoutMessage).toBe(true)
+      expect(result.retriedWithoutSession).toBe(true)
+      expect(result.error).toBe("delete failed")
+      expect(result.retryContract).toEqual({
+        retry_attempted: true,
+        retry_reason: "stale_message",
+        retry_outcome: "failed",
+      })
     })
   })
 })
@@ -655,5 +845,37 @@ describe("Message Recovery - Error Detection Patterns", () => {
     expect(isMessageNotFoundError("API key invalid")).toBe(false)
     expect(isMessageNotFoundError("Rate limit exceeded")).toBe(false)
     expect(isMessageNotFoundError("message delivery failed")).toBe(false) // different "message"
+  })
+})
+
+describe("Retry Observability - Non-Retry Paths", () => {
+  function getToolConcurrencyRetryContract(
+    combinedMessage: string,
+    existingSessionId: string | null,
+    sessionKey: string,
+  ): RetryObservability | null {
+    const isToolConcurrency = combinedMessage.includes("tool use concurrency")
+    if (isToolConcurrency && existingSessionId && sessionKey) {
+      return {
+        retry_attempted: false,
+        retry_reason: "not_applicable",
+        retry_outcome: "not_attempted",
+      }
+    }
+    return null
+  }
+
+  it("should emit non-retry contract for tool concurrency session-corrupt path", () => {
+    const contract = getToolConcurrencyRetryContract(
+      "400 Bad Request: tool use concurrency violation",
+      "existing-session-id",
+      "user::workspace::tab",
+    )
+
+    expect(contract).toEqual({
+      retry_attempted: false,
+      retry_reason: "not_applicable",
+      retry_outcome: "not_attempted",
+    })
   })
 })
