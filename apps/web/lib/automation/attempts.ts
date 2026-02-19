@@ -153,6 +153,8 @@ interface WorkerPoolParams extends ExecutionParams {
   workspace: string
   userId: string
   oauthAccessToken: string
+  /** Enable superadmin tool policy for alive workspace automations */
+  enableSuperadminTools?: boolean
   /** Session cookie for authenticating API callbacks (e.g. restart_dev_server) */
   sessionCookie?: string
 }
@@ -183,17 +185,24 @@ export async function tryWorkerPool(params: WorkerPoolParams): Promise<AttemptRe
     workspaceKey: workspace,
   }
 
-  const allowedTools = Array.from(new Set([...getAllowedTools(cwd, false, false), ...(extraTools ?? [])]))
+  const useSuperadminTools = params.enableSuperadminTools === true
+
+  const allowedTools = Array.from(
+    new Set([
+      ...getAllowedTools(cwd, useSuperadminTools, useSuperadminTools, useSuperadminTools),
+      ...(extraTools ?? []),
+    ]),
+  )
 
   const agentConfig = {
     allowedTools,
-    disallowedTools: getDisallowedTools(false, false),
+    disallowedTools: getDisallowedTools(useSuperadminTools, useSuperadminTools, false, useSuperadminTools),
     permissionMode: PERMISSION_MODE,
     settingSources: SETTINGS_SOURCES,
     oauthMcpServers: {} as Record<string, unknown>,
     streamTypes: STREAM_TYPES,
-    isAdmin: false,
-    isSuperadmin: false,
+    isAdmin: useSuperadminTools,
+    isSuperadmin: useSuperadminTools,
     extraTools,
   }
 

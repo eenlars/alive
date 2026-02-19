@@ -10,7 +10,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { claimJob, extractSummary, type FinishHooks, finishJob } from "@webalive/automation-engine"
 import type { AppDatabase } from "@webalive/database"
-import { getServerId } from "@webalive/shared"
+import { getServerId, isAliveWorkspace } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { broadcastAutomationEvent } from "@/app/api/automations/events/route"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -60,8 +60,9 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "automation" } })
     }
 
-    // Verify ownership
-    if (job.user_id !== user.id) {
+    // Verify ownership (superadmins can trigger any alive workspace job)
+    const jobHostname = (job.domains as { hostname?: string } | null)?.hostname
+    if (job.user_id !== user.id && !(jobHostname && isAliveWorkspace(jobHostname) && user.isSuperadmin)) {
       return structuredErrorResponse(ErrorCodes.ORG_ACCESS_DENIED, { status: 403 })
     }
 

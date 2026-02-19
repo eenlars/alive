@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { resolveTemplatePath } from "../config"
+import { isAliveWorkspace, resolveTemplatePath, SUPERADMIN } from "../config"
 
 describe("resolveTemplatePath", () => {
   // In test environment, TEMPLATES_ROOT defaults to "/srv/webalive/templates"
@@ -44,5 +44,23 @@ describe("resolveTemplatePath", () => {
 
   it("throws for trailing slash (empty last segment)", () => {
     expect(() => resolveTemplatePath("/foo/bar/")).toThrow("Invalid template source_path")
+  })
+})
+
+describe("isAliveWorkspace", () => {
+  it("returns true for the alive workspace name", () => {
+    expect(isAliveWorkspace(SUPERADMIN.WORKSPACE_NAME)).toBe(true)
+    expect(isAliveWorkspace("alive")).toBe(true)
+  })
+
+  it("returns false for regular site hostnames", () => {
+    expect(isAliveWorkspace("example.com")).toBe(false)
+    expect(isAliveWorkspace("test.alive.best")).toBe(false)
+    expect(isAliveWorkspace("")).toBe(false)
+  })
+
+  it("is case-sensitive", () => {
+    expect(isAliveWorkspace("Alive")).toBe(false)
+    expect(isAliveWorkspace("ALIVE")).toBe(false)
   })
 })

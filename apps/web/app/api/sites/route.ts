@@ -5,11 +5,13 @@
  * Returns domain_id and hostname for use in automation configuration.
  */
 
+import { isAliveWorkspace, SUPERADMIN } from "@webalive/shared"
 import { protectedRoute } from "@/features/auth/lib/protectedRoute"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { alrighty } from "@/lib/api/server"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createRLSAppClient, createRLSIamClient } from "@/lib/supabase/server-rls"
+import { createServiceAppClient } from "@/lib/supabase/service"
 
 export const GET = protectedRoute(async ({ user, req }) => {
   const { searchParams } = new URL(req.url)
@@ -49,6 +51,28 @@ export const GET = protectedRoute(async ({ user, req }) => {
         hostname: d.hostname,
         org_id: d.org_id as string, // filtered above
       })) || []
+
+  // For superadmins, include the alive platform domain (if not already present)
+  if (user.isSuperadmin && !sites.some(s => isAliveWorkspace(s.hostname))) {
+    const serviceApp = createServiceAppClient()
+    const { data: aliveDomain, error: aliveDomainError } = await serviceApp
+      .from("domains")
+      .select("domain_id, hostname, org_id")
+      .eq("hostname", SUPERADMIN.WORKSPACE_NAME)
+      .maybeSingle()
+
+    if (aliveDomainError) {
+      console.error("[Sites API] Failed to load alive workspace domain:", aliveDomainError)
+    }
+
+    if (aliveDomain?.org_id && (!orgId || aliveDomain.org_id === orgId)) {
+      sites.unshift({
+        id: aliveDomain.domain_id,
+        hostname: aliveDomain.hostname,
+        org_id: aliveDomain.org_id,
+      })
+    }
+  }
 
   return alrighty("sites", { sites })
 })
