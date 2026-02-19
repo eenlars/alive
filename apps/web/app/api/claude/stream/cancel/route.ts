@@ -128,13 +128,29 @@ export async function POST(req: NextRequest) {
     console.log("[Cancel Stream] User authenticated:", user.id)
 
     // Parse request body
-    const body = await req.json()
-    const { requestId, tabId, tabGroupId, clientStack } = body
+    let body: Record<string, unknown>
+    try {
+      const parsedBody = await req.json()
+      if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+        return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
+          message: "Request body must be a JSON object",
+        })
+      }
+      body = parsedBody
+    } catch {
+      return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
+    }
+
+    const requestId = typeof body.requestId === "string" ? body.requestId : undefined
+    const tabId = typeof body.tabId === "string" ? body.tabId : undefined
+    const tabGroupId = typeof body.tabGroupId === "string" ? body.tabGroupId : undefined
+    const clientStack = typeof body.clientStack === "string" ? body.clientStack : undefined
+    const workspace = typeof body.workspace === "string" ? body.workspace : undefined
 
     // Validate and normalize worktree to prevent session key corruption
     // A malformed worktree containing "::" would break parseKey() in sessionStore
-    let worktree: string | undefined = body.worktree
-    if (worktree && typeof worktree === "string") {
+    let worktree: string | undefined = typeof body.worktree === "string" ? body.worktree : undefined
+    if (worktree) {
       worktree = normalizeWorktreeSlug(worktree)
       if (!WORKTREE_SLUG_REGEX.test(worktree) || ["user", "worktrees", ".", ".."].includes(worktree)) {
         console.warn(`[Cancel Stream] Invalid worktree slug rejected: ${body.worktree}`)
@@ -144,10 +160,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(
-      "[Cancel Stream] Request body:",
-      JSON.stringify({ requestId, tabId, tabGroupId, workspace: body.workspace, worktree }),
-    )
+    console.log("[Cancel Stream] Request body:", JSON.stringify({ requestId, tabId, tabGroupId, workspace, worktree }))
 
     // Log if client sent a stack trace (for debugging where cancel originated)
     if (clientStack) {
@@ -162,7 +175,7 @@ export async function POST(req: NextRequest) {
       requestId,
       tabId,
       tabGroupId,
-      workspace: body.workspace,
+      workspace,
       worktree,
       userAgent,
       referer,
@@ -173,7 +186,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate: must have either requestId OR (tabId + workspace)
-    if (requestId && typeof requestId === "string") {
+    if (requestId) {
       // Primary path: Cancel by requestId
       console.log(`[Cancel Stream] User ${user.id} cancelling request: ${requestId}`)
 
@@ -205,11 +218,11 @@ export async function POST(req: NextRequest) {
 
         throw error
       }
-    } else if (tabId && typeof tabId === "string") {
+    } else if (tabId) {
       // Fallback path: Cancel by tabId (super-early Stop case)
 
       // tabGroupId is required to build the correct lock key
-      if (!tabGroupId || typeof tabGroupId !== "string") {
+      if (!tabGroupId) {
         console.warn("[Cancel Stream] Missing tabGroupId for tabId fallback cancel")
         return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
           message: "tabGroupId is required when cancelling by tabId",

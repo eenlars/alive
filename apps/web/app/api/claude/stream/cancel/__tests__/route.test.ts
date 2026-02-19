@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import * as auth from "@/features/auth/lib/auth"
 import { tabKey } from "@/features/auth/lib/sessionStore"
 import { getRegistrySize, registerCancellation, unregisterCancellation } from "@/lib/stream/cancellation-registry"
 
@@ -118,6 +119,36 @@ describe("POST /api/claude/stream/cancel", () => {
     expect(response.status).toBe(400)
     expect(data.ok).toBe(false)
     expect(data.message).toContain("Either requestId or tabId is required")
+  })
+
+  it("should return 400 for malformed JSON body", async () => {
+    const req = new Request("http://localhost/api/claude/stream/cancel", {
+      method: "POST",
+      body: "{invalid-json",
+      headers: { "Content-Type": "application/json" },
+    })
+
+    const response = await POST(req as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.ok).toBe(false)
+    expect(data.error).toBe("INVALID_JSON")
+  })
+
+  it("should return 400 when JSON body is not an object", async () => {
+    const req = new Request("http://localhost/api/claude/stream/cancel", {
+      method: "POST",
+      body: JSON.stringify(["not", "an", "object"]),
+      headers: { "Content-Type": "application/json" },
+    })
+
+    const response = await POST(req as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.ok).toBe(false)
+    expect(data.message).toContain("Request body must be a JSON object")
   })
 
   it("should return 403 when cancelling another user's stream", async () => {
@@ -300,6 +331,29 @@ describe("POST /api/claude/stream/cancel", () => {
     expect(response.status).toBe(400)
     expect(data.ok).toBe(false)
     expect(data.message).toContain("tabGroupId is required")
+  })
+
+  it("should return 401 when tabId cancellation workspace access is denied", async () => {
+    const workspaceAccessSpy = vi.spyOn(auth, "verifyWorkspaceAccess").mockResolvedValueOnce(null as unknown as string)
+
+    const req = new Request("http://localhost/api/claude/stream/cancel", {
+      method: "POST",
+      body: JSON.stringify({
+        tabId: "tab-unauthorized",
+        tabGroupId: "11111111-1111-1111-1111-111111111111",
+        workspace: "forbidden-workspace",
+      }),
+      headers: { "Content-Type": "application/json" },
+    })
+
+    const response = await POST(req as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(401)
+    expect(data.ok).toBe(false)
+    expect(data.error).toBe("WORKSPACE_NOT_AUTHENTICATED")
+
+    workspaceAccessSpy.mockRestore()
   })
 
   it("should prefer requestId over tabId when both provided", async () => {
