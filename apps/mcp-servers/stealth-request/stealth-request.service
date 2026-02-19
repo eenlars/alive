@@ -20,8 +20,13 @@ ExecStartPre=/usr/bin/npx puppeteer browsers install chrome
 Environment="PUPPETEER_CACHE_DIR=/root/.cache/puppeteer"
 Environment="NODE_ENV=production"
 
+<<<<<<< Updated upstream
 # Resource limits
 MemoryMax=1536M
+=======
+# Resource limits (3 pooled browsers × ~400MB each + bun overhead)
+MemoryMax=2560M
+>>>>>>> Stashed changes
 CPUQuota=80%
 
 # Logging

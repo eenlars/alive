@@ -1,5 +1,6 @@
 import type { Request, Response, Router } from "express"
 import TurndownService from "turndown"
+import { z } from "zod"
 import { RequestCache } from "../cache"
 import {
   DEFAULT_BATCH_CONCURRENCY,
@@ -197,6 +198,15 @@ export function registerFetchRoutes(router: Router): void {
       const response = await handleFetchRequest(req.body)
       res.json(response)
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        const fields = error.issues.map(i => `${i.path.join(".")}: ${i.message}`)
+        res.status(400).json({
+          success: false,
+          error: "Invalid request parameters",
+          validation: fields,
+        })
+        return
+      }
       console.error(`[${new Date().toISOString()}] Error:`, error)
       res.status(500).json({
         success: false,
@@ -252,6 +262,15 @@ export function registerFetchRoutes(router: Router): void {
 
       res.json({ success: true, results })
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        const fields = error.issues.map(i => `${i.path.join(".")}: ${i.message}`)
+        res.status(400).json({
+          success: false,
+          error: "Invalid request parameters",
+          validation: fields,
+        })
+        return
+      }
       console.error(`[${new Date().toISOString()}] Batch error:`, error)
       res.status(500).json({
         success: false,
