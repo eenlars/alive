@@ -13,7 +13,7 @@ Keep the existing `automation_jobs.site_id` model and add a reserved/synthetic `
 - `apps/web/lib/automation/validation.ts`
 - `packages/shared/src/stream-tools.ts` (workspace path helper)
 - `apps/web/lib/automation/executor.ts`
-- `apps/web/lib/automation/attempts.ts`
+- `apps/web/lib/automation/attempts.ts` (alive superadmin flags, credit-bypass at claim time)
 - `apps/web/components/automations/AutomationSidePanel.tsx`
 - `apps/web/components/automations/tabs/GeneralTab.tsx`
 - `apps/web/app/api/automations/[id]/trigger/route.ts`
@@ -22,7 +22,10 @@ Keep the existing `automation_jobs.site_id` model and add a reserved/synthetic `
 
 ### 1) Reserved Alive Workspace Target
 - Add/ensure a reserved `app.domains` row for `alive` on this server.
+  - Migration must be idempotent (`INSERT … ON CONFLICT DO NOTHING`).
+  - Rollback/down-migration: delete the reserved row only if no `automation_jobs` reference it (`DELETE … WHERE NOT EXISTS (SELECT 1 FROM app.automation_jobs WHERE site_id = …)`).
 - Keep `site_id`/`org_id` schema unchanged in this issue.
+- Alive jobs carry `org_id = NULL` (no real org). All downstream queries, RLS policies, and credit-check logic must handle `NULL org_id` safely (skip credit checks, no org-scoped joins).
 
 ### 2) API Surface
 - `/api/sites`: include `alive` option for superadmins only.
@@ -32,6 +35,8 @@ Keep the existing `automation_jobs.site_id` model and add a reserved/synthetic `
 ### 3) Execution Semantics
 - `workspace === "alive"` resolves to `SUPERADMIN.WORKSPACE_PATH`.
 - Bypass org credit checks for `alive` jobs only.
+  - Bypass eligibility re-confirmed at claim/execution time by comparing `job.site_id` to the reserved alive domain row ID from the database — not a string literal from the job payload.
+  - Bypass condition must not be influenceable by client-supplied data (e.g., `workspace` string from job payload).
 - Preserve existing credit checks for regular sites.
 
 ### 4) Worker Policy
@@ -51,7 +56,7 @@ Keep the existing `automation_jobs.site_id` model and add a reserved/synthetic `
 - Extend `apps/web/lib/automation/__tests__/executor.test.ts`:
   - alive path resolution
   - credit bypass behavior
-- Add worker-pool attempt tests for alive superadmin flags.
+- Add `attempts.ts` / worker-pool tests for alive superadmin flags and claim-time credit-bypass re-validation.
 - Extend trigger route tests for alive job flow.
 
 ## Validation Commands
