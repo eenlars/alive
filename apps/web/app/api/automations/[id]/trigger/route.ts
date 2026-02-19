@@ -60,9 +60,13 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "automation" } })
     }
 
+    // Resolve domain info up front (ownership check + server scoping below)
+    const siteData = job.domains as { hostname?: string; server_id?: string } | null
+    const hostname = siteData?.hostname
+    const siteServerId = siteData?.server_id
+
     // Verify ownership (superadmins can trigger any alive workspace job)
-    const jobHostname = (job.domains as { hostname?: string } | null)?.hostname
-    if (job.user_id !== user.id && !(jobHostname && isAliveWorkspace(jobHostname) && user.isSuperadmin)) {
+    if (job.user_id !== user.id && !(hostname && isAliveWorkspace(hostname) && user.isSuperadmin)) {
       return structuredErrorResponse(ErrorCodes.ORG_ACCESS_DENIED, { status: 403 })
     }
 
@@ -75,9 +79,6 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     }
 
     // Server scoping: verify the job's site belongs to this server
-    const siteData = job.domains as { hostname?: string; server_id?: string } | null
-    const hostname = siteData?.hostname
-    const siteServerId = siteData?.server_id
     const myServerId = getServerId()
 
     if (!hostname) {
