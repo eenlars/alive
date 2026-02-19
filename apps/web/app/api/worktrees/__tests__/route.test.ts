@@ -28,6 +28,18 @@ vi.mock("@/features/chat/lib/workspaceRetriever", () => ({
   getWorkspace: vi.fn(),
 }))
 
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+  withScope: vi.fn((cb: (scope: any) => void) => {
+    const scope = {
+      setTag: vi.fn(),
+      setContext: vi.fn(),
+    }
+    cb(scope)
+    return scope
+  }),
+}))
+
 vi.mock("@/features/worktrees/lib/worktrees", async () => {
   const actual = await vi.importActual<typeof import("@/features/worktrees/lib/worktrees")>(
     "@/features/worktrees/lib/worktrees",
@@ -46,6 +58,7 @@ const { getWorkspace } = await import("@/features/chat/lib/workspaceRetriever")
 const { WorktreeError, listWorktrees, createWorktree, removeWorktree } = await import(
   "@/features/worktrees/lib/worktrees"
 )
+const Sentry = await import("@sentry/nextjs")
 
 const MOCK_USER: SessionUser = {
   id: "user-1",
@@ -345,6 +358,112 @@ describe("/api/worktrees", () => {
       baseWorkspacePath: "/tmp/example/user",
       slug: "feature",
       deleteBranch: true,
+    })
+  })
+
+  describe("WORKTREE_GIT_FAILED error contract", () => {
+    const gitDiagnostics = {
+      operation: "worktree" as const,
+      gitArgs: ["-C", "<workspace>", "worktree", "add", "<workspace>/worktrees/test"],
+      exitCode: 128,
+      stderrTail: "fatal: invalid reference: main",
+    }
+
+    it("returns safe triage details without leaking paths or stderr", async () => {
+      const gitError = new WorktreeError(
+        "WORKTREE_GIT_FAILED",
+        "Git worktree failed (exit 128): fatal: invalid reference: main",
+        gitDiagnostics,
+      )
+      vi.mocked(listWorktrees).mockRejectedValue(gitError)
+
+      const req = createRequest("http://localhost/api/worktrees?workspace=example.com", "GET")
+      const res = await GET(req)
+      const data = await res.json()
+
+      expect(res.status).toBe(500)
+      expect(data.error).toBe(ErrorCodes.WORKTREE_GIT_FAILED)
+      // Safe fields present
+      expect(data.operation).toBe("worktree")
+      expect(data.exitCode).toBe(128)
+      // Unsafe fields absent from response
+      expect(data.stderrTail).toBeUndefined()
+      expect(data.gitArgs).toBeUndefined()
+      // message is the safe user-facing string from error-codes, not raw stderr
+      if (data.message) {
+        expect(data.message).not.toContain("/srv/webalive")
+        expect(data.message).not.toContain("/tmp/example")
+        expect(data.message).not.toContain("fatal:")
+      }
+    })
+
+    it("calls Sentry.withScope with worktree tags and context", async () => {
+      const gitError = new WorktreeError(
+        "WORKTREE_GIT_FAILED",
+        "Git worktree failed (exit 128): fatal: invalid reference: main",
+        gitDiagnostics,
+      )
+      vi.mocked(createWorktree).mockRejectedValue(gitError)
+
+      const req = createRequest("http://localhost/api/worktrees", "POST", {
+        workspace: "example.com",
+        slug: "feature",
+      })
+      await POST(req)
+
+      const withScopeMock = vi.mocked(Sentry.withScope)
+      expect(withScopeMock).toHaveBeenCalled()
+      // Our mock captures the callback and calls it with a mock scope
+      // Extract the scope from the mock's implementation
+      const withScopeImpl = vi.mocked(Sentry.withScope).mock.results[0]
+      const capturedScope = withScopeImpl.value
+      expect(capturedScope.setTag).toHaveBeenCalledWith("worktree.operation", "worktree")
+      expect(capturedScope.setTag).toHaveBeenCalledWith("worktree.exitCode", "128")
+      expect(capturedScope.setContext).toHaveBeenCalledWith(
+        "worktree",
+        expect.objectContaining({
+          workspace: "example.com",
+          slug: "feature",
+          operation: "worktree",
+          exitCode: 128,
+          stderrTail: "fatal: invalid reference: main",
+        }),
+      )
+    })
+
+    it("emits structured JSON log for git failures", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+      const gitError = new WorktreeError(
+        "WORKTREE_GIT_FAILED",
+        "Git worktree failed (exit 128): fatal: invalid reference: main",
+        gitDiagnostics,
+      )
+      vi.mocked(removeWorktree).mockRejectedValue(gitError)
+
+      const req = createRequest("http://localhost/api/worktrees?workspace=example.com&slug=feature", "DELETE")
+      await DELETE(req)
+
+      const logCall = consoleSpy.mock.calls.find(call => {
+        try {
+          const parsed = JSON.parse(call[0] as string)
+          return parsed.event === "WORKTREE_GIT_FAILED"
+        } catch {
+          return false
+        }
+      })
+
+      expect(logCall).toBeDefined()
+      const logData = JSON.parse(logCall![0] as string)
+      expect(logData.level).toBe("error")
+      expect(logData.event).toBe("WORKTREE_GIT_FAILED")
+      expect(logData.method).toBe("DELETE")
+      expect(logData.workspace).toBe("example.com")
+      expect(logData.slug).toBe("feature")
+      expect(logData.operation).toBe("worktree")
+      expect(logData.exitCode).toBe(128)
+      expect(logData.requestId).toBeDefined()
+
+      consoleSpy.mockRestore()
     })
   })
 })

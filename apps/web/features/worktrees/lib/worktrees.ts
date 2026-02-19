@@ -55,12 +55,66 @@ export interface WorktreeListItem {
   head: string | null
 }
 
+export type GitOperation =
+  | "list"
+  | "add"
+  | "remove"
+  | "branch"
+  | "status"
+  | "rev-parse"
+  | "check-ref-format"
+  | "worktree"
+
+export interface GitDiagnostics {
+  operation: GitOperation
+  gitArgs: string[]
+  exitCode: number | null
+  stderrTail: string
+}
+
+const STDERR_TAIL_MAX = 256
+
+function truncateStderr(stderr: string): string {
+  if (stderr.length <= STDERR_TAIL_MAX) return stderr.trim()
+  return stderr.slice(-STDERR_TAIL_MAX).trim()
+}
+
+function sanitizeGitArgs(baseWorkspacePath: string, args: string[]): string[] {
+  return args.map(arg =>
+    arg === baseWorkspacePath
+      ? "<workspace>"
+      : arg.startsWith(baseWorkspacePath)
+        ? arg.replace(baseWorkspacePath, "<workspace>")
+        : arg,
+  )
+}
+
+function classifyGitOperation(args: string[]): GitOperation {
+  const subcommand = args.find(a => !a.startsWith("-") && a !== "-C")
+  switch (subcommand) {
+    case "worktree":
+      return "worktree"
+    case "branch":
+      return "branch"
+    case "status":
+      return "status"
+    case "rev-parse":
+      return "rev-parse"
+    case "check-ref-format":
+      return "check-ref-format"
+    default:
+      return "rev-parse"
+  }
+}
+
 export class WorktreeError extends Error {
   code: string
+  gitDiagnostics: GitDiagnostics | null
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, gitDiagnostics?: GitDiagnostics) {
     super(message)
     this.code = code
+    this.gitDiagnostics = gitDiagnostics ?? null
   }
 }
 
@@ -107,9 +161,16 @@ async function runGit(baseWorkspacePath: string, args: string[], timeout?: numbe
   })
 
   if (!result.success) {
+    const diagnostics: GitDiagnostics = {
+      operation: classifyGitOperation(args),
+      gitArgs: sanitizeGitArgs(baseWorkspacePath, args),
+      exitCode: result.exitCode,
+      stderrTail: truncateStderr(result.stderr),
+    }
     throw new WorktreeError(
       "WORKTREE_GIT_FAILED",
-      `Git failed: git -C ${baseWorkspacePath} ${args.join(" ")}\n${result.stderr}`,
+      `Git ${diagnostics.operation} failed (exit ${diagnostics.exitCode}): ${diagnostics.stderrTail}`,
+      diagnostics,
     )
   }
 

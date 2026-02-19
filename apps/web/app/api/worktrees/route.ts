@@ -3,10 +3,63 @@ import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
-import { createWorktree, listWorktrees, removeWorktree, WorktreeError } from "@/features/worktrees/lib/worktrees"
+import {
+  createWorktree,
+  type GitDiagnostics,
+  listWorktrees,
+  removeWorktree,
+  WorktreeError,
+} from "@/features/worktrees/lib/worktrees"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
+
+function safeGitFailureDetails(
+  diagnostics: GitDiagnostics | null,
+  details?: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...details,
+    ...(diagnostics ? { operation: diagnostics.operation, exitCode: diagnostics.exitCode } : {}),
+  }
+}
+
+function logGitFailure(
+  requestId: string,
+  error: WorktreeError,
+  context: { workspace?: string; slug?: string; method: string },
+) {
+  const diag = error.gitDiagnostics
+  console.error(
+    JSON.stringify({
+      level: "error",
+      event: "WORKTREE_GIT_FAILED",
+      requestId,
+      method: context.method,
+      workspace: context.workspace,
+      slug: context.slug,
+      operation: diag?.operation,
+      exitCode: diag?.exitCode,
+      stderrTail: diag?.stderrTail,
+      gitArgs: diag?.gitArgs,
+    }),
+  )
+
+  Sentry.withScope(scope => {
+    scope.setTag("worktree.operation", diag?.operation ?? "unknown")
+    scope.setTag("worktree.exitCode", String(diag?.exitCode ?? "unknown"))
+    scope.setContext("worktree", {
+      requestId,
+      workspace: context.workspace,
+      slug: context.slug,
+      operation: diag?.operation,
+      exitCode: diag?.exitCode,
+      stderrTail: diag?.stderrTail,
+      gitArgs: diag?.gitArgs,
+    })
+    Sentry.captureException(error)
+  })
+}
 
 function mapWorktreeError(
   error: WorktreeError,
@@ -40,7 +93,11 @@ function mapWorktreeError(
     case "WORKTREE_NOT_GIT":
       return { code: ErrorCodes.WORKTREE_NOT_GIT, status: 404, details }
     case "WORKTREE_GIT_FAILED":
-      return { code: ErrorCodes.WORKTREE_GIT_FAILED, status: 500, details }
+      return {
+        code: ErrorCodes.WORKTREE_GIT_FAILED,
+        status: 500,
+        details: safeGitFailureDetails(error.gitDiagnostics, details),
+      }
     default:
       return {
         code: ErrorCodes.INTERNAL_ERROR,
@@ -90,6 +147,9 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     if (error instanceof WorktreeError) {
+      if (error.code === "WORKTREE_GIT_FAILED") {
+        logGitFailure(requestId, error, { workspace, method: "GET" })
+      }
       const mapped = mapWorktreeError(error, { workspace })
       return createErrorResponse(mapped.code, mapped.status, { requestId, ...mapped.details })
     }
@@ -158,6 +218,9 @@ export async function POST(req: NextRequest) {
     )
   } catch (error) {
     if (error instanceof WorktreeError) {
+      if (error.code === "WORKTREE_GIT_FAILED") {
+        logGitFailure(requestId, error, { workspace: body?.workspace, slug: body?.slug, method: "POST" })
+      }
       const mapped = mapWorktreeError(error, { workspace: body?.workspace, slug: body?.slug })
       return createErrorResponse(mapped.code, mapped.status, { requestId, ...mapped.details })
     }
@@ -215,6 +278,9 @@ export async function DELETE(req: NextRequest) {
     return alrighty("worktrees/delete", {})
   } catch (error) {
     if (error instanceof WorktreeError) {
+      if (error.code === "WORKTREE_GIT_FAILED") {
+        logGitFailure(requestId, error, { workspace, slug, method: "DELETE" })
+      }
       const mapped = mapWorktreeError(error, { workspace, slug })
       return createErrorResponse(mapped.code, mapped.status, { requestId, ...mapped.details })
     }

@@ -292,4 +292,67 @@ describe("worktrees service", () => {
       allowDirty: true,
     })
   })
+
+  it("WORKTREE_GIT_FAILED includes structured gitDiagnostics", async () => {
+    if (!repo) throw new Error("missing repo")
+
+    // Force a git failure by trying to create a worktree from a nonexistent branch
+    // after it passes the assertFromRef check (which uses rev-parse --verify directly).
+    // Instead, corrupt the git state by removing .git/HEAD to trigger runGit failure.
+    const headPath = path.join(repo.baseWorkspacePath, ".git", "HEAD")
+    const headBackup = fs.readFileSync(headPath, "utf8")
+    fs.writeFileSync(headPath, "ref: refs/heads/nonexistent-broken\n")
+
+    let error: WorktreeError | null = null
+    try {
+      await createWorktree({
+        baseWorkspacePath: repo.baseWorkspacePath,
+        slug: "diag-test",
+      })
+    } catch (err) {
+      if (err instanceof WorktreeError) error = err
+      else throw err
+    } finally {
+      // Restore HEAD so cleanup works
+      fs.writeFileSync(headPath, headBackup)
+    }
+
+    expect(error).not.toBeNull()
+    expect(error!.code).toBe("WORKTREE_GIT_FAILED")
+    expect(error!.gitDiagnostics).not.toBeNull()
+
+    const diag = error!.gitDiagnostics!
+    expect(diag.operation).toBeDefined()
+    expect(typeof diag.exitCode).toBe("number")
+    expect(typeof diag.stderrTail).toBe("string")
+    expect(Array.isArray(diag.gitArgs)).toBe(true)
+  })
+
+  it("gitDiagnostics does not leak absolute workspace paths", async () => {
+    if (!repo) throw new Error("missing repo")
+
+    const headPath = path.join(repo.baseWorkspacePath, ".git", "HEAD")
+    const headBackup = fs.readFileSync(headPath, "utf8")
+    fs.writeFileSync(headPath, "ref: refs/heads/nonexistent-broken\n")
+
+    let error: WorktreeError | null = null
+    try {
+      await createWorktree({
+        baseWorkspacePath: repo.baseWorkspacePath,
+        slug: "leak-test",
+      })
+    } catch (err) {
+      if (err instanceof WorktreeError) error = err
+      else throw err
+    } finally {
+      fs.writeFileSync(headPath, headBackup)
+    }
+
+    expect(error).not.toBeNull()
+    const diag = error!.gitDiagnostics!
+    // gitArgs should have <workspace> placeholder, not the real path
+    for (const arg of diag.gitArgs) {
+      expect(arg).not.toContain(repo.baseWorkspacePath)
+    }
+  })
 })
