@@ -31,6 +31,7 @@ import { cancelStream, cancelStreamByConversationKey } from "@/lib/stream/cancel
 
 // Debug logging to file for cancel investigation
 const CANCEL_DEBUG_LOG = "/var/log/alive/cancel-debug.log"
+let cancelDebugLogFileEnabled = true
 
 interface CancelDebugEntry {
   timestamp: string
@@ -51,6 +52,10 @@ interface CancelDebugEntry {
 }
 
 function logCancelDebug(entry: CancelDebugEntry): void {
+  if (!cancelDebugLogFileEnabled) {
+    return
+  }
+
   try {
     // Ensure log directory exists
     mkdirSync("/var/log/alive", { recursive: true })
@@ -59,7 +64,8 @@ function logCancelDebug(entry: CancelDebugEntry): void {
     appendFileSync(CANCEL_DEBUG_LOG, logLine)
   } catch (err) {
     // Don't let logging failures break the endpoint
-    console.error("[Cancel Debug] Failed to write to log file:", err)
+    cancelDebugLogFileEnabled = false
+    console.error("[Cancel Debug] Failed to write to log file, disabling file logging for this process:", err)
     Sentry.captureException(err)
   }
 }
