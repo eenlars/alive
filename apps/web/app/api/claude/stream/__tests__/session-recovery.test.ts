@@ -11,6 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest"
+import type { RetryObservability } from "../retry-observability"
 
 // Types for our mocks
 interface MockQueryOptions {
@@ -32,12 +33,6 @@ interface MockSessionStore {
 
 interface MockWorkerPool {
   query: Mock<(opts: unknown) => Promise<{ success: boolean }>>
-}
-
-interface RetryObservability {
-  retry_attempted: boolean
-  retry_reason: "stale_session" | "stale_message" | "not_applicable"
-  retry_outcome: "success" | "failed" | "not_attempted"
 }
 
 describe("Session Recovery - No conversation found", () => {
