@@ -2,7 +2,6 @@ import type { Request, Response, Router } from "express"
 import TurndownService from "turndown"
 import { z } from "zod"
 import { RequestCache } from "../cache"
-import { Sentry } from "../sentry"
 import {
   DEFAULT_BATCH_CONCURRENCY,
   DEFAULT_RETRY_COUNT,
@@ -11,6 +10,7 @@ import {
   RETRY_MAX_DELAY_MS,
 } from "../constants"
 import { stealthRequest } from "../index"
+import { Sentry } from "../sentry"
 import { type RequestConfig, type RequestResponse, RequestSchema } from "../types"
 
 // Initialize Turndown for HTML to Markdown conversion

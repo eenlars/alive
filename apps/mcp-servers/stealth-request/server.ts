@@ -2,12 +2,12 @@ import cors from "cors"
 import type { Request, Response } from "express"
 import express from "express"
 import { browserPool } from "./src/browser-pool"
-import { Sentry } from "./src/sentry"
 import { registerAnalyzeJsRoutes } from "./src/routes/analyze-js"
 import { registerDetectFrameworkRoutes } from "./src/routes/detect-framework"
 import { registerDiscoverRoutes } from "./src/routes/discover"
 import { registerFetchRoutes } from "./src/routes/fetch"
 import { registerReconRoutes } from "./src/routes/recon"
+import { Sentry } from "./src/sentry"
 
 // Require puppeteer cache directory
 if (!process.env.PUPPETEER_CACHE_DIR) {
@@ -33,6 +33,9 @@ registerDiscoverRoutes(app, {
   port: PORT,
   publicUrl: `https://${process.env.STEALTH_PUBLIC_HOST ?? "scrape.alive.best"}`,
 })
+
+// Sentry Express error handler — catches unhandled route errors
+Sentry.setupExpressErrorHandler(app)
 
 const HOST = "127.0.0.1"
 app.listen(PORT, HOST, async () => {
