@@ -1,5 +1,6 @@
 import type { Request, Response, Router } from "express"
 import TurndownService from "turndown"
+import { z } from "zod"
 import { RequestCache } from "../cache"
 import {
   DEFAULT_BATCH_CONCURRENCY,
@@ -9,6 +10,7 @@ import {
   RETRY_MAX_DELAY_MS,
 } from "../constants"
 import { stealthRequest } from "../index"
+import { Sentry } from "../sentry"
 import { type RequestConfig, type RequestResponse, RequestSchema } from "../types"
 
 // Initialize Turndown for HTML to Markdown conversion
@@ -92,6 +94,10 @@ function buildRequestConfig(params: Record<string, unknown>): RequestConfig {
     normalized.method = normalized.method.toUpperCase()
   } else if (!normalized.method) {
     normalized.method = "GET"
+  }
+  // Drop body for GET requests — bad clients may send empty string or junk
+  if (normalized.method === "GET" && normalized.body !== undefined) {
+    delete normalized.body
   }
   return RequestSchema.parse(normalized)
 }
@@ -197,7 +203,16 @@ export function registerFetchRoutes(router: Router): void {
       const response = await handleFetchRequest(req.body)
       res.json(response)
     } catch (error) {
-      console.error(`[${new Date().toISOString()}] Error:`, error)
+      if (error instanceof z.ZodError) {
+        const fields = error.issues.map(i => `${i.path.join(".")}: ${i.message}`)
+        res.status(400).json({
+          success: false,
+          error: "Invalid request parameters",
+          validation: fields,
+        })
+        return
+      }
+      Sentry.captureException(error, { tags: { route: "/fetch" } })
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -252,7 +267,16 @@ export function registerFetchRoutes(router: Router): void {
 
       res.json({ success: true, results })
     } catch (error) {
-      console.error(`[${new Date().toISOString()}] Batch error:`, error)
+      if (error instanceof z.ZodError) {
+        const fields = error.issues.map(i => `${i.path.join(".")}: ${i.message}`)
+        res.status(400).json({
+          success: false,
+          error: "Invalid request parameters",
+          validation: fields,
+        })
+        return
+      }
+      Sentry.captureException(error, { tags: { route: "/fetch-batch" } })
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error occurred",
