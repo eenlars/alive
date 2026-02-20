@@ -347,6 +347,12 @@ export async function POST(req: NextRequest) {
       logger.log("Stream buffer creation failed (non-fatal):", bufferError)
     }
 
+    // Session resume flow:
+    // 1. Look up SDK session ID from our Supabase store (keyed by user+workspace+tab)
+    // 2. Pass it as `resume` to the worker pool → SDK resumes the conversation
+    // 3. SDK loads the session JSONL from CLAUDE_CONFIG_DIR/projects/
+    // 4. If the JSONL file is missing, SDK throws "No conversation found"
+    //    → caught below in SESSION RECOVERY, clears stale ID, retries fresh
     timing("before_session_lookup")
     logger.log(`[SESSION DEBUG] Looking up session for key: ${sessionKey}`)
     let existingSessionId: string | null
@@ -718,7 +724,15 @@ export async function POST(req: NextRequest) {
               return
             }
 
-            // Existing: Check for "session not found" error (stale session ID)
+            // Session recovery: The SDK stores session JSONL files at
+            // CLAUDE_CONFIG_DIR/projects/<hash>/<session-id>.jsonl. If those files
+            // are lost (permissions issue, disk cleanup, SDK update), the SDK
+            // returns "No conversation found" even though our Supabase session
+            // store has a valid session ID. When this happens, clear the stale
+            // ID from our store and start a fresh conversation.
+            //
+            // Common cause: worker-entry.mjs projects/ dir permissions (see
+            // the SESSION PERSISTENCE ARCHITECTURE comment there).
             const isSessionNotFound =
               combinedMessage.includes("No conversation found") ||
               (combinedMessage.includes("session") && combinedMessage.includes("not found"))

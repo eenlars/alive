@@ -293,7 +293,11 @@ async function processChildEvent(
   capturedAssistantErrorTypes: Set<string>,
   onMessage?: (message: StreamMessage | BridgeErrorMessage) => void,
 ): Promise<{ isComplete: boolean }> {
-  // Handle session ID storage (server-side only)
+  // Store SDK session ID in Supabase so the next message can resume this
+  // conversation. The SDK also writes the session to disk as a JSONL file
+  // at CLAUDE_CONFIG_DIR/projects/<hash>/<session-id>.jsonl — both must
+  // exist for resume to work. If the JSONL file is missing (e.g. due to
+  // permissions), the session ID here becomes stale and route.ts clears it.
   if (childEvent.type === "stream_session" && childEvent.sessionId) {
     console.log(
       `[NDJSON Stream ${requestId}] [SESSION DEBUG] Received stream_session event, sessionId: ${childEvent.sessionId}`,
