@@ -9,9 +9,16 @@ PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 cd "$PROJECT_ROOT"
 
-echo "📦 Installing git hooks..."
+# Husky manages hooks via core.hooksPath — skip manual install
+HOOKS_PATH="$(git config core.hooksPath 2>/dev/null || true)"
+if [ -n "$HOOKS_PATH" ]; then
+    echo "✅ Git hooks managed by Husky (core.hooksPath=$HOOKS_PATH)"
+    exit 0
+fi
 
-# Resolve the common git directory (shared across worktrees; hooks live here)
+echo "📦 Installing git hooks (no Husky detected)..."
+
+# Resolve the common git directory (shared across worktrees)
 GIT_DIR="$(git rev-parse --git-common-dir)"
 HOOKS_DIR="$GIT_DIR/hooks"
 mkdir -p "$HOOKS_DIR"
