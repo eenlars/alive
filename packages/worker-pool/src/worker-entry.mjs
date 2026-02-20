@@ -16,7 +16,7 @@
  *   WORKER_WORKSPACE_KEY - Workspace identifier
  */
 
-import { chownSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
+import { chmodSync, chownSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
 import { createConnection } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -303,15 +303,54 @@ function dropPrivileges() {
     }
   }
 
-  // Set up HOME directory for Claude session persistence
-  // Uses stable directory per workspace so sessions survive worker restarts
+  // === SESSION PERSISTENCE ARCHITECTURE ===
+  //
+  // The Claude Agent SDK persists conversations as JSONL files on disk.
+  // Two directories are involved:
+  //
+  //   1. CLAUDE_CONFIG_DIR (e.g. /root/.claude)
+  //      - Contains credentials (.credentials.json), settings, and the
+  //        `projects/` subdirectory where session JSONL files are stored.
+  //      - Path: CLAUDE_CONFIG_DIR/projects/<hash-of-cwd>/<session-id>.jsonl
+  //      - Must point to a real .claude dir with valid credentials.
+  //
+  //   2. HOME (per-workspace)
+  //      - The SDK also uses HOME for temp files and caching.
+  //      - Each workspace gets a stable HOME so sessions survive restarts.
+  //
+  // CRITICAL BUG FIX (2026-02-20):
+  //   Workers start as root, then drop privileges to workspace users (e.g.
+  //   site-mysite-com, uid 993). After the drop, the worker can no longer
+  //   write to /root/.claude/projects/ if it's owned by root with mode 0700.
+  //   The SDK silently fails to save session files, so `resume` calls fail
+  //   with "No conversation found with session ID: <id>".
+  //
+  //   The session recovery code in route.ts then retries WITHOUT resume,
+  //   starting a fresh conversation — making it look like Claude "forgot"
+  //   the previous context. The symptom is subtle: no errors in the UI,
+  //   just lost context.
+  //
+  //   Fix: Set projects/ to mode 1777 (world-writable + sticky bit, like
+  //   /tmp) so all workspace users can create session subdirectories.
+  //
+  // HOW TO DEBUG SESSION ISSUES:
+  //   1. Check SDK debug logs: /root/.claude/debug/<session-id>.txt
+  //      Look for EACCES or permission denied errors.
+  //   2. Check permissions: ls -la /root/.claude/projects/
+  //      Should be drwxrwxrwt (1777). If it's drwx------ (0700), that's the bug.
+  //   3. Check route.ts logs: grep "SESSION RECOVERY" in journalctl output.
+  //      If you see "Session not found, clearing and retrying", sessions
+  //      aren't persisting on disk.
+  //   4. Verify session files exist:
+  //      find /root/.claude/projects/ -name "*.jsonl" -ls
+  //
   const originalHome = process.env.HOME || "/root"
   const workspaceKey = process.env.WORKER_WORKSPACE_KEY
 
-  // CRITICAL: Set CLAUDE_CONFIG_DIR to a single source of truth for credentials
-  // Prefer a pre-set CLAUDE_CONFIG_DIR (if provided by the service),
-  // otherwise default to /root/.claude.
-  // Sessions (conversation history) still persist per-workspace via HOME.
+  // CLAUDE_CONFIG_DIR must point to a directory with valid SDK credentials.
+  // We use /root/.claude (shared across all workers). Do NOT set this to a
+  // per-workspace directory — the SDK needs .credentials.json and settings
+  // from here to function at all.
   const configuredClaudeDir = process.env.CLAUDE_CONFIG_DIR
   const defaultClaudeDir = join(originalHome, ".claude")
   if (configuredClaudeDir?.startsWith("/")) {
@@ -321,6 +360,20 @@ function dropPrivileges() {
       console.error(`[worker] Ignoring invalid CLAUDE_CONFIG_DIR (must be absolute): ${configuredClaudeDir}`)
     }
     process.env.CLAUDE_CONFIG_DIR = defaultClaudeDir
+  }
+
+  // Self-healing: ensure projects/ dir exists with correct permissions on
+  // every worker init. This guards against permission drift (e.g. SDK
+  // recreating the dir with restrictive perms after an update).
+  const configProjectsDir = join(process.env.CLAUDE_CONFIG_DIR, "projects")
+  try {
+    if (!existsSync(configProjectsDir)) {
+      mkdirSync(configProjectsDir, { recursive: true, mode: 0o1777 })
+    } else {
+      chmodSync(configProjectsDir, 0o1777)
+    }
+  } catch (e) {
+    console.error(`[worker] Failed to ensure projects dir permissions: ${e.message}`)
   }
 
   // Try to use stable session home for this workspace
@@ -336,10 +389,6 @@ function dropPrivileges() {
       mkdirSync(claudeDir, { mode: 0o700 })
       chownSync(claudeDir, targetUid, targetGid)
     }
-
-    // Note: Credentials are NOT copied here anymore.
-    // CLAUDE_CONFIG_DIR points to /root/.claude/ so all workers share one credentials file.
-    // This ensures token refreshes from /login are immediately visible to all workers.
 
     // Skills are superadmin-only and read directly from the repo.
     // Superadmin workers (uid 0) already have access via /root/.claude/skills/.
