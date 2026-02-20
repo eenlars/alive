@@ -7,27 +7,34 @@ description: Fetch and fix unresolved CodeRabbit review comments on the current 
 
 Fetch **only unresolved** CodeRabbit comments on the current PR, fix them, resolve the threads, **prove every test plan item passes**, fix all user comments, and ensure CI passes.
 
-## Step 1: Get PR number
+## Step 1: Get PR number and repo info
 
 ```bash
 gh pr view --json number,headRefName --jq '{number, headRefName}'
+gh repo view --json owner,name --jq '{owner: .owner.login, repo: .name}'
 ```
 
-## Step 2: Fetch PR body (test plan + user comments)
+Store the `OWNER`, `REPO`, and `PR_NUMBER` values — all subsequent commands use them.
 
-Fetch the PR description and all comments to find:
-1. **Test plan checkboxes** — unchecked `- [ ]` items that MUST be verified
-2. **User comments** — feedback from the PR author (non-bot comments)
+## Step 2: Fetch PR body (test plan)
 
 ```bash
-gh pr view <PR_NUMBER> --json body,comments --jq '{body, comments: [.comments[] | select(.author.login != "coderabbitai") | {author: .author.login, body: .body}]}'
+gh pr view <PR_NUMBER> --json body --jq '.body'
 ```
 
 **Extract all unchecked test plan items** from the PR body (lines matching `- [ ]`). These are your verification targets — every single one must be proven.
 
-**Extract user comments** — these are direct requests from the PR author. They take PRIORITY over CodeRabbit suggestions. Fix them first.
+## Step 3: Fetch user comments, unresolved threads, and CI status (all in parallel)
 
-## Step 3: Fetch unresolved threads + CI status (in parallel)
+### User comments
+
+**CRITICAL: Use the `filter-comments.jq` file** to avoid bash escaping issues with `!=`.
+
+```bash
+gh api repos/<OWNER>/<REPO>/issues/<PR_NUMBER>/comments | jq -f .claude/skills/coderabbit/filter-comments.jq
+```
+
+### Unresolved CodeRabbit threads
 
 **CRITICAL: Always use the `filter-threads.jq` file to filter the GraphQL response.** The raw response contains ALL threads (resolved + unresolved) with verbose comment bodies. The jq filter:
 - Keeps only unresolved coderabbitai threads
@@ -35,31 +42,14 @@ gh pr view <PR_NUMBER> --json body,comments --jq '{body, comments: [.comments[] 
 - Strips HTML comments, "Prompt for AI Agents" blocks, "Learnings used" blocks, and "Analysis chain" blocks
 
 ```bash
-gh api graphql -f query='
-query {
-  repository(owner: "eenlars", name: "alive") {
-    pullRequest(number: <PR_NUMBER>) {
-      reviewThreads(first: 50) {
-        nodes {
-          id
-          isResolved
-          comments(first: 5) {
-            nodes {
-              body
-              path
-              line
-              databaseId
-              author { login }
-            }
-          }
-        }
-      }
-    }
-  }
-}' | jq -f .claude/skills/coderabbit/filter-threads.jq
+gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:50){nodes{id isResolved comments(first:5){nodes{body path line databaseId author{login}}}}}}}}' -f owner=<OWNER> -f repo=<REPO> -F pr=<PR_NUMBER> | jq -f .claude/skills/coderabbit/filter-threads.jq
 ```
 
-Run `gh pr checks <PR_NUMBER>` in parallel with the above.
+### CI status
+
+```bash
+gh pr checks <PR_NUMBER>
+```
 
 ## Step 4: Fix user comments FIRST
 
@@ -85,19 +75,14 @@ For each unresolved CodeRabbit comment:
 ### How to reply to a comment
 
 ```bash
-gh api repos/eenlars/alive/pulls/<PR_NUMBER>/comments/<COMMENT_ID>/replies \
+gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments/<COMMENT_ID>/replies \
   -f body="Your reply explaining why you disagree or what you did instead"
 ```
 
 ### How to resolve a thread
 
 ```bash
-gh api graphql -f query='
-mutation {
-  resolveReviewThread(input: {threadId: "<THREAD_ID>"}) {
-    thread { isResolved }
-  }
-}'
+gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id="<THREAD_ID>"
 ```
 
 ## Step 6: Prove every test plan item
@@ -127,11 +112,10 @@ For each test plan item, you must provide **proof** using one or more of these m
 Check the box in the PR description by updating the PR body:
 
 ```bash
-# Get current body, replace "- [ ] item text" with "- [x] item text", update PR
 gh pr view <PR_NUMBER> --json body --jq '.body' > /tmp/pr-body.md
 # Edit the file to check boxes
 sed -i 's/- \[ \] Exact item text/- [x] Exact item text/' /tmp/pr-body.md
-gh pr edit <PR_NUMBER> --body-file /tmp/pr-body.md
+gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER> -X PATCH -F "body=@/tmp/pr-body.md" --jq '.body' | head -15
 ```
 
 **If a test plan item CANNOT be proven** (e.g., requires manual browser testing, production access, etc.):
@@ -144,7 +128,7 @@ gh pr edit <PR_NUMBER> --body-file /tmp/pr-body.md
 Before verifying fixes, check if the PR has merge conflicts:
 
 ```bash
-gh pr view <PR_NUMBER> --json mergeable,mergeStateStatus
+gh pr view <PR_NUMBER> --json mergeable,mergeStateStatus --jq '{mergeable, mergeStateStatus}'
 ```
 
 If `mergeable` is `CONFLICTING`:
@@ -198,6 +182,8 @@ Report what was done:
 ## Rules
 
 - **ALWAYS use filter-threads.jq** — never dump raw GraphQL thread responses into context
+- **ALWAYS use filter-comments.jq** — never use `!=` in jq within bash (causes `\!` escaping errors)
+- **ALWAYS use GraphQL variables** — never hardcode owner/repo in query strings
 - **User comments are #1 priority** — fix them before CodeRabbit suggestions
 - **Always resolve threads** — even if you disagree, explain and resolve (no stale threads)
 - **Every test plan item needs proof** — "I looked at the code and it seems fine" is NOT proof. Test it, call it, or show structurally why it's guaranteed
@@ -207,3 +193,4 @@ Report what was done:
 - **Check CI** — the PR isn't done until CI is green
 - **Check merge conflicts** — resolve before pushing
 - **Always commit and push** — don't leave fixes uncommitted
+- **Use REST API for PR body updates** — `gh pr edit --body-file` fails with Projects Classic deprecation; use `gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER> -X PATCH -F "body=@file"` instead
