@@ -4,7 +4,7 @@
 
 - [ ] Install `@openai/codex-sdk` in worker-pool package
 - [ ] Verify `codex` CLI binary is available at worker runtime (fase_1/08)
-- [ ] Test `config.system_message` via SDK — does it actually reach the Codex agent? (fase_1/11)
+- [ ] Test `config.developer_instructions` via SDK — does it actually reach the Codex agent? (fase_1/13, fase_3/05 Test 1) — **BLOCKER**
 - [ ] Test MCP server config via project-level `.codex/config.toml` in a scratch workspace
 
 ## Phase 1: MCP Refactoring (~16h) — THE BLOCKER

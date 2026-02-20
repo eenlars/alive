@@ -78,7 +78,21 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
 - Can `CODEX_HOME` be set to a per-workspace path without breaking Codex binary resolution?
 
 
+## Resolved Open Questions (Feb 19)
+- **Input delivery mechanism**: User prompts are sent via stdin to `codex exec`, NOT as CLI args. Safe for large/special-character prompts. (fase_2/32)
+- **Config flattening confirmed**: `CodexOptions.config` objects are serialized to `--config key=value` TOML args via `serializeConfigOverrides()`. Nested objects use dotted paths. (fase_1/15)
+- **`developer_instructions` delivery**: Passed as `--config developer_instructions="..."` CLI arg. Still needs runtime verification (fase_3/05 Test 1).
+
 ## Log
+- **2026-02-19 23:58** — Ninth (final) research iteration:
+  - Re-verified all SDK source files against latest main (fase_1/15). No API changes since Feb 18.
+  - **Confirmed config flattening mechanism** in exec.ts — `CodexOptions.config` is serialized to `--config key=value` TOML format. `developer_instructions` can be passed this way.
+  - **Confirmed stdin input delivery** — user prompts written to child process stdin, not CLI args. No escaping issues. (fase_2/32)
+  - Graceful degradation strategy (fase_2/29) — binary not found, auth failure, rate limits, CLI crashes, MCP server failures. Provider fallback is v2.
+  - Concurrency & worker pool analysis (fase_2/30) — 3-level process tree (manager→worker→CLI), resource implications, MCP server scaling, rate limit sharing, cleanup strategy.
+  - Logging & debugging (fase_2/31) — stderr capture limitations, JSONL event logging, Sentry integration, debug mode toggle.
+  - Updated implementation checklist (fase_2/23) — corrected `system_message` → `developer_instructions` reference.
+  - **PLAN STATUS**: Comprehensive and ready for implementation. All SDK APIs verified. All architectural decisions documented. 46h estimated work across 6 phases. Phase 1 (MCP refactoring) remains the single blocker. Two runtime verification tests (fase_3/05 Tests 1-2) must pass before committing to implementation.
 - **2026-02-17 00:00** — Initial research: current Alive architecture (fase_1/01), Codex SDK analysis (fase_1/02), Emdash reference analysis (fase_1/03)
 - Emdash (YC W26) supports 21 agents via CLI spawning. Simple but no tool control. Their provider registry is clean reference material.
 - Codex has a TypeScript SDK (`@openai/codex-sdk`) — structured events, thread-based sessions. Viable for SDK integration.
