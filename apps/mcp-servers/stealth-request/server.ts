@@ -2,6 +2,7 @@ import cors from "cors"
 import type { Request, Response } from "express"
 import express from "express"
 import { browserPool } from "./src/browser-pool"
+import { Sentry } from "./src/sentry"
 import { registerAnalyzeJsRoutes } from "./src/routes/analyze-js"
 import { registerDetectFrameworkRoutes } from "./src/routes/detect-framework"
 import { registerDiscoverRoutes } from "./src/routes/discover"
@@ -38,7 +39,13 @@ app.listen(PORT, HOST, async () => {
   console.log(`Stealth server running on http://${HOST}:${PORT}`)
   console.log(`API discovery: http://${HOST}:${PORT}/discover`)
   // Pre-launch browsers so first requests are fast
-  await browserPool.warmup()
+  try {
+    await browserPool.warmup()
+  } catch (err) {
+    Sentry.captureException(err, { tags: { component: "browser-pool", phase: "warmup" } })
+    await Sentry.flush(2000)
+    process.exit(1)
+  }
 })
 
 // Graceful shutdown — close all pooled browsers

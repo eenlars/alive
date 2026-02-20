@@ -43,12 +43,15 @@ export interface PoolStats {
 
 class BrowserPool {
   private slots: (BrowserSlot | null)[]
-  private waitQueue: Array<(slotIndex: number) => void> = []
+  private waitQueue: Array<{ resolve: (slotIndex: number) => void; reject: (err: Error) => void }> = []
+  private reservedSlots = new Set<number>()
+  private shuttingDown = false
+  private size: number
+  private maxUses: number
 
-  constructor(
-    private size: number = POOL_SIZE,
-    private maxUses: number = MAX_USES_PER_BROWSER,
-  ) {
+  constructor(size: number = POOL_SIZE, maxUses: number = MAX_USES_PER_BROWSER) {
+    this.size = size
+    this.maxUses = maxUses
     this.slots = new Array(size).fill(null)
   }
 
@@ -82,8 +85,10 @@ class BrowserPool {
 
   private findFreeSlot(): number {
     // Prefer existing non-busy slot (reuse), then empty slot (needs launch)
+    // Skip reserved slots (being recycled by another acquire)
     let emptySlot = -1
     for (let i = 0; i < this.slots.length; i++) {
+      if (this.reservedSlots.has(i)) continue
       const slot = this.slots[i]
       if (slot && !slot.busy) return i
       if (!slot && emptySlot === -1) emptySlot = i
@@ -92,10 +97,14 @@ class BrowserPool {
   }
 
   async acquire(): Promise<PooledPage> {
+    if (this.shuttingDown) {
+      throw new Error("Pool is shutting down")
+    }
+
     let slotIndex = this.findFreeSlot()
     if (slotIndex === -1) {
-      slotIndex = await new Promise<number>(resolve => {
-        this.waitQueue.push(resolve)
+      slotIndex = await new Promise<number>((resolve, reject) => {
+        this.waitQueue.push({ resolve, reject })
       })
     }
 
@@ -106,10 +115,16 @@ class BrowserPool {
       if (slot) {
         console.log(`[pool] Recycling slot ${slotIndex} (uses: ${slot.uses}, connected: ${slot.browser.isConnected()})`)
       }
-      await this.destroySlot(slotIndex)
-      const { browser, userDataDir } = await this.launchBrowser()
-      slot = { browser, userDataDir, uses: 0, busy: false }
-      this.slots[slotIndex] = slot
+      // Reserve the slot to prevent concurrent acquire() from claiming it during async recycling
+      this.reservedSlots.add(slotIndex)
+      try {
+        await this.destroySlot(slotIndex)
+        const { browser, userDataDir } = await this.launchBrowser()
+        slot = { browser, userDataDir, uses: 0, busy: false }
+        this.slots[slotIndex] = slot
+      } finally {
+        this.reservedSlots.delete(slotIndex)
+      }
     }
 
     slot.busy = true
@@ -134,7 +149,7 @@ class BrowserPool {
         const s = this.slots[idx]
         if (s) s.busy = false
         const next = this.waitQueue.shift()
-        if (next) next(idx)
+        if (next) next.resolve(idx)
       },
     }
   }
@@ -161,9 +176,11 @@ class BrowserPool {
   }
 
   async shutdown(): Promise<void> {
-    // Reject all waiters
-    for (const waiter of this.waitQueue) {
-      waiter(-1) // Will cause acquire to fail gracefully
+    this.shuttingDown = true
+    // Reject all waiters so pending acquire() calls throw instead of leaking browsers
+    const shutdownError = new Error("Pool is shutting down")
+    for (const { reject } of this.waitQueue) {
+      reject(shutdownError)
     }
     this.waitQueue = []
     for (let i = 0; i < this.slots.length; i++) {

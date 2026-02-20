@@ -2,6 +2,7 @@ import type { Request, Response, Router } from "express"
 import TurndownService from "turndown"
 import { z } from "zod"
 import { RequestCache } from "../cache"
+import { Sentry } from "../sentry"
 import {
   DEFAULT_BATCH_CONCURRENCY,
   DEFAULT_RETRY_COUNT,
@@ -93,6 +94,10 @@ function buildRequestConfig(params: Record<string, unknown>): RequestConfig {
     normalized.method = normalized.method.toUpperCase()
   } else if (!normalized.method) {
     normalized.method = "GET"
+  }
+  // Drop body for GET requests — bad clients may send empty string or junk
+  if (normalized.method === "GET" && normalized.body !== undefined) {
+    delete normalized.body
   }
   return RequestSchema.parse(normalized)
 }
@@ -207,7 +212,7 @@ export function registerFetchRoutes(router: Router): void {
         })
         return
       }
-      console.error(`[${new Date().toISOString()}] Error:`, error)
+      Sentry.captureException(error, { tags: { route: "/fetch" } })
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -271,7 +276,7 @@ export function registerFetchRoutes(router: Router): void {
         })
         return
       }
-      console.error(`[${new Date().toISOString()}] Batch error:`, error)
+      Sentry.captureException(error, { tags: { route: "/fetch-batch" } })
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error occurred",
