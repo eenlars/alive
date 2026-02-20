@@ -41,8 +41,10 @@ gh api repos/<OWNER>/<REPO>/issues/<PR_NUMBER>/comments | jq -f .claude/skills/c
 - Extracts only needed fields (threadId, file, line, commentId, body)
 - Strips HTML comments, "Prompt for AI Agents" blocks, "Learnings used" blocks, and "Analysis chain" blocks
 
+**CRITICAL: Always use the `pr-threads.graphql` file** to avoid shell encoding issues with the query string.
+
 ```bash
-gh api graphql -f query='query($owner:String!,$repo:String!,$pr:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$pr){reviewThreads(first:50){nodes{id isResolved comments(first:5){nodes{body path line databaseId author{login}}}}}}}}' -f owner=<OWNER> -f repo=<REPO> -F pr=<PR_NUMBER> | jq -f .claude/skills/coderabbit/filter-threads.jq
+gh api graphql -F query=@.claude/skills/coderabbit/pr-threads.graphql -f owner=<OWNER> -f repo=<REPO> -F pr=<PR_NUMBER> | jq -f .claude/skills/coderabbit/filter-threads.jq
 ```
 
 ### CI status
@@ -111,12 +113,15 @@ For each test plan item, you must provide **proof** using one or more of these m
 
 Check the box in the PR description by updating the PR body:
 
+**CRITICAL: Use the `check-box.py` helper** — never use `sed` for checkbox updates. `sed` silently succeeds when the pattern doesn't match (metacharacters, whitespace differences), leaving boxes unchecked with no warning. The Python helper uses literal string matching and fails loudly if the item text isn't found.
+
 ```bash
 gh pr view <PR_NUMBER> --json body --jq '.body' > /tmp/pr-body.md
-# Edit the file to check boxes
-sed -i 's/- \[ \] Exact item text/- [x] Exact item text/' /tmp/pr-body.md
+python3 .claude/skills/coderabbit/check-box.py /tmp/pr-body.md "Exact item text"
 gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER> -X PATCH -F "body=@/tmp/pr-body.md" --jq '.body' | head -15
 ```
+
+If `check-box.py` exits non-zero, it prints the available items so you can match the exact text.
 
 **If a test plan item CANNOT be proven** (e.g., requires manual browser testing, production access, etc.):
 - Do NOT silently skip it
@@ -181,8 +186,10 @@ Report what was done:
 
 ## Rules
 
+- **ALWAYS use pr-threads.graphql** — load the query from file with `-F query=@.claude/skills/coderabbit/pr-threads.graphql` to avoid shell encoding issues with inline GraphQL
 - **ALWAYS use filter-threads.jq** — never dump raw GraphQL thread responses into context
 - **ALWAYS use filter-comments.jq** — never use `!=` in jq within bash (causes `\!` escaping errors)
+- **ALWAYS use check-box.py** — never use `sed` for checkbox updates (silent failures on metacharacters, whitespace mismatches, and missing items)
 - **ALWAYS use GraphQL variables** — never hardcode owner/repo in query strings
 - **User comments are #1 priority** — fix them before CodeRabbit suggestions
 - **Always resolve threads** — even if you disagree, explain and resolve (no stale threads)
