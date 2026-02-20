@@ -122,6 +122,11 @@ class BrowserPool {
         const { browser, userDataDir } = await this.launchBrowser()
         slot = { browser, userDataDir, uses: 0, busy: false }
         this.slots[slotIndex] = slot
+      } catch (launchErr) {
+        // Slot is null (destroyed); unblock the next waiter so they aren't stranded
+        const next = this.waitQueue.shift()
+        if (next) next.reject(launchErr instanceof Error ? launchErr : new Error(String(launchErr)))
+        throw launchErr
       } finally {
         this.reservedSlots.delete(slotIndex)
       }
@@ -171,10 +176,17 @@ class BrowserPool {
     const promises: Promise<void>[] = []
     for (let i = 0; i < this.size; i++) {
       if (!this.slots[i]) {
+        const idx = i
+        this.reservedSlots.add(idx)
         promises.push(
-          this.launchBrowser().then(({ browser, userDataDir }) => {
-            this.slots[i] = { browser, userDataDir, uses: 0, busy: false }
-          }),
+          (async () => {
+            try {
+              const { browser, userDataDir } = await this.launchBrowser()
+              this.slots[idx] = { browser, userDataDir, uses: 0, busy: false }
+            } finally {
+              this.reservedSlots.delete(idx)
+            }
+          })(),
         )
       }
     }
