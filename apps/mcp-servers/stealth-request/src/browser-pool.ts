@@ -130,27 +130,34 @@ class BrowserPool {
     slot.busy = true
     slot.uses++
 
-    // Isolated context per request — full cookie/storage separation
-    const context = await slot.browser.createBrowserContext()
-    const page = await context.newPage()
+    try {
+      // Isolated context per request — full cookie/storage separation
+      const context = await slot.browser.createBrowserContext()
+      const page = await context.newPage()
 
-    // Random user agent per page
-    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)] ?? USER_AGENTS[0]!
-    await page.setUserAgent(ua)
+      // Random user agent per page
+      const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)] ?? USER_AGENTS[0]!
+      await page.setUserAgent(ua)
 
-    const idx = slotIndex
-    return {
-      page,
-      context,
-      release: async () => {
-        try {
-          await context.close()
-        } catch {}
-        const s = this.slots[idx]
-        if (s) s.busy = false
-        const next = this.waitQueue.shift()
-        if (next) next.resolve(idx)
-      },
+      const idx = slotIndex
+      return {
+        page,
+        context,
+        release: async () => {
+          try {
+            await context.close()
+          } catch {}
+          const s = this.slots[idx]
+          if (s) s.busy = false
+          const next = this.waitQueue.shift()
+          if (next) next.resolve(idx)
+        },
+      }
+    } catch (err) {
+      slot.busy = false
+      const next = this.waitQueue.shift()
+      if (next) next.resolve(slotIndex)
+      throw err
     }
   }
 
