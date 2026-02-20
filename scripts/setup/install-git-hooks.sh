@@ -11,8 +11,8 @@ cd "$PROJECT_ROOT"
 
 echo "📦 Installing git hooks..."
 
-# Resolve the actual git directory (handles worktrees where .git is a file)
-GIT_DIR="$(git rev-parse --git-dir)"
+# Resolve the common git directory (shared across worktrees; hooks live here)
+GIT_DIR="$(git rev-parse --git-common-dir)"
 HOOKS_DIR="$GIT_DIR/hooks"
 mkdir -p "$HOOKS_DIR"
 

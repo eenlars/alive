@@ -4,7 +4,8 @@
  * Tests the Lua script for unread message retrieval.
  * Verifies cursor-based replay in the GET_UNREAD_SCRIPT.
  *
- * NOTE: These tests require Redis and are skipped in CI.
+ * NOTE: These tests require a live Redis instance. They are skipped automatically
+ * when Redis is unreachable (including all CI environments).
  */
 
 import net from "node:net"
@@ -17,9 +18,14 @@ const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true"
 
 // TCP probe with 1s timeout — avoids ioredis infinite retry loops
 async function isRedisAvailable(): Promise<boolean> {
-  const url = getRedisUrl()
-  if (!url) return false
-  const parsed = new URL(url)
+  let parsed: URL
+  try {
+    const url = getRedisUrl()
+    if (!url) return false
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
   const host = parsed.hostname || "127.0.0.1"
   const port = Number(parsed.port) || 6379
   return new Promise(resolve => {
