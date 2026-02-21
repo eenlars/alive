@@ -217,7 +217,7 @@ async function assertBranchName(baseWorkspacePath: string, branch: string) {
 
 function inferBootstrapEmail(baseWorkspacePath: string): string {
   const siteDomain = path.basename(path.dirname(baseWorkspacePath)).toLowerCase()
-  const sanitizedDomain = siteDomain.replace(/[^a-z0-9.-]/g, "")
+  const sanitizedDomain = siteDomain.replace(/[^a-z0-9.-]/g, "").replace(/^[.-]+|[.-]+$/g, "")
   return sanitizedDomain.length > 0 ? `site@${sanitizedDomain}` : "site@alive.local"
 }
 
