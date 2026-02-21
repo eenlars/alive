@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     if (!hasAccess) {
       console.error(`❌ [DEPLOY API] User ${user.email} does not have access to org ${orgId}`)
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403)
+      return createErrorResponse(ErrorCodes.FORBIDDEN, 403)
     }
 
     console.log(`✅ [DEPLOY API] User has access to organization ${orgId}`)

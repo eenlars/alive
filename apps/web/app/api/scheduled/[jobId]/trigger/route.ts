@@ -29,7 +29,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     const existing = await getJob(jobId)
 
     if (!existing) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "job" } })
+      return structuredErrorResponse(ErrorCodes.SCHEDULED_JOB_NOT_FOUND, { status: 404 })
     }
 
     // Verify ownership

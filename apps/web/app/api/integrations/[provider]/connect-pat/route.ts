@@ -118,7 +118,7 @@ export async function POST(
     if (!hasAccess) {
       console.error(`[${provider} PAT] User ${user.id} denied access`)
       oauthOperationRateLimiter.recordFailedAttempt(clientId)
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403, {
+      return createErrorResponse(ErrorCodes.FORBIDDEN, 403, {
         reason: `No permission to use ${provider} integration`,
       })
     }

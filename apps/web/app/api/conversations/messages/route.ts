@@ -65,7 +65,8 @@ export async function GET(request: NextRequest) {
 
     if (msgError) {
       console.error("[messages] Failed to fetch messages:", msgError)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+      Sentry.captureException(msgError)
+      return structuredErrorResponse(ErrorCodes.QUERY_FAILED, { status: 500 })
     }
 
     // Check if there are more messages

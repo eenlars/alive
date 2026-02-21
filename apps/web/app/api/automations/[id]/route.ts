@@ -58,14 +58,14 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       .single()
 
     if (error || !data) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, { status: 404 })
     }
 
     const row = data as unknown as { user_id: string; domains?: { hostname: string } }
 
     // Verify ownership
     if (row.user_id !== user.id) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
     return NextResponse.json({
@@ -107,13 +107,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       .single()
 
     if (!existing) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, { status: 404 })
     }
 
     const existingRow = existing as unknown as AutomationJobOwnership
 
     if (existingRow.user_id !== user.id) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
     // Build update object with only allowed fields
@@ -299,13 +299,13 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     const { data: existing } = await supabase.from("automation_jobs").select("user_id").eq("id", id).single()
 
     if (!existing) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, { status: 404 })
     }
 
     const existingRow = existing as unknown as { user_id: string }
 
     if (existingRow.user_id !== user.id) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
     const { error } = await supabase.from("automation_jobs").delete().eq("id", id)

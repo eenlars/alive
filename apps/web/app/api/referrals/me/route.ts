@@ -14,6 +14,7 @@
  *
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { generateInviteCode } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
@@ -47,6 +48,7 @@ export async function GET() {
 
   if (rpcError) {
     console.error("[Referral] Failed to get/create invite code:", rpcError)
+    Sentry.captureException(rpcError)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
   }
 

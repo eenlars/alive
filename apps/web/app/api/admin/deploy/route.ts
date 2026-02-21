@@ -74,7 +74,7 @@ export async function POST(req: Request): Promise<Response> {
     // 2. Authorization - require admin privileges
     if (!user.isAdmin) {
       console.warn(`[Admin Deploy ${requestId}] Non-admin access attempt: ${user.email} (${user.id})`)
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403, { requestId })
+      return createErrorResponse(ErrorCodes.FORBIDDEN, 403, { requestId })
     }
 
     // 3. Parse and validate request body

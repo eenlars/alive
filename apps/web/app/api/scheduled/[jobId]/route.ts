@@ -29,7 +29,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     const job = await getJob(jobId)
 
     if (!job) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "job" } })
+      return structuredErrorResponse(ErrorCodes.SCHEDULED_JOB_NOT_FOUND, { status: 404 })
     }
 
     // Verify ownership
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const existing = await getJob(jobId)
 
     if (!existing) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "job" } })
+      return structuredErrorResponse(ErrorCodes.SCHEDULED_JOB_NOT_FOUND, { status: 404 })
     }
 
     // Verify ownership
@@ -98,7 +98,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     const existing = await getJob(jobId)
 
     if (!existing) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "job" } })
+      return structuredErrorResponse(ErrorCodes.SCHEDULED_JOB_NOT_FOUND, { status: 404 })
     }
 
     // Verify ownership

@@ -298,7 +298,7 @@ export async function POST(
   const hasAccess = await canUserAccessIntegration(user.id, provider)
   if (!hasAccess) {
     console.error(`[${provider} Integration] User ${user.id} denied access`)
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403, {
+    return createErrorResponse(ErrorCodes.FORBIDDEN, 403, {
       reason: `You don't have access to the ${provider} integration`,
     })
   }

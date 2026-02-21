@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     if (error) {
       console.error("[Sessions API] Query error:", error)
       Sentry.captureException(error)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+      return structuredErrorResponse(ErrorCodes.QUERY_FAILED, { status: 500 })
     }
 
     // Get domain hostnames for sessions
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
     // For now, only allow sending to own sessions
     // TODO: Implement A2A policy for cross-user messaging
     if (targetUserId !== userId) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
         status: 403,
         details: { reason: "Cross-user session messaging not yet implemented" },
       })

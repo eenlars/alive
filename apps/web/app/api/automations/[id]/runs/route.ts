@@ -43,16 +43,15 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const { data: job } = await supabase.from("automation_jobs").select("user_id, name").eq("id", jobId).single()
 
     if (!job) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, {
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, {
         status: 404,
-        details: { message: "Automation job not found" },
       })
     }
 
     const jobRow = job as unknown as JobOwnershipRow
 
     if (jobRow.user_id !== user.id) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
     // Parse query params

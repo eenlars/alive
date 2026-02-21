@@ -62,7 +62,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       .single()
 
     if (jobError || !job) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "automation" } })
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, { status: 404 })
     }
 
     // Extract domain info from FK join with runtime validation (no `as` casts)

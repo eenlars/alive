@@ -64,7 +64,8 @@ export async function GET(req: NextRequest) {
 
     if (membersError) {
       console.error("[Org Members] Failed to fetch members:", membersError)
-      return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
+      Sentry.captureException(membersError)
+      return createCorsErrorResponse(origin, ErrorCodes.QUERY_FAILED, 500, { requestId })
     }
 
     // Transform the data to a flatter structure, filtering invalid roles, and sort by email
@@ -176,6 +177,7 @@ export async function POST(req: NextRequest) {
         })
       }
       console.error("[Org Members] Failed to add member:", insertError)
+      Sentry.captureException(insertError)
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
     }
 
@@ -274,7 +276,8 @@ export async function DELETE(req: NextRequest) {
 
       if (otherOwnersError) {
         console.error("[Org Members] Failed to check for other owners:", otherOwnersError)
-        return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
+        Sentry.captureException(otherOwnersError)
+        return createCorsErrorResponse(origin, ErrorCodes.QUERY_FAILED, 500, { requestId })
       }
 
       if (!otherOwners || otherOwners.length === 0) {
@@ -291,6 +294,7 @@ export async function DELETE(req: NextRequest) {
 
     if (deleteError) {
       console.error("[Org Members] Failed to remove member:", deleteError)
+      Sentry.captureException(deleteError)
       return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
     }
 

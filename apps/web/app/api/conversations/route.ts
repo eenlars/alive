@@ -68,7 +68,8 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("[conversations] Failed to fetch conversations:", error)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+      Sentry.captureException(error)
+      return structuredErrorResponse(ErrorCodes.QUERY_FAILED, { status: 500 })
     }
 
     // Transform to client format

@@ -43,7 +43,7 @@ export async function DELETE(request: NextRequest) {
     // 6. Validate key belongs to this tenant
     // Key format: {tenantId}/{contentHash}
     if (!key.startsWith(`${tenantId}/`)) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403, { requestId })
+      return createErrorResponse(ErrorCodes.FORBIDDEN, 403, { requestId })
     }
 
     const contentHash = key.replace(`${tenantId}/`, "")

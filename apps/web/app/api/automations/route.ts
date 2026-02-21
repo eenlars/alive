@@ -79,7 +79,7 @@ export const GET = protectedRoute(async ({ user, req }) => {
   if (error) {
     console.error("[Automations API] Query error:", error)
     Sentry.captureException(error)
-    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+    return structuredErrorResponse(ErrorCodes.QUERY_FAILED, { status: 500 })
   }
 
   // Flatten the joined data
