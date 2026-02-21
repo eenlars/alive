@@ -5,10 +5,10 @@ import { validateRequest } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 export async function POST(req: Request) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   console.log(`[Verify API ${requestId}] === VERIFICATION START ===`)
 
   try {

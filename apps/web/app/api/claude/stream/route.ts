@@ -37,6 +37,7 @@ import { logInput } from "@/lib/input-logger"
 import { type ClaudeModel, DEFAULT_MODEL, isValidClaudeModel } from "@/lib/models/claude-models"
 import { fetchOAuthTokens } from "@/lib/oauth/fetch-oauth-tokens"
 import { fetchUserEnvKeys } from "@/lib/oauth/fetch-user-env-keys"
+import { getRequestId } from "@/lib/request-id"
 import { createRequestLogger } from "@/lib/request-logger"
 import { registerCancellation, startTTLCleanup, unregisterCancellation } from "@/lib/stream/cancellation-registry"
 import { type CancelState, createNDJSONStream } from "@/lib/stream/ndjson-stream-handler"
@@ -50,7 +51,6 @@ import { createAppClient } from "@/lib/supabase/app"
 import { createRLSAppClient } from "@/lib/supabase/server-rls"
 import type { TokenSource } from "@/lib/tokens"
 import { getOrgCredits } from "@/lib/tokens"
-import { generateRequestId } from "@/lib/utils"
 import { runAgentChild } from "@/lib/workspace-execution/agent-child-runner"
 import { detectServeMode } from "@/lib/workspace-execution/command-runner"
 import { BodySchema } from "@/types/guards/api"
@@ -62,7 +62,7 @@ export const runtime = "nodejs"
 startTTLCleanup()
 
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const logger = createRequestLogger("Claude Stream", requestId)
   const startTime = Date.now()
   const timing = (label: string) => logger.log(`[TIMING] ${label}: +${Date.now() - startTime}ms`)
@@ -878,8 +878,7 @@ export async function POST(req: NextRequest) {
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
         "X-Accel-Buffering": "no",
-        "X-Request-Id": requestId, // Send requestId in header for immediate client access
-        "Access-Control-Expose-Headers": "X-Request-Id", // Allow JS to read custom header
+        "X-Request-Id": requestId, // Redundancy: middleware also sets this, but SSE skips middleware merging
       },
     })
 

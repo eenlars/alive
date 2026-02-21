@@ -8,7 +8,7 @@ import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 /**
  * Critical files within /user that cannot be deleted.
@@ -138,7 +138,7 @@ async function validateSymlinkTarget(
  * DELETE requests traditionally don't have bodies, though the spec allows it.
  */
 export async function POST(request: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(request)
 
   try {
     // 1. Authentication check - get user from session
