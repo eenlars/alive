@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest"
 import { generatePKCEChallenge } from "../pkce"
 import { GitHubProvider, GoogleProvider, LinearProvider } from "../providers"
 
+/**
+ * Helper: split a space-delimited scope string into a sorted array for comparison.
+ */
+function scopeSet(scopes: string): string[] {
+  return scopes.split(" ").filter(Boolean).sort()
+}
+
 describe("OAuth Providers", () => {
   describe("GoogleProvider", () => {
     const google = new GoogleProvider()
@@ -42,13 +49,64 @@ describe("OAuth Providers", () => {
       })
     })
 
-    describe("static scopes", () => {
-      it("has full Gmail scopes defined", () => {
-        expect(GoogleProvider.GMAIL_FULL_SCOPES).toContain("https://www.googleapis.com/auth/gmail.modify")
+    // -----------------------------------------------------------------------
+    // Scope contract tests (regression gate for issue #131)
+    //
+    // These tests catch two classes of bugs:
+    // 1. Scope profile composition — adding/removing a scope from a profile
+    // 2. Scope mutual exclusivity — mixing incompatible scopes (e.g. modify + readonly)
+    //
+    // The callback hardening PR (#174) will consume GoogleProvider.SCOPES
+    // for granted-scope verification at callback time.
+    // -----------------------------------------------------------------------
+
+    describe("scope contracts", () => {
+      describe("Gmail modify profile", () => {
+        it("contains exactly gmail.modify + profile + email", () => {
+          const { GMAIL_MODIFY, USERINFO_PROFILE, USERINFO_EMAIL } = GoogleProvider.SCOPES
+          expect(scopeSet(GoogleProvider.GMAIL_MODIFY_SCOPES)).toEqual(
+            [GMAIL_MODIFY, USERINFO_PROFILE, USERINFO_EMAIL].sort(),
+          )
+        })
+
+        it("does NOT include gmail.readonly (mutually exclusive with modify)", () => {
+          expect(GoogleProvider.GMAIL_MODIFY_SCOPES).not.toContain(GoogleProvider.SCOPES.GMAIL_READONLY)
+        })
       })
 
-      it("has readonly Gmail scopes defined", () => {
-        expect(GoogleProvider.GMAIL_READONLY_SCOPES).toContain("https://www.googleapis.com/auth/gmail.readonly")
+      describe("Gmail readonly profile", () => {
+        it("contains exactly gmail.readonly + profile + email", () => {
+          const { GMAIL_READONLY, USERINFO_PROFILE, USERINFO_EMAIL } = GoogleProvider.SCOPES
+          expect(scopeSet(GoogleProvider.GMAIL_READONLY_SCOPES)).toEqual(
+            [GMAIL_READONLY, USERINFO_PROFILE, USERINFO_EMAIL].sort(),
+          )
+        })
+
+        it("does NOT include gmail.modify (mutually exclusive with readonly)", () => {
+          expect(GoogleProvider.GMAIL_READONLY_SCOPES).not.toContain(GoogleProvider.SCOPES.GMAIL_MODIFY)
+        })
+      })
+
+      describe("Calendar profile", () => {
+        it("contains exactly calendar.events + calendarlist.readonly + email", () => {
+          const { CALENDAR_EVENTS, CALENDAR_LIST_READONLY, USERINFO_EMAIL } = GoogleProvider.SCOPES
+          expect(scopeSet(GoogleProvider.CALENDAR_SCOPES)).toEqual(
+            [CALENDAR_EVENTS, CALENDAR_LIST_READONLY, USERINFO_EMAIL].sort(),
+          )
+        })
+      })
+
+      describe("profiles are distinct", () => {
+        it("Gmail modify and Calendar share no capability scopes", () => {
+          const gmailScopes = scopeSet(GoogleProvider.GMAIL_MODIFY_SCOPES)
+          const calendarScopes = scopeSet(GoogleProvider.CALENDAR_SCOPES)
+
+          // Only identity scopes (userinfo.*) should overlap
+          const overlap = gmailScopes.filter(s => calendarScopes.includes(s))
+          for (const scope of overlap) {
+            expect(scope).toContain("userinfo")
+          }
+        })
       })
     })
   })
