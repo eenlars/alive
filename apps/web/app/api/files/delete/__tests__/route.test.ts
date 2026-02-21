@@ -24,15 +24,7 @@ vi.mock("@/features/auth/lib/auth", async () => {
   }
 })
 
-// Mock structured error response
-vi.mock("@/lib/api/responses", async () => {
-  const { NextResponse } = await import("next/server")
-  return {
-    structuredErrorResponse: vi.fn((code: string, opts: { status: number; details?: Record<string, unknown> }) => {
-      return NextResponse.json({ ok: false, error: code, ...opts.details }, { status: opts.status })
-    }),
-  }
-})
+// Use real structuredErrorResponse - no mock needed for simple response builders
 
 // Mock workspace resolution
 vi.mock("@/features/chat/lib/workspaceRetriever", () => ({
@@ -210,7 +202,7 @@ describe("POST /api/files/delete", () => {
 
       expect(response.status).toBe(403)
       expect(data.error).toBe("FILE_PROTECTED")
-      expect(data.reason).toContain("critical file")
+      expect(data.details.reason).toContain("critical file")
     })
 
     it("should block deletion of INDEX.TS (case-insensitive)", async () => {
@@ -384,7 +376,7 @@ describe("POST /api/files/delete", () => {
 
       expect(response.status).toBe(400)
       expect(data.error).toBe("INVALID_REQUEST")
-      expect(data.hint).toContain("recursive")
+      expect(data.details.hint).toContain("recursive")
 
       // Cleanup
       rmSync(testDir, { recursive: true })

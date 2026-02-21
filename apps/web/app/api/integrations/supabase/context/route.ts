@@ -25,7 +25,8 @@ const SUPABASE_PROJECT_REF_KEY = "SUPABASE_PROJECT_REF"
  *
  * Response:
  * - 200: { accessToken: string, projectRef: string }
- * - 401: Not authenticated or not connected to Supabase
+ * - 401: Not authenticated
+ * - 403: Integration not connected
  * - 404: Connected but no project configured
  */
 export async function GET(_req: NextRequest): Promise<NextResponse> {
@@ -42,7 +43,7 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
     const isConnected = await oauthManager.isConnected(user.id, "supabase")
     if (!isConnected) {
       return structuredErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, {
-        status: 401,
+        status: 403,
         details: {
           provider: "supabase",
           message: "Not connected to Supabase. Please connect via Settings > Integrations.",
@@ -137,7 +138,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
     const isConnected = await oauthManager.isConnected(user.id, "supabase")
     if (!isConnected) {
       return structuredErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, {
-        status: 401,
+        status: 403,
         details: {
           provider: "supabase",
           message: "Please connect to Supabase first before configuring a project.",

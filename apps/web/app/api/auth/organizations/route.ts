@@ -192,7 +192,7 @@ export async function PATCH(req: NextRequest) {
     if (updateError) {
       console.error("[Organizations API] Error updating org:", updateError)
       Sentry.captureException(updateError)
-      return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
+      return createCorsErrorResponse(origin, ErrorCodes.QUERY_FAILED, 500, { requestId })
     }
 
     return createCorsSuccessResponse(origin, {

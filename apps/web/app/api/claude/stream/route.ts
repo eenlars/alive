@@ -213,6 +213,7 @@ export async function POST(req: NextRequest) {
         oauthAccessToken = oauthResult.accessToken
       } catch (refreshError) {
         logger.error("OAuth token refresh failed:", refreshError)
+        Sentry.captureException(refreshError)
         return structuredErrorResponse(ErrorCodes.OAUTH_EXPIRED, {
           status: 503,
           details: { workspace: resolvedWorkspaceName, requestId },
@@ -233,12 +234,13 @@ export async function POST(req: NextRequest) {
       }
     } catch (workspaceError) {
       logger.error("Workspace resolution failed:", workspaceError)
+      Sentry.captureException(workspaceError)
       return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, {
         status: 404,
         details: {
           host: requestWorkspace || host,
           requestWorkspace,
-          error: workspaceError instanceof Error ? workspaceError.message : "Unknown error",
+          requestFailed: true,
           requestId,
         },
       })

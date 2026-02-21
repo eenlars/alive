@@ -5,6 +5,7 @@ import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { createDedupeCache } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
+import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 
@@ -150,6 +151,14 @@ export async function POST(req: NextRequest) {
  */
 export async function GET() {
   try {
+    const user = await getSessionUser()
+    if (!user) {
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401 })
+    }
+    if (!user.isSuperadmin) {
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
+    }
+
     // Read recent log files
     const logs = fs
       .readdirSync(LOG_DIR)
@@ -164,11 +173,9 @@ export async function GET() {
       recentDeployments: logs,
       logDir: LOG_DIR,
     })
-  } catch (_error) {
-    return NextResponse.json({
-      configured: !!WEBHOOK_SECRET,
-      branch: BRANCH,
-      error: ErrorCodes.FILE_READ_ERROR,
-    })
+  } catch (error) {
+    console.error("[WEBHOOK] Failed to list deploy logs:", error)
+    Sentry.captureException(error)
+    return structuredErrorResponse(ErrorCodes.FILE_READ_ERROR, { status: 500 })
   }
 }

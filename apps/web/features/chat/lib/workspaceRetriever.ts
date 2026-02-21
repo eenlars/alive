@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs"
 import path from "node:path"
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { PATHS, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { NextResponse } from "next/server"
@@ -281,6 +282,8 @@ async function resolveWorktreeIfRequested(
       }
     }
 
+    console.error(`[Workspace ${requestId}] Unexpected error resolving worktree:`, error)
+    Sentry.captureException(error, { extra: { requestId, worktree: body.worktree } })
     return {
       success: false,
       response: structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {

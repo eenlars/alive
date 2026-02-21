@@ -152,8 +152,8 @@ export async function POST(request: NextRequest) {
 
     if (!authorizedWorkspace) {
       console.warn(`[Upload ${requestId}] User ${user.id} denied access to workspace: ${workspaceParam}`)
-      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
-        status: 401,
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
+        status: 403,
         details: {
           requestId,
           workspace: workspaceParam,

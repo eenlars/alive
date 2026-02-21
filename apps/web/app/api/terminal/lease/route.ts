@@ -58,6 +58,7 @@ export async function POST(req: Request) {
     if (!res.ok) {
       const text = await res.text()
       console.error(`[Terminal ${requestId}] Shell server returned ${res.status}: ${text}`)
+      Sentry.captureMessage(`[Terminal ${requestId}] Shell server returned ${res.status}: ${text}`, "error")
       return structuredErrorResponse(ErrorCodes.SHELL_SERVER_UNAVAILABLE, { status: 502, details: { requestId } })
     }
 

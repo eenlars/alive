@@ -140,7 +140,7 @@ describe("GET /api/referrals/me", () => {
 
       expect(response.status).toBe(500)
       expect(data.ok).toBe(false)
-      expect(data.error).toBe(ErrorCodes.INTERNAL_ERROR)
+      expect(data.error).toBe(ErrorCodes.QUERY_FAILED)
     })
 
     it("should return 404 when user not found (RPC returns null)", async () => {

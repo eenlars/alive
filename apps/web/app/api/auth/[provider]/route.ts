@@ -76,7 +76,7 @@ function resultToResponse(result: OAuthFlowResult): NextResponse {
       return NextResponse.redirect(new URL(result.url))
 
     case "error":
-      return structuredErrorResponse(result.code as any, { status: result.status, details: result.details })
+      return structuredErrorResponse(result.code, { status: result.status, details: result.details })
 
     default: {
       // Type exhaustion check

@@ -66,12 +66,12 @@ export async function POST(request: NextRequest) {
     const resolvedPath = path.resolve(fullPath)
     const resolvedWorkspace = path.resolve(workspaceResult.workspace)
     if (!isPathWithinWorkspace(resolvedPath, resolvedWorkspace, path.sep)) {
+      console.warn(`[OCR ${requestId}] Path traversal blocked: ${resolvedPath} outside ${resolvedWorkspace}`)
       return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
         status: 403,
         details: {
           requestId,
-          attemptedPath: resolvedPath,
-          workspacePath: resolvedWorkspace,
+          attemptedPath: filePath,
         },
       })
     }

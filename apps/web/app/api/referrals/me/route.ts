@@ -50,7 +50,7 @@ export async function GET() {
   if (rpcError) {
     console.error("[Referral] Failed to get/create invite code:", rpcError)
     Sentry.captureException(rpcError)
-    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+    return structuredErrorResponse(ErrorCodes.QUERY_FAILED, { status: 500 })
   }
 
   if (!inviteCode) {

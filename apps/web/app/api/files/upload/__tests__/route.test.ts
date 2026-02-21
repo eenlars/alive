@@ -174,8 +174,8 @@ describe("POST /api/files/upload", () => {
       const response = await POST(req)
       const data = await response.json()
 
-      expect(response.status).toBe(401)
-      expect(data.error).toBe("WORKSPACE_NOT_AUTHENTICATED")
+      expect(response.status).toBe(403)
+      expect(data.error).toBe("FORBIDDEN")
     })
 
     it("should verify workspace access is called with user", async () => {

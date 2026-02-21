@@ -174,6 +174,6 @@ describe("PATCH /api/user", () => {
 
     expect(response.status).toBe(500)
     const data = await response.json()
-    expect(data.error).toBe(ErrorCodes.INTERNAL_ERROR)
+    expect(data.error).toBe(ErrorCodes.QUERY_FAILED)
   })
 })

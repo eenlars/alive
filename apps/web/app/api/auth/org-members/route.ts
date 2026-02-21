@@ -295,7 +295,7 @@ export async function DELETE(req: NextRequest) {
     if (deleteError) {
       console.error("[Org Members] Failed to remove member:", deleteError)
       Sentry.captureException(deleteError)
-      return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
+      return createCorsErrorResponse(origin, ErrorCodes.QUERY_FAILED, 500, { requestId })
     }
 
     console.log(`[Org Members] User ${userId} removed ${targetUserId} from org ${orgId}`)

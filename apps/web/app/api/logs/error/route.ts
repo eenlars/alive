@@ -8,14 +8,12 @@
  * from both frontend JavaScript and backend API routes.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { errorLogger, type ErrorLogEntry } from "@/lib/error-logger"
-
-// Superadmin email for querying errors
-const SUPERADMIN_EMAIL = "eedenlars@gmail.com"
+import { errorLogger } from "@/lib/error-logger"
 
 /**
  * POST /api/logs/error
@@ -32,7 +30,21 @@ const SUPERADMIN_EMAIL = "eedenlars@gmail.com"
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const body = await req.json()
+    const rawBody: unknown = await req.json()
+    if (!rawBody || typeof rawBody !== "object" || Array.isArray(rawBody)) {
+      return structuredErrorResponse(ErrorCodes.VALIDATION_ERROR, {
+        status: 400,
+        details: { reason: "body must be a JSON object" },
+      })
+    }
+
+    const body = rawBody as {
+      category?: unknown
+      message?: unknown
+      details?: unknown
+      stack?: unknown
+      url?: unknown
+    }
 
     // Validate required fields
     if (!body.category || typeof body.category !== "string") {
@@ -54,7 +66,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     try {
       const user = await getSessionUser()
       userId = user?.id
-    } catch {
+    } catch (_err) {
       // Anonymous error logging is OK
     }
 
@@ -63,9 +75,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       category: body.category,
       source: "frontend",
       message: body.message,
-      details: body.details,
-      stack: body.stack,
-      url: body.url,
+      details: typeof body.details === "object" && body.details !== null ? (body.details as Record<string, unknown>) : undefined,
+      stack: typeof body.stack === "string" ? body.stack : undefined,
+      url: typeof body.url === "string" ? body.url : undefined,
       userId,
       userAgent: req.headers.get("user-agent") || undefined,
     })
@@ -73,6 +85,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ ok: true, id: entry.id })
   } catch (error) {
     console.error("[ErrorLog API] Failed to log error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
@@ -92,8 +105,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     // Require superadmin access
     const user = await getSessionUser()
-    if (!user || user.email !== SUPERADMIN_EMAIL) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
+    if (!user || !user.isSuperadmin) {
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
     const { searchParams } = new URL(req.url)
@@ -129,6 +142,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     })
   } catch (error) {
     console.error("[ErrorLog API] Failed to query errors:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
