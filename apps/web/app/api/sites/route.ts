@@ -5,6 +5,7 @@
  * Returns domain_id and hostname for use in automation configuration.
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { isAliveWorkspace, SUPERADMIN } from "@webalive/shared"
 import { protectedRoute } from "@/features/auth/lib/protectedRoute"
 import { structuredErrorResponse } from "@/lib/api/responses"
@@ -62,6 +63,7 @@ export const GET = protectedRoute(async ({ user, req }) => {
       .maybeSingle()
 
     if (aliveDomainError) {
+      Sentry.captureException(aliveDomainError)
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
         status: 500,
         details: { message: "Failed to load alive workspace domain" },
@@ -69,6 +71,7 @@ export const GET = protectedRoute(async ({ user, req }) => {
     }
 
     if (!aliveDomain) {
+      Sentry.captureMessage(`Reserved alive domain "${SUPERADMIN.WORKSPACE_NAME}" not found in database`, "error")
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, {
         status: 500,
         details: { message: `Reserved alive domain "${SUPERADMIN.WORKSPACE_NAME}" not found in database` },
@@ -76,6 +79,7 @@ export const GET = protectedRoute(async ({ user, req }) => {
     }
 
     if (!aliveDomain.org_id) {
+      Sentry.captureMessage("Alive domain has no org_id configured", "error")
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
         status: 500,
         details: { message: "Alive domain has no org_id configured" },

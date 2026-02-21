@@ -1,7 +1,13 @@
+import * as Sentry from "@sentry/nextjs"
 import { SUPERADMIN } from "@webalive/shared"
 import { NextRequest } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { SessionUser } from "@/features/auth/lib/auth"
+
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+  captureMessage: vi.fn(),
+}))
 
 const mockUser: SessionUser = {
   id: "u1",
@@ -28,6 +34,14 @@ const mockCreateServiceAppClient = vi.fn(() => ({
         }),
       }),
     }
+  },
+}))
+
+vi.mock("@/lib/error-codes", () => ({
+  ErrorCodes: {
+    ORG_ACCESS_DENIED: "ORG_ACCESS_DENIED",
+    INTERNAL_ERROR: "INTERNAL_ERROR",
+    SITE_NOT_FOUND: "SITE_NOT_FOUND",
   },
 }))
 
@@ -170,7 +184,7 @@ describe("GET /api/sites", () => {
     expect(mockCreateServiceAppClient).not.toHaveBeenCalled()
   })
 
-  it("returns 500 when alive domain DB query fails for superadmin", async () => {
+  it("returns 500 and reports to Sentry when alive domain DB query fails for superadmin", async () => {
     mockUser.isSuperadmin = true
     aliveDomainError = { message: "connection refused" }
 
@@ -179,9 +193,10 @@ describe("GET /api/sites", () => {
     expect(res.status).toBe(500)
     const data = await res.json()
     expect(data.error).toBe("INTERNAL_ERROR")
+    expect(Sentry.captureException).toHaveBeenCalledWith(aliveDomainError)
   })
 
-  it("returns 500 when alive domain row is missing from database", async () => {
+  it("returns 500 and reports to Sentry when alive domain row is missing from database", async () => {
     mockUser.isSuperadmin = true
     aliveDomainData = null
 
@@ -190,9 +205,10 @@ describe("GET /api/sites", () => {
     expect(res.status).toBe(500)
     const data = await res.json()
     expect(data.error).toBe("SITE_NOT_FOUND")
+    expect(Sentry.captureMessage).toHaveBeenCalledWith(expect.stringContaining("not found in database"), "error")
   })
 
-  it("returns 500 when alive domain has no org_id", async () => {
+  it("returns 500 and reports to Sentry when alive domain has no org_id", async () => {
     mockUser.isSuperadmin = true
     aliveDomainData = { domain_id: "alive-id", hostname: SUPERADMIN.WORKSPACE_NAME, org_id: null }
 
@@ -201,5 +217,6 @@ describe("GET /api/sites", () => {
     expect(res.status).toBe(500)
     const data = await res.json()
     expect(data.error).toBe("INTERNAL_ERROR")
+    expect(Sentry.captureMessage).toHaveBeenCalledWith("Alive domain has no org_id configured", "error")
   })
 })
