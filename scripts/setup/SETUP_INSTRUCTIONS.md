@@ -53,9 +53,9 @@ Create `apps/web/.env.local` with these **required** values:
 ALIVE_ENV=local
 LOCAL_TEMPLATE_PATH=/absolute/path/to/alive/.alive/template
 
-# REQUIRED - your Anthropic API key
-# If using Claude Code CLI, this is already set as ANTHROPIC_API_KEY
-# Copy it here for the web app:
+# OPTIONAL - only needed for Claude chat API calls
+# App boot + local workspace flows work without this.
+# If using Claude Code CLI, this is often already set as ANTHROPIC_API_KEY.
 ANTH_API_SECRET=sk-ant-...
 
 # REQUIRED in production (optional locally)
@@ -80,8 +80,8 @@ echo "$(pwd)/.alive/template"
 ## Step 4: Verify Setup
 
 ```bash
-# Check environment file exists and has required vars
-grep -E "^ALIVE_ENV=|^LOCAL_TEMPLATE_PATH=|^ANTH_API_SECRET=" apps/web/.env.local
+# Check environment file exists and has core local-dev vars
+grep -E "^ALIVE_ENV=|^LOCAL_TEMPLATE_PATH=" apps/web/.env.local
 
 # Check template workspace exists
 ls -la .alive/template/
@@ -124,7 +124,7 @@ Run `bun run setup` to create it.
 
 ### "ANTHROPIC_API_KEY not set"
 
-The web app needs `ANTH_API_SECRET` in `.env.local`. Copy your API key there.
+Only Claude chat requests need an Anthropic key. Add `ANTH_API_SECRET` to `.env.local` if you want live Claude responses.
 
 ### Port 8997 already in use
 
