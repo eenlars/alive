@@ -29,6 +29,7 @@ export {
   getServiceName,
   getSiteHome,
   getSiteUser,
+  isAliveWorkspace,
   PATHS,
   PORTS,
   requireEnv,

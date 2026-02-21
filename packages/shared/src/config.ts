@@ -384,6 +384,13 @@ export const SUPERADMIN = {
   WORKSPACE_PATH: ALIVE_ROOT,
 } as const
 
+/**
+ * Check if a hostname refers to the Alive platform workspace (superadmin-only).
+ */
+export function isAliveWorkspace(hostname: string): boolean {
+  return hostname === SUPERADMIN.WORKSPACE_NAME
+}
+
 // =============================================================================
 // Security Configuration
 // =============================================================================

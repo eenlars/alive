@@ -6,7 +6,7 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { computeNextRunAtMs } from "@webalive/automation"
-import { isValidClaudeModel } from "@webalive/shared"
+import { isAliveWorkspace, isValidClaudeModel } from "@webalive/shared"
 import { protectedRoute } from "@/features/auth/lib/protectedRoute"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import type { Res } from "@/lib/api/schemas"
@@ -205,6 +205,14 @@ export const POST = protectedRoute(async ({ user, req }) => {
     return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, {
       status: 404,
       details: { field: "site_id", message: siteCheck.error },
+    })
+  }
+
+  // Step 7b: Alive workspace is superadmin-only
+  if (siteCheck.hostname && isAliveWorkspace(siteCheck.hostname) && !user.isSuperadmin) {
+    return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
+      status: 403,
+      details: { message: "Only superadmins can create alive workspace automations" },
     })
   }
 
