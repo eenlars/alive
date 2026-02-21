@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest"
+import { SUPERADMIN } from "../config"
 import {
   buildStreamToolRuntimeConfig,
   createStreamToolContext,
   getStreamAllowedTools,
   getStreamDisallowedTools,
   getStreamToolDecision,
+  getWorkspacePath,
   isHeavyBashCommand,
   isStreamClientVisibleTool,
 } from "../stream-tools"
@@ -59,6 +61,19 @@ describe("isHeavyBashCommand", () => {
     expect(isHeavyBashCommand("pnpm run lint")).toBe(false)
     expect(isHeavyBashCommand("yarn build")).toBe(false)
     expect(isHeavyBashCommand("yarn lint")).toBe(false)
+  })
+})
+
+describe("getWorkspacePath", () => {
+  it("returns site user directory for regular domains", () => {
+    const result = getWorkspacePath("example.com")
+    expect(result).toContain("example.com/user")
+  })
+
+  it("returns SUPERADMIN.WORKSPACE_PATH for alive workspace", () => {
+    const result = getWorkspacePath("alive")
+    expect(result).toBe(SUPERADMIN.WORKSPACE_PATH)
+    expect(result).not.toContain("/user")
   })
 })
 

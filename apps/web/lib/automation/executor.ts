@@ -9,7 +9,14 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
-import { buildSessionOrgClaims, CLAUDE_MODELS, getWorkspacePath, PATHS } from "@webalive/shared"
+import {
+  buildSessionOrgClaims,
+  CLAUDE_MODELS,
+  getWorkspacePath,
+  isAliveWorkspace,
+  PATHS,
+  SUPERADMIN,
+} from "@webalive/shared"
 import { getSkillById, listSuperadminSkills, type SkillListItem } from "@webalive/tools"
 import { createSessionToken } from "@/features/auth/lib/jwt"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
@@ -55,6 +62,31 @@ export interface AutomationJobResult {
   costUsd?: number
   numTurns?: number
   usage?: { input_tokens: number; output_tokens: number }
+}
+
+interface AutomationUserProfile {
+  email: string | null
+  displayName: string | null
+}
+
+const SUPERADMIN_EMAILS = new Set(SUPERADMIN.EMAILS.map(email => email.toLowerCase()))
+
+function isSuperadminEmail(email: string | null | undefined): boolean {
+  return typeof email === "string" && SUPERADMIN_EMAILS.has(email.toLowerCase())
+}
+
+async function loadAutomationUserProfile(userId: string): Promise<AutomationUserProfile> {
+  const iam = createServiceIamClient()
+  const { data: user, error } = await iam.from("users").select("email, display_name").eq("user_id", userId).single()
+
+  if (error) {
+    throw new Error(`Failed to load user profile: ${error.message}`)
+  }
+
+  return {
+    email: user?.email ?? null,
+    displayName: user?.display_name ?? null,
+  }
 }
 
 // =============================================================================
@@ -126,6 +158,8 @@ interface ExecutionContext {
   extraTools?: string[]
   /** Extract response from this tool's input.text */
   responseToolName?: string
+  /** Whether to run with the elevated superadmin tool policy */
+  enableSuperadminTools: boolean
   /** Session cookie for authenticating API callbacks (e.g. restart_dev_server) */
   sessionCookie?: string
 }
@@ -152,6 +186,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
   const { jobId, workspace, prompt, timeoutSeconds = 300, model, thinkingPrompt, skills, actionType } = params
   const requestId = generateRequestId()
   const startTime = Date.now()
+  const isAlive = isAliveWorkspace(workspace)
 
   // === Input Validation ===
   if (!workspace?.trim()) {
@@ -188,6 +223,9 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     : `${deduplicationNote}${prompt}`
 
   try {
+    let userProfile: AutomationUserProfile | null = null
+    let enableSuperadminTools = false
+
     // === Workspace Validation ===
     // Use getWorkspacePath (resolves to /user, same as chat flow).
     // workspace-secure.ts resolves to /user/src which breaks sites without src/.
@@ -204,12 +242,23 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
 
     console.log(`[Automation ${requestId}] Workspace: ${cwd}`)
 
-    // === Credits Validation ===
-    const orgCredits = (await getOrgCredits(workspace)) ?? 0
-    if (orgCredits < 1) {
-      throw new Error(
-        `Insufficient credits: You have ${orgCredits} credit(s) but need 1. Please upgrade your plan to continue using automations.`,
-      )
+    if (isAlive) {
+      userProfile = await loadAutomationUserProfile(params.userId)
+      if (!isSuperadminEmail(userProfile.email)) {
+        throw new Error(`Only superadmins can run automations in workspace "${SUPERADMIN.WORKSPACE_NAME}"`)
+      }
+      enableSuperadminTools = true
+      console.log(`[Automation ${requestId}] Superadmin workspace execution enabled`)
+    }
+
+    // === Credits Validation (skipped for alive workspace superadmin jobs) ===
+    if (!enableSuperadminTools) {
+      const orgCredits = (await getOrgCredits(workspace)) ?? 0
+      if (orgCredits < 1) {
+        throw new Error(
+          `Insufficient credits: You have ${orgCredits} credit(s) but need 1. Please upgrade your plan to continue using automations.`,
+        )
+      }
     }
 
     // === OAuth Validation ===
@@ -232,17 +281,11 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
     let sessionCookie: string | undefined
     try {
       const iam = createServiceIamClient()
-      const { data: user, error: userError } = await iam
-        .from("users")
-        .select("email, display_name")
-        .eq("user_id", params.userId)
-        .single()
-
-      if (userError) {
-        throw new Error(`Failed to load user for session token: ${userError.message}`)
+      if (!userProfile) {
+        userProfile = await loadAutomationUserProfile(params.userId)
       }
 
-      if (user?.email) {
+      if (userProfile.email) {
         const { data: memberships, error: membershipsError } = await iam
           .from("org_memberships")
           .select("org_id, role")
@@ -265,8 +308,8 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
         if (orgIds.length > 0) {
           sessionCookie = await createSessionToken({
             userId: params.userId,
-            email: user.email,
-            name: user.display_name,
+            email: userProfile.email,
+            name: userProfile.displayName,
             orgIds,
             orgRoles,
           })
@@ -298,6 +341,7 @@ export async function runAutomationJob(params: AutomationJobParams): Promise<Aut
       timeoutSeconds,
       extraTools: params.extraTools,
       responseToolName: params.responseToolName,
+      enableSuperadminTools,
       sessionCookie,
     })
 

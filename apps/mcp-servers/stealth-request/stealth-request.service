@@ -13,13 +13,16 @@ KillMode=mixed
 Restart=always
 RestartSec=5
 
+# Auto-install matching Chrome before start (prevents version mismatch after updates)
+ExecStartPre=/usr/bin/npx puppeteer browsers install chrome
+
 # Environment
 Environment="PUPPETEER_CACHE_DIR=/root/.cache/puppeteer"
 Environment="NODE_ENV=production"
 
-# Resource limits
-MemoryMax=512M
-CPUQuota=50%
+# Resource limits (3 pooled browsers × ~400MB each + bun overhead)
+MemoryMax=2560M
+CPUQuota=80%
 
 # Logging
 StandardOutput=journal

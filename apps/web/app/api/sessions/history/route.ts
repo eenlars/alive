@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     // For now, only allow reading own sessions
     // TODO: Implement A2A policy for cross-user access
     if (targetUserId !== userId) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
         status: 403,
         details: { reason: "Cross-user session history not yet implemented" },
       })

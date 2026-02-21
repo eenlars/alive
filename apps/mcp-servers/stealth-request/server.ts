@@ -1,11 +1,13 @@
 import cors from "cors"
 import type { Request, Response } from "express"
 import express from "express"
+import { browserPool } from "./src/browser-pool"
 import { registerAnalyzeJsRoutes } from "./src/routes/analyze-js"
 import { registerDetectFrameworkRoutes } from "./src/routes/detect-framework"
 import { registerDiscoverRoutes } from "./src/routes/discover"
 import { registerFetchRoutes } from "./src/routes/fetch"
 import { registerReconRoutes } from "./src/routes/recon"
+import { Sentry } from "./src/sentry"
 
 // Require puppeteer cache directory
 if (!process.env.PUPPETEER_CACHE_DIR) {
@@ -19,7 +21,7 @@ app.use(cors())
 app.use(express.json())
 
 app.get("/health", (_req: Request, res: Response) => {
-  res.json({ status: "ok", service: "stealth-server", port: PORT })
+  res.json({ status: "ok", service: "stealth-server", port: PORT, pool: browserPool.stats })
 })
 
 // Register route modules
@@ -32,8 +34,28 @@ registerDiscoverRoutes(app, {
   publicUrl: `https://${process.env.STEALTH_PUBLIC_HOST ?? "scrape.alive.best"}`,
 })
 
+// Sentry Express error handler — catches unhandled route errors
+Sentry.setupExpressErrorHandler(app)
+
 const HOST = "127.0.0.1"
-app.listen(PORT, HOST, () => {
+app.listen(PORT, HOST, async () => {
   console.log(`Stealth server running on http://${HOST}:${PORT}`)
   console.log(`API discovery: http://${HOST}:${PORT}/discover`)
+  // Pre-launch browsers so first requests are fast
+  try {
+    await browserPool.warmup()
+  } catch (err) {
+    Sentry.captureException(err, { tags: { component: "browser-pool", phase: "warmup" } })
+    await Sentry.flush(2000)
+    process.exit(1)
+  }
 })
+
+// Graceful shutdown — close all pooled browsers
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.on(signal, async () => {
+    console.log(`[${signal}] Shutting down browser pool...`)
+    await browserPool.shutdown()
+    process.exit(0)
+  })
+}

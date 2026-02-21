@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
 import { validateSlug } from "@/features/deployment/lib/slug-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { buildSubdomain, WORKSPACE_BASE } from "@/lib/config"
 import { ErrorCodes } from "@/lib/error-codes"
 
@@ -16,12 +16,12 @@ export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get("slug")?.toLowerCase()
 
   if (!slug) {
-    return createErrorResponse(ErrorCodes.MISSING_SLUG, 400)
+    return structuredErrorResponse(ErrorCodes.MISSING_SLUG, { status: 400 })
   }
 
   const validation = validateSlug(slug)
   if (!validation.valid) {
-    return createErrorResponse(ErrorCodes.INVALID_SLUG, 400, { error: validation.error })
+    return structuredErrorResponse(ErrorCodes.INVALID_SLUG, { status: 400, details: { error: validation.error } })
   }
 
   // Check if domain directory exists

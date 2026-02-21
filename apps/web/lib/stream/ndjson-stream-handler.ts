@@ -136,7 +136,7 @@ interface StreamHandlerConfig {
  *
  * Pricing (per MTok, 1 USD = 10 credits):
  * - Opus 4.6: $5 input, $25 output
- * - Sonnet 4.5: $3/$6 input (≤200K/>200K), $15/$22.50 output
+ * - Sonnet 4.6: $3/$6 input (≤200K/>200K), $15/$22.50 output
  * - Haiku 4.5: $1 input, $5 output
  *
  * ATOMIC OPERATION: Uses Supabase RPC to atomically deduct credits.
@@ -293,7 +293,11 @@ async function processChildEvent(
   capturedAssistantErrorTypes: Set<string>,
   onMessage?: (message: StreamMessage | BridgeErrorMessage) => void,
 ): Promise<{ isComplete: boolean }> {
-  // Handle session ID storage (server-side only)
+  // Store SDK session ID in Supabase so the next message can resume this
+  // conversation. The SDK also writes the session to disk as a JSONL file
+  // at CLAUDE_CONFIG_DIR/projects/<hash>/<session-id>.jsonl — both must
+  // exist for resume to work. If the JSONL file is missing (e.g. due to
+  // permissions), the session ID here becomes stale and route.ts clears it.
   if (childEvent.type === "stream_session" && childEvent.sessionId) {
     console.log(
       `[NDJSON Stream ${requestId}] [SESSION DEBUG] Received stream_session event, sessionId: ${childEvent.sessionId}`,

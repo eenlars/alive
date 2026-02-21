@@ -91,24 +91,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Require GitHub OAuth token — we use the API tarball endpoint which needs auth
-    let githubToken: string
+    // Try to get GitHub OAuth token — needed for private repos, optional for public ones
+    let githubToken: string | undefined
     try {
       const githubOAuthKey = getOAuthKeyForProvider("github")
       const githubOAuth = getOAuthInstance(githubOAuthKey)
-      const token = await githubOAuth.getAccessToken(sessionUser.id, githubOAuthKey)
-      if (!token) {
-        return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
-          status: 400,
-          details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
-        })
-      }
-      githubToken = token
-    } catch {
-      return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
-        status: 400,
-        details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
-      })
+      githubToken = (await githubOAuth.getAccessToken(sessionUser.id, githubOAuthKey)) ?? undefined
+    } catch (_err) {
+      // No GitHub token available — fine for public repos
     }
 
     // Download and prepare the repo via GitHub API
@@ -197,6 +187,7 @@ export async function POST(request: NextRequest) {
       }
     } catch (tokenError) {
       console.error("[Import-Repo] JWT regeneration failed (deployment succeeded):", tokenError)
+      Sentry.captureException(tokenError)
     }
 
     return res
@@ -241,6 +232,7 @@ export async function POST(request: NextRequest) {
         cleanupImportDir(cleanupDir)
       } catch (cleanupError) {
         console.error("[Import-Repo] Failed to clean up temp dir:", cleanupError)
+        Sentry.captureException(cleanupError)
       }
     }
   }

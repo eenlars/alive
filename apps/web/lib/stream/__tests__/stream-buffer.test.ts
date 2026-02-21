@@ -4,17 +4,50 @@
  * Tests the Lua script for unread message retrieval.
  * Verifies cursor-based replay in the GET_UNREAD_SCRIPT.
  *
- * NOTE: These tests require Redis and are skipped in CI.
+ * NOTE: These tests require a live Redis instance. They are skipped automatically
+ * when Redis is unreachable (including all CI environments).
  */
 
+import net from "node:net"
 import { getRedisUrl } from "@webalive/env/server"
 import { createRedisClient } from "@webalive/redis"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 
-// Skip these tests in CI (no Redis available)
+// Skip these tests when Redis is not available (CI or local without Redis)
 const isCI = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true"
 
-describe.skipIf(isCI)("Stream Buffer - Lua Script (GET_UNREAD_SCRIPT)", () => {
+// TCP probe with 1s timeout — avoids ioredis infinite retry loops
+async function isRedisAvailable(): Promise<boolean> {
+  let parsed: URL
+  try {
+    const url = getRedisUrl()
+    if (!url) return false
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  const host = parsed.hostname || "127.0.0.1"
+  const port = Number(parsed.port) || 6379
+  return new Promise(resolve => {
+    const socket = net.createConnection({ host, port, timeout: 1000 })
+    socket.on("connect", () => {
+      socket.destroy()
+      resolve(true)
+    })
+    socket.on("timeout", () => {
+      socket.destroy()
+      resolve(false)
+    })
+    socket.on("error", () => {
+      socket.destroy()
+      resolve(false)
+    })
+  })
+}
+
+const hasRedis = isCI ? false : await isRedisAvailable()
+
+describe.skipIf(!hasRedis)("Stream Buffer - Lua Script (GET_UNREAD_SCRIPT)", () => {
   let redis!: NonNullable<ReturnType<typeof createRedisClient>>
 
   beforeAll(() => {

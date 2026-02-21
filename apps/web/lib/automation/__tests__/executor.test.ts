@@ -65,7 +65,15 @@ vi.mock("@webalive/shared", async importOriginal => {
   const actual = await importOriginal<typeof import("@webalive/shared")>()
   return {
     ...actual,
-    getWorkspacePath: vi.fn((ws: string) => `/srv/webalive/sites/${ws}/user`),
+    SUPERADMIN: {
+      ...actual.SUPERADMIN,
+      EMAILS: ["admin@example.com"],
+      WORKSPACE_NAME: "alive",
+      WORKSPACE_PATH: actual.SUPERADMIN.WORKSPACE_PATH,
+    },
+    getWorkspacePath: vi.fn((ws: string) =>
+      ws === "alive" ? actual.SUPERADMIN.WORKSPACE_PATH : `/srv/webalive/sites/${ws}/user`,
+    ),
   }
 })
 
@@ -92,7 +100,7 @@ vi.mock("@/lib/credits/supabase-credits", () => ({
 }))
 
 vi.mock("@/lib/models/claude-models", () => ({
-  DEFAULT_MODEL: "claude-sonnet-4-5",
+  DEFAULT_MODEL: "claude-sonnet-4-6",
 }))
 
 vi.mock("@/lib/utils", () => ({
@@ -329,5 +337,72 @@ describe("runAutomationJob", () => {
         sessionCookie: undefined,
       }),
     )
+  })
+
+  it("skips credit check for alive workspace", async () => {
+    mockUserQueryResult = {
+      data: { email: "admin@example.com", display_name: "Admin User" },
+      error: null,
+    }
+
+    // Mock getOrgCredits to return 0 — normally this would fail
+    const { getOrgCredits } = await import("@/lib/credits/supabase-credits")
+    vi.mocked(getOrgCredits).mockResolvedValueOnce(0)
+
+    const { runAutomationJob } = await import("../executor")
+    const result = await runAutomationJob({
+      jobId: "j1",
+      userId: "u1",
+      orgId: "o1",
+      workspace: "alive",
+      prompt: "test prompt",
+    })
+
+    // Should succeed even with 0 credits because alive workspace skips credit check
+    expect(result.success).toBe(true)
+    expect(vi.mocked(getOrgCredits)).not.toHaveBeenCalled()
+    expect(mockTryWorkerPool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enableSuperadminTools: true,
+      }),
+    )
+  })
+
+  it("rejects alive workspace for non-superadmin users", async () => {
+    mockUserQueryResult = {
+      data: { email: "user@example.com", display_name: "Regular User" },
+      error: null,
+    }
+
+    const { runAutomationJob } = await import("../executor")
+    const result = await runAutomationJob({
+      jobId: "j1",
+      userId: "u1",
+      orgId: "o1",
+      workspace: "alive",
+      prompt: "test prompt",
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain("Only superadmins can run automations")
+    expect(mockTryWorkerPool).not.toHaveBeenCalled()
+  })
+
+  it("still checks credits for normal workspaces", async () => {
+    const { getOrgCredits } = await import("@/lib/credits/supabase-credits")
+    vi.mocked(getOrgCredits).mockResolvedValueOnce(0)
+
+    const { runAutomationJob } = await import("../executor")
+    const result = await runAutomationJob({
+      jobId: "j1",
+      userId: "u1",
+      orgId: "o1",
+      workspace: "test.alive.best",
+      prompt: "test prompt",
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toContain("Insufficient credits")
+    expect(mockTryWorkerPool).not.toHaveBeenCalled()
   })
 })

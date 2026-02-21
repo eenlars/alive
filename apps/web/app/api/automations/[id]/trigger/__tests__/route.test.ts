@@ -168,4 +168,124 @@ describe("POST /api/automations/[id]/trigger", () => {
     expect(payload.error).toBe(ErrorCodes.FORBIDDEN)
     expect(createServiceAppClientMock).not.toHaveBeenCalled()
   })
+
+  it("returns 403 when non-owner non-superadmin triggers another user's job", async () => {
+    getSessionUserMock.mockResolvedValueOnce({
+      id: "user_2",
+      email: "other@example.com",
+      name: "Other",
+      isSuperadmin: false,
+    })
+
+    const mockJob = {
+      id: "job_1",
+      name: "test-job",
+      user_id: "user_1",
+      running_at: null,
+      action_timeout_seconds: 300,
+      action_type: "prompt",
+      action_prompt: "Do something",
+      domains: { hostname: "test.example.com", server_id: "srv_test" },
+    }
+
+    createServiceAppClientMock.mockReturnValueOnce({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({ data: mockJob, error: null }),
+          }),
+        }),
+      }),
+    })
+
+    const response = await POST(makeRequest(), { params: Promise.resolve({ id: "job_1" }) })
+
+    expect(response.status).toBe(403)
+    const payload = await response.json()
+    expect(payload.error).toBe(ErrorCodes.ORG_ACCESS_DENIED)
+  })
+
+  it("allows superadmin to trigger alive workspace job owned by another user", async () => {
+    getSessionUserMock.mockResolvedValueOnce({
+      id: "superadmin_1",
+      email: "admin@example.com",
+      name: "Admin",
+      isSuperadmin: true,
+    })
+
+    const mockJob = {
+      id: "job_1",
+      name: "alive-job",
+      user_id: "user_1",
+      running_at: null,
+      action_timeout_seconds: 300,
+      action_type: "prompt",
+      action_prompt: "Do something",
+      domains: { hostname: "alive", server_id: "srv_test" },
+    }
+
+    createServiceAppClientMock.mockReturnValueOnce({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({ data: mockJob, error: null }),
+          }),
+        }),
+      }),
+    })
+
+    claimJobMock.mockResolvedValueOnce({
+      supabase: {},
+      job: mockJob,
+      hostname: "alive",
+      runId: "run_abc",
+      claimedAt: "2026-01-01T00:00:00Z",
+      serverId: "srv_test",
+      timeoutSeconds: 300,
+      triggeredBy: "manual",
+      heartbeatInterval: null,
+    })
+
+    const response = await POST(makeRequest(), { params: Promise.resolve({ id: "job_1" }) })
+
+    expect(response.status).toBe(202)
+    const payload = await response.json()
+    expect(payload.ok).toBe(true)
+  })
+
+  it("returns 403 when superadmin triggers non-alive workspace job owned by another user", async () => {
+    getSessionUserMock.mockResolvedValueOnce({
+      id: "superadmin_1",
+      email: "admin@example.com",
+      name: "Admin",
+      isSuperadmin: true,
+    })
+
+    const mockJob = {
+      id: "job_1",
+      name: "other-job",
+      user_id: "user_1",
+      running_at: null,
+      action_timeout_seconds: 300,
+      action_type: "prompt",
+      action_prompt: "Do something",
+      domains: { hostname: "other-site.com", server_id: "srv_test" },
+    }
+
+    createServiceAppClientMock.mockReturnValueOnce({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            single: () => Promise.resolve({ data: mockJob, error: null }),
+          }),
+        }),
+      }),
+    })
+
+    const response = await POST(makeRequest(), { params: Promise.resolve({ id: "job_1" }) })
+
+    expect(response.status).toBe(403)
+    const payload = await response.json()
+    expect(payload.error).toBe(ErrorCodes.ORG_ACCESS_DENIED)
+  })
 })

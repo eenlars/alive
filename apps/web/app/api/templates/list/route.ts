@@ -6,7 +6,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { listTemplates } from "@webalive/tools"
 import { NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 
 /**
@@ -30,8 +30,11 @@ export async function GET() {
   } catch (error) {
     console.error("[Templates List API] Error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      exception: error instanceof Error ? error.message : String(error),
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        exception: error instanceof Error ? error.message : String(error),
+      },
     })
   }
 }

@@ -1,16 +1,9 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs"
+import { existsSync, readdirSync, rmSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { Browser, HTTPRequest, HTTPResponse, LaunchOptions, Page, ScreenshotOptions } from "puppeteer"
-import puppeteerExtra from "puppeteer-extra"
-import stealthPlugin from "puppeteer-extra-plugin-stealth"
-import {
-  CF_CHALLENGE_POLL_MS,
-  CF_CHALLENGE_WAIT_MS,
-  DEFAULT_TIMEOUT,
-  PAGINATION_SETTLE_MS,
-  USER_AGENTS,
-} from "./constants"
+import type { Browser, HTTPRequest, HTTPResponse, Page, ScreenshotOptions } from "puppeteer"
+import { browserPool, type PooledPage } from "./browser-pool"
+import { CF_CHALLENGE_POLL_MS, CF_CHALLENGE_WAIT_MS, DEFAULT_TIMEOUT, PAGINATION_SETTLE_MS } from "./constants"
 import {
   type ExtractedLink,
   type NetworkRequest,
@@ -19,8 +12,6 @@ import {
   type RequestResponse,
   RequestSchema,
 } from "./types"
-
-puppeteerExtra.use(stealthPlugin())
 
 // ---------------------------------------------------------------------------
 // Temp-dir cleanup: remove orphaned Chromium/Puppeteer profile dirs
@@ -62,40 +53,25 @@ cleanupStaleTempDirs()
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000
 setInterval(cleanupStaleTempDirs, CLEANUP_INTERVAL_MS).unref()
 
-interface BrowserHandle {
+// ---------------------------------------------------------------------------
+// One-off browser for proxy requests (not pooled — proxy is per-browser)
+// ---------------------------------------------------------------------------
+interface OneOffHandle {
   browser: Browser
   userDataDir: string
 }
 
-async function setupBrowser(proxy?: ProxyConfig, userAgent?: string): Promise<BrowserHandle> {
-  // Create an explicit temp dir so we can guarantee cleanup
-  const userDataDir = mkdtempSync(join(tmpdir(), "puppeteer_dev_profile-"))
-
-  const args = [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-blink-features=AutomationControlled",
-    "--disable-infobars",
-    "--window-size=1920,1080",
-    "--disable-dev-shm-usage",
-  ]
-
-  if (proxy) {
-    args.push(`--proxy-server=${proxy.ip}:${proxy.port}`)
-  }
-
-  if (userAgent) {
-    args.push(`--user-agent=${userAgent}`)
-  }
-
-  const launchOptions: LaunchOptions = {
-    headless: true,
-    args,
-    userDataDir,
-  }
-
-  const browser = await puppeteerExtra.launch(launchOptions)
-  return { browser, userDataDir }
+async function cleanupOneOff(handle: OneOffHandle) {
+  const pages = await handle.browser.pages()
+  await Promise.allSettled(pages.map((page: Page) => page.close()))
+  try {
+    await handle.browser.close()
+  } catch {}
+  try {
+    if (existsSync(handle.userDataDir)) {
+      rmSync(handle.userDataDir, { recursive: true, force: true })
+    }
+  } catch {}
 }
 
 /**
@@ -157,24 +133,6 @@ async function waitForChallengeResolution(page: Page): Promise<boolean> {
     if (!stillBlocked) return true
   }
   return false
-}
-
-async function cleanupBrowser(handle: BrowserHandle) {
-  const pages = await handle.browser.pages()
-  await Promise.allSettled(pages.map((page: Page) => page.close()))
-  try {
-    await handle.browser.close()
-  } catch {
-    // browser may already be closed
-  }
-  // Force-remove the temp profile dir — browser.close() doesn't always clean up
-  try {
-    if (existsSync(handle.userDataDir)) {
-      rmSync(handle.userDataDir, { recursive: true, force: true })
-    }
-  } catch {
-    // best-effort
-  }
 }
 
 function setupNetworkCapture(page: Page): {
@@ -395,7 +353,8 @@ async function paginationLoop(
 }
 
 export async function stealthRequest(input: RequestConfig, proxy?: ProxyConfig): Promise<RequestResponse> {
-  let handle: BrowserHandle | null = null
+  let pooled: PooledPage | null = null
+  let oneOff: OneOffHandle | null = null
   let networkCapture: ReturnType<typeof setupNetworkCapture> | null = null
 
   try {
@@ -417,11 +376,19 @@ export async function stealthRequest(input: RequestConfig, proxy?: ProxyConfig):
       }
     }
 
-    const randomIndex = Math.floor(Math.random() * USER_AGENTS.length)
-    const randomUserAgent = USER_AGENTS[randomIndex] ?? USER_AGENTS[0] ?? ""
+    let page: Page
 
-    handle = await setupBrowser(proxy, randomUserAgent)
-    const page = await handle.browser.newPage()
+    if (proxy) {
+      // Proxy requires a dedicated browser (proxy is set at launch via --proxy-server)
+      const { browser, userDataDir } = await browserPool.launchOneOff([`--proxy-server=${proxy.ip}:${proxy.port}`])
+      oneOff = { browser, userDataDir }
+      page = await browser.newPage()
+    } else {
+      // Normal path: use the pool (reuses browsers, isolated context per request)
+      pooled = await browserPool.acquire()
+      page = pooled.page
+    }
+
     await configurePage(page)
 
     if (validated.recordNetworkRequests) {
@@ -633,12 +600,16 @@ export async function stealthRequest(input: RequestConfig, proxy?: ProxyConfig):
     } catch {
       /* ignore */
     }
-    if (handle) {
-      await cleanupBrowser(handle).catch(() => {})
+    if (pooled) {
+      await pooled.release()
+    }
+    if (oneOff) {
+      await cleanupOneOff(oneOff).catch(() => {})
     }
   }
 }
 
+export { browserPool } from "./browser-pool"
 export { RequestCache } from "./cache"
 export * from "./constants"
 export { StealthResponse } from "./StealthResponse"

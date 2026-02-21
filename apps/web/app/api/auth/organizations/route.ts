@@ -53,7 +53,8 @@ export async function GET(req: NextRequest) {
 
     if (membershipError) {
       console.error("[Organizations API] Error fetching memberships:", membershipError)
-      return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
+      Sentry.captureException(membershipError)
+      return createCorsErrorResponse(origin, ErrorCodes.QUERY_FAILED, 500, { requestId })
     }
 
     if (!memberships || memberships.length === 0) {
@@ -89,7 +90,8 @@ export async function GET(req: NextRequest) {
 
     if (orgsError) {
       console.error("[Organizations API] Error fetching orgs:", orgsError)
-      return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
+      Sentry.captureException(orgsError)
+      return createCorsErrorResponse(origin, ErrorCodes.QUERY_FAILED, 500, { requestId })
     }
 
     // Get workspace counts for each org
@@ -175,7 +177,7 @@ export async function PATCH(req: NextRequest) {
 
     // Only owners and admins can update org name
     if (!isOrgAdminRole(membership.role)) {
-      return createCorsErrorResponse(origin, ErrorCodes.UNAUTHORIZED, 403, { requestId })
+      return createCorsErrorResponse(origin, ErrorCodes.FORBIDDEN, 403, { requestId })
     }
 
     // Update organization name
@@ -189,7 +191,8 @@ export async function PATCH(req: NextRequest) {
 
     if (updateError) {
       console.error("[Organizations API] Error updating org:", updateError)
-      return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, { requestId })
+      Sentry.captureException(updateError)
+      return createCorsErrorResponse(origin, ErrorCodes.QUERY_FAILED, 500, { requestId })
     }
 
     return createCorsSuccessResponse(origin, {

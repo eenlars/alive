@@ -5,13 +5,13 @@ import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import {
   createBadRequestResponse,
-  createErrorResponse,
   createSuccessResponse,
   getDomainParam,
   requireManagerAuth,
   requireParam,
 } from "@/features/manager/lib/api-helpers"
 import { domainToSlug, getDomainSitePath, getDomainUser } from "@/features/manager/lib/domain-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { getDomain } from "@/lib/domains"
 import { ErrorCodes } from "@/lib/error-codes"
 import type { ViteConfigInfo } from "@/types/domain"
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Failed to get vite config:", error)
     Sentry.captureException(error)
-    return createErrorResponse(error, "Failed to get vite config")
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Failed to fix vite config:", error)
     Sentry.captureException(error)
-    return createErrorResponse(error, "Failed to fix vite config")
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
 
@@ -99,7 +99,8 @@ async function getViteConfigInfo(domain: string): Promise<ViteConfigInfo> {
     if (portMatch) {
       systemdOverridePort = Number.parseInt(portMatch[1], 10)
     }
-  } catch {
+  } catch (_err) {
+    // Expected: override file may not exist
     hasSystemdOverride = false
   }
 
@@ -112,14 +113,15 @@ async function getViteConfigInfo(domain: string): Promise<ViteConfigInfo> {
     await execAsync(`test -f "${tsPath}"`)
     configPath = tsPath
     configContent = await readFile(tsPath, "utf-8")
-  } catch {
-    // Try .js
+  } catch (_err) {
+    // Expected: .ts config may not exist, try .js
     try {
       const jsPath = `${sitePath}/user/vite.config.js`
       await execAsync(`test -f "${jsPath}"`)
       configPath = jsPath
       configContent = await readFile(jsPath, "utf-8")
-    } catch {
+    } catch (_err) {
+      // Expected: no vite config file exists
       return {
         domain,
         expectedPort,

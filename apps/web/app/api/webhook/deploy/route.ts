@@ -5,7 +5,8 @@ import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { createDedupeCache } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 
 // Configuration
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
     // Verify webhook signature
     if (!verifySignature(payload, signature)) {
       console.error("[WEBHOOK] Invalid signature")
-      return createErrorResponse(ErrorCodes.INVALID_SIGNATURE, 401)
+      return structuredErrorResponse(ErrorCodes.INVALID_SIGNATURE, { status: 401 })
     }
 
     // Parse payload
@@ -136,8 +137,11 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[WEBHOOK] Error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      exception: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        exception: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
@@ -147,6 +151,14 @@ export async function POST(req: NextRequest) {
  */
 export async function GET() {
   try {
+    const user = await getSessionUser()
+    if (!user) {
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401 })
+    }
+    if (!user.isSuperadmin) {
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
+    }
+
     // Read recent log files
     const logs = fs
       .readdirSync(LOG_DIR)
@@ -161,11 +173,9 @@ export async function GET() {
       recentDeployments: logs,
       logDir: LOG_DIR,
     })
-  } catch (_error) {
-    return NextResponse.json({
-      configured: !!WEBHOOK_SECRET,
-      branch: BRANCH,
-      error: ErrorCodes.FILE_READ_ERROR,
-    })
+  } catch (error) {
+    console.error("[WEBHOOK] Failed to list deploy logs:", error)
+    Sentry.captureException(error)
+    return structuredErrorResponse(ErrorCodes.FILE_READ_ERROR, { status: 500 })
   }
 }

@@ -20,10 +20,13 @@ vi.mock("@/features/auth/lib/auth", () => {
   return {
     AuthenticationError,
     requireSessionUser: () => requireSessionUserMock(),
-    createErrorResponse: (code: string, status: number, details?: Record<string, unknown>) =>
-      new Response(JSON.stringify({ ok: false, error: code, ...details }), { status }),
   }
 })
+
+vi.mock("@/lib/api/responses", () => ({
+  structuredErrorResponse: (code: string, opts: { status: number; details?: Record<string, unknown> }) =>
+    new Response(JSON.stringify({ ok: false, error: code, ...opts.details }), { status: opts.status }),
+}))
 
 vi.mock("@/features/manager/lib/domain-utils", () => ({
   normalizeAndValidateDomain: vi.fn(() => ({

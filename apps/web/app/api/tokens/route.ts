@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, isWorkspaceAuthenticated } from "@/features/auth/lib/auth"
+import { isWorkspaceAuthenticated } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import type { TokensResponse } from "@/lib/api/types"
 import { creditsToLLMTokens } from "@/lib/credits"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -11,20 +12,20 @@ export async function GET(req: NextRequest) {
     const workspace = req.headers.get("X-Workspace")
 
     if (!workspace) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_MISSING, 400)
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_MISSING, { status: 400 })
     }
 
     // Verify user is authenticated for this workspace using JWT
     const isAuthenticated = await isWorkspaceAuthenticated(workspace)
     if (!isAuthenticated) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401)
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, { status: 401 })
     }
 
     // Load credits from Supabase (domain → org → credits)
     const credits = await getOrgCredits(workspace)
 
     if (credits === null) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404)
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, { status: 404 })
     }
 
     const tokens = creditsToLLMTokens(credits) // For backward compatibility
@@ -38,6 +39,6 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[Tokens] Error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

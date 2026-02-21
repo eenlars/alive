@@ -19,9 +19,10 @@ import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse, requireSessionUser } from "@/features/auth/lib/auth"
+import { requireSessionUser } from "@/features/auth/lib/auth"
 import { tabKey } from "@/features/auth/lib/sessionStore"
 import { hasSessionCookie } from "@/features/auth/types/guards"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { ErrorCodes } from "@/lib/error-codes"
 import { ackStreamCursor, deleteStreamBuffer, getUnreadMessages, hasActiveStream } from "@/lib/stream/stream-buffer"
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
 
     // Check session
     if (!hasSessionCookie(jar.get(COOKIE_NAMES.SESSION))) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401)
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401 })
     }
 
     const user = await requireSessionUser()
@@ -75,13 +76,14 @@ export async function POST(req: Request) {
     let body: unknown
     try {
       body = await req.json()
-    } catch {
-      return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
+    } catch (_err) {
+      return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400 })
     }
 
     const parseResult = ReconnectSchema.safeParse(body)
     if (!parseResult.success) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
         details: { issues: parseResult.error.issues },
       })
     }

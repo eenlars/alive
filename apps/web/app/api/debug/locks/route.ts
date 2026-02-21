@@ -28,7 +28,7 @@ import { getRegistryState } from "@/lib/stream/cancellation-registry"
 
 export async function GET() {
   if (process.env.NODE_ENV === "production") {
-    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
+    return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
   }
 
   const locks = getLockedConversations()

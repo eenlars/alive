@@ -5,7 +5,7 @@
  *
  * Pricing (per MTok):
  * - Opus 4.6: $5 input, $25 output
- * - Sonnet 4.5: $3/$6 input (≤200K/>200K), $15/$22.50 output
+ * - Sonnet 4.6: $3/$6 input (≤200K/>200K), $15/$22.50 output
  * - Haiku 4.5: $1 input, $5 output
  *
  * Credit conversion: 1 USD = 10 credits
@@ -30,7 +30,7 @@ describe("Model Pricing Configuration", () => {
 
   test("should have pricing for all models", () => {
     expect(MODEL_PRICING[CLAUDE_MODELS.OPUS_4_6]).toBeDefined()
-    expect(MODEL_PRICING[CLAUDE_MODELS.SONNET_4_5]).toBeDefined()
+    expect(MODEL_PRICING[CLAUDE_MODELS.SONNET_4_6]).toBeDefined()
     expect(MODEL_PRICING[CLAUDE_MODELS.HAIKU_4_5]).toBeDefined()
   })
 
@@ -41,7 +41,7 @@ describe("Model Pricing Configuration", () => {
   })
 
   test("Sonnet pricing should match Anthropic rates with tiers", () => {
-    const sonnet = MODEL_PRICING[CLAUDE_MODELS.SONNET_4_5]
+    const sonnet = MODEL_PRICING[CLAUDE_MODELS.SONNET_4_6]
     expect(sonnet.inputPerMTok).toBe(3)
     expect(sonnet.outputPerMTok).toBe(15)
     expect(sonnet.tierThreshold).toBe(200_000)
@@ -126,8 +126,8 @@ describe("calculateUSDCost()", () => {
     })
   })
 
-  describe("Sonnet 4.5", () => {
-    const model = CLAUDE_MODELS.SONNET_4_5
+  describe("Sonnet 4.6", () => {
+    const model = CLAUDE_MODELS.SONNET_4_6
 
     test("should use standard tier when under 200K prompt tokens", () => {
       // 1000 input at $3/MTok = $0.003
@@ -209,7 +209,7 @@ describe("calculateCreditsToCharge()", () => {
   test("should convert Sonnet usage to credits", () => {
     // 1000 input + 1000 output (under threshold) = $0.018 USD
     // $0.018 * 10 = 0.18 credits
-    const credits = calculateCreditsToCharge(CLAUDE_MODELS.SONNET_4_5, 1000, 1000)
+    const credits = calculateCreditsToCharge(CLAUDE_MODELS.SONNET_4_6, 1000, 1000)
     expect(credits).toBe(0.18)
   })
 
@@ -224,7 +224,7 @@ describe("calculateCreditsToCharge()", () => {
     // Over 200K threshold
     // 1000 input at $6/MTok + 1000 output at $22.5/MTok = $0.0285
     // $0.0285 * 10 = 0.29 credits (rounded)
-    const credits = calculateCreditsToCharge(CLAUDE_MODELS.SONNET_4_5, 1000, 1000, 250_000)
+    const credits = calculateCreditsToCharge(CLAUDE_MODELS.SONNET_4_6, 1000, 1000, 250_000)
     expect(credits).toBe(0.29)
   })
 
@@ -259,7 +259,7 @@ describe("Cost comparison across models", () => {
 
   test("Opus should be most expensive", () => {
     const opusCost = calculateUSDCost(CLAUDE_MODELS.OPUS_4_6, INPUT_TOKENS, OUTPUT_TOKENS)
-    const sonnetCost = calculateUSDCost(CLAUDE_MODELS.SONNET_4_5, INPUT_TOKENS, OUTPUT_TOKENS)
+    const sonnetCost = calculateUSDCost(CLAUDE_MODELS.SONNET_4_6, INPUT_TOKENS, OUTPUT_TOKENS)
     const haikuCost = calculateUSDCost(CLAUDE_MODELS.HAIKU_4_5, INPUT_TOKENS, OUTPUT_TOKENS)
 
     expect(opusCost).toBeGreaterThan(sonnetCost)
@@ -288,8 +288,8 @@ describe("Cost comparison across models", () => {
     expect(opusOutput / opusInput).toBe(5)
 
     // For Sonnet (standard tier): $3 input vs $15 output = 5x
-    const sonnetInput = calculateUSDCost(CLAUDE_MODELS.SONNET_4_5, 1_000_000, 0)
-    const sonnetOutput = calculateUSDCost(CLAUDE_MODELS.SONNET_4_5, 0, 1_000_000)
+    const sonnetInput = calculateUSDCost(CLAUDE_MODELS.SONNET_4_6, 1_000_000, 0)
+    const sonnetOutput = calculateUSDCost(CLAUDE_MODELS.SONNET_4_6, 0, 1_000_000)
     expect(sonnetOutput / sonnetInput).toBe(5)
   })
 })

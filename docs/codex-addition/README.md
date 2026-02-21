@@ -71,14 +71,37 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
 - Is `maxTurns` really needed, or can Alive rely on timeout + token budget instead? (fase_2/21)
 - Should Codex's `sandboxMode` and `modelReasoningEffort` be exposed in Alive workspace settings? (fase_2/21)
 
-## New Open Questions (from 2026-02-18 16:00 research)
-- Does Codex's Linux seccomp sandbox conflict with Node.js MCP servers? (fase_2/26 — use `danger-full-access` for v1)
-- Does `developer_instructions` actually work via `--config` CLI flag? (fase_3/05 — runtime test needed, BLOCKER)
-- How does `env_vars` passthrough interact with `env` replacement in MCP server config?
-- Can `CODEX_HOME` be set to a per-workspace path without breaking Codex binary resolution?
+## New Open Questions (from 2026-02-19 00:00 research)
+- None new — focused on resolving existing questions and scoping v1
 
+## Resolved (from 2026-02-19 00:00 research)
+- ~~How does `env_vars` passthrough interact with `env` replacement in MCP server config?~~ ✅ `env_vars` passes named parent vars to child; `env` adds key=value pairs. Complementary. (fase_1/15)
+- ~~Can `CODEX_HOME` be set to a per-workspace path without breaking Codex binary resolution?~~ ✅ Yes — CODEX_HOME controls storage, not binary (fase_2/32)
+- ~~How do OAuth MCP servers work with Codex?~~ ✅ Use `bearer_token_env_var` + env-passed tokens. No tokens on disk. (fase_1/15)
+
+## Remaining Open Questions (Final — Feb 19)
+1. **Does `developer_instructions` work via `--config` CLI flag?** — Runtime test needed (fase_3/05 test 1, fase_3/06 test 2). Fallback: config.toml.
+2. **Does Codex's seccomp sandbox conflict with Node.js MCP servers?** — Use `danger-full-access` for v1 (fase_2/26).
+3. **Does `skipGitRepoCheck` fully bypass git requirement?** — Likely yes, verify at pre-flight.
+4. **How does Codex handle abort mid-MCP-call?** — AbortSignal → SIGTERM to CLI → cascade to MCP children. Verify at pre-flight.
+
+All 4 are **runtime verification only** — not planning blockers. See fase_3/06 for test procedures.
+
+## Resolved Open Questions (Feb 19)
+- **Input delivery mechanism**: User prompts are sent via stdin to `codex exec`, NOT as CLI args. Safe for large/special-character prompts. (fase_2/32)
+- **Config flattening confirmed**: `CodexOptions.config` objects are serialized to `--config key=value` TOML args via `serializeConfigOverrides()`. Nested objects use dotted paths. (fase_1/15)
+- **`developer_instructions` delivery**: Passed as `--config developer_instructions="..."` CLI arg. Still needs runtime verification (fase_3/05 Test 1).
 
 ## Log
+- **2026-02-19 23:58** — Ninth (final) research iteration:
+  - Re-verified all SDK source files against latest main (fase_1/15). No API changes since Feb 18.
+  - **Confirmed config flattening mechanism** in exec.ts — `CodexOptions.config` is serialized to `--config key=value` TOML format. `developer_instructions` can be passed this way.
+  - **Confirmed stdin input delivery** — user prompts written to child process stdin, not CLI args. No escaping issues. (fase_2/32)
+  - Graceful degradation strategy (fase_2/29) — binary not found, auth failure, rate limits, CLI crashes, MCP server failures. Provider fallback is v2.
+  - Concurrency & worker pool analysis (fase_2/30) — 3-level process tree (manager→worker→CLI), resource implications, MCP server scaling, rate limit sharing, cleanup strategy.
+  - Logging & debugging (fase_2/31) — stderr capture limitations, JSONL event logging, Sentry integration, debug mode toggle.
+  - Updated implementation checklist (fase_2/23) — corrected `system_message` → `developer_instructions` reference.
+  - **PLAN STATUS**: Comprehensive and ready for implementation. All SDK APIs verified. All architectural decisions documented. 46h estimated work across 6 phases. Phase 1 (MCP refactoring) remains the single blocker. Two runtime verification tests (fase_3/05 Tests 1-2) must pass before committing to implementation.
 - **2026-02-17 00:00** — Initial research: current Alive architecture (fase_1/01), Codex SDK analysis (fase_1/02), Emdash reference analysis (fase_1/03)
 - Emdash (YC W26) supports 21 agents via CLI spawning. Simple but no tool control. Their provider registry is clean reference material.
 - Codex has a TypeScript SDK (`@openai/codex-sdk`) — structured events, thread-based sessions. Viable for SDK integration.
@@ -166,3 +189,30 @@ Target: Abstract the agent layer so the worker can spawn either Claude or Codex 
   - Runtime verification test suite (fase_3/05) — 7 specific tests that must pass before implementation. Tests 1-2 are BLOCKERS.
   - **New docs**: fase_1/13, fase_2/25, fase_2/26, fase_2/27, fase_3/05
   - **KEY INSIGHT**: The `developer_instructions` config key is the cleanest system prompt mechanism — injected as a separate developer message, coexists with user's own CODEX.md (`user_instructions`). This is actually BETTER than the file-based approach.
+- **2026-02-19 00:00** — Ninth research iteration (v1 scoping + gap closure):
+  - Verified Codex `StreamableHttp` auth mechanisms from Rust source (fase_1/15) — supports `bearer_token_env_var`, `http_headers`, and `env_http_headers`. **OAuth MCP servers solved**: use env var indirection, tokens never touch disk.
+  - Created concrete ClaudeProvider extraction guide (fase_2/29) — identifies exactly what moves out of worker-entry.mjs. **KEY STRATEGY CHANGE**: v1 CodexProvider emits Claude-compatible message format → zero frontend changes needed. Saves ~12h.
+  - Documented OAuth MCP + search tools multi-provider considerations (fase_2/30) — `withSearchToolsConnectedProviders` needs env-var replacement for standalone MCP servers.
+  - Defined v1 minimal scope (fase_2/31) — 3-week plan, ~30h (down from 46h). Defers unified event format, Codex-specific UI, OAuth MCP for Codex, session resume.
+  - Resolved 3 open questions (fase_2/32): env_vars passthrough, CODEX_HOME isolation, OAuth MCP auth.
+  - **New docs**: fase_1/15, fase_2/29, fase_2/30, fase_2/31, fase_2/32
+  - **PLAN STATUS**: Comprehensive and implementation-ready. All blockers identified. Remaining unknowns are runtime verification only (fase_3/05). Next steps: run verification tests, then begin Phase 1 (MCP stdio refactoring).
+- **2026-02-19 04:00** — Tenth and final research iteration (consolidation + implementation readiness):
+  - Verified Codex SDK exports against latest main — stable, no API changes since last check
+  - Created risk register (fase_2/33) — 10 risks ranked by impact/likelihood, top 3: env replacement bugs, MCP context loss, system prompt injection uncertainty
+  - Created Architecture Decision Record (fase_2/34) — 6 key decisions documented with rationale and rejected alternatives
+  - Created pre-flight verification guide (fase_3/06) — 6 concrete tests to run before writing production code, with pass/fail criteria and results template. Tests 1-3 and 5 are BLOCKERS.
+  - Created implementation kickoff summary (fase_2/35) — TL;DR for the developer starting implementation, with reference table to all relevant docs
+  - Consolidated remaining open questions in README — only 4 remain, all runtime verification (not planning blockers)
+  - **New docs**: fase_2/33, fase_2/34, fase_2/35, fase_3/06
+  - **PLANNING COMPLETE.** 15 fase_1 docs, 35 fase_2 docs, 6 fase_3 docs. All technical questions answered or reduced to runtime verification. Ready for implementation.
+- **2026-02-19 16:00** — Final verification check:
+  - Re-checked Codex SDK exports (`index.ts`, `threadOptions.ts`) against latest main — **no changes** since last audit. API stable.
+  - `ThreadOptions` confirmed: `model`, `sandboxMode`, `workingDirectory`, `skipGitRepoCheck`, `modelReasoningEffort`, `networkAccessEnabled`, `webSearchMode`, `webSearchEnabled`, `approvalPolicy`, `additionalDirectories`.
+  - `ApprovalMode`, `SandboxMode`, `ModelReasoningEffort`, `WebSearchMode` types unchanged.
+  - No new exports or breaking changes detected.
+  - **PLANNING REMAINS COMPLETE.** No further iterations needed before Feb 20 deadline. Next step: run pre-flight tests (fase_3/06), then begin Phase 1 implementation.
+- **2026-02-19 20:00** — Final pre-deadline check:
+  - Re-fetched `sdk/typescript/src/index.ts` from GitHub main — **zero changes** since last audit. Exports identical.
+  - All 56 planning documents remain current. No new SDK features, no API breaks.
+  - **PLANNING PHASE CLOSED.** Feb 20 deadline reached. Ready for implementation.

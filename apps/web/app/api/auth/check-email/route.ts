@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
   let body: unknown
   try {
     body = await req.json()
-  } catch {
+  } catch (_err) {
+    // Expected: malformed JSON body
     return createCorsResponse(
       origin,
       {

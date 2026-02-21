@@ -1,5 +1,5 @@
 import type { ClaudeModel } from "@webalive/shared"
-import { CLAUDE_MODELS, getModelDisplayName, isValidClaudeModel } from "@webalive/shared"
+import { CLAUDE_MODELS, getModelDisplayName, isAliveWorkspace, isValidClaudeModel } from "@webalive/shared"
 import { useState } from "react"
 import type { Site } from "@/lib/hooks/useSettingsQueries"
 
@@ -103,7 +103,7 @@ export function GeneralTab({
                     siteId === site.id ? "bg-black/[0.04] dark:bg-white/[0.06]" : ""
                   }`}
                 >
-                  {site.hostname}
+                  {isAliveWorkspace(site.hostname) ? "Alive Platform (superadmin)" : site.hostname}
                 </button>
               ))}
             </div>

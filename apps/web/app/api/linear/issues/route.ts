@@ -7,7 +7,8 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { getLinearOAuth } from "@/lib/oauth/oauth-instances"
 
@@ -47,7 +48,7 @@ export async function GET(req: Request): Promise<NextResponse> {
   // 1. Authenticate user
   const user = await getSessionUser()
   if (!user) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
 
   // 2. Get Linear OAuth token
@@ -57,16 +58,22 @@ export async function GET(req: Request): Promise<NextResponse> {
   try {
     const token = await linearOAuth.getAccessToken(user.id, "linear")
     if (!token) {
-      return createErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, 400, {
-        provider: "linear",
-        message: "Connect Linear in Settings to view your issues",
+      return structuredErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, {
+        status: 400,
+        details: {
+          provider: "linear",
+          message: "Connect Linear in Settings to view your issues",
+        },
       })
     }
     accessToken = token
-  } catch {
-    return createErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, 400, {
-      provider: "linear",
-      message: "Connect Linear in Settings to view your issues",
+  } catch (_err) {
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, {
+      status: 400,
+      details: {
+        provider: "linear",
+        message: "Connect Linear in Settings to view your issues",
+      },
     })
   }
 
@@ -87,9 +94,12 @@ export async function GET(req: Request): Promise<NextResponse> {
     console.error("[Linear Issues] Failed to fetch:", error)
     Sentry.captureException(error)
 
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
-      provider: "linear",
-      message: "Failed to fetch issues from Linear",
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+      status: 500,
+      details: {
+        provider: "linear",
+        message: "Failed to fetch issues from Linear",
+      },
     })
   }
 }

@@ -1,95 +1,71 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Verify bun is installed (fail fast)
 command -v bun >/dev/null 2>&1 || {
     echo "Error: bun is not installed"
     echo "Install from: https://bun.sh"
     exit 1
 }
 
-# Verify CONDUCTOR_ROOT_PATH is set
-if [ -z "${CONDUCTOR_ROOT_PATH:-}" ]; then
-    echo "Error: CONDUCTOR_ROOT_PATH environment variable not set"
-    echo "This script must be run by Conductor"
-    exit 1
-fi
-
-# Verify base repo exists
-if [ ! -d "$CONDUCTOR_ROOT_PATH" ]; then
-    echo "Error: Base repository not found at $CONDUCTOR_ROOT_PATH"
-    exit 1
-fi
-
 echo "Setting up workspace..."
 
-# Install dependencies
 bun install || {
     echo "Error: Failed to install dependencies"
     exit 1
 }
 
-# Run project setup (creates .alive/template directory)
+# Creates .alive/template directory
 bun run setup || {
     echo "Error: Project setup failed"
     exit 1
 }
 
-# Copy and configure .env.local
-ENV_SOURCE="$CONDUCTOR_ROOT_PATH/apps/web/.env.local"
+# Generate .env.local for local dev
 ENV_DEST="./apps/web/.env.local"
 TEMPLATE_PATH="$(pwd)/.alive/template"
 
-if [ ! -f "$ENV_SOURCE" ]; then
-    cat <<EOF
-Error: No .env.local found in base repository
+mkdir -p "$(dirname "$ENV_DEST")"
+touch "$ENV_DEST"
 
-Create $ENV_SOURCE with required variables:
-  ANTHROPIC_API_KEY=your_api_key
+upsert_env_var() {
+    local key="$1"
+    local value="$2"
 
-Optional for local dev mode:
-  STREAM_ENV=local
-  LOCAL_TEMPLATE_PATH=<auto-set-per-workspace>
-  ALIVE_PASSCODE=your_passcode
-  CLAUDE_MODEL=claude-sonnet-4-5
-EOF
-    exit 1
-fi
-
-# Copy env file
-cp "$ENV_SOURCE" "$ENV_DEST" || {
-    echo "Error: Failed to copy .env.local"
-    exit 1
+    if grep -q "^${key}=" "$ENV_DEST"; then
+        sed -i.bak "s|^${key}=.*|${key}=${value}|" "$ENV_DEST"
+        rm -f "$ENV_DEST.bak"
+    else
+        printf "%s=%s\n" "$key" "$value" >> "$ENV_DEST"
+    fi
 }
 
-# If running in local mode, update LOCAL_TEMPLATE_PATH to workspace-specific path
-if grep -q "^STREAM_ENV=local" "$ENV_DEST"; then
-    if grep -q "^LOCAL_TEMPLATE_PATH=" "$ENV_DEST"; then
-        sed -i.bak "s|^LOCAL_TEMPLATE_PATH=.*|LOCAL_TEMPLATE_PATH=$TEMPLATE_PATH|" "$ENV_DEST" && rm -f "$ENV_DEST.bak"
-    else
-        echo "LOCAL_TEMPLATE_PATH=$TEMPLATE_PATH" >> "$ENV_DEST"
-    fi
-    LOGIN_INFO="  Login with test credentials:
-    Workspace: test
-    Passcode: test"
-    MODE_INFO="LOCAL MODE"
-else
-    LOGIN_INFO="  Login with domain-specific credentials"
-    MODE_INFO="PRODUCTION-LIKE MODE"
-fi
+ensure_env_var() {
+    local key="$1"
+    local value="$2"
 
-# Validate required environment variables
-if ! grep -q "^ANTHROPIC_API_KEY=" "$ENV_DEST" && ! grep -q "^ANTH_API_SECRET=" "$ENV_DEST"; then
-    echo "Error: ANTHROPIC_API_KEY or ANTH_API_SECRET required in $ENV_SOURCE"
-    exit 1
-fi
+    if ! grep -q "^${key}=" "$ENV_DEST"; then
+        printf "%s=%s\n" "$key" "$value" >> "$ENV_DEST"
+    fi
+}
+
+upsert_env_var "STREAM_ENV" "local"
+upsert_env_var "LOCAL_TEMPLATE_PATH" "$TEMPLATE_PATH"
+ensure_env_var "NEXT_PUBLIC_PREVIEW_BASE" "sonno.tech"
+
+# Minimal placeholders for local env validation. Real Supabase values can still
+# be provided in apps/web/.env.local and will be preserved.
+ensure_env_var "SUPABASE_URL" "https://placeholder.supabase.co"
+ensure_env_var "SUPABASE_ANON_KEY" "eyJ.placeholder"
+ensure_env_var "NEXT_PUBLIC_SUPABASE_URL" "https://placeholder.supabase.co"
+ensure_env_var "NEXT_PUBLIC_SUPABASE_ANON_KEY" "eyJ.placeholder"
 
 cat <<EOF
 
-✓ Workspace setup complete ($MODE_INFO)
+✓ Workspace ready
 
-Next steps:
   bun run dev  # Start dev server at http://localhost:8997
 
-$LOGIN_INFO
+  Login:
+    Workspace: test
+    Passcode:  test
 EOF

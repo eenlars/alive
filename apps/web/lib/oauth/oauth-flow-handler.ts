@@ -14,7 +14,7 @@ import type { NextRequest } from "next/server"
 import type { SessionUser } from "@/features/auth/lib/auth"
 import { getClientIdentifier } from "@/lib/auth/client-identifier"
 import { oauthInitiationRateLimiter, oauthOperationRateLimiter } from "@/lib/auth/rate-limiter"
-import { ErrorCodes } from "@/lib/error-codes"
+import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 import { errorLogger } from "@/lib/error-logger"
 import { canUserAccessIntegration } from "@/lib/integrations/visibility"
 import { getOAuthInstance } from "@/lib/oauth/oauth-instances"
@@ -29,7 +29,7 @@ const STATE_TOKEN_BYTES = 32
  */
 export type OAuthFlowResult =
   | { type: "redirect"; url: string }
-  | { type: "error"; code: string; status: number; details?: any }
+  | { type: "error"; code: ErrorCode; status: number; details?: Record<string, unknown> }
 
 /**
  * OAuth Flow Context

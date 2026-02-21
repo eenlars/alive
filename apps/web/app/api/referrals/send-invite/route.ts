@@ -17,7 +17,8 @@ import * as Sentry from "@sentry/nextjs"
 import { REFERRAL } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { sendReferralInvite } from "@/lib/email/send-referral-invite"
 import { ErrorCodes } from "@/lib/error-codes"
 import { buildInviteLink } from "@/lib/referral"
@@ -28,20 +29,20 @@ export const runtime = "nodejs"
 export async function POST(req: Request) {
   const user = await getSessionUser()
   if (!user) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
   const userId = user.id
 
   // Parse JSON with robust error handling (handles throws AND null returns)
   const body = await req.json().catch(() => null)
   if (!body || typeof body !== "object") {
-    return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
+    return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400 })
   }
 
   const { email } = body as { email?: unknown }
   const emailResult = z.string().email().safeParse(email)
   if (!emailResult.success) {
-    return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400, { field: "email" })
+    return structuredErrorResponse(ErrorCodes.VALIDATION_ERROR, { status: 400, details: { field: "email" } })
   }
   const validEmail = emailResult.data
 
@@ -56,8 +57,9 @@ export async function POST(req: Request) {
     .gte("sent_at", oneDayAgo)
 
   if ((count ?? 0) >= REFERRAL.EMAIL_DAILY_LIMIT) {
-    return createErrorResponse(ErrorCodes.TOO_MANY_REQUESTS, 429, {
-      retryAfter: "24 hours",
+    return structuredErrorResponse(ErrorCodes.TOO_MANY_REQUESTS, {
+      status: 429,
+      details: { retryAfter: "24 hours" },
     })
   }
 
@@ -70,14 +72,14 @@ export async function POST(req: Request) {
     .single()
 
   if (existing) {
-    return createErrorResponse(ErrorCodes.REFERRAL_ALREADY_INVITED, 400, { email: validEmail })
+    return structuredErrorResponse(ErrorCodes.REFERRAL_ALREADY_INVITED, { status: 400, details: { email: validEmail } })
   }
 
   // Get sender info
   const { data: sender } = await iam.from("users").select("display_name, invite_code").eq("user_id", userId).single()
 
   if (!sender?.invite_code) {
-    return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400, { field: "invite_code" })
+    return structuredErrorResponse(ErrorCodes.VALIDATION_ERROR, { status: 400, details: { field: "invite_code" } })
   }
 
   // Send email
@@ -95,7 +97,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Failed to send invite email:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 
   // Record sent email (only after successful send)

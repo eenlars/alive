@@ -90,6 +90,42 @@ const emptyState = (): TabViewStoreState => ({
 })
 
 // ============================================================================
+// Safe sessionStorage (falls back to in-memory on server/restricted contexts)
+// ============================================================================
+
+function createMemoryStorage(): Storage {
+  const store = new Map<string, string>()
+  return {
+    get length() {
+      return store.size
+    },
+    clear: () => {
+      store.clear()
+    },
+    getItem: (key: string) => store.get(key) ?? null,
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key: string) => {
+      store.delete(key)
+    },
+    setItem: (key: string, value: string) => {
+      store.set(key, value)
+    },
+  }
+}
+
+const memoryStorage = createMemoryStorage()
+
+function getSafeSessionStorage(): Storage {
+  try {
+    if (typeof sessionStorage === "undefined") return memoryStorage
+    if (typeof sessionStorage.setItem !== "function") return memoryStorage
+    return sessionStorage
+  } catch {
+    return memoryStorage
+  }
+}
+
+// ============================================================================
 // Store (sessionStorage = per browser tab)
 // ============================================================================
 
@@ -145,7 +181,7 @@ export const useTabViewStore = create<TabViewStore>()(
       version: VIEW_STORE_VERSION,
       skipHydration: true, // HydrationManager handles coordinated hydration
       // Use sessionStorage for browser-tab isolation (not localStorage!)
-      storage: createJSONStorage(() => sessionStorage),
+      storage: createJSONStorage(() => getSafeSessionStorage()),
       partialize: s => ({
         activeTabByWorkspace: s.activeTabByWorkspace,
         tabsExpandedByWorkspace: s.tabsExpandedByWorkspace,

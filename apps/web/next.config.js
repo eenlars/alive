@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
+import { fileURLToPath } from "node:url"
 import { withSentryConfig } from "@sentry/nextjs"
 
 /**
@@ -12,6 +13,8 @@ import { withSentryConfig } from "@sentry/nextjs"
  * Cannot import TS files here since next.config.js runs in Node before transpilation.
  */
 
+const configDir = path.dirname(fileURLToPath(import.meta.url))
+
 // Generate build info file at build time
 function writeBuildInfo() {
   try {
@@ -20,9 +23,6 @@ function writeBuildInfo() {
     const buildTime = new Date().toISOString()
     const buildInfo = { commit, branch, buildTime }
 
-    // Use __dirname equivalent for CommonJS context
-    // next.config.js runs in Node.js, so use __filename with path resolution
-    const configDir = path.dirname(new URL(import.meta.url).pathname)
     const targetPath = path.join(configDir, "lib", "build-info.json")
 
     fs.writeFileSync(targetPath, JSON.stringify(buildInfo, null, 2))
@@ -71,10 +71,10 @@ const nextConfig = {
   },
   // Turbopack: Set root to monorepo root for proper package resolution
   turbopack: {
-    root: path.join(import.meta.dirname, "../../"),
+    root: path.join(configDir, "../../"),
   },
   // Monorepo: trace from project root (two directories up)
-  outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
+  outputFileTracingRoot: path.join(configDir, "../../"),
   outputFileTracingIncludes: {
     "/api/claude/stream/route": [
       "../../packages/tools/**/*",

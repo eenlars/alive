@@ -66,7 +66,7 @@ const REPEAT_OPTIONS = [
 
 const MODEL_OPTIONS = [
   { label: getModelDisplayName(CLAUDE_MODELS.OPUS_4_6), value: CLAUDE_MODELS.OPUS_4_6 },
-  { label: getModelDisplayName(CLAUDE_MODELS.SONNET_4_5), value: CLAUDE_MODELS.SONNET_4_5 },
+  { label: getModelDisplayName(CLAUDE_MODELS.SONNET_4_6), value: CLAUDE_MODELS.SONNET_4_6 },
   { label: getModelDisplayName(CLAUDE_MODELS.HAIKU_4_5), value: CLAUDE_MODELS.HAIKU_4_5 },
 ]
 

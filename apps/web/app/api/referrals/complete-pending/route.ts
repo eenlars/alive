@@ -17,7 +17,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { createDedupeCache } from "@webalive/shared"
 import { NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { awardReferralCredits } from "@/lib/credits/add-credits"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createIamClient } from "@/lib/supabase/iam"
@@ -32,18 +32,18 @@ export async function POST(req: Request) {
   // Parse JSON with robust error handling (handles throws AND null returns)
   const body = await req.json().catch(() => null)
   if (!body || typeof body !== "object") {
-    return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
+    return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400 })
   }
 
   const { userId, secret } = body as { userId?: unknown; secret?: unknown }
 
   // Verify internal secret (webhook auth)
   if (secret !== process.env.INTERNAL_WEBHOOK_SECRET) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
 
   if (!userId || typeof userId !== "string") {
-    return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { field: "userId" })
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, { status: 400, details: { field: "userId" } })
   }
 
   // Dedupe: prevent duplicate processing of the same userId
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
   if (!pendingReferral) {
     // 200 with ok: false - no pending referral is not an error
-    return createErrorResponse(ErrorCodes.REFERRAL_NOT_FOUND, 200)
+    return structuredErrorResponse(ErrorCodes.REFERRAL_NOT_FOUND, { status: 200 })
   }
 
   // IMPORTANT: Award credits FIRST, then mark completed
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
       `[Referral] Both credit awards failed - referral ${pendingReferral.referral_id} kept pending`,
       "error",
     )
-    return createErrorResponse(ErrorCodes.REFERRAL_CREDIT_FAILED, 500)
+    return structuredErrorResponse(ErrorCodes.REFERRAL_CREDIT_FAILED, { status: 500 })
   }
 
   // Update to completed (at least one credit was awarded)
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
       referredResult,
     })
     Sentry.captureException(updateError)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 
   return NextResponse.json({

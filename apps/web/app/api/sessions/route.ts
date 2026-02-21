@@ -11,6 +11,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { isConversationLocked, type TabSessionKey } from "@/features/auth/types/session"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createIamClient } from "@/lib/supabase/iam"
 import { createRLSAppClient } from "@/lib/supabase/server-rls"
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
     if (error) {
       console.error("[Sessions API] Query error:", error)
       Sentry.captureException(error)
-      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+      return structuredErrorResponse(ErrorCodes.QUERY_FAILED, { status: 500 })
     }
 
     // Get domain hostnames for sessions
@@ -135,15 +136,10 @@ export async function POST(req: NextRequest) {
 
     const userId = user.id
 
-    const body = await req.json()
-    const { targetSessionKey, message, timeoutSeconds: _timeoutSeconds = 30, waitForReply: _waitForReply = true } = body
+    const parsed = await handleBody("sessions/send", req)
+    if (isHandleBodyError(parsed)) return parsed
 
-    if (!targetSessionKey || !message) {
-      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-        status: 400,
-        details: { field: "targetSessionKey and message" },
-      })
-    }
+    const { targetSessionKey, message } = parsed
 
     // Parse target session key
     const parts = targetSessionKey.split("::")
@@ -159,7 +155,7 @@ export async function POST(req: NextRequest) {
     // For now, only allow sending to own sessions
     // TODO: Implement A2A policy for cross-user messaging
     if (targetUserId !== userId) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
         status: 403,
         details: { reason: "Cross-user session messaging not yet implemented" },
       })
@@ -218,6 +214,7 @@ export async function POST(req: NextRequest) {
     //
     // For now, return a placeholder response
     const runId = crypto.randomUUID()
+    console.info(`[Sessions API] Message queued: runId=${runId} target=${targetSessionKey} length=${message.length}`)
 
     return NextResponse.json({
       status: "accepted",

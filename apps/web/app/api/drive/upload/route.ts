@@ -2,11 +2,12 @@ import { stat } from "node:fs/promises"
 import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { ensureDriveDir } from "@/features/chat/lib/drivePath"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { writeAsWorkspaceOwner } from "@/features/workspace/lib/workspace-secure"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
@@ -50,16 +51,19 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     let formData: FormData
     try {
       formData = await request.formData()
-    } catch {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Failed to parse form data",
+    } catch (_err) {
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Failed to parse form data",
+        },
       })
     }
 
@@ -68,45 +72,60 @@ export async function POST(request: NextRequest) {
     const worktreeParam = formData.get("worktree")
 
     if (!file || !(file instanceof File)) {
-      return createErrorResponse(ErrorCodes.NO_FILE, 400, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_FILE, { status: 400, details: { requestId } })
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return createErrorResponse(ErrorCodes.FILE_TOO_LARGE, 400, {
-        requestId,
-        maxSize: `${MAX_FILE_SIZE / 1024 / 1024}MB`,
+      return structuredErrorResponse(ErrorCodes.FILE_TOO_LARGE, {
+        status: 400,
+        details: {
+          requestId,
+          maxSize: `${MAX_FILE_SIZE / 1024 / 1024}MB`,
+        },
       })
     }
 
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
-      return createErrorResponse(ErrorCodes.INVALID_FILE_TYPE, 400, {
-        requestId,
-        fileType: file.type,
-        allowed: Array.from(ALLOWED_MIME_TYPES),
+      return structuredErrorResponse(ErrorCodes.INVALID_FILE_TYPE, {
+        status: 400,
+        details: {
+          requestId,
+          fileType: file.type,
+          allowed: Array.from(ALLOWED_MIME_TYPES),
+        },
       })
     }
 
     if (!workspaceParam || typeof workspaceParam !== "string") {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Missing required field: workspace",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Missing required field: workspace",
+        },
       })
     }
 
     const body = { workspace: workspaceParam, worktree: worktreeParam ? String(worktreeParam) : undefined }
     const authorizedWorkspace = await verifyWorkspaceAccess(user, body, `[Drive Upload ${requestId}]`)
     if (!authorizedWorkspace) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, {
-        requestId,
-        workspace: workspaceParam,
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
+        status: 401,
+        details: {
+          requestId,
+          workspace: workspaceParam,
+        },
       })
     }
 
     const host = request.headers.get("host")
     if (!host) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Missing host header",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Missing host header",
+        },
       })
     }
 
@@ -127,9 +146,12 @@ export async function POST(request: NextRequest) {
     const resolvedSavePath = path.resolve(savePath)
 
     if (!isPathWithinWorkspace(resolvedSavePath, resolvedDrive, path.sep)) {
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
-        attemptedPath: sanitizedName,
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+          attemptedPath: sanitizedName,
+        },
       })
     }
 
@@ -141,9 +163,12 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error(`[Drive Upload ${requestId}] Failed to write file:`, err)
       Sentry.captureException(err)
-      return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
-        requestId,
-        reason: "Failed to write uploaded file",
+      return structuredErrorResponse(ErrorCodes.FILE_WRITE_ERROR, {
+        status: 500,
+        details: {
+          requestId,
+          reason: "Failed to write uploaded file",
+        },
       })
     }
 
@@ -159,8 +184,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[Drive Upload ${requestId}] Unexpected error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
-      requestId,
+    return structuredErrorResponse(ErrorCodes.FILE_WRITE_ERROR, {
+      status: 500,
+      details: {
+        requestId,
+      },
     })
   }
 }

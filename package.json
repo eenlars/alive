@@ -24,7 +24,7 @@
     "check:comprehensive": "./scripts/validation/run-static-checks.sh",
     "check:all": "bun run check:quick && bun run test && bun run check:comprehensive",
     "validate:turbo-env": "bun scripts/validation/validate-turbo-env.ts",
-    "static-check": "bun run validate:turbo-env && bun run check:workspace-contract && turbo run type-check && turbo run ci && bun run test:core",
+    "static-check": "bun run validate:turbo-env && bun run check:workspace-contract && turbo run type-check && turbo run ci && bun run test:core && bun run --cwd apps/web scripts/check-error-patterns.ts",
     "knip": "knip --no-progress",
     "depcruise": "depcruise apps/web --config config/.dependency-cruiser.json",
     "test": "turbo run test",

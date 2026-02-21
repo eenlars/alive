@@ -252,14 +252,3 @@ export function createSuccessResponse<T>(data: T): ApiResponse<T> & { ok: true }
     data,
   }
 }
-
-/**
- * Create a standardized error response
- */
-export function createErrorResponse(error: string, message?: string): ApiError {
-  return {
-    ok: false,
-    error,
-    ...(message && { message }),
-  }
-}

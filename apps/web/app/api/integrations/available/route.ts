@@ -13,7 +13,8 @@
 import * as Sentry from "@sentry/nextjs"
 import { getOAuthKeyForProvider } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { getOAuthInstance } from "@/lib/oauth/oauth-instances"
 import { createIntegrationsClient } from "@/lib/supabase/integrations"
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
 
     if (!user) {
       console.error("[Integrations API] No user found - returning UNAUTHORIZED")
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     // 2. Get Supabase client for integrations schema (service key for server-side access)
@@ -65,8 +66,9 @@ export async function GET(req: NextRequest) {
     if (error) {
       console.error("[Integrations] Failed to fetch available integrations:", error)
       Sentry.captureException(error)
-      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-        reason: error.message,
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+        status: 500,
+        details: { reason: error.message },
       })
     }
 
@@ -106,10 +108,10 @@ export async function GET(req: NextRequest) {
               console.warn(`[Integrations] ${integration.provider_key} token health check failed:`, errorMsg)
             }
           }
-        } catch {
-          // Provider not supported in oauth-core, use RPC result
+        } catch (_err) {
+          // Expected: provider not supported in oauth-core, use RPC result
           isConnected = integration.is_connected
-          tokenStatus = isConnected ? "valid" : "not_connected" // Assume valid if we can't check
+          tokenStatus = isConnected ? "valid" : "not_connected"
         }
 
         return {
@@ -148,8 +150,9 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[Integrations] Unexpected error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      reason: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: { reason: error instanceof Error ? error.message : "Unknown error" },
     })
   }
 }

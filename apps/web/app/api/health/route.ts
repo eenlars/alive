@@ -40,8 +40,8 @@ function getBuildInfo(): { commit: string; branch: string; buildTime: string } {
         const content = readFileSync(buildInfoPath, "utf-8")
         return JSON.parse(content)
       }
-    } catch {
-      // Continue to next path
+    } catch (_err) {
+      // Expected: build info file may not exist or be invalid JSON
     }
   }
 
@@ -204,7 +204,8 @@ async function checkDatabase(): Promise<ServiceHealth> {
     try {
       const parsed = JSON.parse(errorBody)
       errorMsg = parsed.message || parsed.error || parsed.hint || errorMsg
-    } catch {
+    } catch (_err) {
+      // Expected: error body may not be valid JSON
       if (errorBody) errorMsg = errorBody.slice(0, 200)
     }
 

@@ -10,7 +10,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { claimJob, extractSummary, type FinishHooks, finishJob } from "@webalive/automation-engine"
 import type { AppDatabase } from "@webalive/database"
-import { getServerId } from "@webalive/shared"
+import { getServerId, isAliveWorkspace } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { broadcastAutomationEvent } from "@/app/api/automations/events/route"
 import { getSessionUser } from "@/features/auth/lib/auth"
@@ -27,6 +27,11 @@ interface RouteContext {
 }
 
 type AutomationJob = AppDatabase["app"]["Tables"]["automation_jobs"]["Row"]
+
+/** Runtime type guard for the domains FK join result (site_id → domains) */
+function isDomainJoin(value: unknown): value is { hostname: string; server_id: string | null } {
+  return value !== null && typeof value === "object" && "hostname" in value && typeof value.hostname === "string"
+}
 
 /**
  * POST /api/automations/[id]/trigger - Manually trigger an automation
@@ -57,11 +62,16 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       .single()
 
     if (jobError || !job) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "automation" } })
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, { status: 404 })
     }
 
-    // Verify ownership
-    if (job.user_id !== user.id) {
+    // Extract domain info from FK join with runtime validation (no `as` casts)
+    const siteData = isDomainJoin(job.domains) ? job.domains : null
+    const hostname = siteData?.hostname
+    const siteServerId = siteData?.server_id
+
+    // Verify ownership (superadmins can trigger any alive workspace job)
+    if (job.user_id !== user.id && !(hostname && isAliveWorkspace(hostname) && user.isSuperadmin)) {
       return structuredErrorResponse(ErrorCodes.ORG_ACCESS_DENIED, { status: 403 })
     }
 
@@ -73,10 +83,6 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       })
     }
 
-    // Server scoping: verify the job's site belongs to this server
-    const siteData = job.domains as { hostname?: string; server_id?: string } | null
-    const hostname = siteData?.hostname
-    const siteServerId = siteData?.server_id
     const myServerId = getServerId()
 
     if (!hostname) {
@@ -167,6 +173,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           hooks,
         })
         console.error(`[Automation Trigger] Background job "${job.name}" crashed:`, error)
+        Sentry.captureException(error)
       } finally {
         // Poke CronService so it re-arms with the new next_run_at
         pokeCronService()

@@ -3,7 +3,8 @@ import { createWriteStream } from "node:fs"
 import * as Sentry from "@sentry/nextjs"
 import { PATHS } from "@webalive/shared"
 import { z } from "zod"
-import { AuthenticationError, createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { AuthenticationError, getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
@@ -68,30 +69,33 @@ export async function POST(req: Request): Promise<Response> {
     const user = await getSessionUser()
     if (!user) {
       console.warn(`[Admin Deploy ${requestId}] No session`)
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     // 2. Authorization - require admin privileges
     if (!user.isAdmin) {
       console.warn(`[Admin Deploy ${requestId}] Non-admin access attempt: ${user.email} (${user.id})`)
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403, { requestId })
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403, details: { requestId } })
     }
 
     // 3. Parse and validate request body
     let body: unknown
     try {
       body = await req.json()
-    } catch {
-      return createErrorResponse(ErrorCodes.INVALID_JSON, 400, { requestId })
+    } catch (_err) {
+      return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400, details: { requestId } })
     }
 
     const parseResult = RequestSchema.safeParse(body)
     if (!parseResult.success) {
       const field = parseResult.error.issues[0]?.path.join(".") || "action"
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        field,
-        validActions: DeployActionSchema.options,
-        requestId,
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          field,
+          validActions: DeployActionSchema.options,
+          requestId,
+        },
       })
     }
 
@@ -160,8 +164,8 @@ export async function POST(req: Request): Promise<Response> {
                 })}\n\n`,
               ),
             )
-          } catch {
-            // Connection dropped - process continues, output goes to log file
+          } catch (_err) {
+            // Expected: client disconnected, process continues via log file
           }
         }
 
@@ -193,8 +197,8 @@ export async function POST(req: Request): Promise<Response> {
               ),
             )
             controller.close()
-          } catch {
-            // Connection already dropped - that's fine, deployment completed
+          } catch (_err) {
+            // Expected: client disconnected, deployment completed
           }
         })
 
@@ -216,8 +220,8 @@ export async function POST(req: Request): Promise<Response> {
               ),
             )
             controller.close()
-          } catch {
-            // Connection dropped
+          } catch (_err) {
+            // Expected: client disconnected
           }
         })
       },
@@ -234,14 +238,17 @@ export async function POST(req: Request): Promise<Response> {
   } catch (error) {
     // Handle authentication errors thrown by requireSessionUser pattern
     if (error instanceof AuthenticationError) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     console.error(`[Admin Deploy ${requestId}] Unexpected error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      exception: error instanceof Error ? error.message : "Unknown error",
-      requestId,
+    return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: {
+        exception: error instanceof Error ? error.message : "Unknown error",
+        requestId,
+      },
     })
   }
 }

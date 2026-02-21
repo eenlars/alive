@@ -338,7 +338,7 @@ export const DEFAULTS = {
   PASSWORD: "supersecret",
 
   /** Default Claude model - uses short name from models.ts */
-  CLAUDE_MODEL: "claude-sonnet-4-5" as const,
+  CLAUDE_MODEL: "claude-sonnet-4-6" as const,
 
   /** Default Claude max turns */
   CLAUDE_MAX_TURNS: 100,
@@ -383,6 +383,13 @@ export const SUPERADMIN = {
   /** Path to Stream repository */
   WORKSPACE_PATH: ALIVE_ROOT,
 } as const
+
+/**
+ * Check if a hostname refers to the Alive platform workspace (superadmin-only).
+ */
+export function isAliveWorkspace(hostname: string): boolean {
+  return hostname === SUPERADMIN.WORKSPACE_NAME
+}
 
 // =============================================================================
 // Security Configuration

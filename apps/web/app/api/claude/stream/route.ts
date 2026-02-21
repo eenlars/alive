@@ -4,12 +4,7 @@ import { DEFAULTS, SUPERADMIN, WORKER_POOL } from "@webalive/shared"
 import { getWorkerPool, type WorkerToParentMessage } from "@webalive/worker-pool"
 import { cookies, headers } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
-import {
-  createErrorResponse,
-  getSafeSessionCookie,
-  requireSessionUser,
-  verifyWorkspaceAccess,
-} from "@/features/auth/lib/auth"
+import { getSafeSessionCookie, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import {
   sessionStore,
   type TabSessionKey,
@@ -23,6 +18,7 @@ import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { ensureWorkspaceSchema } from "@/features/workspace/lib/ensure-workspace-schema"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import {
   getAllowedTools,
@@ -58,6 +54,7 @@ import { generateRequestId } from "@/lib/utils"
 import { runAgentChild } from "@/lib/workspace-execution/agent-child-runner"
 import { detectServeMode } from "@/lib/workspace-execution/command-runner"
 import { BodySchema } from "@/types/guards/api"
+import { logRetryContract } from "./retry-observability"
 
 export const runtime = "nodejs"
 
@@ -76,7 +73,7 @@ export async function POST(req: NextRequest) {
   // Defense-in-depth: Block real API calls during E2E tests
   if (process.env.PLAYWRIGHT_TEST === "true") {
     logger.error("⛔ BLOCKED: Real API call attempted during E2E test")
-    return createErrorResponse(ErrorCodes.TEST_MODE_BLOCK, 403, { requestId })
+    return structuredErrorResponse(ErrorCodes.TEST_MODE_BLOCK, { status: 403, details: { requestId } })
   }
 
   // Track lock acquisition for cleanup in error handler
@@ -89,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     if (!hasSessionCookie(jar.get(COOKIE_NAMES.SESSION))) {
       logger.log("No session cookie found")
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
     logger.log("Session cookie verified")
 
@@ -104,9 +101,9 @@ export async function POST(req: NextRequest) {
       logger.log("Raw body keys:", Object.keys(body))
     } catch (jsonError) {
       logger.error("Failed to parse JSON body:", jsonError)
-      return createErrorResponse(ErrorCodes.INVALID_JSON, 400, {
-        details: { error: jsonError instanceof Error ? jsonError.message : "Unknown JSON parse error" },
-        requestId,
+      return structuredErrorResponse(ErrorCodes.INVALID_JSON, {
+        status: 400,
+        details: { error: jsonError instanceof Error ? jsonError.message : "Unknown JSON parse error", requestId },
       })
     }
 
@@ -114,9 +111,9 @@ export async function POST(req: NextRequest) {
     const parseResult = BodySchema.safeParse(body)
     if (!parseResult.success) {
       logger.error("Schema validation failed:", parseResult.error.issues)
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        details: { issues: parseResult.error.issues },
-        requestId,
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { issues: parseResult.error.issues, requestId },
       })
     }
 
@@ -150,9 +147,9 @@ export async function POST(req: NextRequest) {
       const safetyCheck = await isInputSafeWithDebug(message)
       if (safetyCheck.result === "unsafe") {
         logger.log(`Input flagged as unsafe. Model response: "${safetyCheck.debug.rawContent?.slice(0, 200)}"`)
-        return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-          field: "message content",
-          requestId,
+        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+          status: 400,
+          details: { field: "message content", requestId },
         })
       }
       logger.log("Input safety check passed")
@@ -174,7 +171,7 @@ export async function POST(req: NextRequest) {
       resolvedWorkspaceName = await verifyWorkspaceAccess(user, body, `[Claude Stream ${requestId}]`)
 
       if (!resolvedWorkspaceName) {
-        return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, { requestId })
+        return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, { status: 401, details: { requestId } })
       }
       logger.log("Workspace authentication verified for:", resolvedWorkspaceName)
 
@@ -192,10 +189,9 @@ export async function POST(req: NextRequest) {
       // Never rely on workspace-local .env files for auth discovery.
       if (!hasOAuthCredentials()) {
         logger.log("No OAuth credentials available")
-        return createErrorResponse(ErrorCodes.OAUTH_CONFIG_ERROR, 503, {
-          provider: "Anthropic",
-          workspace: resolvedWorkspaceName,
-          requestId,
+        return structuredErrorResponse(ErrorCodes.OAUTH_CONFIG_ERROR, {
+          status: 503,
+          details: { provider: "Anthropic", workspace: resolvedWorkspaceName, requestId },
         })
       }
 
@@ -206,9 +202,9 @@ export async function POST(req: NextRequest) {
         const oauthResult = await getValidAccessToken()
         if (!oauthResult) {
           logger.log("OAuth credentials missing or unreadable")
-          return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 503, {
-            workspace: resolvedWorkspaceName,
-            requestId,
+          return structuredErrorResponse(ErrorCodes.OAUTH_EXPIRED, {
+            status: 503,
+            details: { workspace: resolvedWorkspaceName, requestId },
           })
         }
         if (oauthResult.refreshed) {
@@ -217,9 +213,10 @@ export async function POST(req: NextRequest) {
         oauthAccessToken = oauthResult.accessToken
       } catch (refreshError) {
         logger.error("OAuth token refresh failed:", refreshError)
-        return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 503, {
-          workspace: resolvedWorkspaceName,
-          requestId,
+        Sentry.captureException(refreshError)
+        return structuredErrorResponse(ErrorCodes.OAUTH_EXPIRED, {
+          status: 503,
+          details: { workspace: resolvedWorkspaceName, requestId },
         })
       }
 
@@ -237,22 +234,23 @@ export async function POST(req: NextRequest) {
       }
     } catch (workspaceError) {
       logger.error("Workspace resolution failed:", workspaceError)
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404, {
-        host: requestWorkspace || host,
+      Sentry.captureException(workspaceError)
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, {
+        status: 404,
         details: {
-          host,
+          host: requestWorkspace || host,
           requestWorkspace,
-          error: workspaceError instanceof Error ? workspaceError.message : "Unknown error",
+          requestFailed: true,
+          requestId,
         },
-        requestId,
       })
     }
 
     if (!oauthAccessToken) {
       logger.error("OAuth access token resolution failed")
-      return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 503, {
-        workspace: resolvedWorkspaceName ?? requestWorkspace ?? host,
-        requestId,
+      return structuredErrorResponse(ErrorCodes.OAUTH_EXPIRED, {
+        status: 503,
+        details: { workspace: resolvedWorkspaceName ?? requestWorkspace ?? host, requestId },
       })
     }
 
@@ -278,9 +276,9 @@ export async function POST(req: NextRequest) {
 
     if (!domainRecord) {
       logger.error("Domain not found in database:", resolvedWorkspaceName)
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404, {
-        host: resolvedWorkspaceName,
-        requestId,
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, {
+        status: 404,
+        details: { host: resolvedWorkspaceName, requestId },
       })
     }
 
@@ -299,7 +297,7 @@ export async function POST(req: NextRequest) {
 
     if (!tryLockConversation(sessionKey)) {
       logger.log("❌ LOCK FAILED - Request already in progress for key:", sessionKey)
-      return createErrorResponse(ErrorCodes.CONVERSATION_BUSY, 409, { requestId })
+      return structuredErrorResponse(ErrorCodes.CONVERSATION_BUSY, { status: 409, details: { requestId } })
     }
 
     lockAcquired = true
@@ -346,6 +344,12 @@ export async function POST(req: NextRequest) {
       logger.log("Stream buffer creation failed (non-fatal):", bufferError)
     }
 
+    // Session resume flow:
+    // 1. Look up SDK session ID from our Supabase store (keyed by user+workspace+tab)
+    // 2. Pass it as `resume` to the worker pool → SDK resumes the conversation
+    // 3. SDK loads the session JSONL from CLAUDE_CONFIG_DIR/projects/
+    // 4. If the JSONL file is missing, SDK throws "No conversation found"
+    //    → caught below in SESSION RECOVERY, clears stale ID, retries fresh
     timing("before_session_lookup")
     logger.log(`[SESSION DEBUG] Looking up session for key: ${sessionKey}`)
     let existingSessionId: string | null
@@ -609,12 +613,6 @@ export async function POST(req: NextRequest) {
               return [baseMessage, stderr, ...diagnosticHints].filter(Boolean).join(" ")
             }
 
-            const logStaleSessionRetry = (attempted: boolean, outcome: "success" | "failed" | "not_attempted") => {
-              logger.log(
-                `[SESSION RETRY] retry_attempted=${attempted} retry_reason=stale_session retry_outcome=${outcome}`,
-              )
-            }
-
             // Error recovery for stale session/message references
             // The error may come as "Claude Code process exited with code 1" with the actual
             // error message in stderr, so we check both
@@ -632,6 +630,11 @@ export async function POST(req: NextRequest) {
               try {
                 // Retry with session but WITHOUT resumeSessionAt - start from session beginning
                 await runQuery(existingSessionId, undefined)
+                logRetryContract(logger, {
+                  retry_attempted: true,
+                  retry_reason: "stale_message",
+                  retry_outcome: "success",
+                })
                 controller.close()
                 return
               } catch (retryErr) {
@@ -649,22 +652,40 @@ export async function POST(req: NextRequest) {
                     try {
                       await sessionStore.delete(sessionKey)
                     } catch (deleteError) {
+                      logRetryContract(logger, {
+                        retry_attempted: true,
+                        retry_reason: "stale_message",
+                        retry_outcome: "failed",
+                      })
                       logger.error("[SESSION RECOVERY] Failed to clear stale session:", deleteError)
                       controller.error(deleteError)
                       return
                     }
                     await runQuery(undefined, undefined)
-                    logStaleSessionRetry(true, "success")
+                    logRetryContract(logger, {
+                      retry_attempted: true,
+                      retry_reason: "stale_message",
+                      retry_outcome: "success",
+                    })
                     controller.close()
                     return
                   } catch (finalErr) {
-                    logStaleSessionRetry(true, "failed")
+                    logRetryContract(logger, {
+                      retry_attempted: true,
+                      retry_reason: "stale_message",
+                      retry_outcome: "failed",
+                    })
                     logger.error("[SESSION RECOVERY] Final retry failed:", finalErr)
                     controller.error(finalErr)
                     return
                   }
                 }
 
+                logRetryContract(logger, {
+                  retry_attempted: true,
+                  retry_reason: "stale_message",
+                  retry_outcome: "failed",
+                })
                 logger.error("[MESSAGE RECOVERY] Retry without message failed:", retryErr)
                 controller.error(retryErr)
                 return
@@ -678,6 +699,11 @@ export async function POST(req: NextRequest) {
             const isToolConcurrency = combinedMessage.includes("tool use concurrency")
 
             if (isToolConcurrency && existingSessionId && sessionKey) {
+              logRetryContract(logger, {
+                retry_attempted: false,
+                retry_reason: "not_applicable",
+                retry_outcome: "not_attempted",
+              })
               logger.log(
                 `[SESSION CORRUPT] Tool use concurrency error on session "${existingSessionId}", clearing session and notifying frontend`,
               )
@@ -695,7 +721,15 @@ export async function POST(req: NextRequest) {
               return
             }
 
-            // Existing: Check for "session not found" error (stale session ID)
+            // Session recovery: The SDK stores session JSONL files at
+            // CLAUDE_CONFIG_DIR/projects/<hash>/<session-id>.jsonl. If those files
+            // are lost (permissions issue, disk cleanup, SDK update), the SDK
+            // returns "No conversation found" even though our Supabase session
+            // store has a valid session ID. When this happens, clear the stale
+            // ID from our store and start a fresh conversation.
+            //
+            // Common cause: worker-entry.mjs projects/ dir permissions (see
+            // the SESSION PERSISTENCE ARCHITECTURE comment there).
             const isSessionNotFound =
               combinedMessage.includes("No conversation found") ||
               (combinedMessage.includes("session") && combinedMessage.includes("not found"))
@@ -709,6 +743,11 @@ export async function POST(req: NextRequest) {
                 try {
                   await sessionStore.delete(sessionKey)
                 } catch (deleteError) {
+                  logRetryContract(logger, {
+                    retry_attempted: true,
+                    retry_reason: "stale_session",
+                    retry_outcome: "failed",
+                  })
                   logger.error("[SESSION RECOVERY] Failed to clear stale session:", deleteError)
                   controller.error(deleteError)
                   return
@@ -717,18 +756,30 @@ export async function POST(req: NextRequest) {
 
                 // Retry without resume - start fresh conversation
                 await runQuery(undefined, undefined)
-                logStaleSessionRetry(true, "success")
+                logRetryContract(logger, {
+                  retry_attempted: true,
+                  retry_reason: "stale_session",
+                  retry_outcome: "success",
+                })
                 controller.close()
                 return
               } catch (retryErr) {
-                logStaleSessionRetry(true, "failed")
+                logRetryContract(logger, {
+                  retry_attempted: true,
+                  retry_reason: "stale_session",
+                  retry_outcome: "failed",
+                })
                 logger.error("[SESSION RECOVERY] Retry failed:", retryErr)
                 controller.error(retryErr)
                 return
               }
             }
 
-            logStaleSessionRetry(false, "not_attempted")
+            logRetryContract(logger, {
+              retry_attempted: false,
+              retry_reason: "not_applicable",
+              retry_outcome: "not_attempted",
+            })
             logger.error("Worker pool query failed:", err)
             controller.error(err)
           }
@@ -855,9 +906,9 @@ export async function POST(req: NextRequest) {
     }
 
     const origin = req.headers.get("origin")
-    const errorRes = createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      details: { message: outerError instanceof Error ? outerError.message : "Unknown error" },
-      requestId,
+    const errorRes = structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: { message: outerError instanceof Error ? outerError.message : "Unknown error", requestId },
     })
     addCorsHeaders(errorRes, origin)
     return errorRes
