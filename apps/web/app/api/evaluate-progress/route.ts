@@ -27,8 +27,8 @@ function logToFile(label: string, data: unknown) {
   const entry = `\n=== ${timestamp} [${label}] ===\n${typeof data === "string" ? data : JSON.stringify(data, null, 2)}\n`
   try {
     appendFileSync(LOG_FILE, entry)
-  } catch {
-    // Ignore write errors
+  } catch (_err) {
+    // Expected: log file may be unwritable in some environments
   }
   console.log(`[AgentSupervisor] ${label}:`, typeof data === "string" ? data.slice(0, 500) : data)
 }

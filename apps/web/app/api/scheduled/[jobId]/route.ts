@@ -9,6 +9,7 @@ import { deleteJob, getJob, type ScheduledJobUpdate, updateJob } from "@webalive
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { ErrorCodes } from "@/lib/error-codes"
 
 interface RouteContext {
@@ -69,8 +70,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.ORG_ACCESS_DENIED, { status: 403 })
     }
 
-    const body = (await req.json()) as ScheduledJobUpdate
-    const updated = await updateJob(jobId, body)
+    const parsed = await handleBody("scheduled/update", req)
+    if (isHandleBodyError(parsed)) return parsed
+
+    const updated = await updateJob(jobId, parsed as ScheduledJobUpdate)
 
     if (!updated) {
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })

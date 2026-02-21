@@ -63,7 +63,8 @@ export async function GET(req: Request): Promise<NextResponse> {
       })
     }
     accessToken = token
-  } catch {
+  } catch (_err) {
+    // Expected: OAuth token may not exist for this user
     return createErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, 400, {
       provider: "linear",
       message: "Connect Linear in Settings to view your issues",

@@ -33,8 +33,8 @@ export function broadcastAutomationEvent(
   for (const controller of userClients) {
     try {
       controller.enqueue(`data: ${data}\n\n`)
-    } catch {
-      // Client disconnected, will be cleaned up
+    } catch (_err) {
+      // Expected: client disconnected, will be cleaned up
     }
   }
 }
@@ -66,7 +66,8 @@ export async function GET(req: NextRequest) {
       const pingInterval = setInterval(() => {
         try {
           controller.enqueue(": ping\n\n")
-        } catch {
+        } catch (_err) {
+          // Expected: client disconnected
           clearInterval(pingInterval)
         }
       }, 30000)

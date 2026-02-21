@@ -88,8 +88,8 @@ export async function POST(request: NextRequest) {
             const stats = await lstat(entryPath)
             size = stats.size
             modified = stats.mtime.toISOString()
-          } catch {
-            // Skip stat errors (broken symlinks etc.)
+          } catch (_err) {
+            // Expected: broken symlinks, permission errors
           }
           return {
             name: entry.name,
@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
       })
     } catch (fsError) {
       console.error(`[Drive ${requestId}] Error reading directory:`, fsError)
+      Sentry.captureException(fsError)
       return createErrorResponse(ErrorCodes.FILE_READ_ERROR, 500, {
         requestId,
         filePath: targetPath,

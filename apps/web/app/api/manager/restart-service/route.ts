@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     console.error("[Manager] Service restart failed:", errorMessage)
+    Sentry.captureException(error)
     return createCorsErrorResponse(origin, ErrorCodes.INTERNAL_ERROR, 500, {
       requestId,
       details: { error: errorMessage },

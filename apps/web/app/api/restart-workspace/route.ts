@@ -70,8 +70,8 @@ export async function POST(req: Request) {
           if (cacheResult.success) {
             console.log(`[restart-workspace ${requestId}] Cleared cache: ${cachePath}`)
           }
-        } catch {
-          // Cache might not exist, continue
+        } catch (_err) {
+          // Expected: cache directory may not exist
         }
       }
 

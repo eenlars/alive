@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
         })
       }
       console.error(`[OCR ${requestId}] Error reading file:`, fsError)
+      Sentry.captureException(fsError)
       return createErrorResponse(ErrorCodes.FILE_READ_ERROR, 500, {
         requestId,
         filePath,

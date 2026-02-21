@@ -106,10 +106,10 @@ export async function GET(req: NextRequest) {
               console.warn(`[Integrations] ${integration.provider_key} token health check failed:`, errorMsg)
             }
           }
-        } catch {
-          // Provider not supported in oauth-core, use RPC result
+        } catch (_err) {
+          // Expected: provider not supported in oauth-core, use RPC result
           isConnected = integration.is_connected
-          tokenStatus = isConnected ? "valid" : "not_connected" // Assume valid if we can't check
+          tokenStatus = isConnected ? "valid" : "not_connected"
         }
 
         return {

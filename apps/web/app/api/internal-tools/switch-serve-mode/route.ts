@@ -28,7 +28,8 @@ function hasProductionStaticServing(workspaceRoot: string): boolean {
     const content = readFileSync(serverPath, "utf-8")
     // Check for common patterns that indicate static file serving
     return content.includes("serveStatic") && content.includes("dist")
-  } catch {
+  } catch (_err) {
+    // Expected: server.ts may not exist or be unreadable
     return false
   }
 }
@@ -47,7 +48,8 @@ function needsBackendScriptUpdate(workspaceRoot: string): boolean {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"))
     // Needs update if preview is still "vite preview" (default)
     return packageJson.scripts?.preview === "vite preview"
-  } catch {
+  } catch (_err) {
+    // Expected: package.json may not exist or be invalid
     return false
   }
 }

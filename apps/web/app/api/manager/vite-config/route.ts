@@ -99,7 +99,8 @@ async function getViteConfigInfo(domain: string): Promise<ViteConfigInfo> {
     if (portMatch) {
       systemdOverridePort = Number.parseInt(portMatch[1], 10)
     }
-  } catch {
+  } catch (_err) {
+    // Expected: override file may not exist
     hasSystemdOverride = false
   }
 
@@ -112,14 +113,15 @@ async function getViteConfigInfo(domain: string): Promise<ViteConfigInfo> {
     await execAsync(`test -f "${tsPath}"`)
     configPath = tsPath
     configContent = await readFile(tsPath, "utf-8")
-  } catch {
-    // Try .js
+  } catch (_err) {
+    // Expected: .ts config may not exist, try .js
     try {
       const jsPath = `${sitePath}/user/vite.config.js`
       await execAsync(`test -f "${jsPath}"`)
       configPath = jsPath
       configContent = await readFile(jsPath, "utf-8")
-    } catch {
+    } catch (_err) {
+      // Expected: no vite config file exists
       return {
         domain,
         expectedPort,

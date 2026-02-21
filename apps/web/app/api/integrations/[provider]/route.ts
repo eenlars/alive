@@ -322,7 +322,8 @@ export async function POST(
         reason: "Invalid token format. GitHub PATs should start with 'ghp_' (classic) or 'github_pat_' (fine-grained)",
       })
     }
-  } catch {
+  } catch (_err) {
+    // Expected: malformed JSON body
     return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
       reason: "Invalid request body",
     })

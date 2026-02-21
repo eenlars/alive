@@ -99,8 +99,8 @@ async function validateSymlinkTarget(
     }
 
     return null // Safe
-  } catch {
-    // If we can't read the symlink, treat it as suspicious
+  } catch (_err) {
+    // Expected: broken or unreadable symlink — treat as suspicious
     console.warn(`[Delete ${requestId}] Failed to read symlink target: ${symlinkPath}`)
     return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
       requestId,
@@ -144,7 +144,8 @@ export async function POST(request: NextRequest) {
     let body: { path?: string; workspace?: string; worktree?: string; recursive?: boolean }
     try {
       body = await request.json()
-    } catch {
+    } catch (_err) {
+      // Expected: malformed JSON body
       return createErrorResponse(ErrorCodes.INVALID_JSON, 400, { requestId })
     }
 
@@ -179,7 +180,8 @@ export async function POST(request: NextRequest) {
     let resolvedWorkspace: string
     try {
       resolvedWorkspace = await realpath(workspaceResult.workspace)
-    } catch {
+    } catch (_err) {
+      // Expected: workspace path may not exist
       console.error(`[Delete ${requestId}] Failed to resolve workspace: ${workspaceResult.workspace}`)
       return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404, { requestId })
     }
@@ -262,8 +264,8 @@ export async function POST(request: NextRequest) {
         console.log(
           `[Delete ${requestId}] Deleting directory: ${resolvedPath} (${fileCount} file${fileCount !== 1 ? "s" : ""})`,
         )
-      } catch {
-        // If counting fails, proceed with deletion anyway
+      } catch (_err) {
+        // Expected: counting may fail due to permissions — proceed with deletion anyway
         console.log(`[Delete ${requestId}] Deleting directory: ${resolvedPath}`)
       }
     } else {

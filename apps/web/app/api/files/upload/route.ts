@@ -103,7 +103,8 @@ export async function POST(request: NextRequest) {
     let formData: FormData
     try {
       formData = await request.formData()
-    } catch {
+    } catch (_err) {
+      // Expected: malformed multipart form data
       return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
         requestId,
         message: "Failed to parse form data",
@@ -160,7 +161,8 @@ export async function POST(request: NextRequest) {
     let resolvedWorkspace: string
     try {
       resolvedWorkspace = await realpath(workspaceResult.workspace)
-    } catch {
+    } catch (_err) {
+      // Expected: workspace path may not exist
       console.error(`[Upload ${requestId}] Failed to resolve workspace: ${workspaceResult.workspace}`)
       return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404, { requestId })
     }

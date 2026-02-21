@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
     let formData: FormData
     try {
       formData = await request.formData()
-    } catch {
+    } catch (_err) {
+      // Expected: malformed multipart form data
       return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
         requestId,
         message: "Failed to parse form data",

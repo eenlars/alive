@@ -75,7 +75,8 @@ export async function POST(req: Request) {
     let body: unknown
     try {
       body = await req.json()
-    } catch {
+    } catch (_err) {
+      // Expected: malformed JSON body
       return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
     }
 

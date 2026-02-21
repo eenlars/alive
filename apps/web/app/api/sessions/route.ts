@@ -11,6 +11,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { isConversationLocked, type TabSessionKey } from "@/features/auth/types/session"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createIamClient } from "@/lib/supabase/iam"
 import { createRLSAppClient } from "@/lib/supabase/server-rls"
@@ -135,15 +136,10 @@ export async function POST(req: NextRequest) {
 
     const userId = user.id
 
-    const body = await req.json()
-    const { targetSessionKey, message, timeoutSeconds: _timeoutSeconds = 30, waitForReply: _waitForReply = true } = body
+    const parsed = await handleBody("sessions/send", req)
+    if (isHandleBodyError(parsed)) return parsed
 
-    if (!targetSessionKey || !message) {
-      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-        status: 400,
-        details: { field: "targetSessionKey and message" },
-      })
-    }
+    const { targetSessionKey, message: _message } = parsed
 
     // Parse target session key
     const parts = targetSessionKey.split("::")

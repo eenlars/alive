@@ -173,6 +173,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           hooks,
         })
         console.error(`[Automation Trigger] Background job "${job.name}" crashed:`, error)
+        Sentry.captureException(error)
       } finally {
         // Poke CronService so it re-arms with the new next_run_at
         pokeCronService()

@@ -115,7 +115,8 @@ async function checkDomainPermissions(domain: string): Promise<PermissionCheckRe
   try {
     await execAsync(`test -d "${siteDir}"`)
     result.siteDirectoryExists = true
-  } catch {
+  } catch (_err) {
+    // Expected: site directory may not exist
     result.siteDirectoryExists = false
     result.error = getErrorMessage(ErrorCodes.SITE_DIRECTORY_NOT_FOUND, { domain })
     return result
@@ -170,7 +171,8 @@ async function fixDomainPermissions(domain: string): Promise<void> {
   // Check if site directory exists FIRST (before revealing user existence)
   try {
     await execAsync(`test -d "${siteDir}"`)
-  } catch {
+  } catch (_err) {
+    // Expected: site directory may not exist
     const errorMsg = getErrorMessage(ErrorCodes.SITE_DIRECTORY_NOT_FOUND, { domain })
     throw new Error(errorMsg)
   }
@@ -178,7 +180,8 @@ async function fixDomainPermissions(domain: string): Promise<void> {
   // Check if user exists
   try {
     await execAsync(`id "${expectedOwner}" >/dev/null 2>&1`)
-  } catch {
+  } catch (_err) {
+    // Expected: site user may not exist
     const errorMsg = getErrorMessage(ErrorCodes.SITE_USER_NOT_FOUND, { user: expectedOwner })
     throw new Error(errorMsg)
   }

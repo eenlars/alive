@@ -488,6 +488,50 @@ export const apiSchemas = {
   },
 
   /**
+   * POST /api/auth/signup
+   * Create a new user account
+   */
+  signup: {
+    req: z
+      .object({
+        email: z.string().email("Invalid email format"),
+        password: z
+          .string()
+          .min(6, "Password must be at least 6 characters")
+          .max(64, "Password must be at most 64 characters"),
+        name: z.string().max(100).optional(),
+      })
+      .brand<"SignupRequest">(),
+    res: z.object({
+      ok: z.literal(true),
+      userId: z.string(),
+      email: z.string(),
+      message: z.string(),
+    }),
+  },
+
+  /**
+   * POST /api/deploy
+   * Deploy a site to a custom domain (separate from deploy-subdomain)
+   */
+  deploy: {
+    req: z
+      .object({
+        domain: z.string().min(1),
+        orgId: z.string().min(1, "Organization ID is required"),
+        templateId: z.string().optional(),
+      })
+      .brand<"DeployRequest">(),
+    res: z.object({
+      ok: z.boolean(),
+      message: z.string(),
+      domain: z.string().optional(),
+      orgId: z.string().optional(),
+      errors: z.array(z.string()).optional(),
+    }),
+  },
+
+  /**
    * POST /api/deploy-subdomain
    * Create a new website deployment
    * Requires authenticated session.
@@ -633,7 +677,26 @@ export const apiSchemas = {
    * Create a new automation job
    */
   "automations/create": {
-    req: z.undefined().brand<"AutomationsCreateRequest">(), // Body validated in handler
+    req: z
+      .object({
+        site_id: z.string().min(1),
+        name: z.string().min(1),
+        trigger_type: TriggerTypeSchema,
+        action_type: z.enum(["prompt", "sync", "publish"]),
+        description: z.string().nullable().optional(),
+        cron_schedule: z.string().nullable().optional(),
+        cron_timezone: z.string().nullable().optional(),
+        run_at: z.string().nullable().optional(),
+        action_prompt: z.string().nullable().optional(),
+        action_source: z.string().nullable().optional(),
+        action_target_page: z.string().nullable().optional(),
+        action_timeout_seconds: z.number().positive().max(3600).nullable().optional(),
+        action_model: ClaudeModelSchema.nullable().optional(),
+        skills: z.array(z.string()).optional().default([]),
+        email_address: z.string().email().nullable().optional(),
+        is_active: z.boolean().optional().default(true),
+      })
+      .brand<"AutomationsCreateRequest">(),
     res: z.object({
       ok: z.literal(true),
       automation: z.object({
@@ -657,6 +720,33 @@ export const apiSchemas = {
         next_run_at: z.string().nullable(),
         created_at: z.string(),
       }),
+    }),
+  },
+
+  /**
+   * PATCH /api/automations/[id]
+   * Update an existing automation job
+   */
+  "automations/update": {
+    req: z
+      .object({
+        name: z.string().min(1).optional(),
+        description: z.string().nullable().optional(),
+        cron_schedule: z.string().nullable().optional(),
+        cron_timezone: z.string().nullable().optional(),
+        run_at: z.string().nullable().optional(),
+        action_prompt: z.string().nullable().optional(),
+        action_source: z.string().nullable().optional(),
+        action_target_page: z.string().nullable().optional(),
+        action_model: ClaudeModelSchema.nullable().optional(),
+        action_timeout_seconds: z.number().positive().max(3600).nullable().optional(),
+        skills: z.array(z.string()).optional(),
+        is_active: z.boolean().optional(),
+      })
+      .brand<"AutomationsUpdateRequest">(),
+    res: z.object({
+      automation: z.record(z.string(), z.unknown()),
+      nextRunsPreview: z.string().optional(),
     }),
   },
 
@@ -875,6 +965,67 @@ export const apiSchemas = {
    * POST /api/drive/delete
    * Delete a file or directory in the drive
    */
+  /**
+   * POST /api/sessions
+   * Send a message to another session (A2A communication)
+   */
+  "sessions/send": {
+    req: z
+      .object({
+        targetSessionKey: z.string().min(1),
+        message: z.string().min(1),
+        timeoutSeconds: z.number().positive().max(300).optional().default(30),
+        waitForReply: z.boolean().optional().default(true),
+      })
+      .brand<"SessionsSendRequest">(),
+    res: z.object({
+      status: z.string(),
+      runId: z.string().optional(),
+      sessionKey: z.string().optional(),
+      message: z.string().optional(),
+    }),
+  },
+
+  /**
+   * PATCH /api/scheduled/[jobId]
+   * Update a scheduled task
+   */
+  "scheduled/update": {
+    req: z
+      .object({
+        name: z.string().optional(),
+        description: z.string().optional(),
+        schedule: z
+          .discriminatedUnion("kind", [
+            z.object({ kind: z.literal("at"), atMs: z.number() }),
+            z.object({ kind: z.literal("every"), everyMs: z.number(), anchorMs: z.number().optional() }),
+            z.object({ kind: z.literal("cron"), expr: z.string(), tz: z.string().optional() }),
+          ])
+          .optional(),
+        payload: z
+          .discriminatedUnion("kind", [
+            z.object({ kind: z.literal("systemEvent"), text: z.string() }),
+            z.object({
+              kind: z.literal("agentTurn"),
+              message: z.string(),
+              model: z.string().optional(),
+              timeoutSeconds: z.number().optional(),
+              deliver: z.boolean().optional(),
+              channel: z.string().optional(),
+              to: z.string().optional(),
+            }),
+          ])
+          .optional(),
+        enabled: z.boolean().optional(),
+        deleteAfterRun: z.boolean().optional(),
+      })
+      .brand<"ScheduledUpdateRequest">(),
+    res: z.object({
+      ok: z.boolean(),
+      job: z.record(z.string(), z.unknown()),
+    }),
+  },
+
   "drive/delete": {
     req: z
       .object({

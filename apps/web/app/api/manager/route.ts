@@ -27,8 +27,8 @@ async function detectOrphanedDomains(): Promise<string[]> {
       const domain = slug.replace(/-/g, ".")
       orphaned.add(domain)
     }
-  } catch {
-    // Ignore systemctl errors
+  } catch (_err) {
+    // Expected: systemctl may fail if no site services exist
   }
 
   try {
@@ -37,8 +37,8 @@ async function detectOrphanedDomains(): Promise<string[]> {
     for (const match of caddyMatches) {
       orphaned.add(match[1])
     }
-  } catch {
-    // Ignore Caddyfile read errors
+  } catch (_err) {
+    // Expected: Caddyfile may not exist
   }
 
   return Array.from(orphaned)

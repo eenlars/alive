@@ -91,9 +91,10 @@ function createMockRequest(url: string, options?: RequestInit) {
   const urlObj = new URL(url)
   const req = new Request(url, options) as any
   req.nextUrl = urlObj
+  const originalGet = req.headers.get.bind(req.headers)
   req.headers.get = (name: string) => {
     if (name === "origin") return DOMAINS.STREAM_PROD
-    return null
+    return originalGet(name)
   }
   return req
 }

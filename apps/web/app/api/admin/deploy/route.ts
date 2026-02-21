@@ -81,7 +81,8 @@ export async function POST(req: Request): Promise<Response> {
     let body: unknown
     try {
       body = await req.json()
-    } catch {
+    } catch (_err) {
+      // Expected: malformed JSON body
       return createErrorResponse(ErrorCodes.INVALID_JSON, 400, { requestId })
     }
 
@@ -160,8 +161,8 @@ export async function POST(req: Request): Promise<Response> {
                 })}\n\n`,
               ),
             )
-          } catch {
-            // Connection dropped - process continues, output goes to log file
+          } catch (_err) {
+            // Expected: client disconnected, process continues via log file
           }
         }
 
@@ -193,8 +194,8 @@ export async function POST(req: Request): Promise<Response> {
               ),
             )
             controller.close()
-          } catch {
-            // Connection already dropped - that's fine, deployment completed
+          } catch (_err) {
+            // Expected: client disconnected, deployment completed
           }
         })
 
@@ -216,8 +217,8 @@ export async function POST(req: Request): Promise<Response> {
               ),
             )
             controller.close()
-          } catch {
-            // Connection dropped
+          } catch (_err) {
+            // Expected: client disconnected
           }
         })
       },

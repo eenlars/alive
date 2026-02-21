@@ -4,6 +4,7 @@ import { DeploymentError } from "@webalive/site-controller"
 import { type NextRequest, NextResponse } from "next/server"
 import { AuthenticationError, createErrorResponse, requireSessionUser } from "@/features/auth/lib/auth"
 import { normalizeAndValidateDomain } from "@/features/manager/lib/domain-utils"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { runStrictDeployment } from "@/lib/deployment/deploy-pipeline"
 import { DomainRegistrationError } from "@/lib/deployment/domain-registry"
 import { validateUserOrgAccess } from "@/lib/deployment/org-resolver"
@@ -11,20 +12,6 @@ import { validateSSLCertificate } from "@/lib/deployment/ssl-validation"
 import { validateTemplateFromDb } from "@/lib/deployment/template-validation"
 import { getUserQuota } from "@/lib/deployment/user-quotas"
 import { ErrorCodes } from "@/lib/error-codes"
-
-interface DeployRequest {
-  domain: string
-  orgId: string // REQUIRED: Organization to deploy to (user must explicitly select)
-  templateId?: string // Optional: Template to use (defaults to "blank")
-}
-
-interface DeployResponse {
-  ok: boolean
-  message: string
-  domain?: string
-  orgId?: string
-  errors?: string[]
-}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -37,17 +24,12 @@ export async function POST(request: NextRequest) {
     const user = await requireSessionUser()
     console.log(`🔐 [DEPLOY API] Authenticated user: ${user.email} (${user.id})`)
 
-    // Parse request body
-    let body: DeployRequest
-    try {
-      body = await request.json()
-    } catch (parseError) {
-      console.error("❌ [DEPLOY API] Failed to parse request JSON:", parseError)
-      return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
-    }
+    // Parse and validate request body
+    const parsed = await handleBody("deploy", request)
+    if (isHandleBodyError(parsed)) return parsed
 
     // Normalize and validate domain
-    const domainResult = normalizeAndValidateDomain(body.domain)
+    const domainResult = normalizeAndValidateDomain(parsed.domain)
     if (!domainResult.isValid) {
       console.error(`❌ [DEPLOY API] Domain validation failed: ${domainResult.error}`)
       Sentry.captureException(new Error(`Deploy: domain validation failed: ${domainResult.error}`))
@@ -56,13 +38,7 @@ export async function POST(request: NextRequest) {
 
     domain = domainResult.domain // Use normalized domain
 
-    // Validate orgId is provided
-    if (!body.orgId) {
-      console.error("❌ [DEPLOY API] orgId is required")
-      return createErrorResponse(ErrorCodes.ORG_ID_REQUIRED, 400)
-    }
-
-    const orgId = body.orgId
+    const orgId = parsed.orgId
 
     // Validate user has access to the specified organization
     console.log(`🏢 [DEPLOY API] Validating access to organization: ${orgId}`)
@@ -88,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate and get selected template from database
-    const templateValidation = await validateTemplateFromDb(body.templateId)
+    const templateValidation = await validateTemplateFromDb(parsed.templateId)
     if (!templateValidation.valid || !templateValidation.template) {
       const error = templateValidation.error!
       console.error(`❌ [DEPLOY API] Template validation failed: ${error.code}`, error)
@@ -104,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
     const template = templateValidation.template
     console.log(
-      `📋 [DEPLOY API] Request: domain=${body.domain} → normalized: ${domain}, template: ${template.template_id}`,
+      `📋 [DEPLOY API] Request: domain=${parsed.domain} → normalized: ${domain}, template: ${template.template_id}`,
     )
 
     // Execute strict deployment pipeline (deploy -> register -> caddy -> verify)
@@ -129,7 +105,7 @@ export async function POST(request: NextRequest) {
         message: `Site ${domain} deployed successfully with SSL certificate`,
         domain,
         orgId,
-      } as DeployResponse)
+      })
     }
     console.warn(`⚠️  [DEPLOY API] Deployment completed but SSL validation failed: ${sslValidation.error}`)
     return NextResponse.json({
@@ -138,7 +114,7 @@ export async function POST(request: NextRequest) {
       domain,
       orgId,
       errors: [sslValidation.error],
-    } as DeployResponse)
+    })
   } catch (error: unknown) {
     const duration = Date.now() - startTime
     if (error instanceof AuthenticationError) {

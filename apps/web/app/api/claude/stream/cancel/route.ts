@@ -137,7 +137,8 @@ export async function POST(req: NextRequest) {
         })
       }
       body = parsedBody
-    } catch {
+    } catch (_err) {
+      // Expected: malformed JSON body
       return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
     }
 
