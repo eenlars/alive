@@ -44,6 +44,10 @@ export async function PATCH(req: NextRequest) {
   const { error } = await iam.from("users").update(updates).eq("user_id", user.id)
 
   if (error) {
+    // Unique constraint violation (e.g. duplicate email) → 409 Conflict
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
+      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 409)
+    }
     console.error("[User API] Update error:", error)
     Sentry.captureException(error)
     return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)

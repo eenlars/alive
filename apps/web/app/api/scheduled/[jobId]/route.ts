@@ -5,7 +5,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
-import { deleteJob, getJob, type ScheduledJobUpdate, updateJob } from "@webalive/tools"
+import { deleteJob, getJob, updateJob } from "@webalive/tools"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
@@ -73,7 +73,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const parsed = await handleBody("scheduled/update", req)
     if (isHandleBodyError(parsed)) return parsed
 
-    const updated = await updateJob(jobId, parsed as ScheduledJobUpdate)
+    const { name, description, schedule, payload, enabled, deleteAfterRun } = parsed
+    const updated = await updateJob(jobId, { name, description, schedule, payload, enabled, deleteAfterRun })
 
     if (!updated) {
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })

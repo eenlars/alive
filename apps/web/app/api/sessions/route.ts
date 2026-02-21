@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     const parsed = await handleBody("sessions/send", req)
     if (isHandleBodyError(parsed)) return parsed
 
-    const { targetSessionKey, message: _message } = parsed
+    const { targetSessionKey, message } = parsed
 
     // Parse target session key
     const parts = targetSessionKey.split("::")
@@ -214,6 +214,7 @@ export async function POST(req: NextRequest) {
     //
     // For now, return a placeholder response
     const runId = crypto.randomUUID()
+    console.info(`[Sessions API] Message queued: runId=${runId} target=${targetSessionKey} length=${message.length}`)
 
     return NextResponse.json({
       status: "accepted",

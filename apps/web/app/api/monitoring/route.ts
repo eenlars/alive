@@ -45,6 +45,6 @@ export async function POST(request: Request) {
     return new Response(response.body, { status: response.status })
   } catch (_err) {
     // Expected: Sentry upstream may be unreachable or timeout
-    return new Response("Upstream timeout", { status: 504 })
+    return new Response("Upstream unavailable", { status: 504 })
   }
 }

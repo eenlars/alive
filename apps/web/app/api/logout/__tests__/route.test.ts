@@ -89,8 +89,9 @@ function parseCookieHeader(setCookieHeader: string): CookieConfig {
 // Helper to create mock NextRequest
 function createMockRequest(url: string, options?: RequestInit) {
   const urlObj = new URL(url)
-  const req = new Request(url, options) as any
-  req.nextUrl = urlObj
+  // NextRequest constructor doesn't accept all options we need, so we build from Request
+  const req = new Request(url, options) as unknown as import("next/server").NextRequest
+  ;(req as unknown as Record<string, unknown>).nextUrl = urlObj
   const originalGet = req.headers.get.bind(req.headers)
   req.headers.get = (name: string) => {
     if (name === "origin") return DOMAINS.STREAM_PROD

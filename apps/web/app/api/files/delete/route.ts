@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     try {
       resolvedWorkspace = await realpath(workspaceResult.workspace)
     } catch (_err) {
-      // Expected: workspace path may not exist
+      // Expected: workspace path may not exist (non-existent paths are a normal 404, not a Sentry-worthy error)
       console.error(`[Delete ${requestId}] Failed to resolve workspace: ${workspaceResult.workspace}`)
       return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404, { requestId })
     }

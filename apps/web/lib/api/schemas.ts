@@ -1026,6 +1026,10 @@ export const apiSchemas = {
     }),
   },
 
+  /**
+   * POST /api/drive/delete
+   * Delete a file or directory in the drive
+   */
   "drive/delete": {
     req: z
       .object({
