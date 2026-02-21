@@ -4,15 +4,15 @@ import type { NextRequest } from "next/server"
 import { hasSessionCookie } from "@/features/auth/types/guards"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { imageStorage } from "@/lib/storage"
 import { workspaceToTenantId } from "@/lib/tenant-utils"
-import { generateRequestId } from "@/lib/utils"
 
 export async function GET(request: NextRequest) {
   try {
     // 1. Auth check
     const jar = await cookies()
-    const requestId = generateRequestId()
+    const requestId = getRequestId(request)
     if (!hasSessionCookie(jar)) {
       return Response.json(
         {

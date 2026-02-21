@@ -5,12 +5,12 @@ import { requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/a
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { imageStorage } from "@/lib/storage"
 import { workspaceToTenantId } from "@/lib/tenant-utils"
-import { generateRequestId } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(request)
   console.log(`[Image Upload ${requestId}] ⬆️ Request started`)
 
   try {

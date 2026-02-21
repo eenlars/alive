@@ -5,20 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function generateRequestId(): string {
-  // Use crypto.randomUUID for guaranteed uniqueness
-  // Falls back to timestamp + longer random for environments without crypto
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-
-  // Fallback: timestamp + 12 random chars (36^12 = 4.7e18 combinations)
-  const timestamp = Date.now().toString(36)
-  const random1 = Math.random().toString(36).substring(2, 8)
-  const random2 = Math.random().toString(36).substring(2, 8)
-  return `${timestamp}-${random1}${random2}`
-}
-
 /**
  * Parses a user agent string and returns a friendly formatted version
  * Example: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"

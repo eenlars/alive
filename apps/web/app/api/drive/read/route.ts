@@ -9,7 +9,7 @@ import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 const MAX_FILE_SIZE = 1024 * 1024
 
@@ -79,7 +79,7 @@ function getLanguageFromFilename(filename: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(request)
 
   try {
     const user = await getSessionUser()

@@ -8,7 +8,7 @@ import { timingSafeCompare } from "@/lib/auth/timing-safe"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { env } from "@/lib/env"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 const ManagerLoginSchema = z.object({
   passcode: z.string().min(1).max(1000), // Max length to prevent DOS
@@ -28,7 +28,7 @@ function getClientIdentifier(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
   const host = req.headers.get("host") || undefined
   const clientId = getClientIdentifier(req)

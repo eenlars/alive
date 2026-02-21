@@ -5,14 +5,14 @@ import { isManagerAuthenticated } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { createIamClient } from "@/lib/supabase/iam"
-import { generateRequestId } from "@/lib/utils"
 
 /**
  * POST /api/manager/orgs/members - Add or update org member
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check manager authentication
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
  * DELETE /api/manager/orgs/members - Remove org member
  */
 export async function DELETE(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check manager authentication

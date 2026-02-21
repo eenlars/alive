@@ -6,7 +6,7 @@ import { z } from "zod"
 import { AuthenticationError, getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 /**
  * Admin-only deployment endpoint
@@ -62,7 +62,7 @@ const ALLOWED_ACTIONS: Record<DeployAction, { command: string; args: string[]; d
  * Admin-only endpoint for system administrators.
  */
 export async function POST(req: Request): Promise<Response> {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
 
   try {
     // 1. Authentication - get user from session

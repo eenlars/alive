@@ -5,14 +5,14 @@ import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { addFeedbackEntry } from "@/lib/feedback"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 /**
  * POST /api/feedback
  * Submit user feedback (no authentication required for simplicity)
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   try {

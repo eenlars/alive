@@ -7,8 +7,8 @@ import { COOKIE_NAMES, getSessionCookieOptions } from "@/lib/auth/cookies"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { getUserDefaultOrgId } from "@/lib/deployment/org-resolver"
 import { ErrorCodes } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { createIamClient } from "@/lib/supabase/iam"
-import { generateRequestId } from "@/lib/utils"
 import { hashPassword } from "@/types/guards/api"
 
 /**
@@ -26,7 +26,7 @@ import { hashPassword } from "@/types/guards/api"
  * 6. Return success
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
   const host = req.headers.get("host") || undefined
 
