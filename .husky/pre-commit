@@ -8,6 +8,15 @@ if ! ./scripts/validation/check-no-env-files.sh; then
     exit 1
 fi
 
+# Keep codex skills aligned with claude skills and stage the mirrored copies.
+if ! bun run sync:skills; then
+    echo ""
+    echo "❌ Failed to sync .claude/skills to .agents/skills."
+    exit 1
+fi
+
+git add .agents/skills
+
 # Only format files that are staged for commit (not the entire repo)
 bun x lint-staged
 

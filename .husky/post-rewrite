@@ -1,0 +1,4 @@
+#!/bin/sh
+# .husky/post-rewrite
+
+bun run sync:skills

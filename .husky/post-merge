@@ -1,0 +1,4 @@
+#!/bin/sh
+# .husky/post-merge
+
+bun run sync:skills

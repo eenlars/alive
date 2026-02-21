@@ -53,6 +53,7 @@
     "gen:routing": "bun packages/site-controller/src/infra/generate-routing.ts",
     "gen:all": "bun run gen:systemd && bun run gen:routing",
     "deploy-site": "bun scripts/deploy-site.ts",
+    "sync:skills": "bun scripts/sync-claude-skills.ts",
     "setup-webhook": "./scripts/maintenance/setup-webhook.sh",
     "update-cors": "./scripts/maintenance/update-cors-domains.sh",
     "widget": "cd apps/widget-server && ./build.sh && go run main.go",
@@ -69,8 +70,8 @@
     "see": "journalctl -u alive-production -n 1000 -f",
     "see:dev": "journalctl -u alive-dev -n 1000 -f",
     "shell-server": "cd apps/shell-server-go && make build && systemctl restart shell-server",
-    "pull": "GIT_SSH_COMMAND='ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes' git pull --rebase origin main",
-    "push": "bash -c 'BRANCH=$(git branch --show-current) && [ -n \"$BRANCH\" ] && GIT_SSH_COMMAND=\"ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes\" git push origin \"$BRANCH\" || { echo \"Error: not on a branch (detached HEAD)\"; exit 1; }'",
+    "pull": "GIT_SSH_COMMAND='ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes' git pull --rebase origin main && bun run sync:skills",
+    "push": "bun run sync:skills && bash -c 'BRANCH=$(git branch --show-current) && [ -n \"$BRANCH\" ] && GIT_SSH_COMMAND=\"ssh -i ~/.ssh/id_lars_deploy_bot -o IdentitiesOnly=yes\" git push origin \"$BRANCH\" || { echo \"Error: not on a branch (detached HEAD)\"; exit 1; }'",
     "ship": "bash -c 'git add -A && git commit -m \"$1\" && git push' --"
   },
   "lint-staged": {

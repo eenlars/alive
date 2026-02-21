@@ -10,6 +10,29 @@ if ! ./scripts/validation/check-no-env-files.sh; then
     exit 1
 fi
 
+# Ensure repo skills mirror .claude skills before push.
+if ! bun run sync:skills; then
+    echo ""
+    echo "❌ Failed to sync .claude/skills to .agents/skills."
+    exit 1
+fi
+
+if ! git diff --quiet -- .agents/skills || ! git diff --cached --quiet -- .agents/skills; then
+    echo ""
+    echo "❌ .agents/skills changed during sync."
+    echo "   Commit these updates before pushing:"
+    echo "   git add .agents/skills && git commit -m \"sync agents skills\""
+    exit 1
+fi
+
+if [ -n "$(git ls-files --others --exclude-standard -- .agents/skills)" ]; then
+    echo ""
+    echo "❌ Found untracked files in .agents/skills after sync."
+    echo "   Commit these updates before pushing:"
+    echo "   git add .agents/skills && git commit -m \"sync agents skills\""
+    exit 1
+fi
+
 # Run comprehensive checks (no file rewrites):
 # - Type checking (Turbo cached)
 # - CI checks (Turbo cached): lint + format validation (no --write)

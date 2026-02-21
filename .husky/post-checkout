@@ -1,0 +1,4 @@
+#!/bin/sh
+# .husky/post-checkout
+
+bun run sync:skills

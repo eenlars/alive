@@ -7,6 +7,7 @@ This project uses [Husky v9](https://typicode.github.io/husky/) with [lint-stage
 ### Pre-Commit Hook
 
 The `pre-commit` hook formats only the files you're committing:
+- Syncs `/.claude/skills` into `/.agents/skills` and stages mirrored skill files
 - Uses `lint-staged` to format staged files only
 - Runs Biome formatter on TypeScript, JavaScript, JSON, and Markdown files
 - **Speed**: Instant (only touches staged files, not entire repo)
@@ -14,11 +15,20 @@ The `pre-commit` hook formats only the files you're committing:
 ### Pre-Push Hook
 
 The `pre-push` hook runs comprehensive quality checks before allowing a push:
+- Re-syncs `/.claude/skills` → `/.agents/skills`
+- Fails if mirrored skill changes are uncommitted
 - Type checking (`turbo run type-check`)
 - Linting (`turbo run lint`)
 - Format checking (`turbo run format`)
 - Unit tests (`bun run unit`)
 - **Speed**: 10-60 seconds (uses Turborepo caching)
+
+### Post-Checkout / Post-Merge / Post-Rewrite Hooks
+
+These hooks keep `/.agents/skills` updated after:
+- Branch switches (`post-checkout`)
+- Pull/merge updates (`post-merge`)
+- Rebase rewrites (`post-rewrite`)
 
 To skip hooks (not recommended):
 ```bash
