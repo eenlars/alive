@@ -7,15 +7,15 @@ import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { canInviteMembers, canRemoveMember } from "@/lib/permissions/org-permissions"
+import { getRequestId } from "@/lib/request-id"
 import { createIamClient } from "@/lib/supabase/iam"
-import { generateRequestId } from "@/lib/utils"
 
 /**
  * GET /api/auth/org-members?orgId=xxx
  * Fetches all members of an organization with their roles
  */
 export async function GET(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check authentication
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
  * Add a member to an organization by email (owner/admin only)
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   const user = await getSessionUser()
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
  * Remove a member from an organization (owner/admin only)
  */
 export async function DELETE(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check authentication

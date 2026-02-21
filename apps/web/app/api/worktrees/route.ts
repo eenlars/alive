@@ -13,7 +13,7 @@ import {
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 function safeGitFailureDetails(
   diagnostics: GitDiagnostics | null,
@@ -109,7 +109,7 @@ function mapWorktreeError(
 }
 
 export async function GET(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   let workspace = ""
 
   try {
@@ -171,7 +171,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   let body: { workspace: string; slug?: string; branch?: string; from?: string } | null = null
 
   try {
@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   let workspace = ""
   let slug = ""
 

@@ -10,7 +10,7 @@ import { structuredErrorResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { getGroqClient, withRetry } from "@/lib/clients/groq"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 export const runtime = "nodejs"
 export const maxDuration = 120 // 2 minutes for askAIFull + Groq
@@ -331,7 +331,7 @@ CRITICAL OUTPUT RULES (follow exactly, no exceptions):
  * Analyze conversation progress and suggest next action
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
 
   try {
     // Check authentication
@@ -496,7 +496,7 @@ export async function POST(req: NextRequest) {
  * Cancel an active evaluation for the current user's workspace
  */
 export async function DELETE(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
 
   try {
     // Check authentication

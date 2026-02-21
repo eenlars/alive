@@ -5,8 +5,8 @@ import { isManagerAuthenticated } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { createIamClient } from "@/lib/supabase/iam"
-import { generateRequestId } from "@/lib/utils"
 
 const TransferOwnershipSchema = z.object({
   orgId: z.string().startsWith("org_"),
@@ -18,7 +18,7 @@ const TransferOwnershipSchema = z.object({
  * Transfer organization ownership to another member
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check manager authentication

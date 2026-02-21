@@ -8,8 +8,8 @@ import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/re
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { getAllFeedback } from "@/lib/feedback"
+import { getRequestId } from "@/lib/request-id"
 import { createIamClient } from "@/lib/supabase/iam"
-import { generateRequestId } from "@/lib/utils"
 
 // Type for membership with nested user data from Supabase join
 interface MembershipWithUser {
@@ -28,7 +28,7 @@ interface MembershipWithUser {
  * GET /api/manager/orgs - Fetch all organizations with their members
  */
 export async function GET(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check manager authentication
@@ -187,7 +187,7 @@ export async function GET(req: NextRequest) {
  * POST /api/manager/orgs - Update org credits or delete org
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check manager authentication
@@ -227,7 +227,7 @@ export async function POST(req: NextRequest) {
  * DELETE /api/manager/orgs - Delete an organization
  */
 export async function DELETE(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check manager authentication

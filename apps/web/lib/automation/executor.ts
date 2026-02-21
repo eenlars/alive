@@ -21,8 +21,8 @@ import { getSkillById, listSuperadminSkills, type SkillListItem } from "@webaliv
 import { createSessionToken } from "@/features/auth/lib/jwt"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
 import { getOrgCredits } from "@/lib/credits/supabase-credits"
+import { generateRequestId } from "@/lib/request-id"
 import { createServiceIamClient } from "@/lib/supabase/service"
-import { generateRequestId } from "@/lib/utils"
 import { type AttemptResult, tryWorkerPool, WORKER_POOL } from "./attempts"
 
 // =============================================================================

@@ -6,8 +6,8 @@ import { getClientIdentifier } from "@/lib/auth/client-identifier"
 import { emailCheckRateLimiter } from "@/lib/auth/rate-limiter"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { createIamClient } from "@/lib/supabase/iam"
-import { generateRequestId } from "@/lib/utils"
 
 const CheckEmailSchema = z.object({
   email: z.string().email("Invalid email format"),
@@ -29,7 +29,7 @@ export type CheckEmailResponse = {
  * @returns { ok: true, exists: boolean, email: string }
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Rate limiting to prevent email enumeration attacks

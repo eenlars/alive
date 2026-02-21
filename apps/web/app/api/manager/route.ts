@@ -10,8 +10,8 @@ import { updateDomainOwnerPassword } from "@/lib/auth/supabase-passwords"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { getAllDomains } from "@/lib/deployment/domain-registry"
 import { ErrorCodes } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { updateOrgCredits } from "@/lib/tokens"
-import { generateRequestId } from "@/lib/utils"
 import type { DomainConfigClient } from "@/types/domain"
 
 const execAsync = promisify(exec)
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin")
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
 
   const authError = await requireManagerAuth()
   if (authError) {
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const origin = req.headers.get("origin")
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
 
   const authError = await requireManagerAuth()
   if (authError) {

@@ -8,7 +8,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server"
-import { REQUEST_ID_HEADER, generateRequestId } from "@/lib/request-id"
+import { generateRequestId, REQUEST_ID_HEADER } from "@/lib/request-id"
 
 export function middleware(request: NextRequest) {
   const requestId = request.headers.get(REQUEST_ID_HEADER) || generateRequestId()

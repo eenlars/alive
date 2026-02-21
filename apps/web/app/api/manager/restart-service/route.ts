@@ -5,7 +5,7 @@ import { isManagerAuthenticated } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 import { runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
 import { restartSystemdService } from "@/lib/workspace-execution/systemd-restart"
 import { domainToServiceName } from "@/lib/workspace-service-manager"
@@ -17,7 +17,7 @@ import { domainToServiceName } from "@/lib/workspace-service-manager"
  * Requires manager authentication
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check manager authentication

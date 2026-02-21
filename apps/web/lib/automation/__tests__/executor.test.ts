@@ -103,7 +103,7 @@ vi.mock("@/lib/models/claude-models", () => ({
   DEFAULT_MODEL: "claude-sonnet-4-6",
 }))
 
-vi.mock("@/lib/utils", () => ({
+vi.mock("@/lib/request-id", () => ({
   generateRequestId: vi.fn(() => "req-test-123"),
 }))
 

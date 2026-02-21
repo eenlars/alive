@@ -4,12 +4,12 @@ import { requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/a
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { imageStorage } from "@/lib/storage"
 import { workspaceToTenantId } from "@/lib/tenant-utils"
-import { generateRequestId } from "@/lib/utils"
 
 export async function DELETE(request: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(request)
   try {
     // 1. Get authenticated user
     const user = await requireSessionUser()

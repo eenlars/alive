@@ -12,7 +12,7 @@ import {
 import { domainToSlug, getDomainSitePath, getDomainUser } from "@/features/manager/lib/domain-utils"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 const execAsync = promisify(exec)
 
@@ -36,7 +36,7 @@ interface PermissionCheckResult {
  * GET /api/manager/permissions?domain=example.com
  */
 export async function GET(request: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(request)
   const authError = await requireManagerAuth()
   if (authError) return authError
 
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
  * Body: { domain: string, action: "fix" }
  */
 export async function POST(request: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(request)
   const authError = await requireManagerAuth()
   if (authError) return authError
 

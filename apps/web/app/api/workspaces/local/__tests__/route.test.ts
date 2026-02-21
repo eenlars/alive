@@ -104,7 +104,7 @@ describe("GET /api/workspaces/local", () => {
       process.env.STREAM_ENV = "local"
       vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
-      const response = await GET()
+      const response = await GET(new Request("http://localhost/api/workspaces/local"))
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -117,7 +117,7 @@ describe("GET /api/workspaces/local", () => {
       process.env.STREAM_ENV = "production"
       vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
-      const response = await GET()
+      const response = await GET(new Request("http://localhost/api/workspaces/local"))
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -129,7 +129,7 @@ describe("GET /api/workspaces/local", () => {
     it("should return 401 without session cookie", async () => {
       vi.mocked(cookies).mockResolvedValue(createMockCookies() as any)
 
-      const response = await GET()
+      const response = await GET(new Request("http://localhost/api/workspaces/local"))
       const data = await response.json()
 
       expect(response.status).toBe(401)
@@ -140,7 +140,7 @@ describe("GET /api/workspaces/local", () => {
     it("should return 401 with invalid session value", async () => {
       vi.mocked(cookies).mockResolvedValue(createMockCookies("invalid-session") as any)
 
-      const response = await GET()
+      const response = await GET(new Request("http://localhost/api/workspaces/local"))
       const data = await response.json()
 
       expect(response.status).toBe(401)
@@ -152,7 +152,7 @@ describe("GET /api/workspaces/local", () => {
     it("should return list of workspaces with valid session", async () => {
       vi.mocked(cookies).mockResolvedValue(createMockCookies("valid-jwt") as any)
 
-      const response = await GET()
+      const response = await GET(new Request("http://localhost/api/workspaces/local"))
       const data = await response.json()
 
       expect(response.status).toBe(200)

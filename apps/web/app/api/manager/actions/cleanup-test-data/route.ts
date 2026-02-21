@@ -4,8 +4,8 @@ import { isManagerAuthenticated } from "@/features/auth/lib/auth"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { cleanupTestDatabase } from "@/lib/test-helpers/cleanup-test-database"
-import { generateRequestId } from "@/lib/utils"
 
 /**
  * POST /api/manager/actions/cleanup-test-data
@@ -15,7 +15,7 @@ import { generateRequestId } from "@/lib/utils"
  * SAFETY: Only deletes users where is_test_env = true AND email matches test patterns
  */
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
 
   // Check manager authentication
