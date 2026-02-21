@@ -153,6 +153,7 @@ function ChatPageContent() {
   const [wkParam] = useQueryState(QUERY_KEYS.workspace)
   const [wtParam, setWtParam] = useQueryState(QUERY_KEYS.worktree)
   const worktreesEnabled = useFeatureFlag("WORKTREES")
+  const requestWorktree = worktreesEnabled ? worktree : null
   useEffect(() => {
     if (mounted && wkParam && wkParam !== workspace) {
       console.log("[ChatPage] Setting workspace from URL param:", wkParam)
@@ -160,10 +161,18 @@ function ChatPageContent() {
     }
   }, [mounted, wkParam, workspace, setWorkspace])
 
-  // Handle ?wt= URL parameter for worktree selection (only when feature flag enabled)
-  // Normalize URL param to prevent casing inconsistencies (e.g., "Feature" vs "feature")
+  // Bidirectional sync between ?wt= URL param and worktree store.
+  // Refs track previous values so each effect only reacts to its own source changing,
+  // preventing infinite loops when one side updates the other.
+  const prevWtParamRef = useRef<string | null | undefined>(undefined)
+  const prevWorktreeRef = useRef<string | null | undefined>(undefined)
+
+  // URL → Store: sync ?wt= param into worktree store
   useEffect(() => {
     if (!mounted || !worktreesEnabled) return
+    // Only react when wtParam actually changed (not when worktree changed)
+    if (prevWtParamRef.current === wtParam) return
+    prevWtParamRef.current = wtParam
 
     // Normalize and validate the URL param
     let normalizedParam: string | null = null
@@ -172,24 +181,28 @@ function ChatPageContent() {
       if (validation.valid) {
         normalizedParam = validation.slug
       } else {
-        // Invalid worktree in URL - clear the param
         console.warn(`[ChatPage] Invalid worktree in URL rejected: "${wtParam}" - ${validation.reason}`)
         void setWtParam(null, { shallow: true })
         return
       }
     }
 
-    // Compare normalized values to prevent loops
     if (normalizedParam !== worktree) {
+      prevWorktreeRef.current = normalizedParam
       setWorktree(normalizedParam)
     }
   }, [mounted, worktreesEnabled, wtParam, worktree, setWorktree, setWtParam])
 
-  // Sync worktree state back to URL (only when feature flag enabled)
+  // Store → URL: sync worktree store into ?wt= param
   useEffect(() => {
     if (!mounted || !worktreesEnabled) return
+    // Only react when worktree actually changed (not when wtParam changed)
+    if (prevWorktreeRef.current === worktree) return
+    prevWorktreeRef.current = worktree
+
     const desired = worktree && worktree.length > 0 ? worktree : null
     if (wtParam !== desired) {
+      prevWtParamRef.current = desired
       void setWtParam(desired, { shallow: true })
     }
   }, [mounted, worktreesEnabled, worktree, wtParam, setWtParam])
@@ -335,7 +348,8 @@ function ChatPageContent() {
     isSubmittingByTabRef,
   } = useChatMessaging({
     workspace,
-    worktree,
+    worktree: requestWorktree,
+    worktreesEnabled,
     tabId,
     tabGroupId,
     isTerminal,
@@ -354,7 +368,8 @@ function ChatPageContent() {
     tabId: sessionTabId ?? "",
     tabGroupId: sessionTabGroupId,
     workspace,
-    worktree,
+    worktree: requestWorktree,
+    worktreesEnabled,
     addMessage,
     setShowCompletionDots,
     abortControllerRef,
@@ -380,7 +395,8 @@ function ChatPageContent() {
     tabId: sessionTabId,
     tabGroupId: sessionTabGroupId,
     workspace,
-    worktree,
+    worktree: requestWorktree,
+    worktreesEnabled,
     isStreaming: busy,
     addMessage,
     mounted,
@@ -392,7 +408,8 @@ function ChatPageContent() {
     tabId: sessionTabId,
     tabGroupId: sessionTabGroupId,
     workspace,
-    worktree,
+    worktree: requestWorktree,
+    worktreesEnabled,
     lastSeenStreamSeq,
     currentRequestIdRef,
     isStreaming: busy,
@@ -463,7 +480,12 @@ function ChatPageContent() {
   ])
 
   // Image upload handler
-  const handleAttachmentUpload = useImageUpload({ workspace: workspace ?? undefined, worktree, isTerminal })
+  const handleAttachmentUpload = useImageUpload({
+    workspace: workspace ?? undefined,
+    worktree: requestWorktree,
+    worktreesEnabled,
+    isTerminal,
+  })
 
   // Calculate total domain count from organizations
   const totalDomainCount = organizations.reduce((sum, org) => sum + (org.workspace_count || 0), 0)
@@ -855,7 +877,7 @@ function ChatPageContent() {
                 maxAttachments: 5,
                 maxFileSize: 20 * 1024 * 1024,
                 workspace: workspace ?? undefined,
-                worktree,
+                worktree: requestWorktree,
                 placeholder:
                   !workspace && mounted && !organizationsLoading
                     ? "Select a site to start chatting..."
@@ -911,7 +933,7 @@ function ChatPageContent() {
                   maxAttachments: 5,
                   maxFileSize: 20 * 1024 * 1024,
                   workspace: workspace ?? undefined,
-                  worktree,
+                  worktree: requestWorktree,
                   placeholder: "Tell me what to change...",
                   onAttachmentUpload: handleAttachmentUpload,
                 }}

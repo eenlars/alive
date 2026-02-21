@@ -11,6 +11,8 @@ interface UseBrowserCleanupOptions {
   workspace: string | null
   /** Current worktree */
   worktree?: string | null
+  /** Whether worktrees are enabled for this workspace */
+  worktreesEnabled: boolean
   /** Last stream sequence seen by client (for cursor ack) */
   lastSeenStreamSeq: number | null
   /** Ref to the current request ID */
@@ -36,6 +38,7 @@ export function useBrowserCleanup({
   tabGroupId,
   workspace,
   worktree,
+  worktreesEnabled,
   lastSeenStreamSeq,
   currentRequestIdRef,
   isStreaming,
@@ -45,6 +48,7 @@ export function useBrowserCleanup({
   isStreamingRef.current = isStreaming
   const lastSeenSeqRef = useRef(lastSeenStreamSeq)
   lastSeenSeqRef.current = lastSeenStreamSeq
+  const requestWorktree = worktreesEnabled ? worktree || undefined : undefined
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -61,7 +65,7 @@ export function useBrowserCleanup({
                 tabId,
                 tabGroupId,
                 workspace,
-                worktree: worktree || undefined,
+                ...(requestWorktree ? { worktree: requestWorktree } : {}),
                 ackOnly: true,
                 lastSeenSeq: lastSeenSeqRef.current,
               }),
@@ -85,7 +89,7 @@ export function useBrowserCleanup({
           tabId,
           tabGroupId,
           workspace,
-          worktree: worktree || undefined,
+          ...(requestWorktree ? { worktree: requestWorktree } : {}),
           clientStack,
         }
       } else {
@@ -112,5 +116,5 @@ export function useBrowserCleanup({
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload)
     }
-  }, [tabId, tabGroupId, workspace, worktree, currentRequestIdRef])
+  }, [tabId, tabGroupId, workspace, requestWorktree, currentRequestIdRef])
 }

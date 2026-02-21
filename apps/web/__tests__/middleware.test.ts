@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from "vitest"
 import { REQUEST_ID_HEADER } from "@/lib/request-id"
 import { middleware } from "../middleware"
 
+interface ResponseWithInjected extends Response {
+  __injectedRequestHeaders?: Headers
+}
+
 /**
  * Build a minimal NextRequest-like object for testing middleware.
  */
@@ -20,10 +24,10 @@ vi.mock("next/server", async () => {
       ...actual.NextResponse,
       next(init?: { request?: { headers?: Headers } }) {
         // Build a real Response so .headers works naturally.
-        const res = new Response(null, { status: 200 })
+        const res: ResponseWithInjected = new Response(null, { status: 200 })
 
         // Stash the injected request headers so tests can assert on them.
-        ;(res as unknown as Record<string, unknown>).__injectedRequestHeaders = init?.request?.headers
+        res.__injectedRequestHeaders = init?.request?.headers
 
         return res as unknown as ReturnType<typeof actual.NextResponse.next>
       },
@@ -72,7 +76,7 @@ describe("request-id middleware", () => {
     const res = middleware(req)
 
     // The mock stashes injected request headers on __injectedRequestHeaders
-    const injected = (res as unknown as Record<string, unknown>).__injectedRequestHeaders as Headers | undefined
+    const injected = (res as unknown as ResponseWithInjected).__injectedRequestHeaders
     expect(injected).toBeDefined()
     expect(injected!.get(REQUEST_ID_HEADER)).toBe("forward-me")
   })
@@ -82,7 +86,7 @@ describe("request-id middleware", () => {
     const res = middleware(req)
 
     const responseId = res.headers.get(REQUEST_ID_HEADER)
-    const injected = (res as unknown as Record<string, unknown>).__injectedRequestHeaders as Headers | undefined
+    const injected = (res as unknown as ResponseWithInjected).__injectedRequestHeaders
     expect(injected!.get(REQUEST_ID_HEADER)).toBe(responseId)
   })
 })

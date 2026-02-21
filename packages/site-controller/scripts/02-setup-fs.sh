@@ -55,6 +55,29 @@ echo "1" > "${TARGET_DIR}/user/.alive/.schema-version"
 log_info "Setting ownership to: $SITE_USER:$SITE_USER"
 chown -R "$SITE_USER:$SITE_USER" "$TARGET_DIR"
 
+# Bootstrap a local git repository so worktrees work out of the box.
+USER_DIR="${TARGET_DIR}/user"
+if [[ ! -d "$USER_DIR" ]]; then
+    die "Expected workspace directory missing: $USER_DIR"
+fi
+
+if [[ ! -d "${USER_DIR}/.git" ]]; then
+    log_info "Initializing git repository in workspace..."
+    if ! sudo -u "$SITE_USER" git -C "$USER_DIR" init --initial-branch=main >/dev/null 2>&1; then
+        sudo -u "$SITE_USER" git -C "$USER_DIR" init >/dev/null
+        sudo -u "$SITE_USER" git -C "$USER_DIR" symbolic-ref HEAD refs/heads/main >/dev/null 2>&1 || true
+    fi
+fi
+
+if ! sudo -u "$SITE_USER" git -C "$USER_DIR" rev-parse --verify HEAD >/dev/null 2>&1; then
+    log_info "Creating initial git commit..."
+    sudo -u "$SITE_USER" git -C "$USER_DIR" add -A
+    sudo -u "$SITE_USER" git -C "$USER_DIR" \
+        -c user.name="alive" \
+        -c user.email="site@${SITE_DOMAIN}" \
+        commit --allow-empty --no-gpg-sign -m "Initial workspace snapshot" >/dev/null
+fi
+
 # Set permissions
 log_info "Setting directory permissions to 750"
 chmod 750 "$TARGET_DIR"

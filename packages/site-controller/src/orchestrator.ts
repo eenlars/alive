@@ -101,7 +101,7 @@ WantedBy=multi-user.target
    * Fails fast with a clear message instead of cryptic errors mid-deployment.
    */
   private static checkSystemDependencies(): void {
-    const required = ["jq", "tar", "useradd", "systemctl", "rsync"]
+    const required = ["jq", "tar", "useradd", "systemctl", "rsync", "git"]
     const missing: string[] = []
 
     for (const cmd of required) {
