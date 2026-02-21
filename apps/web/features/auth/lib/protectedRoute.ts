@@ -17,7 +17,7 @@ import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 import { getSessionUser, type SessionUser, verifyWorkspaceAccess } from "./auth"
 
 // ---------------------------------------------------------------------------
@@ -58,7 +58,7 @@ function userRoute(
   options?: UserRouteOptions,
 ): (req: NextRequest) => Promise<Response> {
   return async (req: NextRequest) => {
-    const requestId = generateRequestId()
+    const requestId = getRequestId(req)
 
     try {
       const user = await getSessionUser()
@@ -91,7 +91,7 @@ function workspaceRoute(
   handler: (ctx: WorkspaceRouteContext) => Promise<Response>,
 ): (req: NextRequest) => Promise<Response> {
   return async (req: NextRequest) => {
-    const requestId = generateRequestId()
+    const requestId = getRequestId(req)
 
     try {
       // Step 1: Authenticate

@@ -50,7 +50,7 @@ import { createAppClient } from "@/lib/supabase/app"
 import { createRLSAppClient } from "@/lib/supabase/server-rls"
 import type { TokenSource } from "@/lib/tokens"
 import { getOrgCredits } from "@/lib/tokens"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 import { runAgentChild } from "@/lib/workspace-execution/agent-child-runner"
 import { detectServeMode } from "@/lib/workspace-execution/command-runner"
 import { BodySchema } from "@/types/guards/api"
@@ -62,7 +62,7 @@ export const runtime = "nodejs"
 startTTLCleanup()
 
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const logger = createRequestLogger("Claude Stream", requestId)
   const startTime = Date.now()
   const timing = (label: string) => logger.log(`[TIMING] ${label}: +${Date.now() - startTime}ms`)
@@ -878,8 +878,7 @@ export async function POST(req: NextRequest) {
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
         "X-Accel-Buffering": "no",
-        "X-Request-Id": requestId, // Send requestId in header for immediate client access
-        "Access-Control-Expose-Headers": "X-Request-Id", // Allow JS to read custom header
+        "X-Request-Id": requestId, // Redundancy: middleware also sets this, but SSE skips middleware merging
       },
     })
 

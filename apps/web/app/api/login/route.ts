@@ -10,11 +10,11 @@ import { filterLocalDomains } from "@/lib/domains"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 import { verifyPassword } from "@/types/guards/api"
 
 export async function POST(req: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(req)
   const origin = req.headers.get("origin")
   const host = req.headers.get("host") || undefined
 

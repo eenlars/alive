@@ -8,7 +8,7 @@ import { writeAsWorkspaceOwner } from "@/features/workspace/lib/workspace-secure
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 /**
  * Maximum file size for uploads (10MB)
@@ -91,7 +91,7 @@ function sanitizeFilename(filename: string): string {
  * - originalName: string - original filename
  */
 export async function POST(request: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(request)
 
   try {
     // 1. Authentication check

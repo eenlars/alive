@@ -9,7 +9,7 @@ import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { ErrorCodes } from "@/lib/error-codes"
-import { generateRequestId } from "@/lib/utils"
+import { getRequestId } from "@/lib/request-id"
 
 interface FileInfo {
   name: string
@@ -20,7 +20,7 @@ interface FileInfo {
 }
 
 export async function POST(request: NextRequest) {
-  const requestId = generateRequestId()
+  const requestId = getRequestId(request)
 
   try {
     const jar = await cookies()
