@@ -1,5 +1,5 @@
 ---
-name: Problem Descriptor
+name: root-cause-analysis
 description: Describe a problem/bug in full detail so it's easier to analyze.
 ---
 

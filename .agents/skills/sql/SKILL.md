@@ -1,5 +1,5 @@
 ---
-name: SQL
+name: sql
 description: Execute SQL against staging or production databases using the repo helper. Production writes require explicit confirmation.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: Testing a repository well
+name: testing
 description: Test the repo.
 ---
 

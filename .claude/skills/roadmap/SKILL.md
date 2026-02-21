@@ -1,5 +1,5 @@
 ---
-name: Roadmap & Issues
+name: roadmap
 description: Manage GitHub issues, milestones, and the Alive Roadmap project board. View project state, create/update issues, assign milestones and labels.
 ---
 

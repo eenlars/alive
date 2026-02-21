@@ -1,5 +1,5 @@
 ---
-name: Hardcode Hunter
+name: hardcode-hunter
 description: Find and FIX hardcoded values that should use shared constants. Zero tolerance for magic strings.
 ---
 

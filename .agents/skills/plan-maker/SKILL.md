@@ -1,5 +1,5 @@
 ---
-name: Technical Plan Creator
+name: plan-maker
 description: Creates detailed technical plans for development tasks with focus on code quality and reliability.
 ---
 

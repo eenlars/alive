@@ -1,5 +1,5 @@
 ---
-name: Fix Moltbot
+name: fix-moltbot
 description: Fix the OpenClaw/Moltbot gateway when its Anthropic OAuth credentials expire. Copies fresh tokens from Claude Code.
 ---
 

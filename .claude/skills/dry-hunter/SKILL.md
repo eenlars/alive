@@ -1,5 +1,5 @@
 ---
-name: DRY Hunter
+name: dry-hunter
 description: Find and DESTROY code duplication. Types, functions, constants - if it exists twice, ONE MUST DIE.
 ---
 

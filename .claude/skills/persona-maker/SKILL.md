@@ -1,5 +1,5 @@
 ---
-name: Persona Generator
+name: persona-maker
 description: Generate famous person personas who excel at exactly what you need - design, planning, innovation, or any other task requiring excellence.
 ---
 

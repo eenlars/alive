@@ -1,5 +1,5 @@
 ---
-name: Reflect
+name: reflect-on-work
 description: reflect on recent work and clean up code for PR readiness
 ---
 

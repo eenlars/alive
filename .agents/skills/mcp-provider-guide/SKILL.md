@@ -1,5 +1,5 @@
 ---
-name: Global MCP Provider Guide
+name: mcp-provider-guide
 description: Step-by-step guide to add a new Global MCP integration (like Google Maps, Context7). For OAuth providers, see oauth-integration-guide.
 ---
 

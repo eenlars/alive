@@ -60,6 +60,8 @@ function userRoute(
   return async (req: NextRequest) => {
     const requestId = generateRequestId()
 
+    Sentry.getCurrentScope().setTag("requestId", requestId)
+
     try {
       const user = await getSessionUser()
       if (!user) {
@@ -92,6 +94,8 @@ function workspaceRoute(
 ): (req: NextRequest) => Promise<Response> {
   return async (req: NextRequest) => {
     const requestId = generateRequestId()
+
+    Sentry.getCurrentScope().setTag("requestId", requestId)
 
     try {
       // Step 1: Authenticate

@@ -1,5 +1,5 @@
 ---
-name: CodeRabbit
+name: coderabbit
 description: Fetch and fix unresolved CodeRabbit review comments on the current PR, then resolve them. Also check CI status.
 ---
 

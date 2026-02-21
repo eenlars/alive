@@ -1,5 +1,5 @@
 ---
-name: Legacy Hunter
+name: legacy-hunter
 description: Find and ELIMINATE backwards-compatible hacks, legacy re-exports, and dead code. Fix dependents FIRST, then DELETE.
 ---
 

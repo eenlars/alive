@@ -1,5 +1,5 @@
 ---
-name: Tools Addition Guide
+name: tools-guide
 description: Know exactly how to add a tool to the packages/tools directory with complete reference.
 ---
 

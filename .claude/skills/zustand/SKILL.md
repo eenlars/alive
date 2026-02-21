@@ -1,5 +1,5 @@
 ---
-name: Zustand + Next.js State Management
+name: zustand
 description: Best practices for using Zustand with Next.js App Router, Pages Router, SSR, RSC boundaries, and hydration patterns.
 ---
 

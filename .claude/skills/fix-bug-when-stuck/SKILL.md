@@ -1,5 +1,5 @@
 ---
-name: Fix Bug When Stuck
+name: fix-bug-when-stuck
 description: This skill helps you explain a problem you're stuck on for a longer time and get back to the root of the problem.
 ---
 

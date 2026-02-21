@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { buildSessionOrgClaims, SECURITY, STANDALONE, SUPERADMIN } from "@webalive/shared"
 import { cookies } from "next/headers"
@@ -259,6 +260,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
 
   if (!sessionCookie?.value) {
+    Sentry.setUser(null)
     return null
   }
 
@@ -266,11 +268,12 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const payload = await verifySessionToken(sessionCookie.value)
 
   if (!payload?.userId) {
+    Sentry.setUser(null)
     return null
   }
 
   if (env.STREAM_ENV === "standalone" && payload.userId === STANDALONE.TEST_USER.ID) {
-    return {
+    const user: SessionUser = {
       id: STANDALONE.TEST_USER.ID,
       email: STANDALONE.TEST_USER.EMAIL,
       name: STANDALONE.TEST_USER.NAME,
@@ -279,21 +282,29 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       isSuperadmin: false,
       enabledModels: [],
     }
+    Sentry.setUser({ id: user.id, email: user.email })
+    return user
   }
 
   if (env.STREAM_ENV === "local" && payload.userId === SECURITY.LOCAL_TEST.SESSION_VALUE) {
-    return buildSessionUser(SECURITY.LOCAL_TEST.SESSION_VALUE, SECURITY.LOCAL_TEST.EMAIL, "Test User", [])
+    const user = buildSessionUser(SECURITY.LOCAL_TEST.SESSION_VALUE, SECURITY.LOCAL_TEST.EMAIL, "Test User", [])
+    Sentry.setUser({ id: user.id, email: user.email })
+    return user
   }
 
   // Skip DB query for admins — they already get canSelectAnyModel: true
   if (isAdminUser(payload.email)) {
-    return buildSessionUser(payload.userId, payload.email, payload.name, [])
+    const user = buildSessionUser(payload.userId, payload.email, payload.name, [])
+    Sentry.setUser({ id: user.id, email: user.email })
+    return user
   }
 
   // Fetch per-user enabled models from DB (lightweight query, cached 30s)
   const enabledModels = await fetchEnabledModels(payload.userId)
 
-  return buildSessionUser(payload.userId, payload.email, payload.name, enabledModels)
+  const user = buildSessionUser(payload.userId, payload.email, payload.name, enabledModels)
+  Sentry.setUser({ id: user.id, email: user.email })
+  return user
 }
 
 export async function hasSessionScope(scope: SessionScope): Promise<boolean> {

@@ -17,6 +17,7 @@ import { getServerId } from "@webalive/shared"
 import { Hono } from "hono"
 import { getCronServiceStatus, pokeCronService, startCronService, stopCronService, triggerJob } from "./cron-service"
 import { getAutomationExecutionGate } from "./execution-guard"
+import { Sentry } from "./sentry"
 import { createWorkerAppClient } from "./supabase"
 
 // =============================================================================
@@ -126,11 +127,12 @@ async function main() {
   })
 
   // Graceful shutdown
-  const shutdown = () => {
+  const shutdown = async () => {
     console.log("[Worker] Shutting down...")
     stopCronService()
     server.close()
-    setTimeout(() => process.exit(0), 2000)
+    await Sentry.flush(2000)
+    process.exit(0)
   }
 
   process.on("SIGTERM", shutdown)
@@ -139,7 +141,9 @@ async function main() {
   console.log("[Worker] Automation worker started")
 }
 
-main().catch(err => {
+main().catch(async err => {
   console.error("[Worker] FATAL:", err)
+  Sentry.captureException(err)
+  await Sentry.flush(2000)
   process.exit(1)
 })
