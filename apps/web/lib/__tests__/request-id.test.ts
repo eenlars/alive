@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { REQUEST_ID_HEADER, generateRequestId, getRequestId } from "@/lib/request-id"
+import { generateRequestId, getRequestId, REQUEST_ID_HEADER } from "@/lib/request-id"
 
 describe("request-id helper", () => {
   describe("REQUEST_ID_HEADER", () => {
