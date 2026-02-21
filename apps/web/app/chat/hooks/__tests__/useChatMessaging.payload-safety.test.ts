@@ -52,7 +52,6 @@ const mocks = vi.hoisted(() => {
     getErrorHelp: vi.fn((_code?: unknown, _details?: unknown) => ""),
     setAbortController: vi.fn((..._args: unknown[]) => undefined),
     clearAbortController: vi.fn((..._args: unknown[]) => undefined),
-    useActiveTab: vi.fn((_workspace: string | null) => ({ id: "tab-1" })),
     useFeatureFlag: vi.fn((_flag: string) => false),
     useGoal: vi.fn(() => null),
     useBuilding: vi.fn(() => null),
@@ -204,10 +203,6 @@ vi.mock("@/lib/stores/streamingStore", () => ({
   clearAbortController: mocks.clearAbortController,
 }))
 
-vi.mock("@/lib/stores/tabStore", () => ({
-  useActiveTab: mocks.useActiveTab,
-}))
-
 type UseChatMessagingOptions = Parameters<typeof useChatMessaging>[0]
 
 function createOptions(overrides?: Partial<UseChatMessagingOptions>) {
@@ -221,6 +216,7 @@ function createOptions(overrides?: Partial<UseChatMessagingOptions>) {
   const base: UseChatMessagingOptions = {
     workspace: "workspace-1",
     worktree: "worktree-1",
+    worktreesEnabled: true,
     tabId: "tab-1",
     tabGroupId: "tab-group-1",
     isTerminal: false,
@@ -390,5 +386,108 @@ describe("useChatMessaging payload safety", () => {
     expect(body).not.toHaveProperty("content")
     expect(body).not.toHaveProperty("tool_result")
     expect(body).not.toHaveProperty("localToolResultState")
+  })
+
+  it("routes send + payload to the provided session tabId (worktree-safe)", async () => {
+    const warningEvent = {
+      type: "stream_message",
+      requestId: "req-worktree-safe",
+      timestamp: new Date().toISOString(),
+      data: {
+        messageType: "stream_warning",
+        content: {
+          type: "stream_warning",
+          provider: "github",
+          message: "Token expiring soon",
+        },
+      },
+    }
+
+    const encoder = new TextEncoder()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url !== "/api/claude/stream") {
+        throw new Error(`Unexpected fetch URL: ${url}`)
+      }
+
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode(`${JSON.stringify(warningEvent)}\n`))
+          controller.close()
+        },
+      })
+
+      return new Response(stream, { status: 200 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const options = createOptions({ tabId: "worktree-tab-123" })
+    const { result } = renderHook(() => useChatMessaging(options))
+
+    await act(async () => {
+      await result.current.sendMessage("route to worktree tab")
+    })
+
+    expect(options.addMessage).toHaveBeenCalled()
+    expect(options.addMessage.mock.calls[0]?.[1]).toBe("worktree-tab-123")
+
+    const streamCall = fetchMock.mock.calls.find(call => call[0] === "/api/claude/stream")
+    expect(streamCall).toBeDefined()
+    const body = getCallBody(streamCall ?? [])
+    expect(body.tabId).toBe("worktree-tab-123")
+  })
+
+  it("forces base payload when worktrees are disabled, even with stale local worktree state", async () => {
+    const warningEvent = {
+      type: "stream_message",
+      requestId: "req-base-safe",
+      timestamp: new Date().toISOString(),
+      data: {
+        messageType: "stream_warning",
+        content: {
+          type: "stream_warning",
+          provider: "github",
+          message: "Token expiring soon",
+        },
+      },
+    }
+
+    const encoder = new TextEncoder()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url !== "/api/claude/stream") {
+        throw new Error(`Unexpected fetch URL: ${url}`)
+      }
+
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode(`${JSON.stringify(warningEvent)}\n`))
+          controller.close()
+        },
+      })
+
+      return new Response(stream, { status: 200 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const options = createOptions({
+      tabId: "base-tab-777",
+      worktree: "stale-worktree-slug",
+      worktreesEnabled: false,
+    })
+    const { result } = renderHook(() => useChatMessaging(options))
+
+    await act(async () => {
+      await result.current.sendMessage("route to base tab")
+    })
+
+    expect(options.addMessage).toHaveBeenCalled()
+    expect(options.addMessage.mock.calls[0]?.[1]).toBe("base-tab-777")
+
+    const streamCall = fetchMock.mock.calls.find(call => call[0] === "/api/claude/stream")
+    expect(streamCall).toBeDefined()
+    const body = getCallBody(streamCall ?? [])
+    expect(body.tabId).toBe("base-tab-777")
+    expect(body).not.toHaveProperty("worktree")
   })
 })

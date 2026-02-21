@@ -52,7 +52,6 @@ const mocks = vi.hoisted(() => {
     getErrorHelp: vi.fn((_code?: unknown, _details?: unknown) => ""),
     setAbortController: vi.fn((..._args: unknown[]) => undefined),
     clearAbortController: vi.fn((..._args: unknown[]) => undefined),
-    useActiveTab: vi.fn((_workspace: string | null) => ({ id: "tab-1" })),
     useFeatureFlag: vi.fn((_flag: string) => false),
     useGoal: vi.fn(() => null),
     useBuilding: vi.fn(() => null),
@@ -204,10 +203,6 @@ vi.mock("@/lib/stores/streamingStore", () => ({
   clearAbortController: mocks.clearAbortController,
 }))
 
-vi.mock("@/lib/stores/tabStore", () => ({
-  useActiveTab: mocks.useActiveTab,
-}))
-
 type UseChatMessagingOptions = Parameters<typeof useChatMessaging>[0]
 
 function createAbortError(): DOMException {
@@ -225,6 +220,7 @@ function createOptions(overrides?: Partial<UseChatMessagingOptions>) {
   const base: UseChatMessagingOptions = {
     workspace: "workspace-1",
     worktree: "worktree-1",
+    worktreesEnabled: true,
     tabId: "tab-1",
     tabGroupId: "tab-group-1",
     isTerminal: false,
@@ -450,5 +446,62 @@ describe("useChatMessaging timeouts", () => {
 
     expect(fetchMock.mock.calls.some(call => call[0] === "/api/claude/stream/cancel")).toBe(false)
     expect(options.addMessage).toHaveBeenCalledTimes(1) // user message only, no timeout result
+  })
+
+  it("forces base cancel payload when worktrees are disabled (stale worktree ignored)", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url === "/api/claude/stream") {
+        return new Promise<Response>((_, reject) => {
+          const signal = init?.signal
+          if (!(signal instanceof AbortSignal)) {
+            reject(new Error("Expected AbortSignal"))
+            return
+          }
+
+          signal.addEventListener(
+            "abort",
+            () => {
+              reject(createAbortError())
+            },
+            { once: true },
+          )
+        })
+      }
+
+      if (url === "/api/claude/stream/cancel") {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`)
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    const options = createOptions({
+      tabId: "base-tab-1",
+      worktree: "stale-worktree-should-not-send",
+      worktreesEnabled: false,
+    })
+    const { result } = renderHook(() => useChatMessaging(options))
+
+    await act(async () => {
+      const pending = result.current.sendMessage("base timeout test")
+      await vi.advanceTimersByTimeAsync(120_000)
+      await pending
+    })
+
+    const cancelCall = fetchMock.mock.calls.find(call => call[0] === "/api/claude/stream/cancel")
+    expect(cancelCall).toBeDefined()
+    const cancelBody = getCallBody(cancelCall ?? [])
+    expect(cancelBody).toMatchObject({
+      tabId: "base-tab-1",
+      tabGroupId: "tab-group-1",
+      workspace: "workspace-1",
+    })
+    expect(cancelBody).not.toHaveProperty("worktree")
   })
 })

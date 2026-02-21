@@ -25,7 +25,6 @@ import { useBuilding, useGoal, useTargetUsers } from "@/lib/stores/goalStore"
 import { useModel } from "@/lib/stores/llmStore"
 import { getPlanModeState, usePlanMode } from "@/lib/stores/planModeStore"
 import { clearAbortController, setAbortController, useStreamingActions } from "@/lib/stores/streamingStore"
-import { useActiveTab } from "@/lib/stores/tabStore"
 
 /**
  * Human-readable fallback messages for HTTP status codes.
@@ -63,7 +62,13 @@ function httpStatusMessage(status: number): string {
 
 interface UseChatMessagingOptions {
   workspace: string | null
-  worktree?: string | null
+  /** Active worktree slug; null routes to base workspace. */
+  worktree: string | null
+  /**
+   * Feature flag state from caller.
+   * When disabled, requests are forced to base workspace even if a stale worktree slug exists locally.
+   */
+  worktreesEnabled: boolean
   /** Tab ID — also the Claude conversation key */
   tabId: string | null
   /** Tab group ID — required for lock key */
@@ -90,6 +95,7 @@ interface UseChatMessagingOptions {
 export function useChatMessaging({
   workspace,
   worktree,
+  worktreesEnabled,
   tabId,
   tabGroupId,
   isTerminal,
@@ -126,9 +132,6 @@ export function useChatMessaging({
     return state
   }
 
-  // Get active tab for message routing
-  const activeTab = useActiveTab(workspace)
-
   // Store hooks
   const streamingActions = useStreamingActions()
   const userModel = useModel()
@@ -144,21 +147,24 @@ export function useChatMessaging({
   // Local state for agent supervisor
   const isEvaluatingProgressRef = useRef(false)
 
+  // Single outbound worktree value for all API calls in this hook.
+  // If worktrees are disabled, force base routing to prevent stale worktree leakage.
+  const requestWorktree = worktreesEnabled ? worktree || undefined : undefined
+
   const createRequestBody = useCallback(
     (message: string, analyzeImageUrls?: string[]) => {
       // Tab.id IS the conversation key - no separate sessionId
-      const activeTabId = activeTab?.id
-      if (!activeTabId || !tabGroupId) {
-        throw new Error("[useChatMessaging] Cannot create request: activeTab or tabGroupId is missing")
+      if (!tabId || !tabGroupId) {
+        throw new Error("[useChatMessaging] Cannot create request: tabId or tabGroupId is missing")
       }
 
       // Check if we need to resume at a specific message (user deleted messages)
       const dexieState = useDexieMessageStore.getState()
-      const resumeSessionAt = dexieState.resumeSessionAtByTab[activeTabId] || undefined
+      const resumeSessionAt = dexieState.resumeSessionAtByTab[tabId] || undefined
 
       const baseBody = {
         message,
-        tabId: activeTabId,
+        tabId,
         tabGroupId,
         model: userModel,
         analyzeImageUrls: analyzeImageUrls?.length ? analyzeImageUrls : undefined,
@@ -166,11 +172,11 @@ export function useChatMessaging({
         planMode: getPlanModeState().planMode || undefined, // Only send if true
         // Resume at specific message if user deleted messages
         resumeSessionAt,
-        worktree: worktree || undefined,
+        worktree: requestWorktree,
       }
       return isTerminal ? { ...baseBody, workspace: workspace || undefined } : baseBody
     },
-    [tabId, activeTab?.id, tabGroupId, userModel, planMode, isTerminal, workspace, worktree],
+    [tabId, tabGroupId, userModel, planMode, isTerminal, workspace, requestWorktree],
   )
 
   const buildPromptForClaude = useCallback((userMessage: UIMessage): PromptBuildResult => {
@@ -308,6 +314,7 @@ export function useChatMessaging({
             tabGroupId,
             tabId: targetTabId,
             workspace,
+            worktree: requestWorktree,
             ackOnly: true,
             lastSeenSeq: seq,
           }),
@@ -328,7 +335,7 @@ export function useChatMessaging({
         }
       }
     },
-    [workspace, tabGroupId],
+    [workspace, tabGroupId, requestWorktree],
   )
 
   const scheduleAck = useCallback(
@@ -353,7 +360,7 @@ export function useChatMessaging({
       let shouldStopReading = false
 
       // Capture the tabId at stream start for validation — strict, no fallback
-      const expectedTabId = activeTab?.id
+      const expectedTabId = targetTabId
 
       // Track seen messageIds for idempotency (prevents duplicate processing)
       const seenMessageIds = new Set<string>()
@@ -413,7 +420,7 @@ export function useChatMessaging({
                   tabId: targetTabId,
                   tabGroupId,
                   workspace,
-                  worktree: worktree || undefined,
+                  worktree: requestWorktree,
                   clientStack: "[auto-timeout] client timeout triggered fallback cancellation",
                 }
               : null
@@ -819,7 +826,7 @@ export function useChatMessaging({
       handleCompletionFeatures,
       workspace,
       tabGroupId,
-      worktree,
+      requestWorktree,
       flushAck,
       scheduleAck,
     ],
@@ -828,15 +835,15 @@ export function useChatMessaging({
   const sendMessage = useCallback(
     async (overrideMessage?: string) => {
       const messageToSend = overrideMessage ?? msg
-      // Use activeTab.id for per-tab submission check
-      const targetTabId = activeTab?.id
+      // Use the active session tabId (single source of truth)
+      const targetTabId = tabId
       const isTabSubmitting = targetTabId ? (isSubmittingByTab.current.get(targetTabId) ?? false) : false
 
       // Note: isStopping check is done by the caller in ChatInput
       // Check per-tab submission state, not global
       if (isTabSubmitting || busy || !messageToSend.trim()) return
-      // Strict: require activeTab — tab.id IS the conversation key
-      if (!tabId || !targetTabId) return
+      // Strict: require tabId — tab.id IS the conversation key
+      if (!targetTabId) return
 
       // Mark this specific tab as submitting
       isSubmittingByTab.current.set(targetTabId, true)
@@ -873,18 +880,7 @@ export function useChatMessaging({
         isSubmittingByTab.current.set(targetTabId, false)
       }
     },
-    [
-      msg,
-      busy,
-      tabId,
-      activeTab?.id,
-      streamingActions,
-      chatInputRef,
-      addMessage,
-      setMsg,
-      forceScrollToBottom,
-      sendStreaming,
-    ],
+    [msg, busy, tabId, streamingActions, chatInputRef, addMessage, setMsg, forceScrollToBottom, sendStreaming],
   )
 
   return {

@@ -348,6 +348,7 @@ function ChatPageContent() {
   } = useChatMessaging({
     workspace,
     worktree,
+    worktreesEnabled,
     tabId,
     tabGroupId,
     isTerminal,
