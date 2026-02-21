@@ -26,8 +26,14 @@ export function middleware(request: NextRequest) {
 
   // Merge with any existing expose list so we don't clobber other headers.
   const existing = response.headers.get("access-control-expose-headers")
-  const exposeValue = existing ? `${existing}, X-Request-Id` : "X-Request-Id"
-  response.headers.set("Access-Control-Expose-Headers", exposeValue)
+  const alreadyExposed = existing
+    ?.split(",")
+    .map(h => h.trim().toLowerCase())
+    .includes(REQUEST_ID_HEADER)
+  if (!alreadyExposed) {
+    const exposeValue = existing ? `${existing}, X-Request-Id` : "X-Request-Id"
+    response.headers.set("Access-Control-Expose-Headers", exposeValue)
+  }
 
   return response
 }
