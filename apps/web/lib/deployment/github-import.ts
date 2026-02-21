@@ -107,12 +107,12 @@ export function parseGithubRepo(repoUrl: string): ParsedRepo {
  * No git CLI required — pure HTTP + tar extraction.
  *
  * @param repoUrl - GitHub repo URL or owner/repo shorthand
- * @param githubToken - GitHub OAuth token (required for API access)
+ * @param githubToken - GitHub OAuth token (optional — public repos work without it)
  * @param branch - Optional branch/ref (defaults to repo default branch)
  * @returns Path to the extracted repo directory
  * @throws Error if download or extraction fails
  */
-export async function downloadGithubRepo(repoUrl: string, githubToken: string, branch?: string): Promise<string> {
+export async function downloadGithubRepo(repoUrl: string, githubToken?: string, branch?: string): Promise<string> {
   const { owner, repo } = parseGithubRepo(repoUrl)
   const ref = branch || ""
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/tarball/${ref}`
@@ -129,11 +129,15 @@ export async function downloadGithubRepo(repoUrl: string, githubToken: string, b
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
 
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github+json",
+    }
+    if (githubToken) {
+      headers.Authorization = `Bearer ${githubToken}`
+    }
+
     const response = await fetch(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${githubToken}`,
-        Accept: "application/vnd.github+json",
-      },
+      headers,
       signal: controller.signal,
     })
 
@@ -147,7 +151,14 @@ export async function downloadGithubRepo(repoUrl: string, githubToken: string, b
         )
       }
       if (status === 401 || status === 403) {
-        throw new Error(`Access denied to ${owner}/${repo}. Reconnect your GitHub account in Settings > Integrations.`)
+        if (githubToken) {
+          throw new Error(
+            `Access denied to ${owner}/${repo}. Reconnect your GitHub account in Settings > Integrations.`,
+          )
+        }
+        throw new Error(
+          `Repository ${owner}/${repo} is private. Connect your GitHub account in Settings > Integrations to import private repositories.`,
+        )
       }
       throw new Error(`GitHub API returned ${status} for ${owner}/${repo}`)
     }
@@ -257,13 +268,13 @@ export function cleanupImportDir(tempDir: string): void {
  * The caller is responsible for calling cleanupImportDir() after deployment completes.
  *
  * @param repoUrl - GitHub repo URL or owner/repo shorthand
- * @param githubToken - GitHub OAuth token (required)
+ * @param githubToken - GitHub OAuth token (optional — public repos work without it)
  * @param branch - Optional branch to download
  * @returns Object with templatePath and cleanupDir for post-deployment cleanup
  */
 export async function importGithubRepo(
   repoUrl: string,
-  githubToken: string,
+  githubToken?: string,
   branch?: string,
 ): Promise<{ templatePath: string; cleanupDir: string }> {
   const repoDir = await downloadGithubRepo(repoUrl, githubToken, branch)
