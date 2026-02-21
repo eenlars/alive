@@ -23,6 +23,8 @@ interface UseStreamReconnectOptions {
   workspace: string | null
   /** Current worktree */
   worktree?: string | null
+  /** Whether worktrees are enabled for this workspace */
+  worktreesEnabled: boolean
   /** Whether a stream is currently active */
   isStreaming: boolean
   /**
@@ -49,12 +51,14 @@ export function useStreamReconnect({
   tabGroupId,
   workspace,
   worktree,
+  worktreesEnabled,
   isStreaming,
   addMessage,
   mounted,
 }: UseStreamReconnectOptions) {
   const streamingActions = useStreamingActions()
   const [isReconnecting, setIsReconnecting] = useState(false)
+  const requestWorktree = worktreesEnabled ? worktree || undefined : undefined
   const reconnectingRef = useRef(false) // For async checks without causing re-renders
   const lastVisibilityCheck = useRef<number>(0)
   // Track if we were streaming before tab switch
@@ -86,7 +90,7 @@ export function useStreamReconnect({
           tabGroupId,
           tabId,
           workspace,
-          worktree: worktree || undefined,
+          ...(requestWorktree ? { worktree: requestWorktree } : {}),
           acknowledge: false, // Don't delete buffer yet, in case we need to retry
           lastSeenSeq: typeof lastSeenSeq === "number" ? lastSeenSeq : undefined,
         }),
@@ -135,7 +139,7 @@ export function useStreamReconnect({
             tabGroupId,
             tabId,
             workspace,
-            worktree: worktree || undefined,
+            ...(requestWorktree ? { worktree: requestWorktree } : {}),
             acknowledge: true,
           }),
         })
@@ -150,7 +154,7 @@ export function useStreamReconnect({
       reconnectingRef.current = false
       setIsReconnecting(false)
     }
-  }, [tabId, tabGroupId, workspace, worktree, addMessage, streamingActions])
+  }, [tabId, tabGroupId, workspace, requestWorktree, addMessage, streamingActions])
 
   // Poll for remaining messages when stream is still active
   const pollForRemainingMessages = useCallback(
@@ -176,7 +180,7 @@ export function useStreamReconnect({
               tabGroupId,
               tabId: pollTabId,
               workspace: ws,
-              worktree: worktree || undefined,
+              ...(requestWorktree ? { worktree: requestWorktree } : {}),
               acknowledge: false,
               lastSeenSeq: typeof lastSeenSeq === "number" ? lastSeenSeq : undefined,
             }),
@@ -222,7 +226,7 @@ export function useStreamReconnect({
                 tabGroupId,
                 tabId: pollTabId,
                 workspace: ws,
-                worktree: worktree || undefined,
+                ...(requestWorktree ? { worktree: requestWorktree } : {}),
                 acknowledge: true,
               }),
             })
@@ -237,7 +241,7 @@ export function useStreamReconnect({
       console.warn("[StreamReconnect] Max polls reached, stopping")
       streamingActions.endStream(pollTabId)
     },
-    [tabGroupId, addMessage, streamingActions, worktree],
+    [tabGroupId, addMessage, streamingActions, requestWorktree],
   )
 
   // Check for active stream on mount (handles page refresh during active stream)

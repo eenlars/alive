@@ -153,6 +153,7 @@ function ChatPageContent() {
   const [wkParam] = useQueryState(QUERY_KEYS.workspace)
   const [wtParam, setWtParam] = useQueryState(QUERY_KEYS.worktree)
   const worktreesEnabled = useFeatureFlag("WORKTREES")
+  const requestWorktree = worktreesEnabled ? worktree : null
   useEffect(() => {
     if (mounted && wkParam && wkParam !== workspace) {
       console.log("[ChatPage] Setting workspace from URL param:", wkParam)
@@ -347,7 +348,7 @@ function ChatPageContent() {
     isSubmittingByTabRef,
   } = useChatMessaging({
     workspace,
-    worktree,
+    worktree: requestWorktree,
     worktreesEnabled,
     tabId,
     tabGroupId,
@@ -367,7 +368,8 @@ function ChatPageContent() {
     tabId: sessionTabId ?? "",
     tabGroupId: sessionTabGroupId,
     workspace,
-    worktree,
+    worktree: requestWorktree,
+    worktreesEnabled,
     addMessage,
     setShowCompletionDots,
     abortControllerRef,
@@ -393,7 +395,8 @@ function ChatPageContent() {
     tabId: sessionTabId,
     tabGroupId: sessionTabGroupId,
     workspace,
-    worktree,
+    worktree: requestWorktree,
+    worktreesEnabled,
     isStreaming: busy,
     addMessage,
     mounted,
@@ -405,7 +408,8 @@ function ChatPageContent() {
     tabId: sessionTabId,
     tabGroupId: sessionTabGroupId,
     workspace,
-    worktree,
+    worktree: requestWorktree,
+    worktreesEnabled,
     lastSeenStreamSeq,
     currentRequestIdRef,
     isStreaming: busy,
@@ -476,7 +480,12 @@ function ChatPageContent() {
   ])
 
   // Image upload handler
-  const handleAttachmentUpload = useImageUpload({ workspace: workspace ?? undefined, worktree, isTerminal })
+  const handleAttachmentUpload = useImageUpload({
+    workspace: workspace ?? undefined,
+    worktree: requestWorktree,
+    worktreesEnabled,
+    isTerminal,
+  })
 
   // Calculate total domain count from organizations
   const totalDomainCount = organizations.reduce((sum, org) => sum + (org.workspace_count || 0), 0)
@@ -868,7 +877,7 @@ function ChatPageContent() {
                 maxAttachments: 5,
                 maxFileSize: 20 * 1024 * 1024,
                 workspace: workspace ?? undefined,
-                worktree,
+                worktree: requestWorktree,
                 placeholder:
                   !workspace && mounted && !organizationsLoading
                     ? "Select a site to start chatting..."
@@ -924,7 +933,7 @@ function ChatPageContent() {
                   maxAttachments: 5,
                   maxFileSize: 20 * 1024 * 1024,
                   workspace: workspace ?? undefined,
-                  worktree,
+                  worktree: requestWorktree,
                   placeholder: "Tell me what to change...",
                   onAttachmentUpload: handleAttachmentUpload,
                 }}

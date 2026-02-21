@@ -37,6 +37,8 @@ describe("useStreamCancellation", () => {
     tabId: "test-conversation-123",
     tabGroupId: "test-tabgroup",
     workspace: "test-workspace",
+    worktree: "feature-branch",
+    worktreesEnabled: true,
     addMessage: vi.fn(),
     setShowCompletionDots: vi.fn(),
     abortControllerRef: { current: new AbortController() },
@@ -363,6 +365,27 @@ describe("useStreamCancellation", () => {
           workspace: "test-workspace",
         }),
       )
+    })
+
+    it("should omit stale worktree from fallback cancel payload when worktrees are disabled", async () => {
+      const { postty } = await import("@/lib/api/api-client")
+      const options = createMockOptions()
+      options.currentRequestIdRef.current = null
+      options.worktree = "stale-worktree"
+      options.worktreesEnabled = false
+      const { result } = renderHook(() => useStreamCancellation(options))
+
+      act(() => {
+        result.current.stopStreaming()
+      })
+
+      const payload = (postty as Mock).mock.calls[0]?.[1] as Record<string, unknown>
+      expect(payload).toMatchObject({
+        tabGroupId: "test-tabgroup",
+        tabId: "test-conversation-123",
+        workspace: "test-workspace",
+      })
+      expect(payload).not.toHaveProperty("worktree")
     })
 
     it("should skip cancel request when no requestId AND no workspace", async () => {

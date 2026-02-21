@@ -59,6 +59,7 @@ export type GitOperation =
   | "list"
   | "add"
   | "commit"
+  | "fetch"
   | "init"
   | "remove"
   | "branch"
@@ -95,6 +96,8 @@ function sanitizeGitArgs(baseWorkspacePath: string, args: string[]): string[] {
 function classifyGitOperation(args: string[]): GitOperation {
   const subcommand = args.find(a => !a.startsWith("-") && a !== "-C")
   switch (subcommand) {
+    case "fetch":
+      return "fetch"
     case "init":
       return "init"
     case "add":
@@ -321,6 +324,59 @@ async function assertFromRef(baseWorkspacePath: string, from: string) {
   }
 }
 
+const COMMIT_SHA_REGEX = /^[0-9a-f]{7,40}$/i
+
+function toOriginTrackingRef(ref: string): string | null {
+  const trimmed = ref.trim()
+  if (!trimmed || trimmed === "HEAD") return null
+
+  if (trimmed.startsWith("refs/heads/")) {
+    return `refs/remotes/origin/${trimmed.slice("refs/heads/".length)}`
+  }
+  if (trimmed.startsWith("refs/remotes/origin/")) {
+    return trimmed
+  }
+
+  // Not a branch ref (tag/ref expression/commit hash) - keep as-is.
+  if (
+    trimmed.startsWith("refs/tags/") ||
+    trimmed.startsWith("refs/") ||
+    COMMIT_SHA_REGEX.test(trimmed) ||
+    /[~^:@]/.test(trimmed)
+  ) {
+    return null
+  }
+
+  if (trimmed.startsWith("origin/")) {
+    return `refs/remotes/${trimmed}`
+  }
+
+  return `refs/remotes/origin/${trimmed}`
+}
+
+function toRemoteShortRef(ref: string): string {
+  const prefix = "refs/remotes/"
+  return ref.startsWith(prefix) ? ref.slice(prefix.length) : ref
+}
+
+async function resolveLatestOriginBaseRef(baseWorkspacePath: string, baseRef: string): Promise<string> {
+  const trackingRef = toOriginTrackingRef(baseRef)
+  if (!trackingRef) return baseRef
+
+  try {
+    // Best-effort refresh; fallback to local ref when origin is unavailable.
+    await runGit(baseWorkspacePath, ["fetch", "--prune", "origin"], 45000)
+  } catch {
+    return baseRef
+  }
+
+  if (await gitRefExists(baseWorkspacePath, trackingRef)) {
+    return toRemoteShortRef(trackingRef)
+  }
+
+  return baseRef
+}
+
 async function withWorktreeLock<T>(baseWorkspacePath: string, fn: () => Promise<T>): Promise<T> {
   const lockPath = getLockPath(baseWorkspacePath)
   let fd: number | null = null
@@ -541,10 +597,12 @@ export async function createWorktree({
   const normalizedSlug = normalizeSlug(slug ?? `wt-${formatTimestampUTC()}`)
   assertValidSlug(normalizedSlug)
 
-  const baseRef = from ?? (await runGit(baseWorkspacePath, ["rev-parse", "--abbrev-ref", "HEAD"]))
-  if (from) {
-    await assertFromRef(baseWorkspacePath, from)
+  const normalizedFrom = from?.trim() ? from.trim() : undefined
+  const requestedBaseRef = normalizedFrom ?? (await runGit(baseWorkspacePath, ["rev-parse", "--abbrev-ref", "HEAD"]))
+  if (normalizedFrom) {
+    await assertFromRef(baseWorkspacePath, normalizedFrom)
   }
+  const baseRef = await resolveLatestOriginBaseRef(baseWorkspacePath, requestedBaseRef)
 
   const defaultBranch = `worktree/${normalizedSlug}`
   const requestedBranch = branch?.trim() || defaultBranch

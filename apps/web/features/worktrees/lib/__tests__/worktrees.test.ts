@@ -230,6 +230,40 @@ describe("worktrees service", () => {
     ).rejects.toMatchObject({ code: "WORKTREE_INVALID_FROM" })
   })
 
+  it("creates from latest origin/main when from=main", async () => {
+    if (!repo) throw new Error("missing repo")
+
+    const originPath = path.join(repo.siteRoot, "origin.git")
+    runGit(repo.siteRoot, ["init", "--bare", originPath])
+    runGit(repo.baseWorkspacePath, ["remote", "add", "origin", originPath])
+    runGit(repo.baseWorkspacePath, ["push", "-u", "origin", "main"])
+
+    const upstreamClone = path.join(repo.siteRoot, "upstream-clone")
+    runGit(repo.siteRoot, ["clone", "--branch", "main", originPath, upstreamClone])
+    runGit(upstreamClone, ["config", "user.email", "upstream@example.com"])
+    runGit(upstreamClone, ["config", "user.name", "Upstream User"])
+
+    const upstreamFile = path.join(upstreamClone, "UPSTREAM.md")
+    fs.writeFileSync(upstreamFile, "new upstream content")
+    runGit(upstreamClone, ["add", "UPSTREAM.md"])
+    runGit(upstreamClone, ["commit", "-m", "upstream update"])
+    const remoteHead = runGit(upstreamClone, ["rev-parse", "HEAD"])
+    runGit(upstreamClone, ["push", "origin", "HEAD:main"])
+
+    const localMainHead = runGit(repo.baseWorkspacePath, ["rev-parse", "main"])
+    expect(localMainHead).not.toBe(remoteHead)
+
+    const created = await createWorktree({
+      baseWorkspacePath: repo.baseWorkspacePath,
+      slug: "from-latest-main",
+      from: "main",
+    })
+
+    const worktreeHead = runGit(created.worktreePath, ["rev-parse", "HEAD"])
+    expect(worktreeHead).toBe(remoteHead)
+    expect(fs.existsSync(path.join(created.worktreePath, "UPSTREAM.md"))).toBe(true)
+  })
+
   it("bootstraps git when base workspace is not a git repo", async () => {
     if (!repo) throw new Error("missing repo")
 
