@@ -157,7 +157,7 @@ export async function downloadGithubRepo(repoUrl: string, githubToken?: string, 
           )
         }
         throw new Error(
-          `Repository ${owner}/${repo} is private. Connect your GitHub account in Settings > Integrations to import private repositories.`,
+          `Cannot access ${owner}/${repo}. The repository may be private (connect your GitHub account in Settings > Integrations), or the unauthenticated API rate limit has been exceeded.`,
         )
       }
       throw new Error(`GitHub API returned ${status} for ${owner}/${repo}`)
