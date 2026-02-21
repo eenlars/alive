@@ -230,7 +230,7 @@ describe("worktrees service", () => {
     ).rejects.toMatchObject({ code: "WORKTREE_INVALID_FROM" })
   })
 
-  it("returns a clear error when base workspace is not a git repo", async () => {
+  it("bootstraps git when base workspace is not a git repo", async () => {
     if (!repo) throw new Error("missing repo")
 
     const gitDir = path.join(repo.baseWorkspacePath, ".git")
@@ -238,7 +238,14 @@ describe("worktrees service", () => {
       fs.rmSync(gitDir, { recursive: true, force: true })
     }
 
-    await expect(listWorktrees(repo.baseWorkspacePath)).rejects.toMatchObject({ code: "WORKTREE_NOT_GIT" })
+    await expect(listWorktrees(repo.baseWorkspacePath)).resolves.toEqual([])
+    expect(fs.existsSync(gitDir)).toBe(true)
+
+    const headCheck = spawnSync("git", ["-C", repo.baseWorkspacePath, "rev-parse", "--verify", "HEAD"], {
+      encoding: "utf8",
+      env: sanitizedGitEnv(),
+    })
+    expect(headCheck.status).toBe(0)
   })
 
   it("rejects worktree creation when base path is itself a worktree", async () => {

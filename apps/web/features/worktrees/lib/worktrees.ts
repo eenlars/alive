@@ -58,9 +58,12 @@ export interface WorktreeListItem {
 export type GitOperation =
   | "list"
   | "add"
+  | "commit"
+  | "init"
   | "remove"
   | "branch"
   | "status"
+  | "symbolic-ref"
   | "rev-parse"
   | "check-ref-format"
   | "worktree"
@@ -92,6 +95,14 @@ function sanitizeGitArgs(baseWorkspacePath: string, args: string[]): string[] {
 function classifyGitOperation(args: string[]): GitOperation {
   const subcommand = args.find(a => !a.startsWith("-") && a !== "-C")
   switch (subcommand) {
+    case "init":
+      return "init"
+    case "add":
+      return "add"
+    case "commit":
+      return "commit"
+    case "symbolic-ref":
+      return "symbolic-ref"
     case "worktree":
       return "worktree"
     case "branch":
@@ -201,6 +212,58 @@ async function assertBranchName(baseWorkspacePath: string, branch: string) {
   }
 }
 
+function inferBootstrapEmail(baseWorkspacePath: string): string {
+  const siteDomain = path.basename(path.dirname(baseWorkspacePath)).toLowerCase()
+  const sanitizedDomain = siteDomain.replace(/[^a-z0-9.-]/g, "")
+  return sanitizedDomain.length > 0 ? `site@${sanitizedDomain}` : "site@alive.local"
+}
+
+async function bootstrapBaseRepo(baseWorkspacePath: string) {
+  // Prefer setting main directly, but fall back for older Git versions.
+  try {
+    await runGit(baseWorkspacePath, ["init", "--initial-branch=main"], 20000)
+  } catch {
+    await runGit(baseWorkspacePath, ["init"], 20000)
+    try {
+      await runGit(baseWorkspacePath, ["symbolic-ref", "HEAD", "refs/heads/main"], 15000)
+    } catch {
+      // Best-effort only; some repos may already have an initialized HEAD.
+    }
+  }
+
+  // If another request already created the initial commit, nothing else to do.
+  if (await gitRefExists(baseWorkspacePath, "HEAD")) {
+    return
+  }
+
+  try {
+    await runGit(
+      baseWorkspacePath,
+      ["add", "-A", "--", ".", ":(exclude)node_modules", ":(exclude).bun", ":(exclude).next", ":(exclude)dist"],
+      45000,
+    )
+  } catch {
+    // Fallback for Git versions that don't support pathspec exclusions.
+    await runGit(baseWorkspacePath, ["add", "-A"], 45000)
+  }
+
+  await runGit(
+    baseWorkspacePath,
+    [
+      "-c",
+      "user.name=alive",
+      "-c",
+      `user.email=${inferBootstrapEmail(baseWorkspacePath)}`,
+      "commit",
+      "--allow-empty",
+      "--no-gpg-sign",
+      "-m",
+      "Initial workspace snapshot",
+    ],
+    45000,
+  )
+}
+
 async function assertBaseRepo(baseWorkspacePath: string) {
   const gitDir = path.join(baseWorkspacePath, ".git")
   let stat: fs.Stats | null = null
@@ -209,6 +272,15 @@ async function assertBaseRepo(baseWorkspacePath: string) {
     stat = fs.statSync(gitDir)
   } catch {
     stat = null
+  }
+
+  if (!stat) {
+    await bootstrapBaseRepo(baseWorkspacePath)
+    try {
+      stat = fs.statSync(gitDir)
+    } catch {
+      stat = null
+    }
   }
 
   if (!stat) {
