@@ -242,19 +242,48 @@ describe("POST /api/import-repo", () => {
     expect(payload.error).toBe(ErrorCodes.GITHUB_CLONE_FAILED)
   })
 
-  it("returns 400 when GitHub OAuth is not connected", async () => {
+  it("proceeds without GitHub token for public repos", async () => {
+    getAccessTokenMock.mockResolvedValueOnce(null)
+
+    const response = await POST(
+      createRequest({
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
+        orgId: "org-1",
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(importGithubRepoMock).toHaveBeenCalledWith("https://github.com/example/repo", undefined, undefined)
+  })
+
+  it("proceeds without GitHub token when OAuth throws", async () => {
     getAccessTokenMock.mockRejectedValueOnce(new Error("OAuth not configured"))
 
     const response = await POST(
       createRequest({
         slug: "testsite",
         repoUrl: "https://github.com/example/repo",
+        orgId: "org-1",
       }),
     )
 
-    expect(response.status).toBe(400)
-    const payload = (await response.json()) as { error: string }
-    expect(payload.error).toBe(ErrorCodes.GITHUB_NOT_CONNECTED)
-    expect(importGithubRepoMock).not.toHaveBeenCalled()
+    expect(response.status).toBe(200)
+    expect(importGithubRepoMock).toHaveBeenCalledWith("https://github.com/example/repo", undefined, undefined)
+  })
+
+  it("passes GitHub token when available", async () => {
+    getAccessTokenMock.mockResolvedValueOnce("github-token-123")
+
+    const response = await POST(
+      createRequest({
+        slug: "testsite",
+        repoUrl: "https://github.com/example/repo",
+        orgId: "org-1",
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(importGithubRepoMock).toHaveBeenCalledWith("https://github.com/example/repo", "github-token-123", undefined)
   })
 })

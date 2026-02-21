@@ -91,25 +91,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Require GitHub OAuth token — we use the API tarball endpoint which needs auth
-    let githubToken: string
+    // Try to get GitHub OAuth token — needed for private repos, optional for public ones
+    let githubToken: string | undefined
     try {
       const githubOAuthKey = getOAuthKeyForProvider("github")
       const githubOAuth = getOAuthInstance(githubOAuthKey)
-      const token = await githubOAuth.getAccessToken(sessionUser.id, githubOAuthKey)
-      if (!token) {
-        return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
-          status: 400,
-          details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
-        })
-      }
-      githubToken = token
+      githubToken = (await githubOAuth.getAccessToken(sessionUser.id, githubOAuthKey)) ?? undefined
     } catch (_err) {
-      // Expected: OAuth token may not exist for this user
-      return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
-        status: 400,
-        details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
-      })
+      // No GitHub token available — fine for public repos
     }
 
     // Download and prepare the repo via GitHub API
