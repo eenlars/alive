@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { structuredErrorResponse } from "@/lib/api/responses"
 import { isValidSlug } from "@/features/deployment/lib/slug-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { siteMetadataStore } from "@/lib/siteMetadataStore"
 

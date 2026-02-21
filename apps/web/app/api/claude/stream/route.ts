@@ -18,6 +18,7 @@ import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { ensureWorkspaceSchema } from "@/features/workspace/lib/ensure-workspace-schema"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import {
   getAllowedTools,
@@ -28,7 +29,6 @@ import {
   SETTINGS_SOURCES,
   STREAM_TYPES,
 } from "@/lib/claude/agent-constants.mjs"
-import { structuredErrorResponse } from "@/lib/api/responses"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { env } from "@/lib/env"
 import { ErrorCodes } from "@/lib/error-codes"

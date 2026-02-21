@@ -10,8 +10,8 @@ import {
   requireManagerAuth,
   requireParam,
 } from "@/features/manager/lib/api-helpers"
-import { structuredErrorResponse } from "@/lib/api/responses"
 import { domainToSlug, getDomainSitePath, getDomainUser } from "@/features/manager/lib/domain-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { getDomain } from "@/lib/domains"
 import { ErrorCodes } from "@/lib/error-codes"
 import type { ViteConfigInfo } from "@/types/domain"

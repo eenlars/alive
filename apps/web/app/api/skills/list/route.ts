@@ -8,8 +8,8 @@ import * as Sentry from "@sentry/nextjs"
 import { PATHS } from "@webalive/shared"
 import { listSuperadminSkills } from "@webalive/tools"
 import { NextResponse } from "next/server"
-import { structuredErrorResponse } from "@/lib/api/responses"
 import { protectedRoute } from "@/features/auth/lib/protectedRoute"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 
 export const GET = protectedRoute(

@@ -2,7 +2,6 @@ import { exec } from "node:child_process"
 import { promisify } from "node:util"
 import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
-import { structuredErrorResponse } from "@/lib/api/responses"
 import {
   createBadRequestResponse,
   createSuccessResponse,
@@ -11,6 +10,7 @@ import {
   requireParam,
 } from "@/features/manager/lib/api-helpers"
 import { domainToSlug, getDomainSitePath, getDomainUser } from "@/features/manager/lib/domain-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 

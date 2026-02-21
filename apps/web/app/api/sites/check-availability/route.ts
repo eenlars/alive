@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs"
 import path from "node:path"
 import { type NextRequest, NextResponse } from "next/server"
-import { structuredErrorResponse } from "@/lib/api/responses"
 import { validateSlug } from "@/features/deployment/lib/slug-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { buildSubdomain, WORKSPACE_BASE } from "@/lib/config"
 import { ErrorCodes } from "@/lib/error-codes"
 

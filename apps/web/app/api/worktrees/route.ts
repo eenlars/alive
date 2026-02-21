@@ -2,7 +2,6 @@ import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import { getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
-import { structuredErrorResponse } from "@/lib/api/responses"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import {
   createWorktree,
@@ -11,6 +10,7 @@ import {
   removeWorktree,
   WorktreeError,
 } from "@/features/worktrees/lib/worktrees"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
