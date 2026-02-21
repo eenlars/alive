@@ -8,9 +8,9 @@ import { COOKIE_NAMES, getSessionCookieOptions } from "@/lib/auth/cookies"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { filterLocalDomains } from "@/lib/domains"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
+import { getRequestId } from "@/lib/request-id"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
-import { getRequestId } from "@/lib/request-id"
 import { verifyPassword } from "@/types/guards/api"
 
 export async function POST(req: NextRequest) {
