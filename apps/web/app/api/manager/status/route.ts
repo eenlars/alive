@@ -1,5 +1,6 @@
 import { exec } from "node:child_process"
 import { promisify } from "node:util"
+import * as Sentry from "@sentry/nextjs"
 import { DEFAULTS, PATHS, TIMEOUTS } from "@webalive/shared"
 import type { NextRequest } from "next/server"
 import { requireManagerAuth } from "@/features/manager/lib/api-helpers"
@@ -14,7 +15,8 @@ async function checkPortListening(port: number): Promise<boolean> {
   try {
     const { stdout } = await execAsync(`ss -ln | grep -E ':${port}\\s'`)
     return stdout.trim().length > 0
-  } catch {
+  } catch (_err) {
+    // Expected: ss command may fail if port not found
     return false
   }
 }
@@ -31,7 +33,8 @@ async function checkHttpAccessible(domain: string): Promise<boolean> {
 
     clearTimeout(timeout)
     return response.status < 500
-  } catch {
+  } catch (_err) {
+    // Expected: domain may be unreachable
     return false
   }
 }
@@ -48,7 +51,8 @@ async function checkHttpsAccessible(domain: string): Promise<boolean> {
 
     clearTimeout(timeout)
     return response.status < 500
-  } catch {
+  } catch (_err) {
+    // Expected: domain may be unreachable
     return false
   }
 }
@@ -65,10 +69,12 @@ async function checkSystemdService(domain: string): Promise<{ exists: boolean; r
     try {
       await execAsync(`systemctl status ${serviceName} 2>/dev/null`)
       return { exists: true, running }
-    } catch {
+    } catch (_err) {
+      // Expected: service may not exist
       return { exists: running, running }
     }
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { tags: { check: "systemd-service" } })
     return { exists: false, running: false }
   }
 }
@@ -79,7 +85,8 @@ async function checkCaddyConfigured(domain: string): Promise<boolean> {
       `grep -q "^${domain} {" ${PATHS.CADDYFILE_PATH} && echo "found" || echo "missing"`,
     )
     return stdout.trim() === "found"
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { tags: { check: "caddy-config" } })
     return false
   }
 }
@@ -96,7 +103,8 @@ async function checkSiteDirectory(domain: string): Promise<boolean> {
     }
 
     return false
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { tags: { check: "site-directory" } })
     return false
   }
 }
@@ -148,7 +156,9 @@ async function checkDnsResolution(
             verificationMethod: protocol,
           }
         }
-      } catch {}
+      } catch (_err) {
+        // Expected: verification endpoint may be unreachable
+      }
     }
 
     // Verification file not found or unreachable
@@ -160,7 +170,8 @@ async function checkDnsResolution(
       isProxied: false,
       verificationMethod: directMatch ? "direct-ip" : "none",
     }
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { tags: { check: "dns-resolution" } })
     return { pointsToServer: false, resolvedIp: null, verificationMethod: "error" }
   }
 }
@@ -178,8 +189,9 @@ async function checkServeMode(domain: string): Promise<"dev" | "build" | "unknow
       return "dev"
     }
     return "dev" // Default to dev if no override
-  } catch {
-    return "dev" // Default to dev
+  } catch (_err) {
+    // Expected: override file may not exist
+    return "dev"
   }
 }
 
@@ -196,7 +208,8 @@ async function checkViteConfigPort(
     try {
       await execAsync(`test -f "/etc/systemd/system/site@${slug}.service.d/port-override.conf"`)
       hasSystemdOverride = true
-    } catch {
+    } catch (_err) {
+      // Expected: override file may not exist
       hasSystemdOverride = false
     }
 
@@ -205,11 +218,12 @@ async function checkViteConfigPort(
     try {
       await execAsync(`test -f "${sitePath}/user/vite.config.ts"`)
       configPath = `${sitePath}/user/vite.config.ts`
-    } catch {
+    } catch (_err) {
       try {
         await execAsync(`test -f "${sitePath}/user/vite.config.js"`)
         configPath = `${sitePath}/user/vite.config.js`
-      } catch {
+      } catch (_err) {
+        // Expected: config file may not exist
         return { mismatch: hasSystemdOverride, actualPort: null, hasSystemdOverride }
       }
     }
@@ -225,7 +239,8 @@ async function checkViteConfigPort(
     const mismatch = actualPort !== expectedPort || hasSystemdOverride
 
     return { mismatch, actualPort, hasSystemdOverride }
-  } catch {
+  } catch (err) {
+    Sentry.captureException(err, { tags: { check: "vite-config-port" } })
     return { mismatch: false, actualPort: null, hasSystemdOverride: false }
   }
 }

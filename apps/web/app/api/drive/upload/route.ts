@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     let formData: FormData
     try {
       formData = await request.formData()
-    } catch {
+    } catch (_err) {
       return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
         status: 400,
         details: {

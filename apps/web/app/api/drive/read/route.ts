@@ -196,6 +196,7 @@ export async function POST(request: NextRequest) {
         })
       }
       console.error(`[Drive Read ${requestId}] Error reading file:`, fsError)
+      Sentry.captureException(fsError)
       return structuredErrorResponse(ErrorCodes.FILE_READ_ERROR, {
         status: 500,
         details: {

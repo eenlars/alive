@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
         })
       }
       body = parsedBody
-    } catch {
+    } catch (_err) {
       return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400 })
     }
 

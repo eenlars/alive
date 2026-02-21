@@ -132,7 +132,7 @@ export async function POST(
     let body: { token?: string }
     try {
       body = await req.json()
-    } catch {
+    } catch (_err) {
       return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
         status: 400,
         details: { reason: "Invalid JSON body" },

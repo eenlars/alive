@@ -17,7 +17,8 @@ export async function POST(request: Request) {
   try {
     const header = JSON.parse(firstLine)
     dsn = new URL(header.dsn)
-  } catch {
+  } catch (_err) {
+    // Expected: malformed envelope header from client
     return new Response("Invalid envelope header", { status: 400 })
   }
 
@@ -42,7 +43,8 @@ export async function POST(request: Request) {
     })
 
     return new Response(response.body, { status: response.status })
-  } catch {
-    return new Response("Upstream timeout", { status: 504 })
+  } catch (_err) {
+    // Expected: Sentry upstream may be unreachable or timeout
+    return new Response("Upstream unavailable", { status: 504 })
   }
 }

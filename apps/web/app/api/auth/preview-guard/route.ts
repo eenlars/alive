@@ -46,7 +46,8 @@ async function verifyPreviewSession(value: string): Promise<boolean> {
       algorithms: ["HS256"],
     })
     return payload.type === "preview_session" && typeof payload.userId === "string"
-  } catch {
+  } catch (_err) {
+    // Expected: invalid or expired JWT
     return false
   }
 }

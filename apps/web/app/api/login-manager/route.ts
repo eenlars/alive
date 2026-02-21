@@ -52,8 +52,8 @@ export async function POST(req: NextRequest) {
   let body: unknown = {}
   try {
     body = await req.json()
-  } catch {
-    // Malformed request body — fall through to schema validation failure
+  } catch (_err) {
+    // Expected: malformed request body — fall through to schema validation failure
   }
   const result = ManagerLoginSchema.safeParse(body)
 

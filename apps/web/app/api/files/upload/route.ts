@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     let formData: FormData
     try {
       formData = await request.formData()
-    } catch {
+    } catch (_err) {
       return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
         status: 400,
         details: {
@@ -173,7 +173,8 @@ export async function POST(request: NextRequest) {
     let resolvedWorkspace: string
     try {
       resolvedWorkspace = await realpath(workspaceResult.workspace)
-    } catch {
+    } catch (_err) {
+      // Expected: workspace path may not exist
       console.error(`[Upload ${requestId}] Failed to resolve workspace: ${workspaceResult.workspace}`)
       return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, { status: 404, details: { requestId } })
     }

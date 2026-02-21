@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
       })
     } catch (fsError) {
       console.error(`[Files ${requestId}] Error reading directory:`, fsError)
+      Sentry.captureException(fsError)
       return structuredErrorResponse(ErrorCodes.FILE_READ_ERROR, {
         status: 500,
         details: {

@@ -335,7 +335,7 @@ export async function POST(
         },
       })
     }
-  } catch {
+  } catch (_err) {
     return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
       status: 400,
       details: { reason: "Invalid request body" },

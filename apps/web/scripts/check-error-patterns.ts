@@ -11,6 +11,8 @@
  * 3. Manual NextResponse.json → structuredErrorResponse()
  * 4. Wrong CORS helper → createCorsErrorResponse()
  * 5. Non-standard format: success → ok
+ * 6. Bare catch {} blocks → must capture error variable (catch (err) or catch (_err))
+ * 7. console.error in catch without Sentry.captureException → report errors to Sentry
  *
  * Escape hatch: Add comment to skip file-level checks:
  *   // @error-check-disable - Reason why
@@ -207,6 +209,20 @@ function checkFileForStringErrors(filePath: string): ErrorPattern[] {
       }
     }
 
+    // ANTI-PATTERN 6: Bare catch {} blocks (must capture error variable)
+    if (/\}\s*catch\s*\{/.test(line)) {
+      patterns.push({
+        file: filePath,
+        line: lineNumber,
+        column: 0,
+        stringLiteral: "} catch {",
+        suggestedFix: "Use catch (err) or catch (_err) with a comment",
+        suggestedMessage: "ANTI-PATTERN 6: Bare catch block — must capture error variable",
+        context: line.trim(),
+        severity: "error",
+      })
+    }
+
     // WARNING: Custom error helper functions
     if (customHelperRegex.test(line) && !isHelperFile) {
       patterns.push({
@@ -265,6 +281,44 @@ function checkFileForStringErrors(filePath: string): ErrorPattern[] {
     }
   }
 
+  // ANTI-PATTERN 7: catch blocks with console.error but no Sentry.captureException
+  const isTestOrDebugRoute = filePath.includes("/test/") || filePath.includes("/debug/")
+  if (!isTestOrDebugRoute) {
+    const catchBlockRegex = /catch\s*\((\w+)\)\s*\{/g
+    let catchMatch: RegExpExecArray | null = catchBlockRegex.exec(content)
+    while (catchMatch !== null) {
+      const varName = catchMatch[1]
+      if (!varName.startsWith("_")) {
+        // Extract block content by finding the matching closing brace
+        const blockStart = catchMatch.index + catchMatch[0].length
+        let depth = 1
+        let i = blockStart
+        while (i < content.length && depth > 0) {
+          if (content[i] === "{") depth++
+          else if (content[i] === "}") depth--
+          i++
+        }
+        const block = content.slice(blockStart, i)
+
+        if (block.includes("console.error") && !block.includes("Sentry.captureException")) {
+          const blockLine = content.slice(0, catchMatch.index).split("\n").length
+          patterns.push({
+            file: filePath,
+            line: blockLine,
+            column: 0,
+            stringLiteral: `catch (${varName}) has console.error without Sentry`,
+            suggestedFix: `Add Sentry.captureException(${varName}) next to console.error`,
+            suggestedMessage: "ANTI-PATTERN 7: Error logged but not reported to Sentry",
+            context: "catch block with console.error but no Sentry.captureException",
+            severity: "error",
+          })
+        }
+      }
+
+      catchMatch = catchBlockRegex.exec(content)
+    }
+  }
+
   return patterns
 }
 
@@ -319,6 +373,10 @@ function formatErrorMessage(patterns: ErrorPattern[]): string {
   message += "     ✅ USE: createCorsErrorResponse(origin, ErrorCode, status, { requestId })\n\n"
   message += "  ❌ ANTI-PATTERN 5: { success: false }\n"
   message += "     ✅ USE: { ok: false } (standard format)\n\n"
+  message += "  ❌ ANTI-PATTERN 6: } catch { (bare catch block)\n"
+  message += "     ✅ USE: catch (err) or catch (_err) with a comment\n\n"
+  message += "  ❌ ANTI-PATTERN 7: console.error in catch without Sentry\n"
+  message += "     ✅ USE: Add Sentry.captureException(err) next to console.error\n\n"
   message += `${"═".repeat(50)}\n`
   message += "📖 Documentation:\n"
   message += "  • ErrorCodes: apps/web/lib/error-codes.ts\n"

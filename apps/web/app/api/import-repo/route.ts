@@ -104,7 +104,8 @@ export async function POST(request: NextRequest) {
         })
       }
       githubToken = token
-    } catch {
+    } catch (_err) {
+      // Expected: OAuth token may not exist for this user
       return structuredErrorResponse(ErrorCodes.GITHUB_NOT_CONNECTED, {
         status: 400,
         details: { message: "Connect your GitHub account in Settings > Integrations to import repositories." },
@@ -197,6 +198,7 @@ export async function POST(request: NextRequest) {
       }
     } catch (tokenError) {
       console.error("[Import-Repo] JWT regeneration failed (deployment succeeded):", tokenError)
+      Sentry.captureException(tokenError)
     }
 
     return res
@@ -241,6 +243,7 @@ export async function POST(request: NextRequest) {
         cleanupImportDir(cleanupDir)
       } catch (cleanupError) {
         console.error("[Import-Repo] Failed to clean up temp dir:", cleanupError)
+        Sentry.captureException(cleanupError)
       }
     }
   }

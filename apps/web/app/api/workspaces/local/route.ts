@@ -12,9 +12,10 @@ import { STANDALONE } from "@webalive/shared"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { z } from "zod"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { verifySessionToken } from "@/features/auth/lib/jwt"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
-import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
+import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
 const CreateWorkspaceSchema = z.object({
@@ -58,15 +59,7 @@ export async function GET() {
   }
 
   if (!(await hasValidStandaloneSession())) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: ErrorCodes.NO_SESSION,
-        message: getErrorMessage(ErrorCodes.NO_SESSION),
-        requestId,
-      },
-      { status: 401 },
-    )
+    return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
   }
 
   // Get local workspaces
@@ -106,46 +99,25 @@ export async function POST(req: Request) {
   }
 
   if (!(await hasValidStandaloneSession())) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: ErrorCodes.NO_SESSION,
-        message: getErrorMessage(ErrorCodes.NO_SESSION),
-        requestId,
-      },
-      { status: 401 },
-    )
+    return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
   }
 
   // Parse request body
   let body: unknown
   try {
     body = await req.json()
-  } catch {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: ErrorCodes.INVALID_JSON,
-        message: getErrorMessage(ErrorCodes.INVALID_JSON),
-        requestId,
-      },
-      { status: 400 },
-    )
+  } catch (_err) {
+    // Expected: malformed JSON body
+    return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400, details: { requestId } })
   }
 
   // Validate input
   const result = CreateWorkspaceSchema.safeParse(body)
   if (!result.success) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: ErrorCodes.INVALID_REQUEST,
-        message: getErrorMessage(ErrorCodes.INVALID_REQUEST),
-        details: { issues: result.error.issues },
-        requestId,
-      },
-      { status: 400 },
-    )
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { issues: result.error.issues, requestId },
+    })
   }
 
   const { name } = result.data
@@ -156,15 +128,10 @@ export async function POST(req: Request) {
   )
 
   if (standaloneWorkspaceExists(name)) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: ErrorCodes.WORKSPACE_EXISTS,
-        message: `Workspace "${name}" already exists`,
-        requestId,
-      },
-      { status: 409 },
-    )
+    return structuredErrorResponse(ErrorCodes.WORKSPACE_EXISTS, {
+      status: 409,
+      details: { requestId, workspace: name },
+    })
   }
 
   // Create workspace

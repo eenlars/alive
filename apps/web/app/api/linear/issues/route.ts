@@ -67,7 +67,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       })
     }
     accessToken = token
-  } catch {
+  } catch (_err) {
     return structuredErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, {
       status: 400,
       details: {
