@@ -1,78 +1,54 @@
 # Alive
 
-**The cloud was not built for agents.**
+Self-hosted platform for AI agents that build and maintain websites. Each project gets a real Linux user, a real dev server, and a real deployment pipeline. The agent writes code, restarts the server, checks the live preview, and iterates — with or without you watching.
 
-Coding models can now run for 8+ hours, close the deployment loop, discover and use tools on their own, and collaborate with other agents. They don't need hand-holding. They need infrastructure.
+Open source. Runs on one server. Currently powering 120+ sites at [alive.best](https://alive.best).
 
-But where do they actually run? In a chat window you can't close. On your laptop that goes to sleep. In someone else's cloud with someone else's constraints. On platforms designed for humans typing prompts, not agents running autonomously.
+<a href="https://alive.best"><strong>Try it</strong></a> &nbsp;&middot;&nbsp; <a href="./docs/GETTING_STARTED.md">Self-host</a> &nbsp;&middot;&nbsp; <a href="./docs/README.md">Docs</a>
 
-Alive is the infrastructure layer. Open-source. Self-hosted. Give every agent an isolated workspace with a filesystem, dev server, deployment pipeline, skills, and scheduled automation. Start a run before bed. Wake up to working software.
-
-<a href="https://alive.best"><strong>alive.best</strong></a> &nbsp;&middot;&nbsp; <a href="./docs/README.md">Docs</a> &nbsp;&middot;&nbsp; <a href="./docs/GETTING_STARTED.md">Get Started</a>
-
----
-
-## Make something agents want
-
-Devin, Lovable, Replit, v0 — they figured out the model part. But they're closed platforms. Your code lives on their infrastructure, on their terms.
-
-Claude Code and Codex CLI are incredibly powerful — but they're terminal sessions. Close the tab, the agent dies. No persistence. No scheduling. No skill discovery. No multi-tenant. No deployment loop.
-
-What agents actually need is what any good employee needs: their own workspace, their own tools, their own identity, and the ability to keep working when you're not watching.
-
-That's what Alive is.
+<!-- TODO: Replace with a GIF/screenshot of chat + live preview side by side -->
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="Agent building a site with live preview" width="800">
+</p>
 
 ---
 
-## What makes this different
+## Why this exists
 
-### Always-on agents
+AI coding tools give you code. But code isn't a website. Someone still has to run it, preview it, debug it, deploy it, and keep it working.
 
-Schedule recurring tasks with cron. "Every morning, check for broken links and fix them." "After every deploy, run the accessibility audit." Agents don't stop when you close the browser. Start a run before bed, wake up to results. This is what always-on actually looks like.
+Alive closes that loop. The agent operates in a full Linux environment — it can read files, write files, install packages, restart the dev server, and see what the user sees via a live preview. When something breaks, it reads the logs and fixes it. When you schedule a task, it runs on cron even after you close the browser.
 
-### Skill discovery and MCP
-
-Agents ship with core tools (Read, Write, Edit, Glob, Grep). But the system is open. Connect any MCP server — Linear, Stripe, Google Maps, Supabase — or build your own. Agents discover and use available skills without being told. The platform is a runtime for skills, not a walled garden.
-
-### Close the loop: code → deploy → verify → iterate
-
-Agents don't just write code. They restart the dev server, check the live preview, read the logs, and keep iterating until it actually works. With validation targets, they'll grind for hours without drifting. Without them, they're still excellent — but with clear pass/fail tests, they become a different class of tool entirely.
-
-### Multi-agent ready
-
-Multiple agents can work on the same server, in isolated workspaces, on different projects — or collaborate on the same one. The multi-tenant architecture and workspace isolation were built for this from day one. Multi-agent orchestration finally works when agents have real environments to run in.
-
-### Real isolation, not Docker theater
-
-Every project gets a dedicated Linux user via systemd. Filesystem boundary. Process separation. Path validation on every operation. The kernel enforces isolation. No amount of prompt injection escapes a filesystem boundary. This is how you let agents run unsupervised and actually sleep at night.
-
-### Self-hosted. Multi-tenant. Yours.
-
-One server. Your whole team. No per-seat pricing, no cloud lock-in, no "contact sales." Deploy on a $20 VPS or your enterprise infrastructure. The same build runs anywhere. You own the data, the code, and the agents.
+The hard part isn't the AI. It's giving it a real environment to work in without compromising security.
 
 ---
 
-## How it works
+## How isolation works
+
+Every project gets a dedicated Linux user created by systemd. Not a container — a real user with kernel-enforced filesystem boundaries.
 
 ```
-You: "Redesign the pricing section with a comparison table"
-
-Agent reads your code → edits 4 files → restarts dev server
-→ Live preview updates in the side panel
-→ You see every change as it happens
+site-acme-com    → /srv/webalive/sites/acme.com/
+site-blog-xyz    → /srv/webalive/sites/blog.xyz/
 ```
 
-```
-Automation: "Every Monday at 9am"
-→ Agent audits homepage → fixes 2 broken links → commits
-→ Results waiting when you wake up
-```
+The agent runs as that user. Every file operation goes through path validation. Every tool call is checked against the workspace boundary. No amount of prompt injection gives you access to another project's files — the kernel won't allow it.
 
-```
-Skill: Linear connected via MCP
-→ Agent triages new issues → assigns priority → updates board
-→ No prompt needed. It just runs.
-```
+This is what lets you run agents unsupervised. The security model doesn't depend on the AI behaving correctly.
+
+---
+
+## What the agent can do
+
+**Core tools:** Read, Write, Edit, Glob, Grep — file operations scoped to the workspace.
+
+**Server control:** Restart the dev server, read logs, check if the build succeeded.
+
+**Live preview:** The agent sees a live preview of the running site. It makes changes, the preview updates, it evaluates the result and keeps iterating.
+
+**MCP integrations:** Connect Linear, Stripe, GitHub, Google Maps, or any MCP server. The agent discovers available tools and uses them.
+
+**Scheduled automation:** Define cron jobs. "Every Monday, audit the site and fix broken links." The agent runs on schedule, commits results, and reports back.
 
 ---
 
@@ -81,45 +57,39 @@ Skill: Linear connected via MCP
 ```
 Browser (Chat · Live Preview · Terminal · File Editor)
          │
-         │ SSE + REST
+         │ SSE streaming
          ▼
-Next.js 16 (Auth · Streaming · Sessions · Credits)
+Next.js 16 (Auth · Sessions · Credits · Tool routing)
          │
-         │ Claude Agent SDK + MCP
-         │ Core tools + custom skills + integrations
-         │
-         │ path validation (every operation)
+         │ Claude Agent SDK
+         │ Tool callbacks with path validation
          ▼
-Workspace Sandboxes (systemd isolation)
-  /srv/webalive/sites/project-a/  →  user: site-project-a
-  /srv/webalive/sites/project-b/  →  user: site-project-b
+Workspace sandbox (/srv/webalive/sites/[domain]/)
+         │
+         │ Runs as dedicated Linux user
+         │ systemd process isolation
+         ▼
+Dev server (Bun/Vite) → Live preview via reverse proxy
 ```
 
-**Security model:** each project = a Linux user. Agent runs as that user. Kernel enforces the boundary.
+### Design decisions
 
-### Project structure
+**systemd over Docker.** Each site is a systemd service with a dedicated user. Simpler than containers, better resource control, native process management. `systemctl restart site@acme-com` just works.
 
-```
-apps/
-├── web/                  # Next.js — chat, agent API, auth, deployments
-├── shell-server-go/      # Terminal + file editor (Go)
-└── mcp-servers/          # External service integrations
+**SSE over WebSocket.** Server-Sent Events for streaming Claude responses. Simpler protocol, works through every proxy and CDN, auto-reconnects. The browser gets each token as it's generated.
 
-packages/
-├── tools/                # Agent workspace tools + MCP server
-├── site-controller/      # Deployment orchestration (systemd + caddy)
-├── shared/               # Types, constants, env definitions
-├── database/             # Supabase schema types
-├── oauth-core/           # Multi-tenant OAuth (AES-256-GCM)
-└── redis/                # Sessions + caching
-```
+**Caddy over nginx.** Automatic HTTPS, simple config, zero-downtime reloads. Adding a new site is one config block and `systemctl reload caddy`.
+
+**Path validation over permissions.** Every file operation calls `isPathWithinWorkspace()` before touching the filesystem. Defense in depth — even if the Linux user somehow gets escalated, the application layer still blocks it.
+
+**One server.** No Kubernetes. No microservices. A single Linux server runs the web app, all the workspaces, Caddy, and the automation worker. This handles 120+ sites comfortably. Scale when you actually need to, not before.
 
 ---
 
 ## Quick start
 
 ```bash
-git clone https://github.com/user/alive.git && cd alive
+git clone https://github.com/eenlars/alive.git && cd alive
 bun install
 bun run setup
 
@@ -129,33 +99,54 @@ echo 'ALIVE_ENV=local' >> apps/web/.env.local
 bun run dev
 ```
 
-Open `localhost:8997`. Login: `test@alive.local` / `test`.
+Open `localhost:8997`. Login with `test@alive.local` / `test`.
 
-### Production
-
-```bash
-bun run setup:server:prod   # First-time server setup
-make ship                   # Production (port 9000)
-make staging                # Staging (port 8998)
-```
-
-One Linux server. Caddy for TLS. Systemd for everything. [Deployment guide →](./docs/deployment/deployment.md)
+[Full setup guide →](./docs/GETTING_STARTED.md)
 
 ---
+
+## Project structure
+
+```
+apps/
+├── web/                  # Next.js — chat UI, streaming API, auth, deployments
+├── worker/               # Automation scheduler + job executor
+├── preview-proxy/        # Go reverse proxy for live site previews
+└── mcp-servers/          # External service integrations (Google Maps, etc.)
+
+packages/
+├── tools/                # Agent workspace tools + MCP server
+├── site-controller/      # Site deployment (systemd + Caddy orchestration)
+├── automation-engine/    # Job lifecycle, lease-based locking, run logs
+├── shared/               # Types, constants, environment config
+├── database/             # Auto-generated Supabase types
+├── oauth-core/           # Multi-tenant OAuth (AES-256-GCM)
+└── redis/                # Session store + caching
+```
 
 ## Stack
 
-[Bun](https://bun.sh) · [Next.js 16](https://nextjs.org) · [React 19](https://react.dev) · [Claude Agent SDK](https://docs.anthropic.com) · [Supabase](https://supabase.com) · [Tailwind 4](https://tailwindcss.com) · [Turborepo](https://turbo.build) · [Caddy](https://caddyserver.com) · systemd · TypeScript (strict, no `any`, no `as`)
+[Bun](https://bun.sh) · [Next.js 16](https://nextjs.org) · [React 19](https://react.dev) · [Claude Agent SDK](https://docs.anthropic.com) · [Supabase](https://supabase.com) · [Tailwind 4](https://tailwindcss.com) · [Turborepo](https://turbo.build) · [Caddy](https://caddyserver.com) · [Go](https://go.dev) · systemd · TypeScript (strict, no `any`)
 
 ---
+
+## Production
+
+```bash
+make ship        # staging → production pipeline
+make staging     # staging only (port 8998)
+make production  # production only (port 9000)
+```
+
+One server. Caddy for TLS. Systemd for everything. [Deployment guide →](./docs/deployment/deployment.md)
 
 ## Development
 
 ```bash
-bun run dev              # Dev server
-bun run test             # Unit tests
+bun run dev              # Dev server (port 8997)
+bun run unit             # Unit tests
 bun run e2e              # E2E tests (Playwright)
-bun run static-check     # Type check + lint + format + tests
+bun run static-check     # Full check (types + lint + tests)
 ```
 
 [Testing guide →](./docs/testing/TESTING_GUIDE.md)
@@ -164,10 +155,15 @@ bun run static-check     # Type check + lint + format + tests
 
 ## Docs
 
-[Getting Started](./docs/GETTING_STARTED.md) · [Architecture](./docs/architecture/README.md) · [Security](./docs/security/README.md) · [Testing](./docs/testing/README.md) · [Deployment](./docs/deployment/deployment.md) · [Features](./docs/features/README.md) · [Vision](./docs/VISION.md)
+- [Getting Started](./docs/GETTING_STARTED.md) — Setup and first run
+- [Architecture](./docs/architecture/README.md) — System design and core patterns
+- [Security](./docs/security/README.md) — Isolation model, auth, sandboxing
+- [Testing](./docs/testing/README.md) — Unit, integration, E2E
+- [Deployment](./docs/deployment/deployment.md) — Production and staging
+- [Vision](./docs/VISION.md) — Where this is going
 
 ---
 
 ## License
 
-Sustainable Use License. See [LICENSE](./LICENSE) for details. Enterprise features require a separate license — see [LICENSE_EE](./LICENSE_EE.md).
+Sustainable Use License. See [LICENSE](./LICENSE). Enterprise features: [LICENSE_EE](./LICENSE_EE.md).
