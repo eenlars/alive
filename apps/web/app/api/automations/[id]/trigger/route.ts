@@ -28,6 +28,11 @@ interface RouteContext {
 
 type AutomationJob = AppDatabase["app"]["Tables"]["automation_jobs"]["Row"]
 
+/** Runtime type guard for the domains FK join result (site_id → domains) */
+function isDomainJoin(value: unknown): value is { hostname: string; server_id: string | null } {
+  return value !== null && typeof value === "object" && "hostname" in value && typeof value.hostname === "string"
+}
+
 /**
  * POST /api/automations/[id]/trigger - Manually trigger an automation
  */
@@ -60,8 +65,8 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "automation" } })
     }
 
-    // Resolve domain info up front (ownership check + server scoping below)
-    const siteData = job.domains as { hostname?: string; server_id?: string } | null
+    // Extract domain info from FK join with runtime validation (no `as` casts)
+    const siteData = isDomainJoin(job.domains) ? job.domains : null
     const hostname = siteData?.hostname
     const siteServerId = siteData?.server_id
 
@@ -78,7 +83,6 @@ export async function POST(_req: NextRequest, context: RouteContext) {
       })
     }
 
-    // Server scoping: verify the job's site belongs to this server
     const myServerId = getServerId()
 
     if (!hostname) {

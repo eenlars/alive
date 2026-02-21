@@ -1,18 +1,9 @@
 import { SUPERADMIN } from "@webalive/shared"
 import { NextRequest } from "next/server"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import type { SessionUser } from "@/features/auth/lib/auth"
 
-interface MockUser {
-  id: string
-  email: string
-  name: string | null
-  canSelectAnyModel: boolean
-  isAdmin: boolean
-  isSuperadmin: boolean
-  enabledModels: string[]
-}
-
-const mockUser: MockUser = {
+const mockUser: SessionUser = {
   id: "u1",
   email: "user@example.com",
   name: "User",
@@ -41,7 +32,7 @@ const mockCreateServiceAppClient = vi.fn(() => ({
 }))
 
 vi.mock("@/features/auth/lib/protectedRoute", () => ({
-  protectedRoute: (handler: (ctx: { user: MockUser; req: NextRequest; requestId: string }) => Promise<Response>) => {
+  protectedRoute: (handler: (ctx: { user: SessionUser; req: NextRequest; requestId: string }) => Promise<Response>) => {
     return (req: NextRequest) => handler({ user: mockUser, req, requestId: "req-sites-test" })
   },
 }))
@@ -177,5 +168,38 @@ describe("GET /api/sites", () => {
       { id: "d1", hostname: "site-1.com", org_id: "org-1" },
     ])
     expect(mockCreateServiceAppClient).not.toHaveBeenCalled()
+  })
+
+  it("returns 500 when alive domain DB query fails for superadmin", async () => {
+    mockUser.isSuperadmin = true
+    aliveDomainError = { message: "connection refused" }
+
+    const res = await GET(request("http://localhost/api/sites"))
+
+    expect(res.status).toBe(500)
+    const data = await res.json()
+    expect(data.error).toBe("INTERNAL_ERROR")
+  })
+
+  it("returns 500 when alive domain row is missing from database", async () => {
+    mockUser.isSuperadmin = true
+    aliveDomainData = null
+
+    const res = await GET(request("http://localhost/api/sites"))
+
+    expect(res.status).toBe(500)
+    const data = await res.json()
+    expect(data.error).toBe("SITE_NOT_FOUND")
+  })
+
+  it("returns 500 when alive domain has no org_id", async () => {
+    mockUser.isSuperadmin = true
+    aliveDomainData = { domain_id: "alive-id", hostname: SUPERADMIN.WORKSPACE_NAME, org_id: null }
+
+    const res = await GET(request("http://localhost/api/sites"))
+
+    expect(res.status).toBe(500)
+    const data = await res.json()
+    expect(data.error).toBe("INTERNAL_ERROR")
   })
 })

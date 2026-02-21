@@ -62,10 +62,27 @@ export const GET = protectedRoute(async ({ user, req }) => {
       .maybeSingle()
 
     if (aliveDomainError) {
-      console.error("[Sites API] Failed to load alive workspace domain:", aliveDomainError)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+        status: 500,
+        details: { message: "Failed to load alive workspace domain" },
+      })
     }
 
-    if (aliveDomain?.org_id && (!orgId || aliveDomain.org_id === orgId)) {
+    if (!aliveDomain) {
+      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, {
+        status: 500,
+        details: { message: `Reserved alive domain "${SUPERADMIN.WORKSPACE_NAME}" not found in database` },
+      })
+    }
+
+    if (!aliveDomain.org_id) {
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+        status: 500,
+        details: { message: "Alive domain has no org_id configured" },
+      })
+    }
+
+    if (!orgId || aliveDomain.org_id === orgId) {
       sites.unshift({
         id: aliveDomain.domain_id,
         hostname: aliveDomain.hostname,
