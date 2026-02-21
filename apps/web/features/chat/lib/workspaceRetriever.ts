@@ -3,7 +3,7 @@ import path from "node:path"
 import { env } from "@webalive/env/server"
 import { PATHS, SUPERADMIN, TEST_CONFIG } from "@webalive/shared"
 import { NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { domainToSlug, normalizeDomain } from "@/features/manager/lib/domain-utils"
 import { resolveWorktreePath, WorktreeError } from "@/features/worktrees/lib/worktrees"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
@@ -74,9 +74,9 @@ export async function getWorkspace({ host: _, body, requestId }: GetWorkspacePar
     if (body?.worktree !== undefined) {
       return {
         success: false,
-        response: createErrorResponse(ErrorCodes.WORKTREE_INVALID_SLUG, 400, {
-          requestId,
-          details: { reason: "Worktrees are not supported for the Alive workspace." },
+        response: structuredErrorResponse(ErrorCodes.WORKTREE_INVALID_SLUG, {
+          status: 400,
+          details: { requestId, reason: "Worktrees are not supported for the Alive workspace." },
         }),
       }
     }
@@ -256,9 +256,9 @@ async function resolveWorktreeIfRequested(
   if (typeof body.worktree !== "string" || body.worktree.trim().length === 0) {
     return {
       success: false,
-      response: createErrorResponse(ErrorCodes.WORKTREE_INVALID_SLUG, 400, {
-        requestId,
-        details: { reason: "Worktree slug must be a non-empty string." },
+      response: structuredErrorResponse(ErrorCodes.WORKTREE_INVALID_SLUG, {
+        status: 400,
+        details: { requestId, reason: "Worktree slug must be a non-empty string." },
       }),
     }
   }
@@ -274,18 +274,18 @@ async function resolveWorktreeIfRequested(
       const mapped = mapWorktreeError(error)
       return {
         success: false,
-        response: createErrorResponse(mapped.code, mapped.status, {
-          requestId,
-          worktree: body.worktree,
+        response: structuredErrorResponse(mapped.code, {
+          status: mapped.status,
+          details: { requestId, worktree: body.worktree },
         }),
       }
     }
 
     return {
       success: false,
-      response: createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-        requestId,
-        error: error instanceof Error ? error.message : "Unknown error",
+      response: structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+        status: 500,
+        details: { requestId, error: error instanceof Error ? error.message : "Unknown error" },
       }),
     }
   }

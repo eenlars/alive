@@ -5,12 +5,12 @@ import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
 import {
   createBadRequestResponse,
-  createErrorResponse,
   createSuccessResponse,
   getDomainParam,
   requireManagerAuth,
   requireParam,
 } from "@/features/manager/lib/api-helpers"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { domainToSlug, getDomainSitePath, getDomainUser } from "@/features/manager/lib/domain-utils"
 import { getDomain } from "@/lib/domains"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Failed to get vite config:", error)
     Sentry.captureException(error)
-    return createErrorResponse(error, "Failed to get vite config")
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Failed to fix vite config:", error)
     Sentry.captureException(error)
-    return createErrorResponse(error, "Failed to fix vite config")
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }
 

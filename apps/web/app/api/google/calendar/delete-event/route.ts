@@ -9,7 +9,8 @@ import { calendar_v3, auth as gauth } from "@googleapis/calendar"
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { getOAuthInstance } from "@/lib/oauth/oauth-instances"
 
@@ -32,7 +33,7 @@ export async function DELETE(req: NextRequest) {
     // 1. Authenticate user
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     // 2. Parse and validate request body or URL params
@@ -48,7 +49,7 @@ export async function DELETE(req: NextRequest) {
 
       if (!calendarId || !eventId) {
         const message = error instanceof z.ZodError ? error.issues[0].message : "Invalid request body"
-        return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { reason: message })
+        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, { status: 400, details: { reason: message } })
       }
 
       body = { calendarId, eventId }
@@ -62,8 +63,9 @@ export async function DELETE(req: NextRequest) {
     } catch (error) {
       console.error("[Calendar Delete] Failed to get OAuth token:", error)
       Sentry.captureException(error)
-      return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 403, {
-        reason: "Google Calendar not connected. Please connect in Settings.",
+      return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+        status: 403,
+        details: { reason: "Google Calendar not connected. Please connect in Settings." },
       })
     }
 
@@ -90,6 +92,6 @@ export async function DELETE(req: NextRequest) {
     console.error("[Calendar Delete] Error:", error)
     Sentry.captureException(error)
     const message = error instanceof Error ? error.message : "Failed to delete event"
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, { reason: message })
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, { status: 500, details: { reason: message } })
   }
 }

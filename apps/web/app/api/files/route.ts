@@ -3,11 +3,11 @@ import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
 import { hasSessionCookie } from "@/features/auth/types/guards"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   try {
     const jar = await cookies()
     if (!hasSessionCookie(jar.get(COOKIE_NAMES.SESSION))) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const body = await request.json()
@@ -43,10 +43,13 @@ export async function POST(request: NextRequest) {
     const resolvedPath = path.resolve(fullPath)
     const resolvedWorkspace = path.resolve(workspaceResult.workspace)
     if (!isPathWithinWorkspace(resolvedPath, resolvedWorkspace, path.sep)) {
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
-        attemptedPath: resolvedPath,
-        workspacePath: resolvedWorkspace,
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+          attemptedPath: resolvedPath,
+          workspacePath: resolvedWorkspace,
+        },
       })
     }
 
@@ -72,18 +75,24 @@ export async function POST(request: NextRequest) {
       })
     } catch (fsError) {
       console.error(`[Files ${requestId}] Error reading directory:`, fsError)
-      return createErrorResponse(ErrorCodes.FILE_READ_ERROR, 500, {
-        requestId,
-        filePath: targetPath,
-        error: fsError instanceof Error ? fsError.message : "Unknown error",
+      return structuredErrorResponse(ErrorCodes.FILE_READ_ERROR, {
+        status: 500,
+        details: {
+          requestId,
+          filePath: targetPath,
+          error: fsError instanceof Error ? fsError.message : "Unknown error",
+        },
       })
     }
   } catch (error) {
     console.error("Files API error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

@@ -19,7 +19,7 @@ import { ErrorCodes } from "@/lib/error-codes"
 // Store original env
 const originalEnv = process.env.INTERNAL_WEBHOOK_SECRET
 
-// Mock auth - pass through createErrorResponse
+// Mock auth - only override getSessionUser
 vi.mock("@/features/auth/lib/auth", async () => {
   const actual = await vi.importActual("@/features/auth/lib/auth")
   return {

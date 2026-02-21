@@ -1,7 +1,7 @@
 import { basename, dirname } from "node:path"
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { handleWorkspaceApi } from "@/lib/workspace-api-handler"
 import { detectServeMode, runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
@@ -81,11 +81,14 @@ export async function POST(req: Request) {
       if (!result.success) {
         console.error(`[restart-workspace ${requestId}] Restart failed for ${serviceName}:`, result.error)
 
-        return createErrorResponse(ErrorCodes.WORKSPACE_RESTART_FAILED, 500, {
-          requestId,
-          service: serviceName,
-          error: result.error,
-          diagnostics: result.diagnostics,
+        return structuredErrorResponse(ErrorCodes.WORKSPACE_RESTART_FAILED, {
+          status: 500,
+          details: {
+            requestId,
+            service: serviceName,
+            error: result.error,
+            diagnostics: result.diagnostics,
+          },
         })
       }
 

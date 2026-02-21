@@ -59,23 +59,6 @@ export function createNotFoundResponse(resource: string): Response {
   return NextResponse.json({ error: `${resource} not found` }, { status: 404 })
 }
 
-/**
- * Create error response from caught error
- *
- * @param error - The caught error
- * @param defaultMessage - Fallback message if error has no message
- * @param statusCode - HTTP status code (default: 500)
- *
- * @example
- * } catch (error) {
- *   return createErrorResponse(error, "Operation failed")
- * }
- */
-export function createErrorResponse(error: unknown, defaultMessage: string, statusCode: number = 500): Response {
-  const message = error instanceof Error ? error.message : defaultMessage
-  return NextResponse.json({ error: message }, { status: statusCode })
-}
-
 // ============================================================================
 // Request Validators (Use base helpers)
 // ============================================================================

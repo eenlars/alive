@@ -18,12 +18,18 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 // Mock auth functions
 vi.mock("@/features/auth/lib/auth", async () => {
-  const { NextResponse } = await import("next/server")
   return {
     getSessionUser: vi.fn(),
     verifyWorkspaceAccess: vi.fn(),
-    createErrorResponse: vi.fn((code, status, fields) => {
-      return NextResponse.json({ ok: false, error: code, ...fields }, { status })
+  }
+})
+
+// Mock structured error response
+vi.mock("@/lib/api/responses", async () => {
+  const { NextResponse } = await import("next/server")
+  return {
+    structuredErrorResponse: vi.fn((code: string, opts: { status: number; details?: Record<string, unknown> }) => {
+      return NextResponse.json({ ok: false, error: code, ...opts.details }, { status: opts.status })
     }),
   }
 })

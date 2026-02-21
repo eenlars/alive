@@ -2,7 +2,8 @@ import * as Sentry from "@sentry/nextjs"
 import { DEFAULTS, DOMAINS, PATHS } from "@webalive/shared"
 import { DeploymentError } from "@webalive/site-controller"
 import { type NextRequest, NextResponse } from "next/server"
-import { AuthenticationError, createErrorResponse, requireSessionUser } from "@/features/auth/lib/auth"
+import { AuthenticationError, requireSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { normalizeAndValidateDomain } from "@/features/manager/lib/domain-utils"
 import { runStrictDeployment } from "@/lib/deployment/deploy-pipeline"
 import { DomainRegistrationError } from "@/lib/deployment/domain-registry"
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       body = await request.json()
     } catch (parseError) {
       console.error("❌ [DEPLOY API] Failed to parse request JSON:", parseError)
-      return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
+      return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400 })
     }
 
     // Normalize and validate domain
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     if (!domainResult.isValid) {
       console.error(`❌ [DEPLOY API] Domain validation failed: ${domainResult.error}`)
       Sentry.captureException(new Error(`Deploy: domain validation failed: ${domainResult.error}`))
-      return createErrorResponse(ErrorCodes.INVALID_DOMAIN, 400, { error: domainResult.error })
+      return structuredErrorResponse(ErrorCodes.INVALID_DOMAIN, { status: 400, details: { error: domainResult.error } })
     }
 
     domain = domainResult.domain // Use normalized domain
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     // Validate orgId is provided
     if (!body.orgId) {
       console.error("❌ [DEPLOY API] orgId is required")
-      return createErrorResponse(ErrorCodes.ORG_ID_REQUIRED, 400)
+      return structuredErrorResponse(ErrorCodes.ORG_ID_REQUIRED, { status: 400 })
     }
 
     const orgId = body.orgId
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     if (!hasAccess) {
       console.error(`❌ [DEPLOY API] User ${user.email} does not have access to org ${orgId}`)
-      return createErrorResponse(ErrorCodes.FORBIDDEN, 403)
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
     console.log(`✅ [DEPLOY API] User has access to organization ${orgId}`)
@@ -81,9 +82,12 @@ export async function POST(request: NextRequest) {
       console.error(
         `❌ [DEPLOY API] User ${user.email} has reached site limit (${quota.currentSites}/${quota.maxSites})`,
       )
-      return createErrorResponse(ErrorCodes.SITE_LIMIT_EXCEEDED, 403, {
-        limit: quota.maxSites,
-        currentCount: quota.currentSites,
+      return structuredErrorResponse(ErrorCodes.SITE_LIMIT_EXCEEDED, {
+        status: 403,
+        details: {
+          limit: quota.maxSites,
+          currentCount: quota.currentSites,
+        },
       })
     }
 
@@ -93,12 +97,14 @@ export async function POST(request: NextRequest) {
       const error = templateValidation.error!
       console.error(`❌ [DEPLOY API] Template validation failed: ${error.code}`, error)
       Sentry.captureException(error)
-      return createErrorResponse(
+      return structuredErrorResponse(
         error.code === "INVALID_TEMPLATE" ? ErrorCodes.INVALID_TEMPLATE : ErrorCodes.TEMPLATE_NOT_FOUND,
-        400,
         {
-          templateId: error.templateId,
-          message: error.message,
+          status: 400,
+          details: {
+            templateId: error.templateId,
+            message: error.message,
+          },
         },
       )
     }
@@ -142,7 +148,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const duration = Date.now() - startTime
     if (error instanceof AuthenticationError) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     console.error(`💥 [DEPLOY API] Error after ${duration}ms:`, error)
@@ -178,9 +184,12 @@ export async function POST(request: NextRequest) {
       errorMessage = `Deployment failed: ${error.message}`
     }
 
-    return createErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, statusCode, {
-      deploymentError: errorMessage,
-      errors: process.env.NODE_ENV === "development" ? [String(error)] : undefined,
+    return structuredErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, {
+      status: statusCode,
+      details: {
+        deploymentError: errorMessage,
+        errors: process.env.NODE_ENV === "development" ? [String(error)] : undefined,
+      },
     })
   }
 }

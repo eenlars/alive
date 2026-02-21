@@ -10,7 +10,7 @@ import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { TEST_CONFIG } from "@webalive/shared"
 import { hash } from "bcrypt"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
@@ -33,19 +33,19 @@ export async function POST(req: Request) {
   const hasValidSecret = expectedSecret && testSecret === expectedSecret
 
   if (!isTestEnv && !hasValidSecret) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 404)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 404 })
   }
 
   const body = (await req.json()) as BootstrapRequest
   const { runId, workerIndex, email, workspace, credits = TEST_CONFIG.DEFAULT_CREDITS } = body
 
   if (!runId || workerIndex === undefined || !email || !workspace) {
-    return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400)
+    return structuredErrorResponse(ErrorCodes.VALIDATION_ERROR, { status: 400 })
   }
 
   // Validate workerIndex against centralized config (single source of truth)
   if (workerIndex < 0 || workerIndex >= TEST_CONFIG.MAX_WORKERS) {
-    return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400)
+    return structuredErrorResponse(ErrorCodes.VALIDATION_ERROR, { status: 400 })
   }
 
   const port = TEST_CONFIG.WORKER_PORT_BASE + workerIndex
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   // PGRST116 = "The result contains 0 rows" - expected for new users
   if (existingUserError && existingUserError.code !== "PGRST116") {
     console.error("[Bootstrap] User lookup failed:", existingUserError)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 
   if (existingUser) {
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
 
       if (newOrgError) {
         console.error("[Bootstrap] Failed to create org for orphaned user:", newOrgError)
-        return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+        return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
       }
 
       // Create membership for orphaned user
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
         console.error("[Bootstrap] Failed to create membership for orphaned user:", newMembershipError)
         // Cleanup the org we just created
         await iam.from("orgs").delete().eq("org_id", newOrgId)
-        return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+        return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
       }
 
       // Update user's test_run_id and create domain
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
             `Bootstrap: Failed to update orphaned user tenant: ${JSON.stringify({ userUpdate: userUpdate.error, domainUpsert: domainUpsert.error })}`,
           ),
         )
-        return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+        return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
       }
 
       return Response.json({
@@ -172,7 +172,7 @@ export async function POST(req: Request) {
         runId,
       })
 
-      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     if (!membership) {
@@ -181,7 +181,7 @@ export async function POST(req: Request) {
         email,
         runId,
       })
-      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     const { data: org, error: orgError } = await iam
@@ -198,7 +198,7 @@ export async function POST(req: Request) {
         runId,
       })
 
-      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     // Update test_run_id and password hash to ensure consistency across test runs
@@ -245,7 +245,7 @@ export async function POST(req: Request) {
           workspace,
         },
       })
-      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     // Check for Supabase operation errors
@@ -265,7 +265,7 @@ export async function POST(req: Request) {
       // Note: Rollback is not performed here as these are updates to existing records
       // and we don't have the previous values stored. In a production system, consider
       // implementing a transaction log or using database transactions.
-      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     return Response.json({
@@ -299,7 +299,7 @@ export async function POST(req: Request) {
 
   if (userError) {
     console.error("[Bootstrap] User creation failed:", userError)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 
   // 2. Create org
@@ -322,7 +322,7 @@ export async function POST(req: Request) {
         runId,
       })
     }
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 
   // 3. Create membership
@@ -359,7 +359,7 @@ export async function POST(req: Request) {
         })
       }
     })
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 
   // 4. Create/update domain entry (virtual - no actual deployment, idempotent)
@@ -404,7 +404,7 @@ export async function POST(req: Request) {
         })
       }
     })
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 
   return Response.json({

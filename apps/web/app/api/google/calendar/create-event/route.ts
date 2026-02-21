@@ -9,7 +9,8 @@ import { calendar_v3, auth as gauth } from "@googleapis/calendar"
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { getOAuthInstance } from "@/lib/oauth/oauth-instances"
 
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     // 1. Authenticate user
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     // 2. Parse and validate request body
@@ -63,15 +64,16 @@ export async function POST(req: NextRequest) {
       body = CreateEventRequestSchema.parse(bodyData)
     } catch (error) {
       const message = error instanceof z.ZodError ? error.issues[0].message : "Invalid request body"
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { reason: message })
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, { status: 400, details: { reason: message } })
     }
 
     // 3. Validate start < end
     const startTime = new Date(body.start.dateTime).getTime()
     const endTime = new Date(body.end.dateTime).getTime()
     if (startTime >= endTime) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: "Event start time must be before end time",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { reason: "Event start time must be before end time" },
       })
     }
 
@@ -83,8 +85,9 @@ export async function POST(req: NextRequest) {
     } catch (error) {
       console.error("[Calendar Create] Failed to get OAuth token:", error)
       Sentry.captureException(error)
-      return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 403, {
-        reason: "Google Calendar not connected. Please connect in Settings.",
+      return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+        status: 403,
+        details: { reason: "Google Calendar not connected. Please connect in Settings." },
       })
     }
 
@@ -118,8 +121,9 @@ export async function POST(req: NextRequest) {
     })
 
     if (!response.data.id) {
-      return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
-        reason: "Google Calendar API did not return event ID",
+      return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+        status: 500,
+        details: { reason: "Google Calendar API did not return event ID" },
       })
     }
 
@@ -136,6 +140,6 @@ export async function POST(req: NextRequest) {
     console.error("[Calendar Create] Error:", error)
     Sentry.captureException(error)
     const message = error instanceof Error ? error.message : "Failed to create event"
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, { reason: message })
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, { status: 500, details: { reason: message } })
   }
 }

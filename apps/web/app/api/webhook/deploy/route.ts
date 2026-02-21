@@ -5,7 +5,7 @@ import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { createDedupeCache } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 
 // Configuration
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     // Verify webhook signature
     if (!verifySignature(payload, signature)) {
       console.error("[WEBHOOK] Invalid signature")
-      return createErrorResponse(ErrorCodes.INVALID_SIGNATURE, 401)
+      return structuredErrorResponse(ErrorCodes.INVALID_SIGNATURE, { status: 401 })
     }
 
     // Parse payload
@@ -136,8 +136,11 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[WEBHOOK] Error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      exception: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        exception: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

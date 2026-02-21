@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { verifySessionToken } from "@/features/auth/lib/jwt"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { createPreviewToken } from "@/lib/auth/preview-token"
@@ -36,12 +36,12 @@ export async function POST() {
     const sessionCookie = jar.get(COOKIE_NAMES.SESSION)
 
     if (!sessionCookie?.value) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     const payload = await verifySessionToken(sessionCookie.value)
     if (!payload) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     const previewToken = await createPreviewToken(payload.userId)
@@ -50,6 +50,6 @@ export async function POST() {
   } catch (error) {
     console.error("[preview-token] Error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

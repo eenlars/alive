@@ -1,8 +1,9 @@
 import * as Sentry from "@sentry/nextjs"
 import { uploadImage } from "@webalive/images"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { imageStorage } from "@/lib/storage"
 import { workspaceToTenantId } from "@/lib/tenant-utils"
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     const workspace = await verifyWorkspaceAccess(user, body, `[Upload ${requestId}]`)
     if (!workspace) {
       console.log(`[Image Upload ${requestId}] ✗ Workspace access denied`)
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, { status: 401, details: { requestId } })
     }
     console.log(`[Image Upload ${requestId}] ✓ Workspace access verified: ${workspace}`)
 
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       console.log(`[Image Upload ${requestId}] ✗ No file in request`)
-      return createErrorResponse(ErrorCodes.NO_FILE, 400, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_FILE, { status: 400, details: { requestId } })
     }
     console.log(
       `[Image Upload ${requestId}] ✓ File received: ${file.name}, size: ${file.size} bytes, type: ${file.type}`,
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
     if (result.error) {
       console.error(`[Image Upload ${requestId}] ✗ Upload failed:`, result.error)
       Sentry.captureException(new Error(`Image upload failed: ${result.error}`))
-      return createErrorResponse(ErrorCodes.IMAGE_UPLOAD_FAILED, 500)
+      return structuredErrorResponse(ErrorCodes.IMAGE_UPLOAD_FAILED, { status: 500 })
     }
 
     console.log(`[Image Upload ${requestId}] ✓ Upload successful: hash=${result.data.contentHash}`)
@@ -120,6 +121,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[Image Upload ${requestId}] ✗ Unexpected error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.IMAGE_UPLOAD_FAILED, 500)
+    return structuredErrorResponse(ErrorCodes.IMAGE_UPLOAD_FAILED, { status: 500 })
   }
 }

@@ -2,10 +2,11 @@ import { chown, mkdir, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { writeAsWorkspaceOwner } from "@/features/workspace/lib/workspace-secure"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
     // 1. Authentication check
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     // 2. Parse multipart form data
@@ -104,9 +105,12 @@ export async function POST(request: NextRequest) {
     try {
       formData = await request.formData()
     } catch {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Failed to parse form data",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Failed to parse form data",
+        },
       })
     }
 
@@ -116,21 +120,27 @@ export async function POST(request: NextRequest) {
 
     // 3. Validate file
     if (!file || !(file instanceof File)) {
-      return createErrorResponse(ErrorCodes.NO_FILE, 400, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_FILE, { status: 400, details: { requestId } })
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return createErrorResponse(ErrorCodes.FILE_TOO_LARGE, 400, {
-        requestId,
-        maxSize: `${MAX_FILE_SIZE / 1024 / 1024}MB`,
+      return structuredErrorResponse(ErrorCodes.FILE_TOO_LARGE, {
+        status: 400,
+        details: {
+          requestId,
+          maxSize: `${MAX_FILE_SIZE / 1024 / 1024}MB`,
+        },
       })
     }
 
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
-      return createErrorResponse(ErrorCodes.INVALID_FILE_TYPE, 400, {
-        requestId,
-        fileType: file.type,
-        allowed: Array.from(ALLOWED_MIME_TYPES),
+      return structuredErrorResponse(ErrorCodes.INVALID_FILE_TYPE, {
+        status: 400,
+        details: {
+          requestId,
+          fileType: file.type,
+          allowed: Array.from(ALLOWED_MIME_TYPES),
+        },
       })
     }
 
@@ -142,9 +152,12 @@ export async function POST(request: NextRequest) {
 
     if (!authorizedWorkspace) {
       console.warn(`[Upload ${requestId}] User ${user.id} denied access to workspace: ${workspaceParam}`)
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, {
-        requestId,
-        workspace: workspaceParam,
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
+        status: 401,
+        details: {
+          requestId,
+          workspace: workspaceParam,
+        },
       })
     }
 
@@ -162,7 +175,7 @@ export async function POST(request: NextRequest) {
       resolvedWorkspace = await realpath(workspaceResult.workspace)
     } catch {
       console.error(`[Upload ${requestId}] Failed to resolve workspace: ${workspaceResult.workspace}`)
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404, { requestId })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, { status: 404, details: { requestId } })
     }
 
     // 7. Get workspace ownership info
@@ -181,9 +194,12 @@ export async function POST(request: NextRequest) {
       if ((err as NodeJS.ErrnoException).code !== "EEXIST") {
         console.error(`[Upload ${requestId}] Failed to create uploads directory:`, err)
         Sentry.captureException(err)
-        return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
-          requestId,
-          reason: "Failed to create uploads directory",
+        return structuredErrorResponse(ErrorCodes.FILE_WRITE_ERROR, {
+          status: 500,
+          details: {
+            requestId,
+            reason: "Failed to create uploads directory",
+          },
         })
       }
     }
@@ -196,9 +212,12 @@ export async function POST(request: NextRequest) {
     // 10. Security: verify save path is within workspace
     if (!isPathWithinWorkspace(resolvedSavePath, resolvedWorkspace, path.sep)) {
       console.warn(`[Upload ${requestId}] Path traversal blocked: ${sanitizedName} -> ${resolvedSavePath}`)
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
-        attemptedPath: sanitizedName,
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+          attemptedPath: sanitizedName,
+        },
       })
     }
 
@@ -211,9 +230,12 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error(`[Upload ${requestId}] Failed to write file:`, err)
       Sentry.captureException(err)
-      return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
-        requestId,
-        reason: "Failed to write uploaded file",
+      return structuredErrorResponse(ErrorCodes.FILE_WRITE_ERROR, {
+        status: 500,
+        details: {
+          requestId,
+          reason: "Failed to write uploaded file",
+        },
       })
     }
 
@@ -232,9 +254,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[Upload ${requestId}] Unexpected error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.FILE_WRITE_ERROR, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.FILE_WRITE_ERROR, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

@@ -3,7 +3,8 @@ import { env } from "@webalive/env/server"
 import { DOMAINS, SUPERADMIN } from "@webalive/shared"
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse, validateRequest } from "@/features/auth/lib/auth"
+import { validateRequest } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 
 const LeaseResponseSchema = z.object({
@@ -28,14 +29,14 @@ export async function POST(req: Request) {
   if (!shellPassword) {
     console.error(`[Terminal ${requestId}] SHELL_PASSWORD not configured`)
     Sentry.captureMessage(`[Terminal ${requestId}] SHELL_PASSWORD not configured`, "error")
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, { requestId })
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500, details: { requestId } })
   }
 
   const shellHost = DOMAINS.SHELL_HOST
   if (!shellHost) {
     console.error(`[Terminal ${requestId}] Shell host not configured in server-config.json`)
     Sentry.captureMessage(`[Terminal ${requestId}] Shell host not configured in server-config.json`, "error")
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, { requestId })
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500, details: { requestId } })
   }
 
   try {
@@ -57,14 +58,14 @@ export async function POST(req: Request) {
     if (!res.ok) {
       const text = await res.text()
       console.error(`[Terminal ${requestId}] Shell server returned ${res.status}: ${text}`)
-      return createErrorResponse(ErrorCodes.SHELL_SERVER_UNAVAILABLE, 502, { requestId })
+      return structuredErrorResponse(ErrorCodes.SHELL_SERVER_UNAVAILABLE, { status: 502, details: { requestId } })
     }
 
     const parsed = LeaseResponseSchema.safeParse(await res.json())
     if (!parsed.success) {
       console.error(`[Terminal ${requestId}] Unexpected shell server response shape`)
       Sentry.captureMessage(`[Terminal ${requestId}] Unexpected shell server response shape`, "error")
-      return createErrorResponse(ErrorCodes.SHELL_SERVER_UNAVAILABLE, 502, { requestId })
+      return structuredErrorResponse(ErrorCodes.SHELL_SERVER_UNAVAILABLE, { status: 502, details: { requestId } })
     }
     const data = parsed.data
 
@@ -78,6 +79,6 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error(`[Terminal ${requestId}] Failed to reach shell server:`, err)
     Sentry.captureException(err)
-    return createErrorResponse(ErrorCodes.SHELL_SERVER_UNAVAILABLE, 502, { requestId })
+    return structuredErrorResponse(ErrorCodes.SHELL_SERVER_UNAVAILABLE, { status: 502, details: { requestId } })
   }
 }

@@ -11,7 +11,8 @@
 import * as Sentry from "@sentry/nextjs"
 import { getOAuthKeyForProvider, providerSupportsPat } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { getClientIdentifier } from "@/lib/auth/client-identifier"
 import { oauthOperationRateLimiter } from "@/lib/auth/rate-limiter"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -39,8 +40,9 @@ async function validateIntegrationRequest(
     })
     return {
       ok: false,
-      response: createErrorResponse(ErrorCodes.INVALID_PROVIDER, 400, {
-        reason: validation.error,
+      response: structuredErrorResponse(ErrorCodes.INVALID_PROVIDER, {
+        status: 400,
+        details: { reason: validation.error },
       }),
     }
   }
@@ -52,7 +54,7 @@ async function validateIntegrationRequest(
   if (!user) {
     return {
       ok: false,
-      response: createErrorResponse(ErrorCodes.UNAUTHORIZED, 401),
+      response: structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 }),
     }
   }
 
@@ -66,8 +68,9 @@ async function validateIntegrationRequest(
 
     return {
       ok: false,
-      response: createErrorResponse(ErrorCodes.TOO_MANY_REQUESTS, 429, {
-        retryAfter: `${minutesRemaining} minute${minutesRemaining !== 1 ? "s" : ""}`,
+      response: structuredErrorResponse(ErrorCodes.TOO_MANY_REQUESTS, {
+        status: 429,
+        details: { retryAfter: `${minutesRemaining} minute${minutesRemaining !== 1 ? "s" : ""}` },
       }),
     }
   }
@@ -116,8 +119,9 @@ export async function GET(
     Sentry.captureException(error)
 
     // Security: Don't expose internal error details
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
-      provider,
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+      status: 500,
+      details: { provider },
     })
   }
 }
@@ -159,8 +163,9 @@ export async function DELETE(
       // Record invalid attempt
       oauthOperationRateLimiter.recordFailedAttempt(clientId)
 
-      return createErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, 400, {
-        provider,
+      return structuredErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, {
+        status: 400,
+        details: { provider },
       })
     }
 
@@ -181,8 +186,9 @@ export async function DELETE(
     Sentry.captureException(error)
 
     // Security: Don't expose internal error details
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
-      provider,
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+      status: 500,
+      details: { provider },
     })
   }
 }
@@ -289,8 +295,9 @@ export async function POST(
 
   // Check if provider supports PAT
   if (!providerSupportsPat(provider)) {
-    return createErrorResponse(ErrorCodes.INVALID_PROVIDER, 400, {
-      reason: `${provider} does not support Personal Access Token authentication. Use OAuth instead.`,
+    return structuredErrorResponse(ErrorCodes.INVALID_PROVIDER, {
+      status: 400,
+      details: { reason: `${provider} does not support Personal Access Token authentication. Use OAuth instead.` },
     })
   }
 
@@ -298,8 +305,9 @@ export async function POST(
   const hasAccess = await canUserAccessIntegration(user.id, provider)
   if (!hasAccess) {
     console.error(`[${provider} Integration] User ${user.id} denied access`)
-    return createErrorResponse(ErrorCodes.FORBIDDEN, 403, {
-      reason: `You don't have access to the ${provider} integration`,
+    return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
+      status: 403,
+      details: { reason: `You don't have access to the ${provider} integration` },
     })
   }
 
@@ -310,21 +318,27 @@ export async function POST(
     token = body.token
 
     if (!token || typeof token !== "string") {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: "Token is required",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { reason: "Token is required" },
       })
     }
 
     // Basic validation: GitHub classic PATs start with "ghp_", fine-grained with "github_pat_"
     const isValidFormat = token.startsWith("ghp_") || token.startsWith("github_pat_")
     if (!isValidFormat) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: "Invalid token format. GitHub PATs should start with 'ghp_' (classic) or 'github_pat_' (fine-grained)",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          reason:
+            "Invalid token format. GitHub PATs should start with 'ghp_' (classic) or 'github_pat_' (fine-grained)",
+        },
       })
     }
   } catch {
-    return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-      reason: "Invalid request body",
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+      status: 400,
+      details: { reason: "Invalid request body" },
     })
   }
 
@@ -334,8 +348,9 @@ export async function POST(
 
     if (!tokenValidation.valid) {
       oauthOperationRateLimiter.recordFailedAttempt(clientId)
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: tokenValidation.error || "Invalid token",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { reason: tokenValidation.error || "Invalid token" },
       })
     }
 
@@ -368,8 +383,9 @@ export async function POST(
     console.error(`[${provider} Integration] PAT connection failed:`, error)
     Sentry.captureException(error)
 
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
-      provider,
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+      status: 500,
+      details: { provider },
     })
   }
 }

@@ -2,7 +2,7 @@ import { exec } from "node:child_process"
 import { promisify } from "node:util"
 import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import {
   createBadRequestResponse,
   createSuccessResponse,
@@ -51,10 +51,13 @@ export async function GET(request: NextRequest) {
     console.error(`[${requestId}] Permission check failed for ${domain}:`, error)
     Sentry.captureException(error)
 
-    return createErrorResponse(ErrorCodes.PERMISSION_CHECK_FAILED, 500, {
-      requestId,
-      domain,
-      reason: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.PERMISSION_CHECK_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+        domain,
+        reason: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
@@ -87,10 +90,13 @@ export async function POST(request: NextRequest) {
     console.error(`[${requestId}] Permission fix failed for ${domain}:`, error)
     Sentry.captureException(error)
 
-    return createErrorResponse(ErrorCodes.PERMISSION_FIX_FAILED, 500, {
-      requestId,
-      domain,
-      reason: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.PERMISSION_FIX_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+        domain,
+        reason: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

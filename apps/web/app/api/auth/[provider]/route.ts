@@ -7,7 +7,8 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { AuthenticationError, createErrorResponse, requireSessionUser } from "@/features/auth/lib/auth"
+import { AuthenticationError, requireSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { validateProviderName } from "@/lib/integrations/validation"
 import {
@@ -50,8 +51,9 @@ async function parseOAuthRequest(req: NextRequest, params: Promise<{ provider: s
       reason: validation.error,
     })
     return {
-      error: createErrorResponse(ErrorCodes.INVALID_PROVIDER, 400, {
-        reason: validation.error,
+      error: structuredErrorResponse(ErrorCodes.INVALID_PROVIDER, {
+        status: 400,
+        details: { reason: validation.error },
       }),
     }
   }
@@ -74,12 +76,12 @@ function resultToResponse(result: OAuthFlowResult): NextResponse {
       return NextResponse.redirect(new URL(result.url))
 
     case "error":
-      return createErrorResponse(result.code as any, result.status, result.details)
+      return structuredErrorResponse(result.code as any, { status: result.status, details: result.details })
 
     default: {
       // Type exhaustion check
       const _exhaustive: never = result
-      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
   }
 }
@@ -161,12 +163,12 @@ export async function GET(
   } catch (error) {
     // Handle authentication errors
     if (error instanceof AuthenticationError) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     // Log unexpected errors (but don't expose details)
     Sentry.captureException(error)
     console.error("[OAuth] Unexpected error:", error)
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, { status: 500 })
   }
 }

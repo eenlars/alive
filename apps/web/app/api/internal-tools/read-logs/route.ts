@@ -2,7 +2,7 @@ import { execSync } from "node:child_process"
 import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { handleWorkspaceApi } from "@/lib/workspace-api-handler"
 
@@ -38,7 +38,10 @@ export async function POST(req: Request) {
 
   if (!internalSecret || providedSecret !== internalSecret) {
     console.error("[read-logs] Unauthorized: Invalid or missing internal tools secret")
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401, { requestId: crypto.randomUUID() })
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
+      status: 401,
+      details: { requestId: crypto.randomUUID() },
+    })
   }
   return handleWorkspaceApi(req, {
     schema: ReadLogsSchema,
@@ -48,7 +51,7 @@ export async function POST(req: Request) {
       // Validate workspace format (domain)
       const domainRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i
       if (!domainRegex.test(workspace)) {
-        return createErrorResponse(ErrorCodes.WORKSPACE_INVALID, 400, { requestId, workspace })
+        return structuredErrorResponse(ErrorCodes.WORKSPACE_INVALID, { status: 400, details: { requestId, workspace } })
       }
 
       // Convert domain to service name
@@ -70,7 +73,10 @@ export async function POST(req: Request) {
         const activeState = lines_output.find(l => l.startsWith("ActiveState="))?.split("=")[1]
 
         if (loadState === "not-found") {
-          return createErrorResponse(ErrorCodes.SITE_NOT_FOUND, 404, { requestId, serviceName })
+          return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, {
+            status: 404,
+            details: { requestId, serviceName },
+          })
         }
 
         // Build journalctl command - return raw log lines
@@ -115,10 +121,13 @@ export async function POST(req: Request) {
 
         Sentry.captureException(error)
 
-        return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-          requestId,
-          serviceName,
-          details: errorMessage,
+        return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+          status: 500,
+          details: {
+            requestId,
+            serviceName,
+            error: errorMessage,
+          },
         })
       }
     },

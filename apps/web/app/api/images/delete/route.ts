@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
-import { createErrorResponse, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { imageStorage } from "@/lib/storage"
 import { workspaceToTenantId } from "@/lib/tenant-utils"
@@ -18,16 +19,16 @@ export async function DELETE(request: NextRequest) {
     const { key } = body
 
     if (!key || typeof key !== "string") {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        field: "key",
-        requestId,
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { field: "key", requestId },
       })
     }
 
     // 3. Security: Verify workspace authorization BEFORE any operations
     const workspace = await verifyWorkspaceAccess(user, body, `[Delete ${requestId}]`)
     if (!workspace) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, { status: 401, details: { requestId } })
     }
 
     // 4. Resolve workspace path (after authorization)
@@ -43,7 +44,7 @@ export async function DELETE(request: NextRequest) {
     // 6. Validate key belongs to this tenant
     // Key format: {tenantId}/{contentHash}
     if (!key.startsWith(`${tenantId}/`)) {
-      return createErrorResponse(ErrorCodes.FORBIDDEN, 403, { requestId })
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403, details: { requestId } })
     }
 
     const contentHash = key.replace(`${tenantId}/`, "")
@@ -51,7 +52,7 @@ export async function DELETE(request: NextRequest) {
     // 7. List all variants for this content hash
     const listResult = await imageStorage.list(tenantId, contentHash)
     if (listResult.error) {
-      return createErrorResponse(ErrorCodes.IMAGE_DELETE_FAILED, 404, { requestId })
+      return structuredErrorResponse(ErrorCodes.IMAGE_DELETE_FAILED, { status: 404, details: { requestId } })
     }
 
     // 8. Delete all variants
@@ -73,9 +74,12 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error("Delete image error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.IMAGE_DELETE_FAILED, 500, {
-      exception: error instanceof Error ? error.message : "Failed to delete image",
-      requestId,
+    return structuredErrorResponse(ErrorCodes.IMAGE_DELETE_FAILED, {
+      status: 500,
+      details: {
+        exception: error instanceof Error ? error.message : "Failed to delete image",
+        requestId,
+      },
     })
   }
 }

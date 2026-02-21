@@ -20,11 +20,17 @@ const mockFetchImpl = vi.fn()
 
 // Mock auth
 vi.mock("@/features/auth/lib/auth", async () => {
-  const { NextResponse } = await import("next/server")
   return {
     validateRequest: vi.fn(),
-    createErrorResponse: vi.fn((code: string, status: number, fields?: Record<string, unknown>) => {
-      return NextResponse.json({ ok: false, error: code, ...fields }, { status })
+  }
+})
+
+// Mock structured error response
+vi.mock("@/lib/api/responses", async () => {
+  const { NextResponse } = await import("next/server")
+  return {
+    structuredErrorResponse: vi.fn((code: string, opts: { status: number; details?: Record<string, unknown> }) => {
+      return NextResponse.json({ ok: false, error: code, ...opts.details }, { status: opts.status })
     }),
   }
 })

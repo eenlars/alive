@@ -4,7 +4,7 @@ import { basename, dirname, join } from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { handleWorkspaceApi } from "@/lib/workspace-api-handler"
 import { detectServeMode, runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
@@ -99,7 +99,10 @@ export async function POST(req: Request) {
 
   if (!internalSecret || providedSecret !== internalSecret) {
     console.error("[switch-serve-mode] Unauthorized: Invalid or missing internal tools secret")
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401, { requestId: crypto.randomUUID() })
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
+      status: 401,
+      details: { requestId: crypto.randomUUID() },
+    })
   }
 
   return handleWorkspaceApi(req, {

@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { isValidSlug } from "@/features/deployment/lib/slug-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { siteMetadataStore } from "@/lib/siteMetadataStore"
@@ -10,19 +10,19 @@ export async function GET(request: NextRequest) {
   const slug = url.searchParams.get("slug")
 
   if (!slug) {
-    return createErrorResponse(ErrorCodes.MISSING_SLUG, 400)
+    return structuredErrorResponse(ErrorCodes.MISSING_SLUG, { status: 400 })
   }
 
   // Validate slug format
   if (!isValidSlug(slug)) {
-    return createErrorResponse(ErrorCodes.INVALID_SLUG, 400)
+    return structuredErrorResponse(ErrorCodes.INVALID_SLUG, { status: 400 })
   }
 
   try {
     const metadata = await siteMetadataStore.getSite(slug)
 
     if (!metadata) {
-      return createErrorResponse(ErrorCodes.SITE_NOT_FOUND, 404, { slug })
+      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { slug } })
     }
 
     return NextResponse.json(
@@ -36,6 +36,6 @@ export async function GET(request: NextRequest) {
     console.error(`[Metadata API] Failed to fetch metadata for slug ${slug}:`, error)
     Sentry.captureException(error)
 
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

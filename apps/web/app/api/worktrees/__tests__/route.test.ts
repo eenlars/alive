@@ -383,12 +383,12 @@ describe("/api/worktrees", () => {
 
       expect(res.status).toBe(500)
       expect(data.error).toBe(ErrorCodes.WORKTREE_GIT_FAILED)
-      // Safe fields present
-      expect(data.operation).toBe("worktree")
-      expect(data.exitCode).toBe(128)
-      // Unsafe fields absent from response
-      expect(data.stderrTail).toBeUndefined()
-      expect(data.gitArgs).toBeUndefined()
+      // Safe fields present in details
+      expect(data.details.operation).toBe("worktree")
+      expect(data.details.exitCode).toBe(128)
+      // Unsafe fields absent from response details
+      expect(data.details.stderrTail).toBeUndefined()
+      expect(data.details.gitArgs).toBeUndefined()
       // message is the safe user-facing string from error-codes, not raw stderr
       if (data.message) {
         expect(data.message).not.toContain("/srv/webalive")

@@ -4,7 +4,8 @@ import { askAIFull } from "@webalive/tools"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse, requireSessionUser } from "@/features/auth/lib/auth"
+import { requireSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { hasSessionCookie } from "@/features/auth/types/guards"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { getGroqClient, withRetry } from "@/lib/clients/groq"
@@ -336,7 +337,7 @@ export async function POST(req: NextRequest) {
     // Check authentication
     const jar = await cookies()
     if (!hasSessionCookie(jar.get(COOKIE_NAMES.SESSION))) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const user = await requireSessionUser()
@@ -347,9 +348,12 @@ export async function POST(req: NextRequest) {
     const parseResult = RequestSchema.safeParse(body)
 
     if (!parseResult.success) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        details: { issues: parseResult.error.issues },
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          issues: parseResult.error.issues,
+        },
       })
     }
 
@@ -477,9 +481,12 @@ export async function POST(req: NextRequest) {
     console.error("[EvaluateProgress] Error:", error)
     Sentry.captureException(error)
 
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      requestId,
-      details: { error: error instanceof Error ? error.message : "Unknown error" },
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
@@ -495,7 +502,7 @@ export async function DELETE(req: NextRequest) {
     // Check authentication
     const jar = await cookies()
     if (!hasSessionCookie(jar.get(COOKIE_NAMES.SESSION))) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const user = await requireSessionUser()
@@ -505,9 +512,12 @@ export async function DELETE(req: NextRequest) {
     const workspace = searchParams.get("workspace")
 
     if (!workspace) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        field: "workspace",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          field: "workspace",
+        },
       })
     }
 
@@ -527,9 +537,12 @@ export async function DELETE(req: NextRequest) {
     console.error("[EvaluateProgress] Cancel error:", error)
     Sentry.captureException(error)
 
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      requestId,
-      details: { error: error instanceof Error ? error.message : "Unknown error" },
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

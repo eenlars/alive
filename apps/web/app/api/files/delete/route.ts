@@ -3,9 +3,10 @@ import { lstat, readdir, readlink, realpath, rm, unlink } from "node:fs/promises
 import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
@@ -92,9 +93,12 @@ async function validateSymlinkTarget(
       console.warn(
         `[Delete ${requestId}] Symlink escape blocked: ${symlinkPath} -> ${target} (resolved: ${resolvedTarget})`,
       )
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
-        reason: "Symlink points outside workspace",
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+          reason: "Symlink points outside workspace",
+        },
       })
     }
 
@@ -102,9 +106,12 @@ async function validateSymlinkTarget(
   } catch {
     // If we can't read the symlink, treat it as suspicious
     console.warn(`[Delete ${requestId}] Failed to read symlink target: ${symlinkPath}`)
-    return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-      requestId,
-      reason: "Cannot verify symlink target",
+    return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+      status: 403,
+      details: {
+        requestId,
+        reason: "Cannot verify symlink target",
+      },
     })
   }
 }
@@ -137,7 +144,7 @@ export async function POST(request: NextRequest) {
     // 1. Authentication check - get user from session
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     // 2. Parse and validate request body
@@ -145,15 +152,18 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.json()
     } catch {
-      return createErrorResponse(ErrorCodes.INVALID_JSON, 400, { requestId })
+      return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400, details: { requestId } })
     }
 
     const { path: targetPath, recursive = false } = body
 
     if (!targetPath || typeof targetPath !== "string") {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        field: "path",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          field: "path",
+        },
       })
     }
 
@@ -161,9 +171,12 @@ export async function POST(request: NextRequest) {
     const authorizedWorkspace = await verifyWorkspaceAccess(user, body, `[Delete ${requestId}]`)
     if (!authorizedWorkspace) {
       console.warn(`[Delete ${requestId}] User ${user.id} denied access to workspace: ${body.workspace}`)
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, {
-        requestId,
-        workspace: body.workspace,
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
+        status: 401,
+        details: {
+          requestId,
+          workspace: body.workspace,
+        },
       })
     }
 
@@ -181,7 +194,7 @@ export async function POST(request: NextRequest) {
       resolvedWorkspace = await realpath(workspaceResult.workspace)
     } catch {
       console.error(`[Delete ${requestId}] Failed to resolve workspace: ${workspaceResult.workspace}`)
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404, { requestId })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, { status: 404, details: { requestId } })
     }
 
     // 6. Path traversal protection (string-based check first)
@@ -190,10 +203,13 @@ export async function POST(request: NextRequest) {
 
     if (!isPathWithinWorkspace(resolvedPath, resolvedWorkspace, path.sep)) {
       console.warn(`[Delete ${requestId}] Path traversal blocked: ${targetPath} -> ${resolvedPath}`)
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
-        attemptedPath: targetPath,
-        workspacePath: resolvedWorkspace,
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+          attemptedPath: targetPath,
+          workspacePath: resolvedWorkspace,
+        },
       })
     }
 
@@ -201,10 +217,13 @@ export async function POST(request: NextRequest) {
     const protectionCheck = isProtected(targetPath)
     if (protectionCheck.protected) {
       console.warn(`[Delete ${requestId}] Protected file blocked: ${targetPath}`)
-      return createErrorResponse(ErrorCodes.FILE_PROTECTED, 403, {
-        requestId,
-        filePath: targetPath,
-        reason: protectionCheck.reason,
+      return structuredErrorResponse(ErrorCodes.FILE_PROTECTED, {
+        status: 403,
+        details: {
+          requestId,
+          filePath: targetPath,
+          reason: protectionCheck.reason,
+        },
       })
     }
 
@@ -215,9 +234,12 @@ export async function POST(request: NextRequest) {
     } catch (err: unknown) {
       const fsError = err as NodeJS.ErrnoException
       if (fsError.code === "ENOENT") {
-        return createErrorResponse(ErrorCodes.FILE_NOT_FOUND, 404, {
-          requestId,
-          filePath: targetPath,
+        return structuredErrorResponse(ErrorCodes.FILE_NOT_FOUND, {
+          status: 404,
+          details: {
+            requestId,
+            filePath: targetPath,
+          },
         })
       }
       throw err
@@ -235,10 +257,13 @@ export async function POST(request: NextRequest) {
 
     // 10. Directory requires recursive flag
     if (isDir && !recursive) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Cannot delete directory without recursive: true",
-        hint: "Add recursive: true to delete directories",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Cannot delete directory without recursive: true",
+          hint: "Add recursive: true to delete directories",
+        },
       })
     }
 
@@ -279,10 +304,13 @@ export async function POST(request: NextRequest) {
     } catch (err: unknown) {
       const fsError = err as NodeJS.ErrnoException
       console.error(`[Delete ${requestId}] Failed to delete: ${fsError.message}`)
-      return createErrorResponse(ErrorCodes.FILE_DELETE_ERROR, 500, {
-        requestId,
-        filePath: targetPath,
-        error: fsError.message,
+      return structuredErrorResponse(ErrorCodes.FILE_DELETE_ERROR, {
+        status: 500,
+        details: {
+          requestId,
+          filePath: targetPath,
+          error: fsError.message,
+        },
       })
     }
 
@@ -302,9 +330,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[Delete ${requestId}] Unexpected error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.FILE_DELETE_ERROR, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.FILE_DELETE_ERROR, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

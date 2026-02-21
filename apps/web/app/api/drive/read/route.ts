@@ -2,11 +2,12 @@ import { readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
-import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { ensureDriveDir } from "@/features/chat/lib/drivePath"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const parsed = await handleBody("drive/read", request)
@@ -95,17 +96,23 @@ export async function POST(request: NextRequest) {
       `[Drive Read ${requestId}]`,
     )
     if (!authorizedWorkspace) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, {
-        requestId,
-        workspace: parsed.workspace,
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
+        status: 401,
+        details: {
+          requestId,
+          workspace: parsed.workspace,
+        },
       })
     }
 
     const host = request.headers.get("host")
     if (!host) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Missing host header",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Missing host header",
+        },
       })
     }
 
@@ -121,17 +128,23 @@ export async function POST(request: NextRequest) {
     const resolvedPath = path.resolve(fullPath)
 
     if (!isPathWithinWorkspace(resolvedPath, resolvedDrive, path.sep)) {
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+        },
       })
     }
 
     const ext = parsed.path.toLowerCase().split(".").pop() || ""
     if (BINARY_EXTENSIONS.has(ext)) {
-      return createErrorResponse(ErrorCodes.BINARY_FILE_NOT_SUPPORTED, 400, {
-        requestId,
-        filePath: parsed.path,
-        extension: ext,
+      return structuredErrorResponse(ErrorCodes.BINARY_FILE_NOT_SUPPORTED, {
+        status: 400,
+        details: {
+          requestId,
+          filePath: parsed.path,
+          extension: ext,
+        },
       })
     }
 
@@ -139,11 +152,14 @@ export async function POST(request: NextRequest) {
       // Check file size with stat before reading to avoid loading huge files into memory
       const fileStat = await stat(resolvedPath)
       if (fileStat.size > MAX_FILE_SIZE) {
-        return createErrorResponse(ErrorCodes.FILE_TOO_LARGE_TO_READ, 400, {
-          requestId,
-          filePath: parsed.path,
-          size: fileStat.size,
-          maxSize: MAX_FILE_SIZE,
+        return structuredErrorResponse(ErrorCodes.FILE_TOO_LARGE_TO_READ, {
+          status: 400,
+          details: {
+            requestId,
+            filePath: parsed.path,
+            size: fileStat.size,
+            maxSize: MAX_FILE_SIZE,
+          },
         })
       }
 
@@ -162,30 +178,42 @@ export async function POST(request: NextRequest) {
     } catch (fsError) {
       const err = fsError as NodeJS.ErrnoException
       if (err.code === "ENOENT") {
-        return createErrorResponse(ErrorCodes.FILE_NOT_FOUND, 404, {
-          requestId,
-          filePath: parsed.path,
+        return structuredErrorResponse(ErrorCodes.FILE_NOT_FOUND, {
+          status: 404,
+          details: {
+            requestId,
+            filePath: parsed.path,
+          },
         })
       }
       if (err.code === "EISDIR") {
-        return createErrorResponse(ErrorCodes.PATH_IS_DIRECTORY, 400, {
-          requestId,
-          filePath: parsed.path,
+        return structuredErrorResponse(ErrorCodes.PATH_IS_DIRECTORY, {
+          status: 400,
+          details: {
+            requestId,
+            filePath: parsed.path,
+          },
         })
       }
       console.error(`[Drive Read ${requestId}] Error reading file:`, fsError)
-      return createErrorResponse(ErrorCodes.FILE_READ_ERROR, 500, {
-        requestId,
-        filePath: parsed.path,
-        error: err.message,
+      return structuredErrorResponse(ErrorCodes.FILE_READ_ERROR, {
+        status: 500,
+        details: {
+          requestId,
+          filePath: parsed.path,
+          error: err.message,
+        },
       })
     }
   } catch (error) {
     console.error(`[Drive Read ${requestId}] Unexpected error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

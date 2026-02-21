@@ -12,7 +12,8 @@
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { getUserEnvKeysManager } from "@/lib/oauth/oauth-instances"
 
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
     // 1. Authenticate user
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     // 2. Parse and validate request body
@@ -54,9 +55,12 @@ export async function POST(req: NextRequest) {
     const parseResult = CreateEnvKeySchema.safeParse(body)
 
     if (!parseResult.success) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        field: parseResult.error.issues[0]?.path.join(".") || "unknown",
-        message: parseResult.error.issues[0]?.message,
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          field: parseResult.error.issues[0]?.path.join(".") || "unknown",
+          message: parseResult.error.issues[0]?.message,
+        },
       })
     }
 
@@ -65,9 +69,12 @@ export async function POST(req: NextRequest) {
     // 3. Check if this is a reserved key name
     const RESERVED_KEYS = ["ANTHROPIC_API_KEY", "ANTH_API_SECRET", "JWT_SECRET", "LOCKBOX_MASTER_KEY"]
     if (RESERVED_KEYS.includes(keyName)) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        field: "keyName",
-        message: `${keyName} is a reserved key name and cannot be set by users`,
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          field: "keyName",
+          message: `${keyName} is a reserved key name and cannot be set by users`,
+        },
       })
     }
 
@@ -84,8 +91,11 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[User Env Keys] Failed to save key:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      reason: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        reason: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
@@ -98,7 +108,7 @@ export async function GET() {
     // 1. Authenticate user
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     // 2. Get list of key names
@@ -115,8 +125,11 @@ export async function GET() {
   } catch (error) {
     console.error("[User Env Keys] Failed to list keys:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      reason: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        reason: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
@@ -129,7 +142,7 @@ export async function DELETE(req: NextRequest) {
     // 1. Authenticate user
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     // 2. Parse and validate request body
@@ -137,9 +150,12 @@ export async function DELETE(req: NextRequest) {
     const parseResult = DeleteEnvKeySchema.safeParse(body)
 
     if (!parseResult.success) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        field: parseResult.error.issues[0]?.path.join(".") || "unknown",
-        message: parseResult.error.issues[0]?.message,
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          field: parseResult.error.issues[0]?.path.join(".") || "unknown",
+          message: parseResult.error.issues[0]?.message,
+        },
       })
     }
 
@@ -158,8 +174,11 @@ export async function DELETE(req: NextRequest) {
   } catch (error) {
     console.error("[User Env Keys] Failed to delete key:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      reason: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        reason: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

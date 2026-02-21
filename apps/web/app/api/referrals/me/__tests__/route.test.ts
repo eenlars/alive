@@ -14,7 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ErrorCodes } from "@/lib/error-codes"
 
-// Mock auth - pass through createErrorResponse
+// Mock auth - only override getSessionUser
 vi.mock("@/features/auth/lib/auth", async () => {
   const actual = await vi.importActual("@/features/auth/lib/auth")
   return {

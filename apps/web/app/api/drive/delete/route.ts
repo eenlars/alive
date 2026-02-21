@@ -3,11 +3,12 @@ import { lstat, rm, unlink } from "node:fs/promises"
 import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
-import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { ensureDriveDir } from "@/features/chat/lib/drivePath"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const parsed = await handleBody("drive/delete", request)
@@ -29,17 +30,23 @@ export async function POST(request: NextRequest) {
       `[Drive Delete ${requestId}]`,
     )
     if (!authorizedWorkspace) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, {
-        requestId,
-        workspace: parsed.workspace,
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
+        status: 401,
+        details: {
+          requestId,
+          workspace: parsed.workspace,
+        },
       })
     }
 
     const host = request.headers.get("host")
     if (!host) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Missing host header",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Missing host header",
+        },
       })
     }
     const body = { workspace: parsed.workspace, worktree: parsed.worktree }
@@ -54,9 +61,12 @@ export async function POST(request: NextRequest) {
     const resolvedPath = path.resolve(fullPath)
 
     if (!isPathWithinWorkspace(resolvedPath, resolvedDrive, path.sep)) {
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
-        attemptedPath: parsed.path,
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+          attemptedPath: parsed.path,
+        },
       })
     }
 
@@ -66,9 +76,12 @@ export async function POST(request: NextRequest) {
     } catch (err: unknown) {
       const fsError = err as NodeJS.ErrnoException
       if (fsError.code === "ENOENT") {
-        return createErrorResponse(ErrorCodes.FILE_NOT_FOUND, 404, {
-          requestId,
-          filePath: parsed.path,
+        return structuredErrorResponse(ErrorCodes.FILE_NOT_FOUND, {
+          status: 404,
+          details: {
+            requestId,
+            filePath: parsed.path,
+          },
         })
       }
       throw err
@@ -77,9 +90,12 @@ export async function POST(request: NextRequest) {
     const isDir = lstats.isDirectory()
 
     if (isDir && !parsed.recursive) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Cannot delete directory without recursive: true",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Cannot delete directory without recursive: true",
+        },
       })
     }
 
@@ -92,10 +108,13 @@ export async function POST(request: NextRequest) {
     } catch (err: unknown) {
       const fsError = err as NodeJS.ErrnoException
       console.error(`[Drive Delete ${requestId}] Failed:`, fsError.message)
-      return createErrorResponse(ErrorCodes.FILE_DELETE_ERROR, 500, {
-        requestId,
-        filePath: parsed.path,
-        error: fsError.message,
+      return structuredErrorResponse(ErrorCodes.FILE_DELETE_ERROR, {
+        status: 500,
+        details: {
+          requestId,
+          filePath: parsed.path,
+          error: fsError.message,
+        },
       })
     }
 
@@ -108,9 +127,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[Drive Delete ${requestId}] Unexpected error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.FILE_DELETE_ERROR, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.FILE_DELETE_ERROR, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
