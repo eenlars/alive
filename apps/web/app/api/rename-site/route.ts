@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs"
 import { DEFAULTS, PATHS } from "@webalive/shared"
 import { configureCaddy, DeploymentError, regeneratePortMap, SiteOrchestrator } from "@webalive/site-controller"
 import { AuthenticationError, requireSessionUser } from "@/features/auth/lib/auth"
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
     if (updateError) {
       // DB update failed but OS already renamed — log and return error
       console.error(`[Rename] DB update failed after OS rename: ${updateError.message}`)
+      Sentry.captureException(updateError)
       return structuredErrorResponse(ErrorCodes.RENAME_FAILED, {
         status: 500,
         details: { message: `OS renamed but DB update failed: ${updateError.message}` },
@@ -101,6 +103,7 @@ export async function POST(request: Request) {
     }
 
     console.error("[Rename] Unexpected error:", error)
+    Sentry.captureException(error)
     return structuredErrorResponse(ErrorCodes.RENAME_FAILED, {
       status: 500,
       details:

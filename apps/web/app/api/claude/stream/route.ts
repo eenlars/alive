@@ -4,12 +4,7 @@ import { DEFAULTS, SUPERADMIN, WORKER_POOL } from "@webalive/shared"
 import { getWorkerPool, type WorkerToParentMessage } from "@webalive/worker-pool"
 import { cookies, headers } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
-import {
-  createErrorResponse,
-  getSafeSessionCookie,
-  requireSessionUser,
-  verifyWorkspaceAccess,
-} from "@/features/auth/lib/auth"
+import { getSafeSessionCookie, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import {
   sessionStore,
   type TabSessionKey,
@@ -23,6 +18,7 @@ import { getSystemPrompt } from "@/features/chat/lib/systemPrompt"
 import { ensureWorkspaceSchema } from "@/features/workspace/lib/ensure-workspace-schema"
 import { resolveWorkspace } from "@/features/workspace/lib/workspace-utils"
 import { getValidAccessToken, hasOAuthCredentials } from "@/lib/anthropic-oauth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import {
   getAllowedTools,
@@ -77,7 +73,7 @@ export async function POST(req: NextRequest) {
   // Defense-in-depth: Block real API calls during E2E tests
   if (process.env.PLAYWRIGHT_TEST === "true") {
     logger.error("⛔ BLOCKED: Real API call attempted during E2E test")
-    return createErrorResponse(ErrorCodes.TEST_MODE_BLOCK, 403, { requestId })
+    return structuredErrorResponse(ErrorCodes.TEST_MODE_BLOCK, { status: 403, details: { requestId } })
   }
 
   // Track lock acquisition for cleanup in error handler
@@ -90,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     if (!hasSessionCookie(jar.get(COOKIE_NAMES.SESSION))) {
       logger.log("No session cookie found")
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
     logger.log("Session cookie verified")
 
@@ -105,9 +101,9 @@ export async function POST(req: NextRequest) {
       logger.log("Raw body keys:", Object.keys(body))
     } catch (jsonError) {
       logger.error("Failed to parse JSON body:", jsonError)
-      return createErrorResponse(ErrorCodes.INVALID_JSON, 400, {
-        details: { error: jsonError instanceof Error ? jsonError.message : "Unknown JSON parse error" },
-        requestId,
+      return structuredErrorResponse(ErrorCodes.INVALID_JSON, {
+        status: 400,
+        details: { error: jsonError instanceof Error ? jsonError.message : "Unknown JSON parse error", requestId },
       })
     }
 
@@ -115,9 +111,9 @@ export async function POST(req: NextRequest) {
     const parseResult = BodySchema.safeParse(body)
     if (!parseResult.success) {
       logger.error("Schema validation failed:", parseResult.error.issues)
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        details: { issues: parseResult.error.issues },
-        requestId,
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { issues: parseResult.error.issues, requestId },
       })
     }
 
@@ -151,9 +147,9 @@ export async function POST(req: NextRequest) {
       const safetyCheck = await isInputSafeWithDebug(message)
       if (safetyCheck.result === "unsafe") {
         logger.log(`Input flagged as unsafe. Model response: "${safetyCheck.debug.rawContent?.slice(0, 200)}"`)
-        return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-          field: "message content",
-          requestId,
+        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+          status: 400,
+          details: { field: "message content", requestId },
         })
       }
       logger.log("Input safety check passed")
@@ -175,7 +171,7 @@ export async function POST(req: NextRequest) {
       resolvedWorkspaceName = await verifyWorkspaceAccess(user, body, `[Claude Stream ${requestId}]`)
 
       if (!resolvedWorkspaceName) {
-        return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, { requestId })
+        return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, { status: 401, details: { requestId } })
       }
       logger.log("Workspace authentication verified for:", resolvedWorkspaceName)
 
@@ -193,10 +189,9 @@ export async function POST(req: NextRequest) {
       // Never rely on workspace-local .env files for auth discovery.
       if (!hasOAuthCredentials()) {
         logger.log("No OAuth credentials available")
-        return createErrorResponse(ErrorCodes.OAUTH_CONFIG_ERROR, 503, {
-          provider: "Anthropic",
-          workspace: resolvedWorkspaceName,
-          requestId,
+        return structuredErrorResponse(ErrorCodes.OAUTH_CONFIG_ERROR, {
+          status: 503,
+          details: { provider: "Anthropic", workspace: resolvedWorkspaceName, requestId },
         })
       }
 
@@ -207,9 +202,9 @@ export async function POST(req: NextRequest) {
         const oauthResult = await getValidAccessToken()
         if (!oauthResult) {
           logger.log("OAuth credentials missing or unreadable")
-          return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 503, {
-            workspace: resolvedWorkspaceName,
-            requestId,
+          return structuredErrorResponse(ErrorCodes.OAUTH_EXPIRED, {
+            status: 503,
+            details: { workspace: resolvedWorkspaceName, requestId },
           })
         }
         if (oauthResult.refreshed) {
@@ -218,9 +213,10 @@ export async function POST(req: NextRequest) {
         oauthAccessToken = oauthResult.accessToken
       } catch (refreshError) {
         logger.error("OAuth token refresh failed:", refreshError)
-        return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 503, {
-          workspace: resolvedWorkspaceName,
-          requestId,
+        Sentry.captureException(refreshError)
+        return structuredErrorResponse(ErrorCodes.OAUTH_EXPIRED, {
+          status: 503,
+          details: { workspace: resolvedWorkspaceName, requestId },
         })
       }
 
@@ -238,22 +234,23 @@ export async function POST(req: NextRequest) {
       }
     } catch (workspaceError) {
       logger.error("Workspace resolution failed:", workspaceError)
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404, {
-        host: requestWorkspace || host,
+      Sentry.captureException(workspaceError)
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, {
+        status: 404,
         details: {
-          host,
+          host: requestWorkspace || host,
           requestWorkspace,
-          error: workspaceError instanceof Error ? workspaceError.message : "Unknown error",
+          requestFailed: true,
+          requestId,
         },
-        requestId,
       })
     }
 
     if (!oauthAccessToken) {
       logger.error("OAuth access token resolution failed")
-      return createErrorResponse(ErrorCodes.OAUTH_EXPIRED, 503, {
-        workspace: resolvedWorkspaceName ?? requestWorkspace ?? host,
-        requestId,
+      return structuredErrorResponse(ErrorCodes.OAUTH_EXPIRED, {
+        status: 503,
+        details: { workspace: resolvedWorkspaceName ?? requestWorkspace ?? host, requestId },
       })
     }
 
@@ -279,9 +276,9 @@ export async function POST(req: NextRequest) {
 
     if (!domainRecord) {
       logger.error("Domain not found in database:", resolvedWorkspaceName)
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, 404, {
-        host: resolvedWorkspaceName,
-        requestId,
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_FOUND, {
+        status: 404,
+        details: { host: resolvedWorkspaceName, requestId },
       })
     }
 
@@ -300,7 +297,7 @@ export async function POST(req: NextRequest) {
 
     if (!tryLockConversation(sessionKey)) {
       logger.log("❌ LOCK FAILED - Request already in progress for key:", sessionKey)
-      return createErrorResponse(ErrorCodes.CONVERSATION_BUSY, 409, { requestId })
+      return structuredErrorResponse(ErrorCodes.CONVERSATION_BUSY, { status: 409, details: { requestId } })
     }
 
     lockAcquired = true
@@ -909,9 +906,9 @@ export async function POST(req: NextRequest) {
     }
 
     const origin = req.headers.get("origin")
-    const errorRes = createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      details: { message: outerError instanceof Error ? outerError.message : "Unknown error" },
-      requestId,
+    const errorRes = structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: { message: outerError instanceof Error ? outerError.message : "Unknown error", requestId },
     })
     addCorsHeaders(errorRes, origin)
     return errorRes

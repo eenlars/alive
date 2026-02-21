@@ -14,7 +14,8 @@
 import * as Sentry from "@sentry/nextjs"
 import { getOAuthKeyForProvider, providerSupportsPat } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { getClientIdentifier } from "@/lib/auth/client-identifier"
 import { oauthOperationRateLimiter } from "@/lib/auth/rate-limiter"
 import { ErrorCodes } from "@/lib/error-codes"
@@ -80,8 +81,9 @@ export async function POST(
     const validation = validateProviderName(resolved.provider)
 
     if (!validation.valid) {
-      return createErrorResponse(ErrorCodes.INVALID_PROVIDER, 400, {
-        reason: validation.error,
+      return structuredErrorResponse(ErrorCodes.INVALID_PROVIDER, {
+        status: 400,
+        details: { reason: validation.error },
       })
     }
 
@@ -89,15 +91,16 @@ export async function POST(
 
     // 2. Check if provider supports PAT
     if (!providerSupportsPat(provider)) {
-      return createErrorResponse(ErrorCodes.INVALID_PROVIDER, 400, {
-        reason: `${provider} does not support Personal Access Token authentication`,
+      return structuredErrorResponse(ErrorCodes.INVALID_PROVIDER, {
+        status: 400,
+        details: { reason: `${provider} does not support Personal Access Token authentication` },
       })
     }
 
     // 3. Authenticate user
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     // 4. Check rate limit
@@ -108,8 +111,9 @@ export async function POST(
 
       console.warn(`[${provider} PAT] Rate limited:`, clientId)
 
-      return createErrorResponse(ErrorCodes.TOO_MANY_REQUESTS, 429, {
-        retryAfter: `${minutesRemaining} minute${minutesRemaining !== 1 ? "s" : ""}`,
+      return structuredErrorResponse(ErrorCodes.TOO_MANY_REQUESTS, {
+        status: 429,
+        details: { retryAfter: `${minutesRemaining} minute${minutesRemaining !== 1 ? "s" : ""}` },
       })
     }
 
@@ -118,8 +122,9 @@ export async function POST(
     if (!hasAccess) {
       console.error(`[${provider} PAT] User ${user.id} denied access`)
       oauthOperationRateLimiter.recordFailedAttempt(clientId)
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403, {
-        reason: `No permission to use ${provider} integration`,
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
+        status: 403,
+        details: { reason: `No permission to use ${provider} integration` },
       })
     }
 
@@ -127,9 +132,10 @@ export async function POST(
     let body: { token?: string }
     try {
       body = await req.json()
-    } catch {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: "Invalid JSON body",
+    } catch (_err) {
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { reason: "Invalid JSON body" },
       })
     }
 
@@ -137,8 +143,9 @@ export async function POST(
 
     if (!token || typeof token !== "string") {
       oauthOperationRateLimiter.recordFailedAttempt(clientId)
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: "Token is required",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { reason: "Token is required" },
       })
     }
 
@@ -146,8 +153,9 @@ export async function POST(
     const trimmedToken = token.trim()
     if (trimmedToken.length < 10) {
       oauthOperationRateLimiter.recordFailedAttempt(clientId)
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: "Token appears to be invalid",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { reason: "Token appears to be invalid" },
       })
     }
 
@@ -163,8 +171,9 @@ export async function POST(
 
     if (!validationResult.valid) {
       oauthOperationRateLimiter.recordFailedAttempt(clientId)
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: validationResult.error || "Invalid token",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { reason: validationResult.error || "Invalid token" },
       })
     }
 
@@ -195,6 +204,6 @@ export async function POST(
   } catch (error) {
     console.error("[PAT Connection] Unexpected error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, { status: 500 })
   }
 }

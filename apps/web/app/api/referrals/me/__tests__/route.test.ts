@@ -14,7 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ErrorCodes } from "@/lib/error-codes"
 
-// Mock auth - pass through createErrorResponse
+// Mock auth - only override getSessionUser
 vi.mock("@/features/auth/lib/auth", async () => {
   const actual = await vi.importActual("@/features/auth/lib/auth")
   return {
@@ -140,7 +140,7 @@ describe("GET /api/referrals/me", () => {
 
       expect(response.status).toBe(500)
       expect(data.ok).toBe(false)
-      expect(data.error).toBe(ErrorCodes.INTERNAL_ERROR)
+      expect(data.error).toBe(ErrorCodes.QUERY_FAILED)
     })
 
     it("should return 404 when user not found (RPC returns null)", async () => {

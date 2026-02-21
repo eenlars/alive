@@ -2,8 +2,10 @@ import * as Sentry from "@sentry/nextjs"
 import { DEFAULTS, DOMAINS, PATHS } from "@webalive/shared"
 import { DeploymentError } from "@webalive/site-controller"
 import { type NextRequest, NextResponse } from "next/server"
-import { AuthenticationError, createErrorResponse, requireSessionUser } from "@/features/auth/lib/auth"
+import { AuthenticationError, requireSessionUser } from "@/features/auth/lib/auth"
 import { normalizeAndValidateDomain } from "@/features/manager/lib/domain-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { runStrictDeployment } from "@/lib/deployment/deploy-pipeline"
 import { DomainRegistrationError } from "@/lib/deployment/domain-registry"
 import { validateUserOrgAccess } from "@/lib/deployment/org-resolver"
@@ -11,20 +13,6 @@ import { validateSSLCertificate } from "@/lib/deployment/ssl-validation"
 import { validateTemplateFromDb } from "@/lib/deployment/template-validation"
 import { getUserQuota } from "@/lib/deployment/user-quotas"
 import { ErrorCodes } from "@/lib/error-codes"
-
-interface DeployRequest {
-  domain: string
-  orgId: string // REQUIRED: Organization to deploy to (user must explicitly select)
-  templateId?: string // Optional: Template to use (defaults to "blank")
-}
-
-interface DeployResponse {
-  ok: boolean
-  message: string
-  domain?: string
-  orgId?: string
-  errors?: string[]
-}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
@@ -37,32 +25,21 @@ export async function POST(request: NextRequest) {
     const user = await requireSessionUser()
     console.log(`🔐 [DEPLOY API] Authenticated user: ${user.email} (${user.id})`)
 
-    // Parse request body
-    let body: DeployRequest
-    try {
-      body = await request.json()
-    } catch (parseError) {
-      console.error("❌ [DEPLOY API] Failed to parse request JSON:", parseError)
-      return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
-    }
+    // Parse and validate request body
+    const parsed = await handleBody("deploy", request)
+    if (isHandleBodyError(parsed)) return parsed
 
     // Normalize and validate domain
-    const domainResult = normalizeAndValidateDomain(body.domain)
+    const domainResult = normalizeAndValidateDomain(parsed.domain)
     if (!domainResult.isValid) {
       console.error(`❌ [DEPLOY API] Domain validation failed: ${domainResult.error}`)
       Sentry.captureException(new Error(`Deploy: domain validation failed: ${domainResult.error}`))
-      return createErrorResponse(ErrorCodes.INVALID_DOMAIN, 400, { error: domainResult.error })
+      return structuredErrorResponse(ErrorCodes.INVALID_DOMAIN, { status: 400, details: { error: domainResult.error } })
     }
 
     domain = domainResult.domain // Use normalized domain
 
-    // Validate orgId is provided
-    if (!body.orgId) {
-      console.error("❌ [DEPLOY API] orgId is required")
-      return createErrorResponse(ErrorCodes.ORG_ID_REQUIRED, 400)
-    }
-
-    const orgId = body.orgId
+    const orgId = parsed.orgId
 
     // Validate user has access to the specified organization
     console.log(`🏢 [DEPLOY API] Validating access to organization: ${orgId}`)
@@ -70,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (!hasAccess) {
       console.error(`❌ [DEPLOY API] User ${user.email} does not have access to org ${orgId}`)
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 403)
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
     console.log(`✅ [DEPLOY API] User has access to organization ${orgId}`)
@@ -81,30 +58,35 @@ export async function POST(request: NextRequest) {
       console.error(
         `❌ [DEPLOY API] User ${user.email} has reached site limit (${quota.currentSites}/${quota.maxSites})`,
       )
-      return createErrorResponse(ErrorCodes.SITE_LIMIT_EXCEEDED, 403, {
-        limit: quota.maxSites,
-        currentCount: quota.currentSites,
+      return structuredErrorResponse(ErrorCodes.SITE_LIMIT_EXCEEDED, {
+        status: 403,
+        details: {
+          limit: quota.maxSites,
+          currentCount: quota.currentSites,
+        },
       })
     }
 
     // Validate and get selected template from database
-    const templateValidation = await validateTemplateFromDb(body.templateId)
+    const templateValidation = await validateTemplateFromDb(parsed.templateId)
     if (!templateValidation.valid || !templateValidation.template) {
       const error = templateValidation.error!
       console.error(`❌ [DEPLOY API] Template validation failed: ${error.code}`, error)
       Sentry.captureException(error)
-      return createErrorResponse(
+      return structuredErrorResponse(
         error.code === "INVALID_TEMPLATE" ? ErrorCodes.INVALID_TEMPLATE : ErrorCodes.TEMPLATE_NOT_FOUND,
-        400,
         {
-          templateId: error.templateId,
-          message: error.message,
+          status: 400,
+          details: {
+            templateId: error.templateId,
+            message: error.message,
+          },
         },
       )
     }
     const template = templateValidation.template
     console.log(
-      `📋 [DEPLOY API] Request: domain=${body.domain} → normalized: ${domain}, template: ${template.template_id}`,
+      `📋 [DEPLOY API] Request: domain=${parsed.domain} → normalized: ${domain}, template: ${template.template_id}`,
     )
 
     // Execute strict deployment pipeline (deploy -> register -> caddy -> verify)
@@ -129,7 +111,7 @@ export async function POST(request: NextRequest) {
         message: `Site ${domain} deployed successfully with SSL certificate`,
         domain,
         orgId,
-      } as DeployResponse)
+      })
     }
     console.warn(`⚠️  [DEPLOY API] Deployment completed but SSL validation failed: ${sslValidation.error}`)
     return NextResponse.json({
@@ -138,11 +120,11 @@ export async function POST(request: NextRequest) {
       domain,
       orgId,
       errors: [sslValidation.error],
-    } as DeployResponse)
+    })
   } catch (error: unknown) {
     const duration = Date.now() - startTime
     if (error instanceof AuthenticationError) {
-      return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
     }
 
     console.error(`💥 [DEPLOY API] Error after ${duration}ms:`, error)
@@ -178,9 +160,12 @@ export async function POST(request: NextRequest) {
       errorMessage = `Deployment failed: ${error.message}`
     }
 
-    return createErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, statusCode, {
-      deploymentError: errorMessage,
-      errors: process.env.NODE_ENV === "development" ? [String(error)] : undefined,
+    return structuredErrorResponse(ErrorCodes.DEPLOYMENT_FAILED, {
+      status: statusCode,
+      details: {
+        deploymentError: errorMessage,
+        errors: process.env.NODE_ENV === "development" ? [String(error)] : undefined,
+      },
     })
   }
 }

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const mocks = vi.hoisted(() => ({
   requireSessionUser: vi.fn(),
   verifyWorkspaceAccess: vi.fn(),
-  createErrorResponse: vi.fn(),
+  structuredErrorResponse: vi.fn(),
   cancelStream: vi.fn(),
   cancelStreamByConversationKey: vi.fn(),
   appendFileSync: vi.fn(),
@@ -14,7 +14,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/features/auth/lib/auth", () => ({
   requireSessionUser: mocks.requireSessionUser,
   verifyWorkspaceAccess: mocks.verifyWorkspaceAccess,
-  createErrorResponse: mocks.createErrorResponse,
+}))
+
+vi.mock("@/lib/api/responses", () => ({
+  structuredErrorResponse: mocks.structuredErrorResponse,
 }))
 
 vi.mock("@/lib/stream/cancellation-registry", () => ({
@@ -42,18 +45,20 @@ describe("POST /api/claude/stream/cancel logging resilience", () => {
       name: "Test User",
     })
     mocks.verifyWorkspaceAccess.mockResolvedValue("test-workspace")
-    mocks.createErrorResponse.mockImplementation((error: string, status: number, fields?: Record<string, unknown>) => {
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          error,
-          message: `Error: ${error}`,
-          category: status >= 500 ? "server" : "user",
-          ...fields,
-        }),
-        { status },
-      )
-    })
+    mocks.structuredErrorResponse.mockImplementation(
+      (error: string, { status, details }: { status: number; details?: Record<string, unknown> }) => {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error,
+            message: `Error: ${error}`,
+            category: status >= 500 ? "server" : "user",
+            ...details,
+          }),
+          { status },
+        )
+      },
+    )
 
     mocks.cancelStream.mockResolvedValue(false)
     mocks.cancelStreamByConversationKey.mockResolvedValue(false)

@@ -3,10 +3,10 @@ import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
 import { hasSessionCookie } from "@/features/auth/types/guards"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
   try {
     const jar = await cookies()
     if (!hasSessionCookie(jar.get(COOKIE_NAMES.SESSION))) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const body = await request.json()
@@ -104,9 +104,12 @@ export async function POST(request: NextRequest) {
 
     const filePath = body.path
     if (!filePath || typeof filePath !== "string") {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Missing required field: path",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Missing required field: path",
+        },
       })
     }
 
@@ -116,20 +119,26 @@ export async function POST(request: NextRequest) {
     const resolvedPath = path.resolve(fullPath)
     const resolvedWorkspace = path.resolve(workspaceResult.workspace)
     if (!isPathWithinWorkspace(resolvedPath, resolvedWorkspace, path.sep)) {
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
-        attemptedPath: resolvedPath,
-        workspacePath: resolvedWorkspace,
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+          attemptedPath: resolvedPath,
+          workspacePath: resolvedWorkspace,
+        },
       })
     }
 
     // Check for binary files
     const ext = filePath.toLowerCase().split(".").pop() || ""
     if (BINARY_EXTENSIONS.has(ext)) {
-      return createErrorResponse(ErrorCodes.BINARY_FILE_NOT_SUPPORTED, 400, {
-        requestId,
-        filePath,
-        extension: ext,
+      return structuredErrorResponse(ErrorCodes.BINARY_FILE_NOT_SUPPORTED, {
+        status: 400,
+        details: {
+          requestId,
+          filePath,
+          extension: ext,
+        },
       })
     }
 
@@ -138,11 +147,14 @@ export async function POST(request: NextRequest) {
 
       // Check file size after reading (could also use stat before)
       if (content.length > MAX_FILE_SIZE) {
-        return createErrorResponse(ErrorCodes.FILE_TOO_LARGE_TO_READ, 400, {
-          requestId,
-          filePath,
-          size: content.length,
-          maxSize: MAX_FILE_SIZE,
+        return structuredErrorResponse(ErrorCodes.FILE_TOO_LARGE_TO_READ, {
+          status: 400,
+          details: {
+            requestId,
+            filePath,
+            size: content.length,
+            maxSize: MAX_FILE_SIZE,
+          },
         })
       }
 
@@ -160,30 +172,43 @@ export async function POST(request: NextRequest) {
     } catch (fsError) {
       const err = fsError as NodeJS.ErrnoException
       if (err.code === "ENOENT") {
-        return createErrorResponse(ErrorCodes.FILE_NOT_FOUND, 404, {
-          requestId,
-          filePath,
+        return structuredErrorResponse(ErrorCodes.FILE_NOT_FOUND, {
+          status: 404,
+          details: {
+            requestId,
+            filePath,
+          },
         })
       }
       if (err.code === "EISDIR") {
-        return createErrorResponse(ErrorCodes.PATH_IS_DIRECTORY, 400, {
-          requestId,
-          filePath,
+        return structuredErrorResponse(ErrorCodes.PATH_IS_DIRECTORY, {
+          status: 400,
+          details: {
+            requestId,
+            filePath,
+          },
         })
       }
       console.error(`[Files/Read ${requestId}] Error reading file:`, fsError)
-      return createErrorResponse(ErrorCodes.FILE_READ_ERROR, 500, {
-        requestId,
-        filePath,
-        error: err.message,
+      Sentry.captureException(fsError)
+      return structuredErrorResponse(ErrorCodes.FILE_READ_ERROR, {
+        status: 500,
+        details: {
+          requestId,
+          filePath,
+          error: err.message,
+        },
       })
     }
   } catch (error) {
     console.error("Files/Read API error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

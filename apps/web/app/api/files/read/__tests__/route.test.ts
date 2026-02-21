@@ -27,10 +27,15 @@ vi.mock("@/features/auth/types/guards", () => ({
 
 // Mock auth functions
 vi.mock("@/features/auth/lib/auth", async () => {
+  return {}
+})
+
+// Mock structured error response
+vi.mock("@/lib/api/responses", async () => {
   const { NextResponse } = await import("next/server")
   return {
-    createErrorResponse: vi.fn((code, status, fields) => {
-      return NextResponse.json({ ok: false, error: code, ...fields }, { status })
+    structuredErrorResponse: vi.fn((code: string, opts: { status: number; details?: Record<string, unknown> }) => {
+      return NextResponse.json({ ok: false, error: code, ...opts.details }, { status: opts.status })
     }),
   }
 })

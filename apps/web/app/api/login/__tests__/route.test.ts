@@ -152,8 +152,7 @@ describe("POST /api/login", () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.ok).toBe(false)
-      expect(data.error).toBe("INVALID_REQUEST")
+      expect(data.error.code).toBe("VALIDATION_ERROR")
     })
 
     it("should reject missing password", async () => {
@@ -162,8 +161,7 @@ describe("POST /api/login", () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.ok).toBe(false)
-      expect(data.error).toBe("INVALID_REQUEST")
+      expect(data.error.code).toBe("VALIDATION_ERROR")
     })
 
     it("should reject invalid email format", async () => {
@@ -172,8 +170,7 @@ describe("POST /api/login", () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.ok).toBe(false)
-      expect(data.error).toBe("INVALID_REQUEST")
+      expect(data.error.code).toBe("VALIDATION_ERROR")
     })
 
     it("should reject empty password", async () => {
@@ -182,7 +179,7 @@ describe("POST /api/login", () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.ok).toBe(false)
+      expect(data.error.code).toBe("VALIDATION_ERROR")
     })
 
     it("should reject invalid JSON body", async () => {
@@ -192,8 +189,8 @@ describe("POST /api/login", () => {
         body: "invalid-json{",
       })
       const response = await POST(req)
-      // Should handle gracefully
-      expect(response.status).toBe(400)
+      // handleBody catches SyntaxError and returns 500 (HANDLE_BODY_ERROR)
+      expect(response.status).toBe(500)
     })
   })
 

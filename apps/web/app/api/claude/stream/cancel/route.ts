@@ -1,9 +1,10 @@
 import { appendFileSync, mkdirSync } from "node:fs"
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { requireSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { tabKey } from "@/features/auth/lib/sessionStore"
 import { normalizeWorktreeSlug, WORKTREE_SLUG_REGEX } from "@/features/workspace/lib/worktree-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { cancelStream, cancelStreamByConversationKey } from "@/lib/stream/cancellation-registry"
 
@@ -132,13 +133,14 @@ export async function POST(req: NextRequest) {
     try {
       const parsedBody = await req.json()
       if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
-        return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-          message: "Request body must be a JSON object",
+        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+          status: 400,
+          details: { message: "Request body must be a JSON object" },
         })
       }
       body = parsedBody
-    } catch {
-      return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
+    } catch (_err) {
+      return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400 })
     }
 
     const requestId = typeof body.requestId === "string" ? body.requestId : undefined
@@ -154,8 +156,9 @@ export async function POST(req: NextRequest) {
       worktree = normalizeWorktreeSlug(worktree)
       if (!WORKTREE_SLUG_REGEX.test(worktree) || ["user", "worktrees", ".", ".."].includes(worktree)) {
         console.warn(`[Cancel Stream] Invalid worktree slug rejected: ${body.worktree}`)
-        return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-          message: "Invalid worktree slug. Use lowercase letters, numbers, and hyphens (max 49 chars).",
+        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+          status: 400,
+          details: { message: "Invalid worktree slug. Use lowercase letters, numbers, and hyphens (max 49 chars)." },
         })
       }
     }
@@ -213,7 +216,7 @@ export async function POST(req: NextRequest) {
           debugEntry.result = "unauthorized"
           debugEntry.errorMessage = error.message
           logCancelDebug(debugEntry)
-          return createErrorResponse(ErrorCodes.FORBIDDEN, 403)
+          return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
         }
 
         throw error
@@ -224,8 +227,9 @@ export async function POST(req: NextRequest) {
       // tabGroupId is required to build the correct lock key
       if (!tabGroupId) {
         console.warn("[Cancel Stream] Missing tabGroupId for tabId fallback cancel")
-        return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-          message: "tabGroupId is required when cancelling by tabId",
+        return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+          status: 400,
+          details: { message: "tabGroupId is required when cancelling by tabId" },
         })
       }
 
@@ -233,7 +237,7 @@ export async function POST(req: NextRequest) {
       const verifiedWorkspace = await verifyWorkspaceAccess(user, body, "[Cancel Stream]")
       if (!verifiedWorkspace) {
         console.warn(`[Cancel Stream] User ${user.id} not authenticated for workspace`)
-        return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401)
+        return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, { status: 401 })
       }
 
       const tabKeyValue = tabKey({
@@ -273,7 +277,7 @@ export async function POST(req: NextRequest) {
           debugEntry.result = "unauthorized"
           debugEntry.errorMessage = error.message
           logCancelDebug(debugEntry)
-          return createErrorResponse(ErrorCodes.FORBIDDEN, 403)
+          return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
         }
 
         throw error
@@ -291,8 +295,9 @@ export async function POST(req: NextRequest) {
         result: "error",
         errorMessage: "Missing requestId or tabId",
       })
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        message: "Either requestId or tabId is required",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { message: "Either requestId or tabId is required" },
       })
     }
   } catch (error) {
@@ -310,9 +315,12 @@ export async function POST(req: NextRequest) {
       result: "error",
       errorMessage: error instanceof Error ? error.message : "Unknown error",
     })
-    return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      message: "Failed to process cancellation request",
-      details: { error: error instanceof Error ? error.message : "Unknown error" },
+    return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: {
+        message: "Failed to process cancellation request",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

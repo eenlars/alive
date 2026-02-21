@@ -9,7 +9,7 @@
 import * as Sentry from "@sentry/nextjs"
 import { env } from "@webalive/env/server"
 import { TEST_CONFIG } from "@webalive/shared"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
@@ -56,14 +56,14 @@ export async function GET(req: Request) {
   const hasValidSecret = expectedSecret && testSecret === expectedSecret
 
   if (!isTestEnv && !hasValidSecret) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 404)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 404 })
   }
 
   const { searchParams } = new URL(req.url)
   const email = searchParams.get("email")
 
   if (!email) {
-    return createErrorResponse(ErrorCodes.VALIDATION_ERROR, 400)
+    return structuredErrorResponse(ErrorCodes.VALIDATION_ERROR, { status: 400 })
   }
 
   try {
@@ -141,6 +141,6 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error("[Verify Tenant] Error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 }

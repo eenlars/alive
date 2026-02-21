@@ -8,7 +8,7 @@
 import { NextResponse } from "next/server"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { type ErrorCode, getErrorMessage, type StructuredError } from "@/lib/error-codes"
-import type { ApiError, OrganizationsResponse, WorkspacesResponse } from "./types"
+import type { OrganizationsResponse, WorkspacesResponse } from "./types"
 
 interface ResponseOptions {
   origin?: string | null
@@ -50,17 +50,6 @@ export function structuredErrorResponse(
 }
 
 /**
- * Create an error response (legacy - use structuredErrorResponse instead)
- */
-export function errorResponse(error: string, options: ResponseOptions & { status: number }): NextResponse {
-  const errorData: ApiError = {
-    ok: false,
-    error,
-  }
-  return jsonResponse(errorData, options)
-}
-
-/**
  * Create an organizations success response
  */
 export function organizationsResponse(
@@ -88,22 +77,6 @@ export function workspacesResponse(workspaces: string[], options: ResponseOption
 }
 
 /**
- * Common error responses
- */
-export const CommonErrors = {
-  unauthorized: (origin?: string | null) => errorResponse("Unauthorized", { origin, status: 401 }),
-
-  forbidden: (message: string, origin?: string | null) => errorResponse(message, { origin, status: 403 }),
-
-  badRequest: (message: string, origin?: string | null) => errorResponse(message, { origin, status: 400 }),
-
-  notFound: (message: string, origin?: string | null) => errorResponse(message, { origin, status: 404 }),
-
-  internal: (message = "Internal server error", origin?: string | null) =>
-    errorResponse(message, { origin, status: 500 }),
-}
-
-/**
  * Simplified CORS response helpers for common patterns
  * These always add CORS headers (unlike jsonResponse which is optional)
  */
@@ -126,6 +99,9 @@ export function createCorsResponse(origin: string | null, data: unknown, status 
 
 /**
  * Create an error JSON response with CORS headers (always applied)
+ *
+ * Similar to structuredErrorResponse but always includes CORS headers and
+ * spreads fields at root level (requestId at root, not nested under details).
  *
  * @param origin - The request origin for CORS headers
  * @param error - The error code

@@ -5,10 +5,11 @@
  */
 
 import * as Sentry from "@sentry/nextjs"
-import { deleteJob, getJob, type ScheduledJobUpdate, updateJob } from "@webalive/tools"
+import { deleteJob, getJob, updateJob } from "@webalive/tools"
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { ErrorCodes } from "@/lib/error-codes"
 
 interface RouteContext {
@@ -29,7 +30,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     const job = await getJob(jobId)
 
     if (!job) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "job" } })
+      return structuredErrorResponse(ErrorCodes.SCHEDULED_JOB_NOT_FOUND, { status: 404 })
     }
 
     // Verify ownership
@@ -61,7 +62,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const existing = await getJob(jobId)
 
     if (!existing) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "job" } })
+      return structuredErrorResponse(ErrorCodes.SCHEDULED_JOB_NOT_FOUND, { status: 404 })
     }
 
     // Verify ownership
@@ -69,8 +70,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       return structuredErrorResponse(ErrorCodes.ORG_ACCESS_DENIED, { status: 403 })
     }
 
-    const body = (await req.json()) as ScheduledJobUpdate
-    const updated = await updateJob(jobId, body)
+    const parsed = await handleBody("scheduled/update", req)
+    if (isHandleBodyError(parsed)) return parsed
+
+    const { name, description, schedule, payload, enabled, deleteAfterRun } = parsed
+    const updated = await updateJob(jobId, { name, description, schedule, payload, enabled, deleteAfterRun })
 
     if (!updated) {
       return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
@@ -98,7 +102,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     const existing = await getJob(jobId)
 
     if (!existing) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404, details: { resource: "job" } })
+      return structuredErrorResponse(ErrorCodes.SCHEDULED_JOB_NOT_FOUND, { status: 404 })
     }
 
     // Verify ownership

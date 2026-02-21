@@ -3,10 +3,10 @@ import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
 import { hasSessionCookie } from "@/features/auth/types/guards"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   try {
     const jar = await cookies()
     if (!hasSessionCookie(jar.get(COOKIE_NAMES.SESSION))) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const body = await request.json()
@@ -51,9 +51,12 @@ export async function POST(request: NextRequest) {
 
     const filePath = body.path
     if (!filePath || typeof filePath !== "string") {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Missing required field: path",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Missing required field: path",
+        },
       })
     }
 
@@ -63,19 +66,25 @@ export async function POST(request: NextRequest) {
     const resolvedPath = path.resolve(fullPath)
     const resolvedWorkspace = path.resolve(workspaceResult.workspace)
     if (!isPathWithinWorkspace(resolvedPath, resolvedWorkspace, path.sep)) {
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
-        attemptedPath: resolvedPath,
-        workspacePath: resolvedWorkspace,
+      console.warn(`[OCR ${requestId}] Path traversal blocked: ${resolvedPath} outside ${resolvedWorkspace}`)
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+          attemptedPath: filePath,
+        },
       })
     }
 
     // Check file extension
     const ext = filePath.toLowerCase().split(".").pop() || ""
     if (!IMAGE_EXTENSIONS.has(ext)) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: `Unsupported file type for OCR: .${ext}. Supported: ${[...IMAGE_EXTENSIONS].join(", ")}`,
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: `Unsupported file type for OCR: .${ext}. Supported: ${[...IMAGE_EXTENSIONS].join(", ")}`,
+        },
       })
     }
 
@@ -86,26 +95,36 @@ export async function POST(request: NextRequest) {
     } catch (fsError) {
       const err = fsError as NodeJS.ErrnoException
       if (err.code === "ENOENT") {
-        return createErrorResponse(ErrorCodes.FILE_NOT_FOUND, 404, {
-          requestId,
-          filePath,
+        return structuredErrorResponse(ErrorCodes.FILE_NOT_FOUND, {
+          status: 404,
+          details: {
+            requestId,
+            filePath,
+          },
         })
       }
       console.error(`[OCR ${requestId}] Error reading file:`, fsError)
-      return createErrorResponse(ErrorCodes.FILE_READ_ERROR, 500, {
-        requestId,
-        filePath,
-        error: err.message,
+      Sentry.captureException(fsError)
+      return structuredErrorResponse(ErrorCodes.FILE_READ_ERROR, {
+        status: 500,
+        details: {
+          requestId,
+          filePath,
+          error: err.message,
+        },
       })
     }
 
     // Check file size
     if (fileBuffer.length > MAX_OCR_FILE_SIZE) {
-      return createErrorResponse(ErrorCodes.FILE_TOO_LARGE_TO_READ, 400, {
-        requestId,
-        filePath,
-        size: fileBuffer.length,
-        maxSize: MAX_OCR_FILE_SIZE,
+      return structuredErrorResponse(ErrorCodes.FILE_TOO_LARGE_TO_READ, {
+        status: 400,
+        details: {
+          requestId,
+          filePath,
+          size: fileBuffer.length,
+          maxSize: MAX_OCR_FILE_SIZE,
+        },
       })
     }
 
@@ -133,9 +152,12 @@ export async function POST(request: NextRequest) {
     if (!ocrResponse.ok) {
       console.error(`[OCR ${requestId}] MCP server error: ${ocrResponse.status}`)
       Sentry.captureException(new Error(`OCR MCP server error: ${ocrResponse.status}`))
-      return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-        requestId,
-        message: "OCR service unavailable",
+      return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+        status: 500,
+        details: {
+          requestId,
+          message: "OCR service unavailable",
+        },
       })
     }
 
@@ -144,9 +166,12 @@ export async function POST(request: NextRequest) {
     const dataMatch = responseText.match(/^data: (.+)$/m)
     if (!dataMatch) {
       console.error(`[OCR ${requestId}] Invalid SSE response:`, responseText)
-      return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-        requestId,
-        message: "Invalid response from OCR service",
+      return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+        status: 500,
+        details: {
+          requestId,
+          message: "Invalid response from OCR service",
+        },
       })
     }
 
@@ -156,27 +181,36 @@ export async function POST(request: NextRequest) {
     if (mpcResult.error) {
       console.error(`[OCR ${requestId}] MCP error:`, mpcResult.error)
       Sentry.captureException(new Error(`OCR MCP error: ${mpcResult.error.message || "unknown"}`))
-      return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-        requestId,
-        message: mpcResult.error.message || "OCR processing failed",
+      return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+        status: 500,
+        details: {
+          requestId,
+          message: mpcResult.error.message || "OCR processing failed",
+        },
       })
     }
 
     // MCP tools/call returns result in content array
     const content = mpcResult.result?.content?.[0]
     if (!content || content.type !== "text") {
-      return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-        requestId,
-        message: "Invalid response from OCR service",
+      return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+        status: 500,
+        details: {
+          requestId,
+          message: "Invalid response from OCR service",
+        },
       })
     }
 
     const ocrResult: OcrResponse = JSON.parse(content.text)
 
     if (ocrResult.error) {
-      return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-        requestId,
-        message: ocrResult.error,
+      return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+        status: 500,
+        details: {
+          requestId,
+          message: ocrResult.error,
+        },
       })
     }
 
@@ -189,9 +223,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[OCR ${requestId}] API error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

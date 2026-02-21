@@ -13,7 +13,7 @@ import type { AppDatabase } from "@webalive/database"
 import { AutomationTriggerRequestSchema, type AutomationTriggerResponse, getServerId } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
 import { broadcastAutomationEvent } from "@/app/api/automations/events/route"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { pokeCronService } from "@/lib/automation/cron-service"
 import { executeJob } from "@/lib/automation/execute"
 import { getAutomationExecutionGate } from "@/lib/automation/execution-guard"
@@ -35,22 +35,22 @@ export async function POST(req: NextRequest) {
   if (!expectedSecret) {
     console.error("[internal/automation/trigger] JWT_SECRET not configured")
     Sentry.captureMessage("[internal/automation/trigger] JWT_SECRET not configured", "error")
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 
   if (!secret || secret !== expectedSecret) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
 
   const executionGate = getAutomationExecutionGate()
   if (!executionGate.allowed) {
-    return createErrorResponse(ErrorCodes.FORBIDDEN, 403, { message: executionGate.reason })
+    return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403, details: { message: executionGate.reason } })
   }
 
   // Parse and validate request body
   const parseResult = AutomationTriggerRequestSchema.safeParse(await req.json().catch(() => null))
   if (!parseResult.success) {
-    return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { field: "jobId" })
+    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, { status: 400, details: { field: "jobId" } })
   }
 
   const { jobId, promptOverride, triggerContext, systemPromptOverride, extraTools, responseToolName } = parseResult.data
@@ -61,11 +61,11 @@ export async function POST(req: NextRequest) {
   const { data: job, error: jobError } = await supabase.from("automation_jobs").select("*").eq("id", jobId).single()
 
   if (jobError || !job) {
-    return createErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, 404, { jobId })
+    return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, { status: 404, details: { jobId } })
   }
 
   if (!job.is_active) {
-    return createErrorResponse(ErrorCodes.AUTOMATION_JOB_DISABLED, 400, { jobId })
+    return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_DISABLED, { status: 400, details: { jobId } })
   }
 
   // Claim via engine
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (!ctx) {
-    return createErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, 409)
+    return structuredErrorResponse(ErrorCodes.AUTOMATION_ALREADY_RUNNING, { status: 409 })
   }
 
   // Attach optional overrides from the trigger request

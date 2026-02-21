@@ -16,7 +16,8 @@
 import * as Sentry from "@sentry/nextjs"
 import { REFERRAL } from "@webalive/shared"
 import { NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { awardReferralCredits } from "@/lib/credits/add-credits"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createIamClient } from "@/lib/supabase/iam"
@@ -26,7 +27,7 @@ export const runtime = "nodejs"
 // Standardized error response - all validation failures return this
 // Must be a function to create a fresh Response each time (Response bodies can only be read once)
 function invalidCodeResponse() {
-  return createErrorResponse(ErrorCodes.REFERRAL_INVALID_CODE, 400)
+  return structuredErrorResponse(ErrorCodes.REFERRAL_INVALID_CODE, { status: 400 })
 }
 
 // Check if error is a unique constraint violation (PostgreSQL error code 23505)
@@ -39,14 +40,14 @@ function isUniqueConstraintError(error: { code?: string; message?: string } | nu
 export async function POST(req: Request) {
   const user = await getSessionUser()
   if (!user) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
   const userId = user.id
 
   // Parse JSON with robust error handling (handles throws AND null returns)
   const body = await req.json().catch(() => null)
   if (!body || typeof body !== "object") {
-    return createErrorResponse(ErrorCodes.INVALID_JSON, 400)
+    return structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400 })
   }
 
   const { code } = body as { code?: unknown }
@@ -118,7 +119,7 @@ export async function POST(req: Request) {
     if (pendingInsertError) {
       console.error("Failed to create pending referral:", pendingInsertError)
       Sentry.captureException(pendingInsertError)
-      return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+      return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
     }
 
     return NextResponse.json({
@@ -145,7 +146,7 @@ export async function POST(req: Request) {
   if (insertError) {
     console.error("Failed to create referral:", insertError)
     Sentry.captureException(insertError)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
   }
 
   // 7. Award credits to both parties using shared function

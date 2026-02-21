@@ -6,11 +6,11 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { computeNextRunAtMs } from "@webalive/automation"
-import { isAliveWorkspace, isValidClaudeModel } from "@webalive/shared"
+import { isAliveWorkspace } from "@webalive/shared"
 import { protectedRoute } from "@/features/auth/lib/protectedRoute"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import type { Res } from "@/lib/api/schemas"
-import { alrighty } from "@/lib/api/server"
+import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { pokeCronService } from "@/lib/automation/cron-service"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createRLSAppClient } from "@/lib/supabase/server-rls"
@@ -79,7 +79,7 @@ export const GET = protectedRoute(async ({ user, req }) => {
   if (error) {
     console.error("[Automations API] Query error:", error)
     Sentry.captureException(error)
-    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, { status: 500 })
+    return structuredErrorResponse(ErrorCodes.QUERY_FAILED, { status: 500 })
   }
 
   // Flatten the joined data
@@ -114,58 +114,16 @@ export const GET = protectedRoute(async ({ user, req }) => {
  * POST /api/automations - Create a new automation
  */
 export const POST = protectedRoute(async ({ user, req }) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- req.json() returns Promise<any> per Web API spec; body is validated below
-  let body: Record<string, any>
-  try {
-    body = await req.json()
-  } catch {
-    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-      status: 400,
-      details: { message: "Invalid JSON body" },
-    })
-  }
+  const parsed = await handleBody("automations/create", req)
+  if (isHandleBodyError(parsed)) return parsed
 
-  // Import validators
-  const {
-    validateRequiredFields,
-    validateActionType,
-    validateTriggerType,
-    validateActionPrompt,
-    validateTimeout,
-    validateCronSchedule,
-    validateTimezone,
-    validateSiteId,
-  } = await import("@/lib/automation/validation")
+  // Import async validators (can't be handled by schema alone)
+  const { validateActionPrompt, validateCronSchedule, validateTimezone, validateSiteId } = await import(
+    "@/lib/automation/validation"
+  )
 
-  // Step 1: Validate required fields
-  const requiredCheck = validateRequiredFields(body, ["site_id", "name", "trigger_type", "action_type"])
-  if (!requiredCheck.valid) {
-    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-      status: 400,
-      details: { message: `Missing required fields: ${requiredCheck.missing?.join(", ")}` },
-    })
-  }
-
-  // Step 2: Validate action_type
-  const actionTypeCheck = validateActionType(body.action_type)
-  if (!actionTypeCheck.valid) {
-    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-      status: 400,
-      details: { field: "action_type", message: actionTypeCheck.error },
-    })
-  }
-
-  // Step 3: Validate trigger_type and trigger-specific fields
-  const triggerCheck = validateTriggerType(body.trigger_type, body)
-  if (!triggerCheck.valid) {
-    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-      status: 400,
-      details: { field: body.trigger_type, message: triggerCheck.error },
-    })
-  }
-
-  // Step 4: Validate action_prompt if prompt type
-  const promptCheck = validateActionPrompt(body.action_type, body.action_prompt)
+  // Validate action_prompt if prompt type
+  const promptCheck = validateActionPrompt(parsed.action_type, parsed.action_prompt ?? null)
   if (!promptCheck.valid) {
     return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
       status: 400,
@@ -173,34 +131,19 @@ export const POST = protectedRoute(async ({ user, req }) => {
     })
   }
 
-  // Step 5: Validate timeout if provided
-  const timeoutCheck = validateTimeout(body.action_timeout_seconds)
-  if (!timeoutCheck.valid) {
-    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-      status: 400,
-      details: { field: "action_timeout_seconds", message: timeoutCheck.error },
-    })
+  // Validate timezone if provided
+  if (parsed.cron_timezone) {
+    const tzCheck = validateTimezone(parsed.cron_timezone)
+    if (!tzCheck.valid) {
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { field: "cron_timezone", message: tzCheck.error },
+      })
+    }
   }
 
-  // Step 5b: Validate model if provided
-  if (body.action_model && !isValidClaudeModel(body.action_model)) {
-    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-      status: 400,
-      details: { field: "action_model", message: "Invalid model" },
-    })
-  }
-
-  // Step 6: Validate timezone if provided
-  const tzCheck = validateTimezone(body.cron_timezone)
-  if (!tzCheck.valid) {
-    return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
-      status: 400,
-      details: { field: "cron_timezone", message: tzCheck.error },
-    })
-  }
-
-  // Step 7: Validate site exists and get hostname
-  const siteCheck = await validateSiteId(body.site_id)
+  // Validate site exists and get hostname
+  const siteCheck = await validateSiteId(parsed.site_id)
   if (!siteCheck.valid) {
     return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, {
       status: 404,
@@ -208,7 +151,7 @@ export const POST = protectedRoute(async ({ user, req }) => {
     })
   }
 
-  // Step 7b: Alive workspace is superadmin-only
+  // Alive workspace is superadmin-only
   if (siteCheck.hostname && isAliveWorkspace(siteCheck.hostname) && !user.isSuperadmin) {
     return structuredErrorResponse(ErrorCodes.FORBIDDEN, {
       status: 403,
@@ -219,16 +162,16 @@ export const POST = protectedRoute(async ({ user, req }) => {
   const supabase = createServiceAppClient()
 
   // Get org_id from the site
-  const { data: domain } = await supabase.from("domains").select("org_id").eq("domain_id", body.site_id).single()
+  const { data: domain } = await supabase.from("domains").select("org_id").eq("domain_id", parsed.site_id).single()
 
   if (!domain?.org_id) {
     return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
   }
 
-  // Step 8: Validate and compute cron schedule if present
+  // Validate and compute cron schedule if present
   let nextRunAt: string | null = null
-  if (body.trigger_type === "cron" && body.cron_schedule) {
-    const cronCheck = validateCronSchedule(body.cron_schedule, body.cron_timezone)
+  if (parsed.trigger_type === "cron" && parsed.cron_schedule) {
+    const cronCheck = validateCronSchedule(parsed.cron_schedule, parsed.cron_timezone ?? null)
     if (!cronCheck.valid) {
       return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
         status: 400,
@@ -236,38 +179,37 @@ export const POST = protectedRoute(async ({ user, req }) => {
       })
     }
 
-    // Compute next_run_at and get preview
-    const nextMs = computeNextRunAtMs({ kind: "cron", expr: body.cron_schedule, tz: body.cron_timezone }, Date.now())
+    const nextMs = computeNextRunAtMs(
+      { kind: "cron", expr: parsed.cron_schedule, tz: parsed.cron_timezone ?? undefined },
+      Date.now(),
+    )
     if (nextMs) {
       nextRunAt = new Date(nextMs).toISOString()
     }
-  } else if (body.trigger_type === "one-time" && body.run_at) {
-    nextRunAt = body.run_at
+  } else if (parsed.trigger_type === "one-time" && parsed.run_at) {
+    nextRunAt = parsed.run_at
   }
-
-  // Validate skills if provided (must be array of strings)
-  const skills = Array.isArray(body.skills) ? body.skills.filter((s: unknown) => typeof s === "string") : []
 
   const { data, error } = await supabase
     .from("automation_jobs")
     .insert({
-      site_id: body.site_id,
+      site_id: parsed.site_id,
       user_id: user.id,
       org_id: domain.org_id,
-      name: body.name,
-      description: body.description,
-      trigger_type: body.trigger_type,
-      cron_schedule: body.cron_schedule,
-      cron_timezone: body.cron_timezone,
-      run_at: body.run_at,
-      action_type: body.action_type,
-      action_prompt: body.action_prompt,
-      action_source: body.action_source,
-      action_target_page: body.action_target_page,
-      skills: skills.length > 0 ? skills : [],
-      action_model: body.action_model || null,
-      email_address: body.trigger_type === "email" ? body.email_address : null,
-      is_active: body.is_active ?? true,
+      name: parsed.name,
+      description: parsed.description ?? null,
+      trigger_type: parsed.trigger_type,
+      cron_schedule: parsed.cron_schedule ?? null,
+      cron_timezone: parsed.cron_timezone ?? null,
+      run_at: parsed.run_at ?? null,
+      action_type: parsed.action_type,
+      action_prompt: parsed.action_prompt ?? null,
+      action_source: parsed.action_source ?? null,
+      action_target_page: parsed.action_target_page ?? null,
+      skills: parsed.skills.length > 0 ? parsed.skills : [],
+      action_model: parsed.action_model ?? null,
+      email_address: parsed.trigger_type === "email" ? (parsed.email_address ?? null) : null,
+      is_active: parsed.is_active,
       next_run_at: nextRunAt,
     })
     .select()

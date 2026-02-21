@@ -1,10 +1,11 @@
 import { env } from "@webalive/env/server"
 import { buildSessionOrgClaims, SECURITY, STANDALONE, SUPERADMIN } from "@webalive/shared"
 import { cookies } from "next/headers"
-import { NextResponse } from "next/server"
+import type { NextResponse } from "next/server"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
 import { filterLocalDomains } from "@/lib/domains"
-import { type ErrorCode, ErrorCodes, getErrorMessage } from "@/lib/error-codes"
+import { ErrorCodes } from "@/lib/error-codes"
 import { createAppClient } from "@/lib/supabase/app"
 import { createIamClient } from "@/lib/supabase/iam"
 import {
@@ -489,7 +490,7 @@ export async function getSafeSessionCookie(logPrefix = "[Auth]"): Promise<string
  * const user = await requireSessionUser()
  * const workspace = await verifyWorkspaceAccess(user, body, "[MyRoute]")
  * if (!workspace) {
- *   return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401)
+ *   return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, { status: 401 })
  * }
  */
 export async function verifyWorkspaceAccess(
@@ -580,43 +581,6 @@ export async function verifyWorkspaceAccess(
 }
 
 /**
- * Create standardized error response
- *
- * @param error - Error code from ErrorCodes
- * @param status - HTTP status code
- * @param fields - Context for getErrorMessage() AND additional response fields
- *                 (message field will be filtered out if present)
- *
- * @example
- * // With message context
- * createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, { field: "email", requestId })
- * // Returns: { ok: false, error: "INVALID_REQUEST", message: "The email field...", category: "user", field: "email", requestId: "..." }
- *
- * @example
- * // With exception details
- * createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, { exception: err.message, requestId })
- * // Returns: { ok: false, error: "INTERNAL_ERROR", message: "Something went wrong...", category: "server", exception: "...", requestId: "..." }
- */
-export function createErrorResponse(error: ErrorCode, status: number, fields?: Record<string, unknown>): NextResponse {
-  // Remove 'message' from fields if present (prevent override of centralized message)
-  const { message: _, ...safeFields } = fields || {}
-
-  // Determine error category for frontend handling
-  const category = status >= 500 ? "server" : "user"
-
-  return NextResponse.json(
-    {
-      ok: false,
-      error,
-      message: getErrorMessage(error, fields), // Centralized message with dynamic context
-      category, // 'user' (4xx) or 'server' (5xx)
-      ...safeFields, // Include all other fields in response
-    },
-    { status },
-  )
-}
-
-/**
  * Validate request with session and workspace authorization
  *
  * DRY helper that performs all common validation steps:
@@ -647,7 +611,7 @@ export async function validateRequest(
   if (!sessionCookie?.value) {
     console.log(`${logPrefix} No session cookie found`)
     return {
-      error: createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId }),
+      error: structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } }),
     }
   }
 
@@ -656,7 +620,7 @@ export async function validateRequest(
   if (!user) {
     console.log(`${logPrefix} Failed to get session user`)
     return {
-      error: createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId }),
+      error: structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } }),
     }
   }
 
@@ -667,7 +631,7 @@ export async function validateRequest(
   } catch (jsonError) {
     console.error(`${logPrefix} Failed to parse JSON body:`, jsonError)
     return {
-      error: createErrorResponse(ErrorCodes.INVALID_JSON, 400, { requestId }),
+      error: structuredErrorResponse(ErrorCodes.INVALID_JSON, { status: 400, details: { requestId } }),
     }
   }
 
@@ -675,7 +639,7 @@ export async function validateRequest(
   const workspace = await verifyWorkspaceAccess(user, body, logPrefix)
   if (!workspace) {
     return {
-      error: createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, { requestId }),
+      error: structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, { status: 401, details: { requestId } }),
     }
   }
 
@@ -720,7 +684,7 @@ export async function requireWorkspaceAuth(
   if (!user) {
     return {
       success: false,
-      error: createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId }),
+      error: structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } }),
     }
   }
 
@@ -729,7 +693,7 @@ export async function requireWorkspaceAuth(
   if (!workspace) {
     return {
       success: false,
-      error: createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, { requestId }),
+      error: structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, { status: 401, details: { requestId } }),
     }
   }
 

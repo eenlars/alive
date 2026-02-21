@@ -14,9 +14,11 @@
  *
  */
 
+import * as Sentry from "@sentry/nextjs"
 import { generateInviteCode } from "@webalive/shared"
 import { NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { buildInviteLink } from "@/lib/referral"
 import { createIamClient } from "@/lib/supabase/iam"
@@ -28,7 +30,7 @@ export async function GET() {
   // 1. Authenticate user
   const user = await getSessionUser()
   if (!user) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
   const userId = user.id
 
@@ -47,11 +49,12 @@ export async function GET() {
 
   if (rpcError) {
     console.error("[Referral] Failed to get/create invite code:", rpcError)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500)
+    Sentry.captureException(rpcError)
+    return structuredErrorResponse(ErrorCodes.QUERY_FAILED, { status: 500 })
   }
 
   if (!inviteCode) {
-    return createErrorResponse(ErrorCodes.USER_NOT_FOUND, 404)
+    return structuredErrorResponse(ErrorCodes.USER_NOT_FOUND, { status: 404 })
   }
 
   // 4. Get referral stats - count of completed referrals

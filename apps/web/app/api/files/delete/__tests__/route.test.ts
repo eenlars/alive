@@ -18,15 +18,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 // Mock auth functions
 vi.mock("@/features/auth/lib/auth", async () => {
-  const { NextResponse } = await import("next/server")
   return {
     getSessionUser: vi.fn(),
     verifyWorkspaceAccess: vi.fn(),
-    createErrorResponse: vi.fn((code, status, fields) => {
-      return NextResponse.json({ ok: false, error: code, ...fields }, { status })
-    }),
   }
 })
+
+// Use real structuredErrorResponse - no mock needed for simple response builders
 
 // Mock workspace resolution
 vi.mock("@/features/chat/lib/workspaceRetriever", () => ({
@@ -204,7 +202,7 @@ describe("POST /api/files/delete", () => {
 
       expect(response.status).toBe(403)
       expect(data.error).toBe("FILE_PROTECTED")
-      expect(data.reason).toContain("critical file")
+      expect(data.details.reason).toContain("critical file")
     })
 
     it("should block deletion of INDEX.TS (case-insensitive)", async () => {
@@ -378,7 +376,7 @@ describe("POST /api/files/delete", () => {
 
       expect(response.status).toBe(400)
       expect(data.error).toBe("INVALID_REQUEST")
-      expect(data.hint).toContain("recursive")
+      expect(data.details.hint).toContain("recursive")
 
       // Cleanup
       rmSync(testDir, { recursive: true })

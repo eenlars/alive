@@ -1,38 +1,15 @@
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { z } from "zod"
 import { createSessionToken } from "@/features/auth/lib/jwt"
 import { createCorsResponse, createCorsSuccessResponse } from "@/lib/api/responses"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { COOKIE_NAMES, getSessionCookieOptions } from "@/lib/auth/cookies"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { getUserDefaultOrgId } from "@/lib/deployment/org-resolver"
-import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
+import { ErrorCodes } from "@/lib/error-codes"
 import { createIamClient } from "@/lib/supabase/iam"
 import { generateRequestId } from "@/lib/utils"
 import { hashPassword } from "@/types/guards/api"
-
-const SignupSchema = z.object({
-  email: z.string().email("Invalid email format"),
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters")
-    .max(64, "Password must be at most 64 characters"),
-  name: z.string().max(100).optional(),
-})
-
-export type SignupResponse = {
-  ok: true
-  userId: string
-  email: string
-  message: string
-}
-
-export type SignupErrorResponse = {
-  ok: false
-  error: string
-  message: string
-  requestId: string
-}
 
 /**
  * POST /api/auth/signup
@@ -53,38 +30,13 @@ export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin")
   const host = req.headers.get("host") || undefined
 
-  let body: unknown
-  try {
-    body = await req.json()
-  } catch {
-    return createCorsResponse(
-      origin,
-      {
-        ok: false,
-        error: ErrorCodes.INVALID_JSON,
-        message: getErrorMessage(ErrorCodes.INVALID_JSON),
-        requestId,
-      },
-      400,
-    )
+  const parsed = await handleBody("signup", req)
+  if (isHandleBodyError(parsed)) {
+    addCorsHeaders(parsed, origin)
+    return parsed
   }
 
-  const result = SignupSchema.safeParse(body)
-  if (!result.success) {
-    const firstError = result.error.issues[0]
-    return createCorsResponse(
-      origin,
-      {
-        ok: false,
-        error: ErrorCodes.VALIDATION_ERROR,
-        message: firstError?.message || "Invalid input",
-        requestId,
-      },
-      400,
-    )
-  }
-
-  const { email, password, name } = result.data
+  const { email, password, name } = parsed
   const normalizedEmail = email.toLowerCase().trim()
   const displayName = name?.trim() || null
 
@@ -171,14 +123,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Signup] Created account for ${normalizedEmail} (org: ${orgId})`)
 
-    const response: SignupResponse = {
-      ok: true,
+    const res = createCorsSuccessResponse(origin, {
       userId: newUser.user_id,
-      email: normalizedEmail, // Use validated input
+      email: normalizedEmail,
       message: "Account created successfully",
-    }
-
-    const res = createCorsSuccessResponse(origin, response)
+    })
     res.cookies.set(COOKIE_NAMES.SESSION, sessionToken, getSessionCookieOptions(host))
     return res
   } catch (error) {

@@ -9,12 +9,15 @@ vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }))
 
-vi.mock("@/features/auth/lib/auth", async () => {
+vi.mock("@/features/auth/lib/auth", () => ({
+  getSessionUser: vi.fn(),
+}))
+
+vi.mock("@/lib/api/responses", async () => {
   const { NextResponse } = await import("next/server")
   return {
-    getSessionUser: vi.fn(),
-    createErrorResponse: vi.fn((code, status, fields) => {
-      return NextResponse.json({ ok: false, error: code, ...fields }, { status })
+    structuredErrorResponse: vi.fn((code, { status, details }) => {
+      return NextResponse.json({ ok: false, error: code, ...details }, { status })
     }),
   }
 })

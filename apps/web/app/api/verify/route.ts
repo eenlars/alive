@@ -1,8 +1,9 @@
 import * as Sentry from "@sentry/nextjs"
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
-import { createErrorResponse, validateRequest } from "@/features/auth/lib/auth"
+import { validateRequest } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
@@ -49,9 +50,12 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error(`[Verify API ${requestId}] Verification failed:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      requestId,
-      details: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

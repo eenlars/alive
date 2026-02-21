@@ -297,7 +297,7 @@ describe("GET /api/conversations", () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe(ErrorCodes.INTERNAL_ERROR)
+      expect(data.error).toBe(ErrorCodes.QUERY_FAILED)
     })
 
     it("should handle empty results gracefully", async () => {

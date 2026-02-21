@@ -2,7 +2,7 @@ import { NextRequest } from "next/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ErrorCodes } from "@/lib/error-codes"
 
-const createErrorResponseMock = vi.fn()
+const structuredErrorResponseMock = vi.fn()
 const getAutomationExecutionGateMock = vi.fn()
 const createServiceAppClientMock = vi.fn()
 const claimJobMock = vi.fn()
@@ -10,9 +10,11 @@ const extractSummaryMock = vi.fn()
 const finishJobMock = vi.fn()
 const executeJobMock = vi.fn()
 
-vi.mock("@/features/auth/lib/auth", () => ({
-  createErrorResponse: (code: string, status: number, fields?: Record<string, unknown>) =>
-    createErrorResponseMock(code, status, fields),
+vi.mock("@/features/auth/lib/auth", () => ({}))
+
+vi.mock("@/lib/api/responses", () => ({
+  structuredErrorResponse: (code: string, opts: { status: number; details?: Record<string, unknown> }) =>
+    structuredErrorResponseMock(code, opts),
 }))
 
 vi.mock("@/lib/automation/execution-guard", () => ({
@@ -78,9 +80,9 @@ describe("POST /api/internal/automation/trigger", () => {
       numTurns: 1,
       usage: { input_tokens: 12, output_tokens: 24 },
     })
-    createErrorResponseMock.mockImplementation(
-      (code: string, status: number, fields?: Record<string, unknown>) =>
-        new Response(JSON.stringify({ ok: false, error: code, ...fields }), { status }),
+    structuredErrorResponseMock.mockImplementation(
+      (code: string, opts: { status: number; details?: Record<string, unknown> }) =>
+        new Response(JSON.stringify({ ok: false, error: code, ...opts.details }), { status: opts.status }),
     )
   })
 

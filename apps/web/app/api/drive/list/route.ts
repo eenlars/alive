@@ -2,10 +2,11 @@ import { lstat, readdir, readlink } from "node:fs/promises"
 import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
-import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { ensureDriveDir } from "@/features/chat/lib/drivePath"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import { isPathWithinWorkspace } from "@/features/workspace/types/workspace"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const parsed = await handleBody("drive/list", request)
@@ -28,17 +29,23 @@ export async function POST(request: NextRequest) {
       `[Drive List ${requestId}]`,
     )
     if (!authorizedWorkspace) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, {
-        requestId,
-        workspace: parsed.workspace,
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
+        status: 401,
+        details: {
+          requestId,
+          workspace: parsed.workspace,
+        },
       })
     }
 
     const host = request.headers.get("host")
     if (!host) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        message: "Missing host header",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: {
+          requestId,
+          message: "Missing host header",
+        },
       })
     }
     const body = { workspace: parsed.workspace, path: parsed.path, worktree: parsed.worktree }
@@ -55,8 +62,11 @@ export async function POST(request: NextRequest) {
     const resolvedPath = path.resolve(fullPath)
     const resolvedDrive = path.resolve(drivePath)
     if (!isPathWithinWorkspace(resolvedPath, resolvedDrive, path.sep)) {
-      return createErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, 403, {
-        requestId,
+      return structuredErrorResponse(ErrorCodes.PATH_OUTSIDE_WORKSPACE, {
+        status: 403,
+        details: {
+          requestId,
+        },
       })
     }
 
@@ -88,8 +98,8 @@ export async function POST(request: NextRequest) {
             const stats = await lstat(entryPath)
             size = stats.size
             modified = stats.mtime.toISOString()
-          } catch {
-            // Skip stat errors (broken symlinks etc.)
+          } catch (_err) {
+            // Expected: broken symlinks, permission errors
           }
           return {
             name: entry.name,
@@ -107,16 +117,23 @@ export async function POST(request: NextRequest) {
       })
     } catch (fsError) {
       console.error(`[Drive ${requestId}] Error reading directory:`, fsError)
-      return createErrorResponse(ErrorCodes.FILE_READ_ERROR, 500, {
-        requestId,
-        filePath: targetPath,
+      Sentry.captureException(fsError)
+      return structuredErrorResponse(ErrorCodes.FILE_READ_ERROR, {
+        status: 500,
+        details: {
+          requestId,
+          filePath: targetPath,
+        },
       })
     }
   } catch (error) {
     console.error("[Drive] List API error:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, 500, {
-      requestId,
+    return structuredErrorResponse(ErrorCodes.REQUEST_PROCESSING_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+      },
     })
   }
 }

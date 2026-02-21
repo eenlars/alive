@@ -10,7 +10,8 @@
 
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { getOAuthInstance, getUserEnvKeysManager } from "@/lib/oauth/oauth-instances"
 
@@ -24,13 +25,14 @@ const SUPABASE_PROJECT_REF_KEY = "SUPABASE_PROJECT_REF"
  *
  * Response:
  * - 200: { accessToken: string, projectRef: string }
- * - 401: Not authenticated or not connected to Supabase
+ * - 401: Not authenticated
+ * - 403: Integration not connected
  * - 404: Connected but no project configured
  */
 export async function GET(_req: NextRequest): Promise<NextResponse> {
   const user = await getSessionUser()
   if (!user) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
 
   try {
@@ -40,18 +42,24 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
     // Check if connected
     const isConnected = await oauthManager.isConnected(user.id, "supabase")
     if (!isConnected) {
-      return createErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, 401, {
-        provider: "supabase",
-        message: "Not connected to Supabase. Please connect via Settings > Integrations.",
+      return structuredErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, {
+        status: 403,
+        details: {
+          provider: "supabase",
+          message: "Not connected to Supabase. Please connect via Settings > Integrations.",
+        },
       })
     }
 
     // Get access token
     const accessToken = await oauthManager.getAccessToken(user.id, "supabase")
     if (!accessToken) {
-      return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 401, {
-        provider: "supabase",
-        message: "Failed to get Supabase access token. Please reconnect.",
+      return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+        status: 401,
+        details: {
+          provider: "supabase",
+          message: "Failed to get Supabase access token. Please reconnect.",
+        },
       })
     }
 
@@ -61,9 +69,12 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
     const projectRef = envKeys[SUPABASE_PROJECT_REF_KEY]
 
     if (!projectRef) {
-      return createErrorResponse(ErrorCodes.INTEGRATION_NOT_CONFIGURED, 404, {
-        provider: "supabase",
-        message: "No Supabase project configured. Please select a project in Settings > Integrations > Supabase.",
+      return structuredErrorResponse(ErrorCodes.INTEGRATION_NOT_CONFIGURED, {
+        status: 404,
+        details: {
+          provider: "supabase",
+          message: "No Supabase project configured. Please select a project in Settings > Integrations > Supabase.",
+        },
       })
     }
 
@@ -74,8 +85,9 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error("[Supabase Context] Failed to get context:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
-      provider: "supabase",
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+      status: 500,
+      details: { provider: "supabase" },
     })
   }
 }
@@ -97,7 +109,7 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
 export async function PUT(req: NextRequest): Promise<NextResponse> {
   const user = await getSessionUser()
   if (!user) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
 
   try {
@@ -106,16 +118,18 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
 
     // Validate project ref format (alphanumeric, typically 20 chars)
     if (!projectRef || typeof projectRef !== "string") {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: "projectRef is required",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { reason: "projectRef is required" },
       })
     }
 
     // Basic validation: Supabase project refs are alphanumeric
     const projectRefRegex = /^[a-zA-Z0-9]{10,30}$/
     if (!projectRefRegex.test(projectRef)) {
-      return createErrorResponse(ErrorCodes.INVALID_REQUEST, 400, {
-        reason: "Invalid project ref format. Should be 10-30 alphanumeric characters.",
+      return structuredErrorResponse(ErrorCodes.INVALID_REQUEST, {
+        status: 400,
+        details: { reason: "Invalid project ref format. Should be 10-30 alphanumeric characters." },
       })
     }
 
@@ -123,9 +137,12 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
     const oauthManager = getOAuthInstance("supabase")
     const isConnected = await oauthManager.isConnected(user.id, "supabase")
     if (!isConnected) {
-      return createErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, 401, {
-        provider: "supabase",
-        message: "Please connect to Supabase first before configuring a project.",
+      return structuredErrorResponse(ErrorCodes.INTEGRATION_NOT_CONNECTED, {
+        status: 403,
+        details: {
+          provider: "supabase",
+          message: "Please connect to Supabase first before configuring a project.",
+        },
       })
     }
 
@@ -145,8 +162,9 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error("[Supabase Context] Failed to update project ref:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
-      provider: "supabase",
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+      status: 500,
+      details: { provider: "supabase" },
     })
   }
 }
@@ -164,7 +182,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
 export async function DELETE(_req: NextRequest): Promise<NextResponse> {
   const user = await getSessionUser()
   if (!user) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
 
   try {
@@ -177,8 +195,9 @@ export async function DELETE(_req: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error("[Supabase Context] Failed to remove project ref:", error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTEGRATION_ERROR, 500, {
-      provider: "supabase",
+    return structuredErrorResponse(ErrorCodes.INTEGRATION_ERROR, {
+      status: 500,
+      details: { provider: "supabase" },
     })
   }
 }

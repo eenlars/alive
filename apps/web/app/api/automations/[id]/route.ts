@@ -10,6 +10,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/features/auth/lib/auth"
 import { structuredErrorResponse } from "@/lib/api/responses"
 import { isScheduleTrigger, type TriggerType } from "@/lib/api/schemas"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { pokeCronService } from "@/lib/automation/cron-service"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createRLSAppClient } from "@/lib/supabase/server-rls"
@@ -58,14 +59,14 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       .single()
 
     if (error || !data) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, { status: 404 })
     }
 
     const row = data as unknown as { user_id: string; domains?: { hostname: string } }
 
     // Verify ownership
     if (row.user_id !== user.id) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
     return NextResponse.json({
@@ -92,7 +93,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     const { id } = await context.params
-    const body = await req.json()
+
+    const parsed = await handleBody("automations/update", req)
+    if (isHandleBodyError(parsed)) return parsed
+
     const supabase = createServiceAppClient()
 
     // Import validators
@@ -107,18 +111,18 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       .single()
 
     if (!existing) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, { status: 404 })
     }
 
     const existingRow = existing as unknown as AutomationJobOwnership
 
     if (existingRow.user_id !== user.id) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
-    // Build update object with only allowed fields
+    // Build update object from validated parsed body
     const updates: Record<string, unknown> = {}
-    const allowedFields = [
+    const fieldKeys = [
       "name",
       "description",
       "cron_schedule",
@@ -131,16 +135,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       "action_timeout_seconds",
       "skills",
       "is_active",
-    ]
+    ] as const
 
-    for (const field of allowedFields) {
-      if (field in body) {
-        // Validate skills array
-        if (field === "skills") {
-          updates[field] = Array.isArray(body[field]) ? body[field].filter((s: unknown) => typeof s === "string") : []
-        } else {
-          updates[field] = body[field]
-        }
+    for (const field of fieldKeys) {
+      if (field in parsed) {
+        updates[field] = parsed[field as keyof typeof parsed]
       }
     }
 
@@ -299,13 +298,13 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     const { data: existing } = await supabase.from("automation_jobs").select("user_id").eq("id", id).single()
 
     if (!existing) {
-      return structuredErrorResponse(ErrorCodes.SITE_NOT_FOUND, { status: 404 })
+      return structuredErrorResponse(ErrorCodes.AUTOMATION_JOB_NOT_FOUND, { status: 404 })
     }
 
     const existingRow = existing as unknown as { user_id: string }
 
     if (existingRow.user_id !== user.id) {
-      return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 403 })
+      return structuredErrorResponse(ErrorCodes.FORBIDDEN, { status: 403 })
     }
 
     const { error } = await supabase.from("automation_jobs").delete().eq("id", id)

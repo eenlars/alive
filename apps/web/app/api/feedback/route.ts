@@ -1,22 +1,11 @@
 import * as Sentry from "@sentry/nextjs"
 import { type NextRequest, NextResponse } from "next/server"
-import { z } from "zod"
 import { createCorsErrorResponse, createCorsSuccessResponse } from "@/lib/api/responses"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { ErrorCodes } from "@/lib/error-codes"
 import { addFeedbackEntry } from "@/lib/feedback"
 import { generateRequestId } from "@/lib/utils"
-
-/**
- * Zod schema for feedback submission
- */
-const FeedbackSchema = z.object({
-  feedback: z.string().min(1).max(5000),
-  email: z.string().email().optional(),
-  workspace: z.string().optional(),
-  conversationId: z.string().uuid().optional(),
-  userAgent: z.string().optional(),
-})
 
 /**
  * POST /api/feedback
@@ -27,18 +16,13 @@ export async function POST(req: NextRequest) {
   const origin = req.headers.get("origin")
 
   try {
-    // Parse request body
-    const body = await req.json().catch(() => ({}))
-    const result = FeedbackSchema.safeParse(body)
-
-    if (!result.success) {
-      return createCorsErrorResponse(origin, ErrorCodes.INVALID_REQUEST, 400, {
-        requestId,
-        details: { issues: result.error.issues },
-      })
+    const parsed = await handleBody("feedback", req)
+    if (isHandleBodyError(parsed)) {
+      addCorsHeaders(parsed, origin)
+      return parsed
     }
 
-    const { feedback, email, workspace, conversationId, userAgent } = result.data
+    const { feedback, email, workspace, conversationId, userAgent } = parsed
 
     // Add feedback entry to storage
     const entry = await addFeedbackEntry({

@@ -32,14 +32,20 @@ vi.mock("@/features/auth/lib/auth", () => ({
   }),
   verifyWorkspaceAccess: async (_user: MockUser, body: CancelRequestBody): Promise<string> =>
     body.workspace || "test-workspace",
-  createErrorResponse: (error: string, status: number, fields?: Record<string, unknown>) => {
+}))
+
+vi.mock("@/lib/api/responses", () => ({
+  structuredErrorResponse: (
+    error: string,
+    { status, details }: { status: number; details?: Record<string, unknown> },
+  ) => {
     return new Response(
       JSON.stringify({
         ok: false,
         error,
         message: `Error: ${error}`,
         category: status >= 500 ? "server" : "user",
-        ...fields,
+        ...details,
       }),
       { status },
     )

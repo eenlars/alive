@@ -1,7 +1,7 @@
 import path from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
-import { createErrorResponse, getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
+import { getSessionUser, verifyWorkspaceAccess } from "@/features/auth/lib/auth"
 import { getWorkspace } from "@/features/chat/lib/workspaceRetriever"
 import {
   createWorktree,
@@ -10,6 +10,7 @@ import {
   removeWorktree,
   WorktreeError,
 } from "@/features/worktrees/lib/worktrees"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { alrighty, handleBody, isHandleBodyError } from "@/lib/api/server"
 import { type ErrorCode, ErrorCodes } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
@@ -114,19 +115,22 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const { searchParams } = new URL(req.url)
     workspace = (searchParams.get("workspace") || "").trim()
 
     if (!workspace) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_MISSING, 400, { requestId })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_MISSING, { status: 400, details: { requestId } })
     }
 
     const authorized = await verifyWorkspaceAccess(user, { workspace }, `[Worktrees ${requestId}]`)
     if (!authorized) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, { requestId, workspace })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
+        status: 401,
+        details: { requestId, workspace },
+      })
     }
 
     const host = req.headers.get("host") || "localhost"
@@ -151,14 +155,17 @@ export async function GET(req: NextRequest) {
         logGitFailure(requestId, error, { workspace, method: "GET" })
       }
       const mapped = mapWorktreeError(error, { workspace })
-      return createErrorResponse(mapped.code, mapped.status, { requestId, ...mapped.details })
+      return structuredErrorResponse(mapped.code, { status: mapped.status, details: { requestId, ...mapped.details } })
     }
 
     console.error(`[Worktrees ${requestId}] GET error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
@@ -170,7 +177,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const parsed = await handleBody("worktrees/create", req)
@@ -183,12 +190,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (!body.workspace?.trim()) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_MISSING, 400, { requestId })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_MISSING, { status: 400, details: { requestId } })
     }
 
     const authorized = await verifyWorkspaceAccess(user, body, `[Worktrees ${requestId}]`)
     if (!authorized) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, { requestId, workspace: body.workspace })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
+        status: 401,
+        details: { requestId, workspace: body.workspace },
+      })
     }
 
     const host = req.headers.get("host") || "localhost"
@@ -222,14 +232,17 @@ export async function POST(req: NextRequest) {
         logGitFailure(requestId, error, { workspace: body?.workspace, slug: body?.slug, method: "POST" })
       }
       const mapped = mapWorktreeError(error, { workspace: body?.workspace, slug: body?.slug })
-      return createErrorResponse(mapped.code, mapped.status, { requestId, ...mapped.details })
+      return structuredErrorResponse(mapped.code, { status: mapped.status, details: { requestId, ...mapped.details } })
     }
 
     console.error(`[Worktrees ${requestId}] POST error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
@@ -242,7 +255,7 @@ export async function DELETE(req: NextRequest) {
   try {
     const user = await getSessionUser()
     if (!user) {
-      return createErrorResponse(ErrorCodes.NO_SESSION, 401, { requestId })
+      return structuredErrorResponse(ErrorCodes.NO_SESSION, { status: 401, details: { requestId } })
     }
 
     const { searchParams } = new URL(req.url)
@@ -251,16 +264,19 @@ export async function DELETE(req: NextRequest) {
     const deleteBranch = searchParams.get("deleteBranch") === "true"
 
     if (!workspace) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_MISSING, 400, { requestId })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_MISSING, { status: 400, details: { requestId } })
     }
 
     if (!slug) {
-      return createErrorResponse(ErrorCodes.MISSING_SLUG, 400, { requestId })
+      return structuredErrorResponse(ErrorCodes.MISSING_SLUG, { status: 400, details: { requestId } })
     }
 
     const authorized = await verifyWorkspaceAccess(user, { workspace }, `[Worktrees ${requestId}]`)
     if (!authorized) {
-      return createErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, 401, { requestId, workspace })
+      return structuredErrorResponse(ErrorCodes.WORKSPACE_NOT_AUTHENTICATED, {
+        status: 401,
+        details: { requestId, workspace },
+      })
     }
 
     const host = req.headers.get("host") || "localhost"
@@ -282,14 +298,17 @@ export async function DELETE(req: NextRequest) {
         logGitFailure(requestId, error, { workspace, slug, method: "DELETE" })
       }
       const mapped = mapWorktreeError(error, { workspace, slug })
-      return createErrorResponse(mapped.code, mapped.status, { requestId, ...mapped.details })
+      return structuredErrorResponse(mapped.code, { status: mapped.status, details: { requestId, ...mapped.details } })
     }
 
     console.error(`[Worktrees ${requestId}] DELETE error:`, error)
     Sentry.captureException(error)
-    return createErrorResponse(ErrorCodes.INTERNAL_ERROR, 500, {
-      requestId,
-      error: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.INTERNAL_ERROR, {
+      status: 500,
+      details: {
+        requestId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }

@@ -1,4 +1,5 @@
 import { nextRouteHandler } from "@flowglad/nextjs/server"
+import * as Sentry from "@sentry/nextjs"
 import { cookies } from "next/headers"
 import { verifySessionToken } from "@/features/auth/lib/jwt"
 import { COOKIE_NAMES } from "@/lib/auth/cookies"
@@ -49,5 +50,6 @@ export const { GET, POST } = nextRouteHandler({
   flowglad: (customerExternalId: string) => createFlowgladServer(customerExternalId),
   onError: error => {
     console.error("[Flowglad API] Error:", error)
+    Sentry.captureException(error)
   },
 })

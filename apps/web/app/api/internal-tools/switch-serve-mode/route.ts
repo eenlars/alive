@@ -4,7 +4,7 @@ import { basename, dirname, join } from "node:path"
 import * as Sentry from "@sentry/nextjs"
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { createErrorResponse } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { handleWorkspaceApi } from "@/lib/workspace-api-handler"
 import { detectServeMode, runAsWorkspaceUser } from "@/lib/workspace-execution/command-runner"
@@ -28,7 +28,8 @@ function hasProductionStaticServing(workspaceRoot: string): boolean {
     const content = readFileSync(serverPath, "utf-8")
     // Check for common patterns that indicate static file serving
     return content.includes("serveStatic") && content.includes("dist")
-  } catch {
+  } catch (_err) {
+    // Expected: server.ts may not exist or be unreadable
     return false
   }
 }
@@ -47,7 +48,8 @@ function needsBackendScriptUpdate(workspaceRoot: string): boolean {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"))
     // Needs update if preview is still "vite preview" (default)
     return packageJson.scripts?.preview === "vite preview"
-  } catch {
+  } catch (_err) {
+    // Expected: package.json may not exist or be invalid
     return false
   }
 }
@@ -99,7 +101,10 @@ export async function POST(req: Request) {
 
   if (!internalSecret || providedSecret !== internalSecret) {
     console.error("[switch-serve-mode] Unauthorized: Invalid or missing internal tools secret")
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401, { requestId: crypto.randomUUID() })
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, {
+      status: 401,
+      details: { requestId: crypto.randomUUID() },
+    })
   }
 
   return handleWorkspaceApi(req, {

@@ -1,9 +1,9 @@
 import { env } from "@webalive/env/server"
 import { buildSessionOrgClaims, SECURITY, STANDALONE } from "@webalive/shared"
 import { type NextRequest, NextResponse } from "next/server"
-import { z } from "zod"
 import { createSessionToken } from "@/features/auth/lib/jwt"
 import { createCorsResponse, createCorsSuccessResponse } from "@/lib/api/responses"
+import { handleBody, isHandleBodyError } from "@/lib/api/server"
 import { COOKIE_NAMES, getSessionCookieOptions } from "@/lib/auth/cookies"
 import { addCorsHeaders } from "@/lib/cors-utils"
 import { filterLocalDomains } from "@/lib/domains"
@@ -13,38 +13,18 @@ import { createIamClient } from "@/lib/supabase/iam"
 import { generateRequestId } from "@/lib/utils"
 import { verifyPassword } from "@/types/guards/api"
 
-const LoginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-})
-
 export async function POST(req: NextRequest) {
   const requestId = generateRequestId()
   const origin = req.headers.get("origin")
   const host = req.headers.get("host") || undefined
-  let body: unknown = {}
-  try {
-    body = await req.json()
-  } catch {
-    // Malformed request body — fall through to schema validation failure
-  }
-  const result = LoginSchema.safeParse(body)
 
-  if (!result.success) {
-    return createCorsResponse(
-      origin,
-      {
-        ok: false,
-        error: ErrorCodes.INVALID_REQUEST,
-        message: getErrorMessage(ErrorCodes.INVALID_REQUEST),
-        details: { issues: result.error.issues },
-        requestId,
-      },
-      400,
-    )
+  const parsed = await handleBody("login", req)
+  if (isHandleBodyError(parsed)) {
+    addCorsHeaders(parsed, origin)
+    return parsed
   }
 
-  const { email, password } = result.data
+  const { email, password } = parsed
 
   // Standalone mode - auto-login with any credentials (for local development)
   if (process.env.STREAM_ENV === "standalone") {

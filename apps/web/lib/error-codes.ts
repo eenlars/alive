@@ -138,8 +138,15 @@ export const ErrorCodes = {
 
   // Automation errors (12xxx)
   AUTOMATION_JOB_NOT_FOUND: "AUTOMATION_JOB_NOT_FOUND",
+  AUTOMATION_RUN_NOT_FOUND: "AUTOMATION_RUN_NOT_FOUND",
   AUTOMATION_JOB_DISABLED: "AUTOMATION_JOB_DISABLED",
   AUTOMATION_ALREADY_RUNNING: "AUTOMATION_ALREADY_RUNNING",
+
+  // Scheduled job errors (13xxx)
+  SCHEDULED_JOB_NOT_FOUND: "SCHEDULED_JOB_NOT_FOUND",
+
+  // Shell/terminal errors (14xxx)
+  SHELL_SERVER_UNAVAILABLE: "SHELL_SERVER_UNAVAILABLE",
 
   // General errors
   INTERNAL_ERROR: "INTERNAL_ERROR",
@@ -545,6 +552,15 @@ export function getErrorMessage(code: ErrorCode, details?: Record<string, any>):
 
     case ErrorCodes.AUTOMATION_JOB_NOT_FOUND:
       return details?.jobId ? `Automation job '${details.jobId}' was not found.` : "Automation job not found."
+
+    case ErrorCodes.AUTOMATION_RUN_NOT_FOUND:
+      return details?.runId ? `Automation run '${details.runId}' was not found.` : "Automation run not found."
+
+    case ErrorCodes.SCHEDULED_JOB_NOT_FOUND:
+      return details?.jobId ? `Scheduled job '${details.jobId}' was not found.` : "Scheduled job not found."
+
+    case ErrorCodes.SHELL_SERVER_UNAVAILABLE:
+      return "The terminal server is temporarily unavailable. Please try again in a moment."
 
     case ErrorCodes.AUTOMATION_JOB_DISABLED:
       return "This automation job is disabled and cannot be triggered."

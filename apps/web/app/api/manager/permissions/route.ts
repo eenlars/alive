@@ -2,7 +2,6 @@ import { exec } from "node:child_process"
 import { promisify } from "node:util"
 import * as Sentry from "@sentry/nextjs"
 import type { NextRequest } from "next/server"
-import { createErrorResponse } from "@/features/auth/lib/auth"
 import {
   createBadRequestResponse,
   createSuccessResponse,
@@ -11,6 +10,7 @@ import {
   requireParam,
 } from "@/features/manager/lib/api-helpers"
 import { domainToSlug, getDomainSitePath, getDomainUser } from "@/features/manager/lib/domain-utils"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes, getErrorMessage } from "@/lib/error-codes"
 import { generateRequestId } from "@/lib/utils"
 
@@ -51,10 +51,13 @@ export async function GET(request: NextRequest) {
     console.error(`[${requestId}] Permission check failed for ${domain}:`, error)
     Sentry.captureException(error)
 
-    return createErrorResponse(ErrorCodes.PERMISSION_CHECK_FAILED, 500, {
-      requestId,
-      domain,
-      reason: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.PERMISSION_CHECK_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+        domain,
+        reason: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
@@ -87,10 +90,13 @@ export async function POST(request: NextRequest) {
     console.error(`[${requestId}] Permission fix failed for ${domain}:`, error)
     Sentry.captureException(error)
 
-    return createErrorResponse(ErrorCodes.PERMISSION_FIX_FAILED, 500, {
-      requestId,
-      domain,
-      reason: error instanceof Error ? error.message : "Unknown error",
+    return structuredErrorResponse(ErrorCodes.PERMISSION_FIX_FAILED, {
+      status: 500,
+      details: {
+        requestId,
+        domain,
+        reason: error instanceof Error ? error.message : "Unknown error",
+      },
     })
   }
 }
@@ -115,7 +121,8 @@ async function checkDomainPermissions(domain: string): Promise<PermissionCheckRe
   try {
     await execAsync(`test -d "${siteDir}"`)
     result.siteDirectoryExists = true
-  } catch {
+  } catch (_err) {
+    // Expected: site directory may not exist
     result.siteDirectoryExists = false
     result.error = getErrorMessage(ErrorCodes.SITE_DIRECTORY_NOT_FOUND, { domain })
     return result
@@ -170,7 +177,8 @@ async function fixDomainPermissions(domain: string): Promise<void> {
   // Check if site directory exists FIRST (before revealing user existence)
   try {
     await execAsync(`test -d "${siteDir}"`)
-  } catch {
+  } catch (_err) {
+    // Expected: site directory may not exist
     const errorMsg = getErrorMessage(ErrorCodes.SITE_DIRECTORY_NOT_FOUND, { domain })
     throw new Error(errorMsg)
   }
@@ -178,7 +186,8 @@ async function fixDomainPermissions(domain: string): Promise<void> {
   // Check if user exists
   try {
     await execAsync(`id "${expectedOwner}" >/dev/null 2>&1`)
-  } catch {
+  } catch (_err) {
+    // Expected: site user may not exist
     const errorMsg = getErrorMessage(ErrorCodes.SITE_USER_NOT_FOUND, { user: expectedOwner })
     throw new Error(errorMsg)
   }

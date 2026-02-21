@@ -1,7 +1,8 @@
 // apps/web/app/api/referrals/history/route.ts
 
 import { type NextRequest, NextResponse } from "next/server"
-import { createErrorResponse, getSessionUser } from "@/features/auth/lib/auth"
+import { getSessionUser } from "@/features/auth/lib/auth"
+import { structuredErrorResponse } from "@/lib/api/responses"
 import { ErrorCodes } from "@/lib/error-codes"
 import { createIamClient } from "@/lib/supabase/iam"
 
@@ -11,7 +12,7 @@ const MAX_LIMIT = 100
 export async function GET(request: NextRequest) {
   const user = await getSessionUser()
   if (!user) {
-    return createErrorResponse(ErrorCodes.UNAUTHORIZED, 401)
+    return structuredErrorResponse(ErrorCodes.UNAUTHORIZED, { status: 401 })
   }
   const userId = user.id
 
