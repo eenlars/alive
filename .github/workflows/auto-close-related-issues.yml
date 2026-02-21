@@ -1,0 +1,132 @@
+name: Auto Close Related Issues
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [main, dev, staging]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  close-related-issues:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close related issues from merged PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumbers = new Set();
+
+            const relationKeywordRegex =
+              /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|related(?:\s+to)?|relates(?:\s+to)?|refs?|addresses)\b/i;
+
+            const addIssueRef = (issueOwner, issueRepo, issueNumberRaw) => {
+              if (!issueOwner || !issueRepo || !issueNumberRaw) return;
+              if (
+                issueOwner.toLowerCase() !== owner.toLowerCase() ||
+                issueRepo.toLowerCase() !== repo.toLowerCase()
+              ) {
+                return;
+              }
+              const parsed = Number.parseInt(issueNumberRaw, 10);
+              if (Number.isInteger(parsed) && parsed > 0) {
+                issueNumbers.add(parsed);
+              }
+            };
+
+            const sourceText = `${pr.title ?? ""}\n${pr.body ?? ""}`;
+            for (const line of sourceText.split(/\r?\n/)) {
+              if (!relationKeywordRegex.test(line)) continue;
+
+              for (const match of line.matchAll(
+                /https?:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/issues\/(\d+)\b/gi
+              )) {
+                addIssueRef(match[1], match[2], match[3]);
+              }
+
+              for (const match of line.matchAll(/\b([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)#(\d+)\b/g)) {
+                addIssueRef(match[1], match[2], match[3]);
+              }
+
+              for (const match of line.matchAll(/(?:^|[^\w])#(\d+)\b/g)) {
+                addIssueRef(owner, repo, match[1]);
+              }
+            }
+
+            // Also include native GitHub closing references (if any) for safety.
+            const gql = await github.graphql(
+              `
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    closingIssuesReferences(first: 100) {
+                      nodes {
+                        number
+                        repository {
+                          nameWithOwner
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              `,
+              { owner, repo, number: pr.number }
+            );
+
+            const closingRefs =
+              gql?.repository?.pullRequest?.closingIssuesReferences?.nodes ?? [];
+            for (const node of closingRefs) {
+              if (
+                node?.repository?.nameWithOwner?.toLowerCase() ===
+                `${owner}/${repo}`.toLowerCase()
+              ) {
+                issueNumbers.add(node.number);
+              }
+            }
+
+            if (issueNumbers.size === 0) {
+              core.info("No related issue references found in merged PR.");
+              return;
+            }
+
+            for (const issueNumber of [...issueNumbers].sort((a, b) => a - b)) {
+              const { data: issue } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber,
+              });
+
+              if (issue.pull_request) {
+                core.info(`Skipping #${issueNumber}: reference points to a pull request.`);
+                continue;
+              }
+
+              if (issue.state === "closed") {
+                core.info(`Skipping #${issueNumber}: already closed.`);
+                continue;
+              }
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body: `Auto-closing as related to merged PR #${pr.number} (${pr.html_url}).`,
+              });
+
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                state: "closed",
+              });
+
+              core.info(`Closed issue #${issueNumber}`);
+            }
