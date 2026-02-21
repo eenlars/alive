@@ -38,23 +38,49 @@ export interface GoogleTokenResponse extends OAuthTokens {
 export class GoogleProvider implements OAuthProviderCore, OAuthRefreshable, OAuthRevocable {
   name = "google"
 
+  // ---------------------------------------------------------------------------
+  // Individual scope URIs (source of truth for contract tests)
+  // ---------------------------------------------------------------------------
+
+  static readonly SCOPES = {
+    GMAIL_MODIFY: "https://www.googleapis.com/auth/gmail.modify",
+    GMAIL_READONLY: "https://www.googleapis.com/auth/gmail.readonly",
+    CALENDAR_EVENTS: "https://www.googleapis.com/auth/calendar.events",
+    CALENDAR_LIST_READONLY: "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+    USERINFO_PROFILE: "https://www.googleapis.com/auth/userinfo.profile",
+    USERINFO_EMAIL: "https://www.googleapis.com/auth/userinfo.email",
+  } as const
+
+  // ---------------------------------------------------------------------------
+  // Capability-level scope profiles
+  // ---------------------------------------------------------------------------
+
   /**
-   * Default scopes for Gmail access (read/write/send, no delete)
-   * Use getAuthUrl with custom scope for different access levels
+   * Gmail modify-level scopes: read, write, send, label — but NOT delete.
+   * Previously named GMAIL_FULL_SCOPES; renamed to reflect actual access.
    */
-  static readonly GMAIL_FULL_SCOPES = [
-    "https://www.googleapis.com/auth/gmail.modify", // Read/write/send (no delete)
-    "https://www.googleapis.com/auth/userinfo.profile", // Basic profile
-    "https://www.googleapis.com/auth/userinfo.email", // Email address
+  static readonly GMAIL_MODIFY_SCOPES = [
+    GoogleProvider.SCOPES.GMAIL_MODIFY,
+    GoogleProvider.SCOPES.USERINFO_PROFILE,
+    GoogleProvider.SCOPES.USERINFO_EMAIL,
   ].join(" ")
 
   /**
    * Read-only Gmail scopes (safer for initial testing)
    */
   static readonly GMAIL_READONLY_SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/userinfo.profile",
-    "https://www.googleapis.com/auth/userinfo.email",
+    GoogleProvider.SCOPES.GMAIL_READONLY,
+    GoogleProvider.SCOPES.USERINFO_PROFILE,
+    GoogleProvider.SCOPES.USERINFO_EMAIL,
+  ].join(" ")
+
+  /**
+   * Calendar scopes: view/edit events + list calendars.
+   */
+  static readonly CALENDAR_SCOPES = [
+    GoogleProvider.SCOPES.CALENDAR_EVENTS,
+    GoogleProvider.SCOPES.CALENDAR_LIST_READONLY,
+    GoogleProvider.SCOPES.USERINFO_EMAIL,
   ].join(" ")
 
   /**
@@ -224,7 +250,7 @@ export class GoogleProvider implements OAuthProviderCore, OAuthRefreshable, OAut
    *
    * @param clientId - Google OAuth Client ID (from Cloud Console)
    * @param redirectUri - Callback URL (must match Cloud Console config)
-   * @param scope - Space-separated scopes (use GMAIL_FULL_SCOPES for email)
+   * @param scope - Space-separated scopes (use GMAIL_MODIFY_SCOPES for email)
    * @param state - Random state for CSRF protection
    * @param pkce - PKCE challenge for public clients (optional)
    * @param options - Google-specific options
@@ -236,7 +262,7 @@ export class GoogleProvider implements OAuthProviderCore, OAuthRefreshable, OAut
    * const url = provider.getAuthUrl(
    *   clientId,
    *   'https://example.com/callback',
-   *   GoogleProvider.GMAIL_FULL_SCOPES,
+   *   GoogleProvider.GMAIL_MODIFY_SCOPES,
    *   crypto.randomUUID(),
    *   pkce,
    *   { forceConsent: true }
