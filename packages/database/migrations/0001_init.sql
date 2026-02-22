@@ -117,16 +117,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION iam.is_org_member(p_org_id text) RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'iam' AS $$
-    SELECT EXISTS (SELECT 1 FROM iam.org_memberships m WHERE m.org_id = p_org_id AND m.user_id = public.sub())
-$$;
-
-CREATE OR REPLACE FUNCTION iam.is_org_admin(p_org_id text) RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'iam' AS $$
-    SELECT EXISTS (SELECT 1 FROM iam.org_memberships m WHERE m.org_id = p_org_id AND m.user_id = public.sub() AND m.role IN ('owner', 'admin'))
-$$;
-
 CREATE OR REPLACE FUNCTION iam.deduct_credits(p_org_id text, p_amount numeric) RETURNS numeric
 LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE v_new_balance NUMERIC;
@@ -239,6 +229,18 @@ CREATE TABLE iam.org_memberships (
     created_at timestamptz DEFAULT now(),
     PRIMARY KEY (org_id, user_id)
 );
+
+-- These functions use LANGUAGE sql (validated at creation time), so they must
+-- be defined after iam.org_memberships exists.
+CREATE OR REPLACE FUNCTION iam.is_org_member(p_org_id text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'iam' AS $$
+    SELECT EXISTS (SELECT 1 FROM iam.org_memberships m WHERE m.org_id = p_org_id AND m.user_id = public.sub())
+$$;
+
+CREATE OR REPLACE FUNCTION iam.is_org_admin(p_org_id text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'iam' AS $$
+    SELECT EXISTS (SELECT 1 FROM iam.org_memberships m WHERE m.org_id = p_org_id AND m.user_id = public.sub() AND m.role IN ('owner', 'admin'))
+$$;
 
 CREATE TABLE iam.sessions (
     session_id uuid DEFAULT gen_random_uuid() PRIMARY KEY NOT NULL,
