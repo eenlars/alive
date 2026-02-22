@@ -1,5 +1,5 @@
 ---
-name: Typed API (alrighty)
+name: alrighty
 description: Migrate API routes to use handleBody/alrighty typed API pattern. Type-safe request parsing and response validation.
 ---
 

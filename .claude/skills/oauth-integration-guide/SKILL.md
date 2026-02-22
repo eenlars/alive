@@ -1,5 +1,5 @@
 ---
-name: OAuth MCP Integration Guide
+name: oauth-integration-guide
 description: Step-by-step guide to add a new OAuth MCP integration (like Linear, Stripe, Supabase).
 ---
 

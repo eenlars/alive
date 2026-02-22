@@ -1,6 +1,6 @@
 ---
 name: finish-pr
-description: Finish a PR safely: sync branch, run required checks, handle CodeRabbit comments, and push without leaking secrets.
+description: "Finish a PR safely: sync branch, run required checks, handle CodeRabbit comments, and push without leaking secrets."
 ---
 
 # Finish PR (Safe + Repeatable)

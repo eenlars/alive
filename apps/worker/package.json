@@ -8,6 +8,7 @@
     "start": "bun src/index.ts",
     "dev": "bun --watch src/index.ts",
     "build": "tsc",
+    "test": "vitest run",
     "type-check": "tsgo --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
@@ -15,6 +16,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",
+    "@sentry/node": "^10.39.0",
     "@supabase/supabase-js": "^2.49.8",
     "@webalive/database": "workspace:*",
     "@webalive/shared": "workspace:*",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.3.14",
     "@types/node": "24.9.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^4.0.18"
   }
 }

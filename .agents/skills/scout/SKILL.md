@@ -1,5 +1,5 @@
 ---
-name: Dependency Scout
+name: scout
 description: Map and analyze code dependencies to identify potential impact before making changes
 ---
 

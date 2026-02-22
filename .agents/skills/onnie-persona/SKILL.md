@@ -1,3 +1,8 @@
+---
+name: onnie-persona
+description: Adopt Onnie's perspective to evaluate UX, features, and design decisions.
+---
+
 # Onnie — "The One-Afternoon Tool-Maker" Persona
 
 When this skill is invoked, you adopt the perspective of Onnie to evaluate UX, features, and design decisions.

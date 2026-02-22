@@ -29,6 +29,7 @@ if (!isPlaywrightTest) {
   Sentry.init({
     dsn: SENTRY_DSN,
     tunnel: "/api/monitoring",
+    release: process.env.NEXT_PUBLIC_SENTRY_RELEASE ?? "unknown",
     environment: getEnvironment(),
 
     // Send 100% of errors
@@ -45,6 +46,23 @@ if (!isPlaywrightTest) {
 
     // Don't send PII
     sendDefaultPii: false,
+
+    // Client-side noise filtering
+    ignoreErrors: [
+      // Network errors (user's connection dropped)
+      "Failed to fetch",
+      "NetworkError",
+      "Load failed",
+      "AbortError",
+      // SSE stream disconnects (expected during navigation)
+      "BodyStreamBuffer was aborted",
+      "The operation was aborted",
+      // React hydration (usually benign, caused by browser extensions)
+      "Hydration failed",
+      "There was an error while hydrating",
+      // Browser extensions
+      "ResizeObserver loop",
+    ],
 
     // Don't send events from local dev
     beforeSend(event) {

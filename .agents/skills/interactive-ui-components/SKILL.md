@@ -1,5 +1,5 @@
 ---
-name: Interactive UI Components Guide
+name: interactive-ui-components
 description: Step-by-step guide to add a new interactive UI component for chat tools. Includes best practices from MCP Apps, form UX research, and real examples like WebsiteConfig.
 ---
 

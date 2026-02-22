@@ -1,10 +1,12 @@
 import * as Sentry from "@sentry/nextjs"
+import { serverBeforeSend } from "./lib/sentry/server-before-send"
 
 const SENTRY_DSN = "https://84e50be97b3c02134ee7c1e4d60cf8c9@sentry.sonno.tech/2"
 
 if (process.env.PLAYWRIGHT_TEST !== "true") {
   Sentry.init({
     dsn: SENTRY_DSN,
+    release: process.env.NEXT_PUBLIC_SENTRY_RELEASE ?? "unknown",
     environment: process.env.STREAM_ENV ?? process.env.NODE_ENV ?? "unknown",
     serverName: process.env.MAIN_DOMAIN ?? "unknown",
 
@@ -17,22 +19,6 @@ if (process.env.PLAYWRIGHT_TEST !== "true") {
     // Don't send PII
     sendDefaultPii: false,
 
-    // Don't send events from local dev
-    beforeSend(event) {
-      if (event.environment === "local") {
-        return null
-      }
-
-      // Strip cookies
-      if (event.request) {
-        delete event.request.cookies
-        // Strip auth headers
-        if (event.request.headers) {
-          delete event.request.headers.cookie
-          delete event.request.headers.authorization
-        }
-      }
-      return event
-    },
+    beforeSend: serverBeforeSend,
   })
 }

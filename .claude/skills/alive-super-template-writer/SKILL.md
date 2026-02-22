@@ -1,5 +1,5 @@
 ---
-name: Alive Super Template Writer
+name: alive-super-template-writer
 description: Write high-quality Alive Super Templates for features with 0-knowledge clarity and proper dependency management. Templates are self-contained, copy-paste-ready implementation guides.
 ---
 

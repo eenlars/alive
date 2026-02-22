@@ -1,5 +1,5 @@
 ---
-name: Clean Code
+name: clean
 description: Clean up the code and make it PR ready.
 ---
 

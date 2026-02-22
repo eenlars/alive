@@ -1,5 +1,5 @@
 ---
-name: Analytics
+name: analytics
 description: Query PostHog analytics for the Alive application. Pageviews, users, sessions, referrers, devices, countries, custom events, and trends.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: E2E Debugger
+name: e2e-debugger
 description: Strict feedback loop for debugging E2E test failures. Never guess - always verify via direct observation.
 ---
 

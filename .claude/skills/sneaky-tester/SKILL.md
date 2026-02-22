@@ -1,5 +1,5 @@
 ---
-name: Sneaky Tester
+name: sneaky-tester
 description: Write ruthlessly strict tests that break code and test behavior, not implementation. No timing assertions, no flaky tests.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: Mailcow
+name: mailcow
 description: Check and manage Mailcow email — read inboxes, search emails, check delivery logs, manage greylisting.
 ---
 

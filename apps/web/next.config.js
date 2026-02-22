@@ -40,6 +40,15 @@ function writeBuildInfo() {
 
 writeBuildInfo()
 
+// Read build commit for Sentry release tracking
+let sentryRelease = "unknown"
+try {
+  const buildInfoPath = path.join(configDir, "lib", "build-info.json")
+  sentryRelease = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8")).commit ?? "unknown"
+} catch {
+  // dev mode or build-info not yet written — falls back to "unknown"
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Separate distDir for test server to avoid conflicts with dev server
@@ -65,6 +74,9 @@ const nextConfig = {
   // Skip type checking during build (run separately with tsc)
   typescript: {
     ignoreBuildErrors: process.env.SKIP_TYPE_CHECK === "true",
+  },
+  env: {
+    NEXT_PUBLIC_SENTRY_RELEASE: sentryRelease,
   },
   experimental: {
     serverActions: { bodySizeLimit: "2mb" },

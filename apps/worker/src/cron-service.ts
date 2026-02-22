@@ -12,6 +12,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { AppDatabase } from "@webalive/database"
 import { AutomationTriggerResponseSchema } from "@webalive/shared"
+import { Sentry } from "./sentry"
 
 type AppClient = SupabaseClient<AppDatabase, "app">
 
@@ -319,6 +320,12 @@ async function triggerViaWeb(jobId: string): Promise<{ success: boolean; error?:
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error(`[CronService] Trigger request failed for ${jobId}:`, msg)
+    Sentry.withScope(scope => {
+      scope.setTag("jobId", jobId)
+      scope.setFingerprint(["cron-trigger-failure"])
+      scope.setLevel("error")
+      Sentry.captureException(err)
+    })
     return { success: false, error: msg }
   } finally {
     state?.triggeredJobs.delete(jobId)

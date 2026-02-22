@@ -1,5 +1,5 @@
 ---
-name: Automations
+name: automations
 description: Manage automation jobs — list, inspect, update, trigger, and debug. Query Supabase app.automation_jobs table.
 ---
 
